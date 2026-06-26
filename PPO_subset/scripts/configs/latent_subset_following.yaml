@@ -1,0 +1,113 @@
+# Latent-space subset simulation with fixed-horizon closed-loop scoring
+
+paths:
+  natural_dataset_dir: "../../../results/diffusion_natural/following"
+  diffusion_checkpoint: "../../../results/diffusion_natural/following/checkpoints/best_noise_mse_train_val_test.pt"
+  tail_context_path: "../../../results/highd_following_tail/contexts/tail_contexts.npz"
+  condition_distribution_path: "../../../results/highd_following_tail/contexts/scenario_condition_distribution.npz"
+  evt_model_path: "../../../results/highd_following_tail/evt/longitudinal_peak_evt_model.json"
+  exposure_summary_path: "../../../results/highd_following_tail/exposure/highd_exposure_summary.json"
+  idm_ego_config_path: "../../../tools/idm_ego.yaml"
+
+event:
+  event_type: "following"
+
+env:
+  episode_steps: 125
+  lanes_count: 1
+  speed_limit: 50.0
+  ego_target_speed: 40.0
+  initial_gap_min: 0.1
+
+dynamics:
+  model: "kinematic_bicycle"
+  wheelbase: 5.0
+  speed_min: 0.0
+  speed_max: 50.0
+
+ppo_policy:
+  name: "PPO"
+  backend: "stable_baselines3"
+  policy_type: "ppo"
+  checkpoint_path: "PPO_subset/weights/ppo/model.zip"
+  deterministic: true
+
+closed_loop_risk:
+  collision_bonus: 5.0
+  near_collision_weight: 1.0
+  hard_brake_weight: 1.0
+  hard_brake_threshold: -4.0
+  lead_physics_weight: 0.2
+  near_collision_gap: 2.0
+
+evt:
+  target_mode: "collision_critical_level"
+  score_space: "evt"
+
+physics:
+  ax_min: -8.0
+  ax_max: 4.0
+  jerk_abs_max: 12.0
+
+closed_loop_risk_scoring:
+  ttc_weight: 2.0
+  thw_weight: 1.0
+  drac_weight: 2.0
+  gap_weight: 1.0
+
+  ttc_scale: 1.0
+  thw_scale: 1.0
+  drac_scale: 5.0
+  gap_scale: 1.0
+
+  ttc_eps: 0.2
+  thw_eps: 0.2
+  gap_eps: 0.5
+  pool_beta: 8.0
+
+sampling:
+  target_fps: 25
+  eval_diffusion_steps: 50
+
+context_sampling:
+  seed: 42
+
+subset_simulation:
+  num_samples: 1000
+  p0: 0.2
+  max_levels: 8
+  adaptive_stop_enabled: false
+  adaptive_stop_min_failure_count: 50
+  adaptive_stop_min_levels: 2
+  proposal_std: 0.12
+  context_refresh_prob: 0.70
+  mh_retries_per_sample: 6
+  reliability_min_unique_contexts: 100
+  reliability_min_unique_state_fraction: 0.50
+  reliability_max_largest_context_share: 0.20
+  reliability_max_largest_state_share: 0.05
+  reliability_min_acceptance_rate: 0.05
+  output_dir: "../../../PPO_subset/results/following"
+
+monte_carlo:
+  num_samples: 10000
+  seed: 42
+  output_dir: "../../../PPO_subset/results/monte_carlo_following"
+
+parallel:
+  population_num_workers: 4
+  population_max_workers: 8
+  population_chunksize: 4
+  population_batch_size: 64
+  worker_torch_num_threads: 1
+
+mileage_return_period:
+  enabled: true
+  require_tail_threshold_match: true
+  require_subset_reliability_pass: true
+  require_independent_peak_contexts: true
+  tail_threshold_abs_tol: 1.0e-6
+
+training:
+  seed: 42
+  device: "cpu"

@@ -1,0 +1,41 @@
+{
+  "ads": "SAIRL",
+  "event_type": "cut_in",
+  "failure_event": "Y_cutin_sim > x_c (4.68589)",
+  "fairness_checks": {
+    "same_evt_threshold_as_idm": true,
+    "same_p0_as_idm": true,
+    "same_subset_num_samples_as_idm": true
+  },
+  "global_exposure": {
+    "ads_to_highd_intensity_ratio": 0.9500501272232923,
+    "intensity_per_all_vehicle_km": 0.00031668337574109715,
+    "return_period_all_vehicle_km": 3157.7281177447876,
+    "strict": true
+  },
+  "monte_carlo": {
+    "ci95": [
+      0.033514701676169656,
+      0.038685298323830344
+    ],
+    "closed_loop_evaluations": 20000,
+    "probability": 0.0361,
+    "standard_error": 0.0013190297570562994
+  },
+  "source_files": {
+    "monte_carlo_summary": "SAIRL_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json",
+    "subset_summary": "SAIRL_subset/results/cutin/latent_subset_summary.json"
+  },
+  "subset": {
+    "ci95": [
+      0.032337928316870095,
+      0.0382620716831299
+    ],
+    "closed_loop_evaluations": 3388,
+    "num_levels": 2,
+    "probability": 0.0353,
+    "reliability": "pass",
+    "standard_error": 0.0015112610628213777,
+    "stop_reason": "subset_threshold_reached_failure_threshold"
+  }
+}

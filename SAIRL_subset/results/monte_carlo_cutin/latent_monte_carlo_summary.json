@@ -1,0 +1,79 @@
+{
+  "estimator": "independent_monte_carlo",
+  "event_type": "cut_in",
+  "input_paths": {
+    "natural_dataset_dir": "/home/hp/TREAD/results/diffusion_natural/cutin",
+    "diffusion_checkpoint": "/home/hp/TREAD/results/diffusion_natural/cutin/checkpoints/best_noise_mse_train_val_test.pt",
+    "tail_context_path": "/home/hp/TREAD/results/highd_cutin_tail/contexts/tail_contexts.npz",
+    "condition_distribution_path": "/home/hp/TREAD/results/highd_cutin_tail/contexts/scenario_condition_distribution.npz",
+    "evt_model_path": "/home/hp/TREAD/results/highd_cutin_tail/evt/cutin_peak_evt_model.json",
+    "exposure_summary_path": "/home/hp/TREAD/results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json",
+    "idm_ego_config_path": "/home/hp/TREAD/tools/idm_ego.yaml"
+  },
+  "input_space": {
+    "scenario_condition_dimension": 10,
+    "diffusion_noise_shape": [
+      100,
+      2
+    ],
+    "diffusion_noise_dimension": 200,
+    "joint_condition_noise_dimension": 210
+  },
+  "simulation_counts": {
+    "closed_loop_evaluations": 20000,
+    "stored_samples": 20000,
+    "unique_context_indices": 20000
+  },
+  "probability_target": "P_context,z(Y_cutin_sim > x_c | o sampled from highD tail scenario-condition distribution)",
+  "probability": 0.0361,
+  "probability_standard_error": 0.0013190297570562994,
+  "probability_ci95_lower": 0.033514701676169656,
+  "probability_ci95_upper": 0.038685298323830344,
+  "failure_event": "Y_cutin_sim > x_c (4.68589)",
+  "score_space": "evt",
+  "evt_target_mode": "collision_critical_level",
+  "evt_return_period": 100.0,
+  "evt_return_level_target": 4.685892249590697,
+  "evt_return_level_target_source": "exposure_summary",
+  "evt_exposure_summary_path": "/home/hp/TREAD/results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json",
+  "evt_failure_threshold": 5.573939479308249,
+  "evt_model_u": 2.2216177764090044,
+  "evt_model_xi": 0.08611872679293595,
+  "evt_model_beta": 0.6473188259735958,
+  "evt_model_exceedance_rate": 0.10215053763440861,
+  "failure_threshold": 5.573939479308249,
+  "num_samples": 20000,
+  "seed": 42,
+  "context_sampling_mode": "process_highd_tail_distribution",
+  "latent_shape": [
+    100,
+    2
+  ],
+  "latent_dimension": 200,
+  "scenario_condition_dimension": 10,
+  "joint_condition_noise_dimension": 210,
+  "episode_steps": 100,
+  "figures": {},
+  "stats": {
+    "num_samples": 20000.0,
+    "probability": 0.0361,
+    "probability_standard_error": 0.0013190297570562994,
+    "probability_ci95_lower": 0.033514701676169656,
+    "probability_ci95_upper": 0.038685298323830344,
+    "failure_count": 722.0,
+    "failure_fraction": 0.0361,
+    "score_min": -0.0,
+    "score_mean": 0.8032019143848089,
+    "score_std": 1.7222821982448064,
+    "score_p50": -0.0,
+    "score_p90": 3.431896228898454,
+    "score_p95": 5.0523092988845795,
+    "score_p99": 6.8564205124189455,
+    "score_max": 27.631021115928547,
+    "collision_rate": 0.0007,
+    "near_collision_rate": 0.0558,
+    "semantic_cutin_rate": 0.2656,
+    "front_cutin_rate": 0.9997,
+    "physical_feasible_rate": 1.0
+  }
+}

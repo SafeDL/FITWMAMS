@@ -1,0 +1,59 @@
+{
+  "event_type": "following",
+  "conditioning_mode": "anchor_scenario",
+  "model_input_keys": [
+    "scenario_conditions"
+  ],
+  "condition_keys": [
+    "ego_vx_0",
+    "initial_gap",
+    "initial_delta_v",
+    "lead_ax_0",
+    "lead_speed_change",
+    "lead_min_ax",
+    "lead_braking_duration"
+  ],
+  "trajectory_initial_state_features": [
+    "x",
+    "y",
+    "vx",
+    "vy",
+    "ax",
+    "ay"
+  ],
+  "initial_state_num_actors": 2,
+  "future_state_features": [
+    "x",
+    "y",
+    "vx",
+    "vy",
+    "ax",
+    "ay"
+  ],
+  "future_state_frame": "anchor_ego_local",
+  "action_representation": "jerk",
+  "action_keys": [
+    "jx"
+  ],
+  "generation_target": "action",
+  "following_segment_cache_path": "/home/hp/TREAD/results/highd_events/following_event_segments.npz",
+  "following_segment_cache_used": true,
+  "cutin_anchor_sampling": "",
+  "cutin_min_post_cross_steps": 0,
+  "cutin_min_post_cross_seconds": 0.0,
+  "cutin_require_completion_in_window": false,
+  "split_mode": "train_val_test",
+  "split_strategy": "recording",
+  "horizon_steps": 125,
+  "dt": 0.04,
+  "skipped_windows": 1,
+  "skipped_invalid_windows": 0,
+  "skipped_insufficient_future": 0,
+  "skipped_invalid_gap": 1,
+  "num_samples": 729173,
+  "split_counts": {
+    "train": 572945,
+    "val": 94754,
+    "test": 61474
+  }
+}

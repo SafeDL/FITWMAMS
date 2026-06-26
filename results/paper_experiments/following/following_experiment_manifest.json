@@ -1,0 +1,77 @@
+{
+  "experiment_scope": "following",
+  "created_by": "results/build_following_paper_experiments.py",
+  "created_at_utc": "2026-06-24T14:46:19.742831+00:00",
+  "no_training_or_rerun_statement": "Only existing JSON/CSV/NPZ/PNG results were read; no training, EVT fitting, or subset simulation was rerun.",
+  "source_files": {
+    "subset_samples": "IDM_subset/results/following/latent_subset_samples.npz",
+    "evt_model": "results/highd_following_tail/evt/longitudinal_peak_evt_model.json",
+    "exposure_summary": "results/highd_following_tail/exposure/highd_exposure_summary.json",
+    "tail_condition_distribution": "results/highd_following_tail/contexts/scenario_condition_distribution.npz",
+    "tail_contexts": "results/highd_following_tail/contexts/tail_contexts.npz",
+    "tail_generated_scenarios": "results/highd_following_tail/generated/diffusion_generated_scenarios.npz",
+    "following_segment_cache": "results/highd_events/following_event_segments.npz"
+  },
+  "missing_source_files": {},
+  "experiments": {
+    "following_gpd_diagnostic_panel": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/following/following_gpd_diagnostic_panel.png"
+      ],
+      "source_artifacts": [
+        "results/highd_following_tail/evt/longitudinal_peak_evt_model.json"
+      ],
+      "skipped_reason": null,
+      "notes": "The display range is truncated at Y_long = 10 for readability."
+    },
+    "following_safety_threshold_inverse_calibration": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/following/following_safety_threshold_inverse_calibration.png"
+      ],
+      "source_artifacts": [
+        "results/highd_following_tail/evt/longitudinal_peak_evt_model.json",
+        "results/highd_following_tail/exposure/highd_exposure_summary.json"
+      ],
+      "skipped_reason": null,
+      "notes": "The selected car-following safety threshold is the 300 km all-vehicle return level."
+    },
+    "following_tail_diffusion_generalization_panel": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/following/following_tail_diffusion_generalization_panel.png"
+      ],
+      "source_artifacts": [
+        "results/highd_following_tail/contexts/scenario_condition_distribution.npz",
+        "results/highd_following_tail/contexts/tail_contexts.npz",
+        "results/highd_following_tail/generated/diffusion_generated_scenarios.npz",
+        "results/highd_events/following_event_segments.npz"
+      ],
+      "skipped_reason": null,
+      "notes": "tail diffusion generalization panel is rebuilt from existing following EVT-tail contexts, generated lead trajectories, and the same lead-braking-duration condition used by process_highD"
+    },
+    "following_tail_diffusion_acceleration_profiles": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/following/following_tail_diffusion_acceleration_profiles.png"
+      ],
+      "source_artifacts": [
+        "results/highd_following_tail/generated/diffusion_generated_scenarios.npz"
+      ],
+      "skipped_reason": null,
+      "notes": "single-panel summary of diffusion-generated following long-tail lead-vehicle longitudinal acceleration profiles"
+    },
+    "following_subset_level_score_histograms": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/following/following_subset_level_score_histograms.png"
+      ],
+      "source_artifacts": [
+        "IDM_subset/results/following/latent_subset_samples.npz"
+      ],
+      "skipped_reason": null,
+      "notes": "level-wise risk-score histograms are built from stored following subset samples"
+    }
+  }
+}

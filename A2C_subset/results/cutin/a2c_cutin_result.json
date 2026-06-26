@@ -1,0 +1,48 @@
+{
+  "ads": "A2C",
+  "event_type": "cut_in",
+  "failure_event": "Y_cutin_sim > x_c (4.68589)",
+  "fairness_checks": {
+    "same_evt_threshold_as_idm": true,
+    "same_p0_as_idm": true,
+    "same_subset_num_samples_as_idm": true
+  },
+  "global_exposure": {
+    "ads_to_highd_intensity_ratio": 0.7993339597317786,
+    "intensity_per_all_vehicle_km": 0.000266444653243926,
+    "return_period_all_vehicle_km": 3753.1246651983492,
+    "strict": true
+  },
+  "monte_carlo": {
+    "ci95": [
+      0.02980157095365212,
+      0.03469842904634788
+    ],
+    "closed_loop_evaluations": 20000,
+    "probability": 0.03225,
+    "standard_error": 0.0012491984930346337
+  },
+  "policy": {
+    "backend": "stable_baselines3",
+    "checkpoint_path": "A2C_subset/weights/a2c/model.zip",
+    "deterministic": true,
+    "policy_name": "A2C",
+    "policy_type": "a2c"
+  },
+  "source_files": {
+    "monte_carlo_summary": "A2C_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json",
+    "subset_summary": "A2C_subset/results/cutin/latent_subset_summary.json"
+  },
+  "subset": {
+    "ci95": [
+      0.0268678779941535,
+      0.0325321220058465
+    ],
+    "closed_loop_evaluations": 3267,
+    "num_levels": 2,
+    "probability": 0.0297,
+    "reliability": "pass",
+    "standard_error": 0.0014449602070645406,
+    "stop_reason": "subset_threshold_reached_failure_threshold"
+  }
+}

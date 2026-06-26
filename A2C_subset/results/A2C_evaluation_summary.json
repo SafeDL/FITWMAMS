@@ -1,0 +1,59 @@
+{
+  "ads": "A2C",
+  "scenarios": {
+    "cutin": {
+      "monte_carlo": {
+        "ci95": [
+          0.02980157095365212,
+          0.03469842904634788
+        ],
+        "closed_loop_evaluations": 20000,
+        "num_samples": 20000,
+        "probability": 0.03225
+      },
+      "selection": {
+        "absolute_probability_gap": 0.00255,
+        "accepted": true,
+        "closed_loop_evaluation_speedup_vs_mc": 6.1218243036424855,
+        "stop_reason": "subset_ci_contains_mc_estimate"
+      },
+      "subset": {
+        "ci95": [
+          0.0268678779941535,
+          0.0325321220058465
+        ],
+        "closed_loop_evaluations": 3267,
+        "num_samples": 1000,
+        "probability": 0.0297,
+        "reliability": "pass"
+      }
+    },
+    "following": {
+      "monte_carlo": {
+        "ci95": [
+          0.17541679286404513,
+          0.18608320713595486
+        ],
+        "closed_loop_evaluations": 20000,
+        "num_samples": 20000,
+        "probability": 0.18075
+      },
+      "selection": {
+        "absolute_probability_gap": 0.0017499999999999738,
+        "accepted": true,
+        "closed_loop_evaluation_speedup_vs_mc": 5.878894767783657,
+        "stop_reason": "mc_ci_contains_subset_estimate"
+      },
+      "subset": {
+        "ci95": [
+          0.17519992442180424,
+          0.1828000755781958
+        ],
+        "closed_loop_evaluations": 3402,
+        "num_samples": 1000,
+        "probability": 0.17900000000000002,
+        "reliability": "pass"
+      }
+    }
+  }
+}

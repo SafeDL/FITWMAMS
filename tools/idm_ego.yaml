@@ -1,0 +1,32 @@
+# Shared highway-env IDM ego policy for generated-scenario playback.
+# Used by:
+# - process_highD/scripts/play_cutin_tail_events.py
+# - process_highD/scripts/play_following_tail_events.py
+# - IDM_subset/scripts/play_final_level_cutin.py
+# - IDM_subset/scripts/play_final_level_following.py
+
+base:
+  target_speed: 40.0
+  speed_limit: 50.0
+  enable_lane_change: false
+  keep_lateral_heading: true
+  seed: 42
+
+  # Local HighwayEnv IDMVehicle defaults, written explicitly so playback
+  # scripts do not silently drift if call sites are edited.
+  ACC_MAX: 6.0
+  COMFORT_ACC_MAX: 3.0
+  COMFORT_ACC_MIN: -5.0
+  DISTANCE_WANTED: 10.0
+  TIME_WANTED: 1.5
+  DELTA: 4.0
+  POLITENESS: 0.0
+  LANE_CHANGE_MIN_ACC_GAIN: 0.2
+  LANE_CHANGE_MAX_BRAKING_IMPOSED: 2.0
+  LANE_CHANGE_DELAY: 1.0
+
+scenario_overrides:
+  following:
+    lanes_count: 3
+  cut_in:
+    lanes_count: 3

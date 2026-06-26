@@ -1,0 +1,42 @@
+{
+  "checkpoint": "/home/hp/TREAD/results/diffusion_natural/following/checkpoints/best_noise_mse_train_val_test.pt",
+  "final_checkpoint": "/home/hp/TREAD/results/diffusion_natural/following/checkpoints/final_train_val_test.pt",
+  "split_mode": "train_val_test",
+  "validation_enabled": true,
+  "monitor_split": "val",
+  "best_epoch": 226,
+  "best_val_loss": 0.2698806839718247,
+  "best_val_noise_mse": 0.22216687217336847,
+  "best_monitor_loss": 0.27065821665795803,
+  "best_monitor_noise_mse": 0.22216687217336847,
+  "final_metrics": {
+    "epoch": 250,
+    "train_loss": 0.2959460863967082,
+    "fixed_eval_loss": 0.3711843267083168,
+    "train_noise_mse": 0.24666563164623564,
+    "fixed_eval_noise_mse": 0.2636798238071151,
+    "train_x0_l1": 0.42011893196138167,
+    "fixed_eval_x0_l1": 0.9193063727580011,
+    "train_smooth": 0.7268561520475066,
+    "fixed_eval_smooth": 1.557386788725853,
+    "val_loss": 0.2734795111613907,
+    "val_noise_mse": 0.22270037173220897,
+    "val_x0_l1": 0.43212243878496936,
+    "val_smooth": 0.7566894947882403
+  },
+  "epochs": 250,
+  "lr_schedule": "cosine",
+  "min_lr": 5e-05,
+  "fixed_eval_timesteps": [
+    0,
+    25,
+    50,
+    75,
+    99
+  ],
+  "fixed_eval_seed": 12345,
+  "fixed_eval_split": "val",
+  "fixed_eval_max_samples": 512,
+  "tensorboard_dir": "/home/hp/TREAD/results/diffusion_natural/following/tensorboard",
+  "training_history": "/home/hp/TREAD/results/diffusion_natural/following/training_history.json"
+}

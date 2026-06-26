@@ -1,0 +1,529 @@
+{
+  "evt_model_path": "/home/hp/TREAD/results/highd_cutin_tail/evt/cutin_peak_evt_model.json",
+  "evt_summary_path": "/home/hp/TREAD/results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json",
+  "evt_tail_threshold_u": 2.2216177764090044,
+  "evt_tail_threshold_score": 2.2813076945467605,
+  "evt_exceedance_rate": 0.10215053763440861,
+  "collision_critical_level": 4.685892249590697,
+  "collision_critical_level_mode": "human_all_vehicle_km_return_level",
+  "human_calibrated_safety_threshold": {
+    "method": "highd_all_vehicle_km_return_level_pot_gpd",
+    "target_return_period_km": 3000.0,
+    "target_return_period_miles": 1864.1135767120018,
+    "target_intensity_per_km": 0.0003333333333333333,
+    "target_intensity_per_mile": 0.000536448,
+    "expected_tail_exceedances_at_target_km": 26.913601337770302,
+    "expected_tail_exceedances_at_target_mileage": 26.913601337770302,
+    "target_tail_conditional_probability": 0.03715593418546366,
+    "target_level": 4.685892249590697,
+    "tail_conditional_probability_at_target_level": 0.03715593418546363,
+    "probability_per_independent_peak_at_target_level": 0.0037954986533538094,
+    "highd_safety_critical_intensity_per_mile": 0.0005364479999999997,
+    "highd_safety_critical_return_period_miles": 1864.113576712003,
+    "highd_safety_critical_intensity_per_km": 0.0003333333333333331,
+    "highd_safety_critical_return_period_km": 3000.0000000000023,
+    "highd_safety_critical_intensity_per_hour": 0.03368075551924624,
+    "highd_safety_critical_return_period_hours": 29.69054537474875
+  },
+  "risk_value_key": "y_cutin",
+  "condition_distribution": "/home/hp/TREAD/results/highd_cutin_tail/contexts/scenario_condition_distribution.npz",
+  "tail_contexts": "/home/hp/TREAD/results/highd_cutin_tail/contexts/tail_contexts.npz",
+  "num_evt_tail_conditions": 399,
+  "num_initial_condition_samples": 5000,
+  "num_condition_samples": 7816,
+  "num_diffusion_scenarios": 5000,
+  "num_requested_diffusion_scenarios": 5000,
+  "condition_keys": [
+    "ego_vx_0",
+    "initial_gap",
+    "initial_lateral_offset",
+    "initial_delta_vx",
+    "target_ax_0",
+    "target_vy_0",
+    "target_ay_0",
+    "final_lateral_offset",
+    "time_to_cross",
+    "target_speed_change"
+  ],
+  "tail_feature_names": [
+    "ego_vx_0",
+    "log_initial_gap",
+    "initial_lateral_offset",
+    "initial_delta_vx",
+    "target_ax_0",
+    "target_vy_0",
+    "target_ay_0",
+    "final_lateral_offset",
+    "time_to_cross",
+    "target_speed_change"
+  ],
+  "dynamic_tail_feature_names": [
+    "ego_vx_0",
+    "log_initial_gap",
+    "initial_lateral_offset",
+    "initial_delta_vx",
+    "target_ax_0",
+    "target_vy_0",
+    "target_ay_0",
+    "final_lateral_offset",
+    "time_to_cross",
+    "target_speed_change"
+  ],
+  "constant_tail_feature_values": {},
+  "condition_distribution_model": "Gaussian copula fitted on EVT declustered independent cut-in tail scenario_conditions",
+  "model_condition_inputs": [
+    "scenario_conditions"
+  ],
+  "initial_states_role": "trajectory integration initial state, not denoiser input",
+  "diffusion_generation": {
+    "generated_scenarios": "/home/hp/TREAD/results/highd_cutin_tail/generated/diffusion_generated_scenarios.npz",
+    "num_generated_scenarios": 5000,
+    "num_requested_scenarios": 5000,
+    "diffusion_dataset_dir": "/home/hp/TREAD/results/diffusion_natural/cutin",
+    "diffusion_checkpoint_path": "checkpoints/best_noise_mse_train_val_test.pt",
+    "diffusion_inference_steps": 100,
+    "trained_diffusion_steps": 100,
+    "diffusion_batch_size": 256,
+    "diffusion_seed": 42,
+    "sampler": "ddim",
+    "ego_policy": "playback_highway_env_idm",
+    "ego_trajectory_output": false,
+    "x0_clip_abs": 2.5,
+    "guidance_scale": 0.5,
+    "rejection_enabled": true,
+    "rejection_enforce_acceptance": true,
+    "initial_condition_samples": 5000,
+    "condition_refill_enabled": true,
+    "condition_refill_rounds": 1,
+    "condition_refill_batch_size": 5000,
+    "condition_max_refill_rounds": 20,
+    "rejection_candidates_evaluated": 7816,
+    "generation_export_rate": 0.6397134083930399,
+    "rejection_acceptance_rate": 0.6397134083930399,
+    "candidate_semantic_cutin_rate": 0.6467502558853634,
+    "candidate_overlap_rate": 0.6899948822927329,
+    "candidate_starts_outside_ego_lane_rate": 0.9522773797338793,
+    "candidate_lateral_progress_rate": 0.7657369498464688,
+    "candidate_post_remain_rate": 0.673618219037871,
+    "candidate_marginal_failure_rates": {
+      "no_lane_entry": 0.31000511770726713,
+      "starts_inside_ego_lane": 0.04772262026612073,
+      "insufficient_lateral_progress": 0.23426305015353122,
+      "no_post_entry_retention": 0.326381780962129
+    },
+    "candidate_condition_adherence_mae": {
+      "final_lateral_offset": 1.095054490122223,
+      "target_speed_change": 0.0936685200258608
+    },
+    "output_semantic_cutin_rate": 1.0,
+    "output_rejection_accepted_rate": 1.0,
+    "output_condition_adherence_mae": {
+      "final_lateral_offset": 0.26802029822279,
+      "target_speed_change": 0.08439814478303306
+    },
+    "model_condition_inputs": [
+      "scenario_conditions"
+    ],
+    "initial_states_role": "trajectory integration initial state, not denoiser input"
+  },
+  "visualization": {
+    "figures": {
+      "cutin_manoeuvre_tail_vs_generated": "/home/hp/TREAD/results/highd_cutin_tail/generated/figures/cutin_manoeuvre_tail_vs_generated.png",
+      "cutin_lateral_trajectory_tail_vs_generated": "/home/hp/TREAD/results/highd_cutin_tail/generated/figures/cutin_lateral_trajectory_tail_vs_generated.png",
+      "scenario_condition_tail_vs_copula_sampled": "/home/hp/TREAD/results/highd_cutin_tail/generated/figures/scenario_condition_tail_vs_copula_sampled.png"
+    },
+    "manoeuvre_comparison_horizon": {
+      "aligned_to_generated_steps": 100,
+      "aligned_to_generated_seconds": 4.0,
+      "real_rows_used": 399,
+      "real_rows_skipped_shorter_than_horizon": 0,
+      "endpoint_metrics": [
+        "longitudinal_displacement",
+        "total_lateral_displacement",
+        "lateral_progress_toward_ego_lane",
+        "final_abs_lateral_offset",
+        "target_speed_change"
+      ]
+    },
+    "cutin_manoeuvre_metrics": {
+      "lane_entry_time": {
+        "real_mean": 2.341134020618557,
+        "generated_mean": 2.6483440000000003,
+        "mean_delta": 0.30720997938144334,
+        "real_std": 0.8232264614191783,
+        "generated_std": 0.6082550597109735,
+        "ks_statistic": 0.17177731958762887,
+        "ks_pvalue": 9.286042152164889e-10,
+        "wasserstein": 0.30721872164948455
+      },
+      "longitudinal_displacement": {
+        "real_mean": 129.40223039182504,
+        "generated_mean": 129.86453462700842,
+        "mean_delta": 0.4623042351833817,
+        "real_std": 18.800488313369748,
+        "generated_std": 18.03851671707828,
+        "ks_statistic": 0.036767418546365914,
+        "ks_pvalue": 0.6847305368878445,
+        "wasserstein": 1.5628937080408392
+      },
+      "total_lateral_displacement": {
+        "real_mean": 2.7234335734431907,
+        "generated_mean": 2.7362478951370752,
+        "mean_delta": 0.012814321693884523,
+        "real_std": 0.5849134664914392,
+        "generated_std": 0.5333783277095374,
+        "ks_statistic": 0.07294636591478697,
+        "ks_pvalue": 0.03713181492389053,
+        "wasserstein": 0.06588773074148224
+      },
+      "lateral_progress_toward_ego_lane": {
+        "real_mean": 2.393258133030177,
+        "generated_mean": 2.644379193508293,
+        "mean_delta": 0.2511210604781162,
+        "real_std": 1.0128820408484782,
+        "generated_std": 0.5243611512784394,
+        "ks_statistic": 0.12322857142857142,
+        "ks_pvalue": 2.3798849105441562e-05,
+        "wasserstein": 0.25747803510369804
+      },
+      "final_abs_lateral_offset": {
+        "real_mean": 0.5123935223820814,
+        "generated_mean": 0.40732322512898245,
+        "mean_delta": -0.10507029725309891,
+        "real_std": 0.5214129510685233,
+        "generated_std": 0.2627213813842189,
+        "ks_statistic": 0.08243809523809524,
+        "ks_pvalue": 0.01237306521952529,
+        "wasserstein": 0.10512194496153295
+      },
+      "target_speed_change": {
+        "real_mean": -0.029248212513170745,
+        "generated_mean": 0.008435746574401855,
+        "mean_delta": 0.0376839590875726,
+        "real_std": 1.7186020365044168,
+        "generated_std": 1.5008896640376257,
+        "ks_statistic": 0.017543859649122806,
+        "ks_pvalue": 0.9997571501324807,
+        "wasserstein": 0.07746129731916852
+      },
+      "max_abs_longitudinal_accel": {
+        "real_mean": 0.4999248122978479,
+        "generated_mean": 0.4863152260802686,
+        "mean_delta": -0.013609586217579295,
+        "real_std": 0.4074054416732062,
+        "generated_std": 0.2447360473203002,
+        "ks_statistic": 0.08697744360902256,
+        "ks_pvalue": 0.006978072252202571,
+        "wasserstein": 0.05984631308933602
+      },
+      "max_abs_lateral_velocity": {
+        "real_mean": 0.9587719297797459,
+        "generated_mean": 0.9153080816149711,
+        "mean_delta": -0.043463848164774777,
+        "real_std": 0.23630774056955992,
+        "generated_std": 0.19523343346365668,
+        "ks_statistic": 0.08564611528822055,
+        "ks_pvalue": 0.00828118473210691,
+        "wasserstein": 0.043638154661057915
+      },
+      "mean_abs_lateral_accel": {
+        "real_mean": 0.20222055136219116,
+        "generated_mean": 0.19827627432780062,
+        "mean_delta": -0.003944277034390542,
+        "real_std": 0.09251860916974584,
+        "generated_std": 0.08082526013332127,
+        "ks_statistic": 0.05204862155388471,
+        "ks_pvalue": 0.25969666813358927,
+        "wasserstein": 0.009670730899253932
+      }
+    },
+    "cutin_lateral_trajectory_family": {
+      "real_num_trajectories": 399,
+      "generated_num_trajectories": 5000,
+      "horizon_steps": 100,
+      "real_final_lateral_displacement_mean": 2.6445864746743872,
+      "generated_final_lateral_displacement_mean": 2.7362478951370752
+    },
+    "lane_change_event_rates": {
+      "lane_entry_rate": {
+        "real_rate": 0.9724310776942355,
+        "generated_rate": 1.0,
+        "rate_delta": 0.027568922305764465
+      },
+      "post_entry_retention_rate": {
+        "real_rate": 0.9223057644110275,
+        "generated_rate": 1.0,
+        "rate_delta": 0.07769423558897248
+      },
+      "completed_lane_change_rate": {
+        "real_rate": 0.9223057644110275,
+        "generated_rate": 1.0,
+        "rate_delta": 0.07769423558897248
+      }
+    },
+    "scenario_condition_distribution": {
+      "variable_feature_names": [
+        "ego_vx_0",
+        "log_initial_gap",
+        "initial_lateral_offset",
+        "initial_delta_vx",
+        "target_ax_0",
+        "target_vy_0",
+        "target_ay_0",
+        "final_lateral_offset",
+        "time_to_cross",
+        "target_speed_change"
+      ],
+      "feature_histograms": {
+        "ego_vx_0": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 31.68441097479416,
+            "generated_mean": 31.82883766975403,
+            "mean_delta": 0.14442669495986848,
+            "real_std": 4.6468108667245165,
+            "generated_std": 4.256331664327015,
+            "ks_statistic": 0.019519799498746868,
+            "ks_pvalue": 0.9984788401308822,
+            "wasserstein": 0.2032730404148722
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 31.68441097479416,
+            "generated_mean": 31.82883766975403,
+            "mean_delta": 0.14442669495986848,
+            "real_std": 4.6468108667245165,
+            "generated_std": 4.256331664327015,
+            "ks_statistic": 0.019519799498746868,
+            "ks_pvalue": 0.9984788401308822,
+            "wasserstein": 0.2032730404148722
+          }
+        },
+        "log_initial_gap": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 2.218393657501514,
+            "generated_mean": 2.229926354334247,
+            "mean_delta": 0.01153269683273317,
+            "real_std": 1.0650794005459394,
+            "generated_std": 1.0657379124933632,
+            "ks_statistic": 0.03759398496240601,
+            "ks_pvalue": 0.6579628608902014,
+            "wasserstein": 0.019902179034627366
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 2.218393657501514,
+            "generated_mean": 2.229926354334247,
+            "mean_delta": 0.01153269683273317,
+            "real_std": 1.0650794005459394,
+            "generated_std": 1.0657379124933632,
+            "ks_statistic": 0.03759398496240601,
+            "ks_pvalue": 0.6579628608902014,
+            "wasserstein": 0.019902179034627366
+          }
+        },
+        "initial_lateral_offset": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 0.03186715037601633,
+            "generated_mean": -0.02392916214466095,
+            "mean_delta": -0.05579631252067728,
+            "real_std": 2.9884506919740597,
+            "generated_std": 3.094887431575461,
+            "ks_statistic": 0.04156641604010025,
+            "ks_pvalue": 0.5309729801375358,
+            "wasserstein": 0.15685073690360657
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 0.03186715037601633,
+            "generated_mean": -0.02392916214466095,
+            "mean_delta": -0.05579631252067728,
+            "real_std": 2.9884506919740597,
+            "generated_std": 3.094887431575461,
+            "ks_statistic": 0.04156641604010025,
+            "ks_pvalue": 0.5309729801375358,
+            "wasserstein": 0.15685073690360657
+          }
+        },
+        "initial_delta_vx": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": -0.6388722792603916,
+            "generated_mean": -0.5988918021297083,
+            "mean_delta": 0.03998047713068331,
+            "real_std": 4.019526466774131,
+            "generated_std": 3.9581277985214625,
+            "ks_statistic": 0.011272681704260651,
+            "ks_pvalue": 0.9999999996948647,
+            "wasserstein": 0.08646081438680188
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": -0.6388722792603916,
+            "generated_mean": -0.5988918021297083,
+            "mean_delta": 0.03998047713068331,
+            "real_std": 4.019526466774131,
+            "generated_std": 3.9581277985214625,
+            "ks_statistic": 0.011272681704260651,
+            "ks_pvalue": 0.9999999996948647,
+            "wasserstein": 0.08646081438680188
+          }
+        },
+        "target_ax_0": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 0.06583959806271664,
+            "generated_mean": 0.07526345825987518,
+            "mean_delta": 0.009423860197158546,
+            "real_std": 0.41628652395806454,
+            "generated_std": 0.39419598740295164,
+            "ks_statistic": 0.014678195488721804,
+            "ks_pvalue": 0.9999960014015863,
+            "wasserstein": 0.013576877682240559
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 0.06583959806271664,
+            "generated_mean": 0.07526345825987518,
+            "mean_delta": 0.009423860197158546,
+            "real_std": 0.41628652395806454,
+            "generated_std": 0.39419598740295164,
+            "ks_statistic": 0.014678195488721804,
+            "ks_pvalue": 0.9999960014015863,
+            "wasserstein": 0.013576877682240559
+          }
+        },
+        "target_vy_0": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 0.028320803510067157,
+            "generated_mean": 0.033568620441202075,
+            "mean_delta": 0.005247816931134918,
+            "real_std": 0.715003852881941,
+            "generated_std": 0.7553408246961858,
+            "ks_statistic": 0.051660651629072685,
+            "ks_pvalue": 0.2675628420372558,
+            "wasserstein": 0.047522588788409634
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 0.028320803510067157,
+            "generated_mean": 0.033568620441202075,
+            "mean_delta": 0.005247816931134918,
+            "real_std": 0.715003852881941,
+            "generated_std": 0.7553408246961858,
+            "ks_statistic": 0.051660651629072685,
+            "ks_pvalue": 0.2675628420372558,
+            "wasserstein": 0.047522588788409634
+          }
+        },
+        "target_ay_0": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": -0.006817042976991276,
+            "generated_mean": -0.0032759067087179575,
+            "mean_delta": 0.0035411362682733183,
+            "real_std": 0.2771790291811636,
+            "generated_std": 0.2875313019853044,
+            "ks_statistic": 0.04243609022556391,
+            "ks_pvalue": 0.5042709952891402,
+            "wasserstein": 0.026880953784172188
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": -0.006817042976991276,
+            "generated_mean": -0.0032759067087179575,
+            "mean_delta": 0.0035411362682733183,
+            "real_std": 0.2771790291811636,
+            "generated_std": 0.2875313019853044,
+            "ks_statistic": 0.04243609022556391,
+            "ks_pvalue": 0.5042709952891402,
+            "wasserstein": 0.026880953784172188
+          }
+        },
+        "final_lateral_offset": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 0.024924859068447484,
+            "generated_mean": 0.011966986915894085,
+            "mean_delta": -0.0129578721525534,
+            "real_std": 0.5054796281233587,
+            "generated_std": 0.511241119217273,
+            "ks_statistic": 0.020172932330827068,
+            "ks_pvalue": 0.99751761088833,
+            "wasserstein": 0.013959194643202532
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 0.024924859068447484,
+            "generated_mean": -0.0036822033575910607,
+            "mean_delta": -0.028607062426038544,
+            "real_std": 0.5054796281233587,
+            "generated_std": 0.4846866774983002,
+            "ks_statistic": 0.045552380952380955,
+            "ks_pvalue": 0.41408793639641406,
+            "wasserstein": 0.033970720373569296
+          }
+        },
+        "time_to_cross": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": 1.2586466189016376,
+            "generated_mean": 1.2706400019168853,
+            "mean_delta": 0.01199338301524766,
+            "real_std": 0.4948548887008116,
+            "generated_std": 0.4946614750831414,
+            "ks_statistic": 0.014870676691729322,
+            "ks_pvalue": 0.999994314945865,
+            "wasserstein": 0.011993383015247803
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": 1.2586466189016376,
+            "generated_mean": 1.2706400019168853,
+            "mean_delta": 0.01199338301524766,
+            "real_std": 0.4948548887008116,
+            "generated_std": 0.4946614750831414,
+            "ks_statistic": 0.014870676691729322,
+            "ks_pvalue": 0.999994314945865,
+            "wasserstein": 0.011993383015247803
+          }
+        },
+        "target_speed_change": {
+          "sampled_input_vs_evt_tail": {
+            "real_mean": -0.029248212513170745,
+            "generated_mean": 0.015584562677470968,
+            "mean_delta": 0.044832775190641716,
+            "real_std": 1.7186020365044168,
+            "generated_std": 1.5534378382403056,
+            "ks_statistic": 0.01010375939849624,
+            "ks_pvalue": 0.9999999999988763,
+            "wasserstein": 0.06515564542183933
+          },
+          "diffusion_realized_vs_evt_tail": {
+            "real_mean": -0.029248212513170745,
+            "generated_mean": 0.008435746574401855,
+            "mean_delta": 0.0376839590875726,
+            "real_std": 1.7186020365044168,
+            "generated_std": 1.5008896640376257,
+            "ks_statistic": 0.017543859649122806,
+            "ks_pvalue": 0.9997571501324807,
+            "wasserstein": 0.07746129731916852
+          }
+        }
+      },
+      "figure_interpretation": "Each panel compares one tail-feature marginal: empirical EVT-tail events, Gaussian-copula sampled diffusion inputs, and conditions realized after integrating diffusion-generated trajectories."
+    },
+    "note": "The main similarity assessment is cut-in specific: lane entry, post-entry retention, lateral progress/displacement, final lane position, entry timing, lateral motion, and target speed change. Real EVT-tail manoeuvre endpoint metrics are computed on the first 100 frames to align with the generated diffusion horizon. The scenario-condition histogram compares empirical EVT-tail conditions, Gaussian-copula sampled diffusion inputs, and conditions realized by diffusion trajectories. Interaction-dependent gap/TTC metrics are excluded from this plot; playback scripts generate highway-env IDM ego trajectories for closed-loop replay against the scripted adversary trajectory."
+  },
+  "selection_random_seed": 42,
+  "copula_marginal_clip_quantile": 0.01,
+  "copula_correlation_regularization": 0.0001,
+  "diffusion_rejection": {
+    "enabled": true,
+    "enforce_acceptance": true,
+    "refill_condition_batch_size": 5000,
+    "max_refill_rounds": 20,
+    "lateral_overlap_threshold": 1.0,
+    "cutin_lateral_offset": 1.0,
+    "min_initial_lateral_offset": 1.5,
+    "min_lateral_progress": 0.5,
+    "min_lateral_approach_speed": 0.05,
+    "post_cutin_window_seconds": 3.0
+  },
+  "diffusion_guidance": {
+    "guidance_end_y_weight": 1.0,
+    "guidance_cross_y_weight": 0.0,
+    "guidance_post_lane_weight": 1.0,
+    "guidance_final_lane_window_seconds": 0.5,
+    "guidance_front_at_cross_weight": 1.0,
+    "guidance_lateral_jerk_weight": 0.2,
+    "lateral_overlap_threshold": 1.0,
+    "cutin_lateral_offset": 1.0,
+    "post_cutin_window_seconds": 3.0
+  }
+}

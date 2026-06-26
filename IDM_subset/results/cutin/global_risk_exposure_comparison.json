@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "event_type": "cut_in",
+  "failure_event": "Y_cutin_sim > x_c (4.68589)",
+  "probability_target": "P_context,z(Y_cutin_sim > x_c | o sampled from highD tail scenario-condition distribution)",
+  "subset_probability_domain": "highD tail scenario-condition distribution",
+  "global_mapping_formula": "ads_safety_critical_intensity_per_all_vehicle_km = P_ads_failure_given_tail_test_space * highD_tail_peak_rate_per_all_vehicle_km",
+  "exposure_denominator": "all_vehicle_km",
+  "total_all_vehicle_km": 44475.65322,
+  "tail_conditional_failure_probability": 0.0068000000000000005,
+  "tail_peak_rate_per_all_vehicle_km": 0.008971200445923434,
+  "ads_safety_critical_intensity_per_all_vehicle_km": 6.100416303227935e-05,
+  "ads_safety_critical_return_period_all_vehicle_km": 16392.323905351615,
+  "highd_safety_critical_intensity_per_all_vehicle_km": 0.00033333333333333305,
+  "highd_safety_critical_return_period_all_vehicle_km": 3000.0000000000027,
+  "ads_to_highd_intensity_ratio_per_all_vehicle_km": 0.1830124890968382,
+  "ads_return_period_over_highd_return_period_all_vehicle_km": 5.464107968450533,
+  "strict_global_exposure_interpretation": true,
+  "strictness_failures": [],
+  "exposure_summary_path": "/home/hp/TREAD/results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json"
+}

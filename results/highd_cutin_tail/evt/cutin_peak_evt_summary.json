@@ -1,0 +1,97 @@
+{
+  "model_path": "/home/hp/TREAD/results/highd_cutin_tail/evt/cutin_peak_evt_model.json",
+  "score_csv": "/home/hp/TREAD/results/highd_events/cutin_event_scores.csv",
+  "model_type": "gpd_pot_cutin_independent_peak_risk",
+  "num_independent_peaks": 3906,
+  "num_tail_peaks": 399,
+  "u": 2.2216177764090044,
+  "xi": 0.08611872679293595,
+  "beta": 0.6473188259735958,
+  "exceedance_rate": 0.10215053763440861,
+  "collision_critical_level": 4.685892249590697,
+  "collision_critical_level_mode": "human_all_vehicle_km_return_level",
+  "return_levels": {
+    "z20": 2.6986010814106964,
+    "z50": 3.354926704590251,
+    "z100": 3.8869866143576446
+  },
+  "return_level_ci": {
+    "z20": {
+      "lower": 2.635553270216636,
+      "upper": 2.7660622704767115
+    },
+    "z50": {
+      "lower": 3.2544591301861088,
+      "upper": 3.464705531568813
+    },
+    "z100": {
+      "lower": 3.739121971766921,
+      "upper": 4.028655744149777
+    }
+  },
+  "declustering_run_length_seconds": 5.0,
+  "declustering_group_keys": [
+    "recording_id",
+    "ego_id",
+    "target_id"
+  ],
+  "tail_gof": {
+    "method": "gpd_parametric_bootstrap_refit",
+    "num_exceedances": 399,
+    "bootstrap_samples_requested": 200,
+    "bootstrap_samples_used": 200,
+    "statistics": {
+      "ks": 0.03948603373810072,
+      "cramer_von_mises": 0.12081083613698702,
+      "anderson_darling": 0.6762129143751849
+    },
+    "p_values": {
+      "ks": 0.23383084577114427,
+      "cramer_von_mises": 0.12935323383084577,
+      "anderson_darling": 0.1890547263681592
+    },
+    "interpretation": "GOF tests are reported as supporting diagnostics; threshold stability, QQ/PP plots, survival overlay, and sensitivity plots remain primary."
+  },
+  "audit_protocol": {
+    "risk_variable_source": "declustered independent event-level peak risk",
+    "pot_threshold_role": "GPD fitting threshold u; not the safety-critical threshold",
+    "safety_threshold_role": "Use exposure summary human_calibrated_safety_threshold for x_star",
+    "diagnostics": [
+      "empirical histogram and CCDF/survival overlay",
+      "mean residual life",
+      "shape and modified-scale threshold stability",
+      "GPD QQ/PP plot",
+      "parametric-bootstrap KS/CvM/AD goodness-of-fit",
+      "all-vehicle-km return-level threshold and threshold sensitivity"
+    ]
+  },
+  "figures": {
+    "peak_y_cutin_histogram": "/home/hp/TREAD/results/highd_cutin_tail/evt/figures/peak_evt_y_cutin_histogram.png",
+    "peak_survival_fit": "/home/hp/TREAD/results/highd_cutin_tail/evt/figures/peak_evt_survival_fit.png",
+    "peak_threshold_stability": "/home/hp/TREAD/results/highd_cutin_tail/evt/figures/peak_evt_threshold_stability.png",
+    "peak_mean_excess": "/home/hp/TREAD/results/highd_cutin_tail/evt/figures/peak_evt_mean_excess.png",
+    "peak_tail_fit_diagnostics": "/home/hp/TREAD/results/highd_cutin_tail/evt/figures/peak_evt_tail_fit_diagnostics.png"
+  },
+  "risk_variable": "y_cutin",
+  "risk_scoring_window_frames": 100,
+  "risk_scoring_window_source": "cut-in fixed context from anchor_frame over cutin.context_horizon_steps; longitudinal risk starts at cross_frame",
+  "human_calibrated_safety_threshold": {
+    "method": "highd_all_vehicle_km_return_level_pot_gpd",
+    "target_return_period_km": 3000.0,
+    "target_return_period_miles": 1864.1135767120018,
+    "target_intensity_per_km": 0.0003333333333333333,
+    "target_intensity_per_mile": 0.000536448,
+    "expected_tail_exceedances_at_target_km": 26.913601337770302,
+    "expected_tail_exceedances_at_target_mileage": 26.913601337770302,
+    "target_tail_conditional_probability": 0.03715593418546366,
+    "target_level": 4.685892249590697,
+    "tail_conditional_probability_at_target_level": 0.03715593418546363,
+    "probability_per_independent_peak_at_target_level": 0.0037954986533538094,
+    "highd_safety_critical_intensity_per_mile": 0.0005364479999999997,
+    "highd_safety_critical_return_period_miles": 1864.113576712003,
+    "highd_safety_critical_intensity_per_km": 0.0003333333333333331,
+    "highd_safety_critical_return_period_km": 3000.0000000000023,
+    "highd_safety_critical_intensity_per_hour": 0.03368075551924624,
+    "highd_safety_critical_return_period_hours": 29.69054537474875
+  }
+}

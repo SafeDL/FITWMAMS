@@ -1,0 +1,109 @@
+# Naturalistic action diffusion prior - cut-in
+
+paths:
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  events_csv: "../../../results/highd_events/events.csv"
+  output_dir: "../../../results/diffusion_natural/cutin"
+
+event:
+  event_type: "cut_in"
+
+sampling:
+  target_fps: 25
+
+sequence:
+  horizon_steps: 100
+
+dataset:
+  rebuild: false
+  require_scored_semantic_events: true
+  # Equal-length 100-step training windows with variable pre-cross phase.
+  # Each compatible window must keep at least 2 seconds after lane crossing.
+  cutin_pre_cross_steps: [15, 20, 25, 30, 35, 45, 50]
+  cutin_min_post_cross_seconds: 2.0
+  cutin_require_completion_in_window: false
+
+action:
+  representation: "ax_ay"
+  ax_min: -8.0
+  ax_max: 4.0
+  jerk_abs_max: 12.0
+  ay_abs_max: 4.0
+  lateral_jerk_abs_max: 8.0
+  max_yaw_rate: 0.5
+  max_lane_width: 3.75
+
+filters:
+  max_abs_accel: 8.0
+  max_abs_jerk: 30.0
+  max_position_jump: 5.0
+  min_vehicle_speed: 0.0
+
+split:
+  # train_val_test is the only supported training split.
+  # It is used for model selection, held-out evaluation, and subset simulation.
+  mode: "train_val_test"
+  train_ratio: 0.75
+  val_ratio: 0.15
+  test_ratio: 0.10
+  random_seed: 42
+
+model:
+  hidden_dim: 128
+  num_layers: 3
+  num_heads: 4
+  dropout: 0.10
+
+loss:
+  x0_weight: 0.10
+  smooth_weight: 0.01
+
+# Cut-in only: minimal trajectory constraints on denoised action x0.
+# Keep only non-redundant terms: final lane completion, post-cross lane
+# retention, and lateral jerk smoothness.
+cutin_trajectory_loss:
+  enabled: true
+  end_y_weight: 0.08
+  post_lane_weight: 0.08
+  # time_to_cross is a lane-boundary crossing, not target-lane entry. Apply
+  # retention loss only to the settled end of the trajectory.
+  post_lane_window_seconds: 0.5
+  lateral_jerk_weight: 0.01
+  lateral_overlap_threshold: 1.0
+  cutin_lateral_offset: 1.0
+  post_cutin_window_seconds: 3.0
+
+diffusion:
+  steps: 100
+  # Bound normalized x0 estimates during reverse diffusion. The final cosine
+  # timestep otherwise amplifies small epsilon errors into extreme actions.
+  x0_clip_abs: 2.5
+
+training:
+  seed: 42
+  batch_size: 256
+  lr: 3.0e-4
+  min_lr: 5.0e-5
+  weight_decay: 1.0e-4
+  epochs: 1000
+  grad_clip: 1.0
+  fixed_eval_timesteps: [0, 25, 50, 75, 99]
+  fixed_eval_seed: 12345
+  fixed_eval_max_samples: 512
+  log_every_epochs: 10
+  clear_tensorboard_dir: true
+  num_workers: 0
+  device: "auto"
+
+evaluation:
+  split: "test"
+  max_samples: 0
+  sample_batch_size: 512
+  conditional_samples_per_context: 16
+  conditional_nll_min_variance: 1.0e-4
+  samples_per_context: 8
+  plot_dir: "natural_prior_plots"
+  ttc_cap: 1000.0
+  thw_cap: 200.0
+  near_collision_gap: 2.0
+  seed: 42

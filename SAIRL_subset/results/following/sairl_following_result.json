@@ -1,0 +1,41 @@
+{
+  "ads": "SAIRL",
+  "event_type": "following",
+  "failure_event": "Y_long_sim > x_c (4.77732)",
+  "fairness_checks": {
+    "same_evt_threshold_as_idm": true,
+    "same_p0_as_idm": true,
+    "same_subset_num_samples_as_idm": true
+  },
+  "global_exposure": {
+    "ads_to_highd_intensity_ratio": 9.134809959740029,
+    "intensity_per_all_vehicle_km": 0.030449366532466784,
+    "return_period_all_vehicle_km": 32.84140571311213,
+    "strict": true
+  },
+  "monte_carlo": {
+    "ci95": [
+      0.16336171862831245,
+      0.17373828137168756
+    ],
+    "closed_loop_evaluations": 20000,
+    "probability": 0.16855,
+    "standard_error": 0.0026470823324936457
+  },
+  "source_files": {
+    "monte_carlo_summary": "SAIRL_subset/results/monte_carlo_following/latent_monte_carlo_summary.json",
+    "subset_summary": "SAIRL_subset/results/following/latent_subset_summary.json"
+  },
+  "subset": {
+    "ci95": [
+      0.1772943803279937,
+      0.18163895300533964
+    ],
+    "closed_loop_evaluations": 10585,
+    "num_levels": 2,
+    "probability": 0.17946666666666666,
+    "reliability": "pass",
+    "standard_error": 0.0011083093564657974,
+    "stop_reason": "subset_threshold_reached_failure_threshold"
+  }
+}

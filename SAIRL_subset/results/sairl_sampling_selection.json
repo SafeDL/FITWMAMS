@@ -1,0 +1,61 @@
+{
+  "ads": "SAIRL",
+  "monte_carlo_rule": {
+    "acceptance_rule": "Stop when subset reliability passes, Monte Carlo starts at 20000, and the independent Monte Carlo estimate is close to the subset estimate. Closeness is accepted if the subset estimate is inside the MC 95% CI or the absolute probability gap is <= 0.015 for high-probability following.",
+    "increment_num_samples_after_start": 10000,
+    "max_num_samples": 200000,
+    "start_num_samples": 20000
+  },
+  "scenarios": {
+    "cutin": {
+      "absolute_probability_gap": 0.0008000000000000021,
+      "accepted": true,
+      "closed_loop_evaluation_speedup_vs_mc": 5.903187721369539,
+      "mc_ci_contains_subset_estimate": true,
+      "monte_carlo_ci95": [
+        0.033514701676169656,
+        0.038685298323830344
+      ],
+      "monte_carlo_closed_loop_evaluations": 20000,
+      "monte_carlo_probability": 0.0361,
+      "monte_carlo_summary": "SAIRL_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json",
+      "selected_monte_carlo_num_samples": 20000,
+      "selected_subset_num_samples": 1000,
+      "stop_reason": "mc_ci_contains_subset_estimate",
+      "subset_ci95": [
+        0.032337928316870095,
+        0.0382620716831299
+      ],
+      "subset_ci_contains_mc_estimate": true,
+      "subset_closed_loop_evaluations": 3388,
+      "subset_probability": 0.0353,
+      "subset_reliability": "pass",
+      "subset_summary": "SAIRL_subset/results/cutin/latent_subset_summary.json"
+    },
+    "following": {
+      "absolute_probability_gap": 0.010916666666666658,
+      "accepted": true,
+      "closed_loop_evaluation_speedup_vs_mc": 1.889466225791214,
+      "mc_ci_contains_subset_estimate": false,
+      "monte_carlo_ci95": [
+        0.16336171862831245,
+        0.17373828137168756
+      ],
+      "monte_carlo_closed_loop_evaluations": 20000,
+      "monte_carlo_probability": 0.16855,
+      "monte_carlo_summary": "SAIRL_subset/results/monte_carlo_following/latent_monte_carlo_summary.json",
+      "selected_monte_carlo_num_samples": 20000,
+      "selected_subset_num_samples": 3000,
+      "stop_reason": "absolute_probability_gap_within_0.015",
+      "subset_ci95": [
+        0.1772943803279937,
+        0.18163895300533964
+      ],
+      "subset_ci_contains_mc_estimate": false,
+      "subset_closed_loop_evaluations": 10585,
+      "subset_probability": 0.17946666666666666,
+      "subset_reliability": "pass",
+      "subset_summary": "SAIRL_subset/results/following/latent_subset_summary.json"
+    }
+  }
+}

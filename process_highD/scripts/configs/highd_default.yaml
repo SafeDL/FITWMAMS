@@ -1,0 +1,95 @@
+# ============================================================
+# TREAD highD 第一阶段：驾驶事件初筛器 — 默认配置
+# ============================================================
+
+paths:
+  # highD 原始数据目录 (包含 XX_tracks.csv / XX_tracksMeta.csv / XX_recordingMeta.csv)
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  # 输出目录
+  output_dir: "../../../results/highd_events"
+
+recordings:
+  include: "all"        # "all" 或 recording_id 列表，如 [1, 2, 3]
+  exclude: []           # 排除的 recording_id 列表
+
+sampling:
+  target_fps: 25
+
+filters:  # 片段的语义筛选
+  max_abs_accel: 8.0
+  max_abs_jerk: 30.0
+  max_position_jump: 5.0
+  min_positive_gap: 0.5
+  min_vehicle_speed: 0.0
+  require_passenger_car_ego: true
+  require_passenger_car_lead: true
+
+cutin:
+  # EVT/tail context cache uses one deterministic fixed 100-step window from a
+  # cross-relative pre-cross anchor. Diffusion training can still use all
+  # compatible fixed 100-step pre-cross windows from the raw event table.
+  context_horizon_steps: 100
+  context_pre_cross_steps: [15, 20, 25, 30, 35, 45, 50]
+  anchor_phase: "cross"
+  min_lane_stable_steps: 10          # 0.4 s at 25 Hz
+  lateral_velocity_threshold: 0.10
+  max_post_cutin_gap: 150.0
+  min_post_cutin_duration_seconds: 2.0
+  min_cutin_duration_steps: 3        # 0.12 s at 25 Hz
+  require_immediate_leader: true     # target must be ego's nearest front vehicle after cross
+
+cutin_risk:
+  lateral_overlap_threshold: 1.0
+  cutin_lateral_offset: 1.0
+  min_lateral_approach_speed: 0.05
+  semantic_window_seconds: 6.0
+  ltg_window_steps: 5
+  ltg_weight: 0.2
+  ltg_scale: 1.0
+  ltg_eps: 0.2
+  require_front_at_cutin: true
+  min_cutin_front_gap: 0.0
+  require_cutin_for_failure: true
+  non_cutin_y_cutin: 0.0
+
+following:
+  min_future_steps: 125
+  min_same_preceding_steps: 128      # stable following for at least 5.12s
+
+following_exposure:
+  output_dir: "../../../results/highd_following_tail/exposure"
+  declustering:
+    run_length_seconds: 5.0
+    group_keys: ["recording_id", "ego_id"]
+    representative: "max_y_long"
+
+following_evt_peak:
+  model_path: "../../../results/highd_following_tail/evt/longitudinal_peak_evt_model.json"
+  summary_path: "../../../results/highd_following_tail/evt/longitudinal_peak_evt_summary.json"
+  human_safety_threshold:
+    enabled: true
+    # 300 km is the highest audited candidate in the 150/200/300 km sweep with
+    # stable Monte Carlo support and close subset-simulation agreement.
+    target_return_period_km: 300.0
+  bootstrap_samples: 200
+  gof_bootstrap_samples: 200
+  random_seed: 42
+  distance_plot_min_km: 10.0
+  distance_plot_max_km: 1.0e6
+
+cutin_evt_peak:
+  model_path: "../../../results/highd_cutin_tail/evt/cutin_peak_evt_model.json"
+  summary_path: "../../../results/highd_cutin_tail/evt/cutin_peak_evt_summary.json"
+  independent_peaks_path: "../../../results/highd_cutin_tail/exposure/highd_independent_tail_peaks.csv"
+  human_safety_threshold:
+    enabled: true
+    target_return_period_km: 3000.0
+  bootstrap_samples: 200
+  gof_bootstrap_samples: 200
+  random_seed: 42
+  distance_plot_min_km: 10.0
+  distance_plot_max_km: 1.0e6
+  declustering:
+    run_length_seconds: 5.0
+    group_keys: ["recording_id", "ego_id", "target_id"]
+    representative: "max_y_cutin"

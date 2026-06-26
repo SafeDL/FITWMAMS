@@ -1,0 +1,129 @@
+# Latent-space subset simulation for cut-in event-level risk
+
+paths:
+  natural_dataset_dir: "../../../results/diffusion_natural/cutin"
+  diffusion_checkpoint: "../../../results/diffusion_natural/cutin/checkpoints/best_noise_mse_train_val_test.pt"
+  tail_context_path: "../../../results/highd_cutin_tail/contexts/tail_contexts.npz"
+  condition_distribution_path: "../../../results/highd_cutin_tail/contexts/scenario_condition_distribution.npz"
+  evt_model_path: "../../../results/highd_cutin_tail/evt/cutin_peak_evt_model.json"
+  exposure_summary_path: "../../../results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json"
+  idm_ego_config_path: "../../../tools/idm_ego.yaml"
+
+event:
+  event_type: "cut_in"
+
+env:
+  episode_steps: 100
+  lanes_count: 2
+  speed_limit: 50.0
+  ego_target_speed: 40.0
+  initial_gap_min: 0.1
+  allow_initial_nonpositive_gap: true
+  initial_nonpositive_gap_min_lateral_separation: 1.0
+
+dynamics:
+  model: "point_mass"
+  ay_abs_max: 4.0
+  lateral_jerk_abs_max: 8.0
+  lateral_speed_abs_max: 5.0
+  speed_min: 0.0
+  speed_max: 50.0
+
+a2c_policy:
+  name: "A2C"
+  backend: "stable_baselines3"
+  policy_type: "a2c"
+  checkpoint_path: "A2C_subset/weights/a2c/model.zip"
+  deterministic: true
+
+closed_loop_risk:
+  collision_bonus: 5.0
+  near_collision_weight: 1.0
+  hard_brake_weight: 1.0
+  hard_brake_threshold: -4.0
+  lead_physics_weight: 0.2
+  near_collision_gap: 2.0
+
+cutin_risk:
+  lateral_overlap_threshold: 1.0
+  cutin_lateral_offset: 1.0
+  min_lateral_approach_speed: 0.05
+  semantic_window_seconds: 6.0
+  ltg_window_steps: 5
+  ltg_weight: 0.2
+  ltg_scale: 1.0
+  ltg_eps: 0.2
+  require_front_at_cutin: true
+  min_cutin_front_gap: 0.0
+  require_cutin_for_failure: true
+  non_cutin_y_cutin: 0.0
+
+evt:
+  target_mode: "collision_critical_level"
+  score_space: "evt"
+
+physics:
+  ax_min: -8.0
+  ax_max: 4.0
+  jerk_abs_max: 12.0
+
+closed_loop_risk_scoring:
+  ttc_weight: 2.0
+  thw_weight: 1.0
+  drac_weight: 2.0
+  gap_weight: 1.0
+  ttc_scale: 1.0
+  thw_scale: 1.0
+  drac_scale: 5.0
+  gap_scale: 1.0
+  ttc_eps: 0.2
+  thw_eps: 0.2
+  gap_eps: 0.5
+  pool_beta: 8.0
+
+sampling:
+  target_fps: 25
+  eval_diffusion_steps: 50
+
+context_sampling:
+  seed: 42
+
+subset_simulation:
+  num_samples: 1000
+  p0: 0.1
+  max_levels: 8
+  adaptive_stop_enabled: true
+  adaptive_stop_min_failure_count: 20
+  adaptive_stop_min_levels: 2
+  proposal_std: 0.10
+  context_refresh_prob: 0.50
+  mh_retries_per_sample: 4
+  reliability_min_unique_contexts: 80
+  reliability_min_unique_state_fraction: 0.50
+  reliability_max_largest_context_share: 0.20
+  reliability_max_largest_state_share: 0.10
+  reliability_min_acceptance_rate: 0.10
+  output_dir: "../../../A2C_subset/results/cutin"
+
+monte_carlo:
+  num_samples: 20000
+  seed: 42
+  output_dir: "../../../A2C_subset/results/monte_carlo_cutin"
+
+parallel:
+  population_num_workers: 4
+  population_max_workers: 8
+  population_chunksize: 4
+  population_batch_size: 64
+  worker_torch_num_threads: 1
+
+mileage_return_period:
+  enabled: true
+  require_tail_threshold_match: true
+  require_subset_reliability_pass: true
+  require_independent_peak_contexts: false
+  tail_threshold_abs_tol: 1.0e-6
+
+training:
+  seed: 42
+  device: "cpu"

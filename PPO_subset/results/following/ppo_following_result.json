@@ -1,0 +1,48 @@
+{
+  "ads": "PPO",
+  "event_type": "following",
+  "failure_event": "Y_long_sim > x_c (4.77732)",
+  "fairness_checks": {
+    "same_evt_threshold_as_idm": true,
+    "same_p0_as_idm": true,
+    "same_subset_num_samples_as_idm": false
+  },
+  "global_exposure": {
+    "ads_to_highd_intensity_ratio": 9.233216159157735,
+    "intensity_per_all_vehicle_km": 0.03077738719719247,
+    "return_period_all_vehicle_km": 32.491387056118285,
+    "strict": true
+  },
+  "monte_carlo": {
+    "ci95": [
+      0.17542133614942582,
+      0.19057866385057418
+    ],
+    "closed_loop_evaluations": 10000,
+    "probability": 0.183,
+    "standard_error": 0.0038666652298847905
+  },
+  "policy": {
+    "backend": "stable_baselines3",
+    "checkpoint_path": "PPO_subset/weights/ppo/model.zip",
+    "deterministic": true,
+    "policy_name": "PPO",
+    "policy_type": "ppo"
+  },
+  "source_files": {
+    "monte_carlo_summary": "PPO_subset/results/monte_carlo_following/latent_monte_carlo_summary.json",
+    "subset_summary": "PPO_subset/results/following/latent_subset_summary.json"
+  },
+  "subset": {
+    "ci95": [
+      0.17779976222118596,
+      0.18500023777881405
+    ],
+    "closed_loop_evaluations": 3440,
+    "num_levels": 2,
+    "probability": 0.1814,
+    "reliability": "pass",
+    "standard_error": 0.0018368560095990104,
+    "stop_reason": "subset_threshold_reached_failure_threshold"
+  }
+}

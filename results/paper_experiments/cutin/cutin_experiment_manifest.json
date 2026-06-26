@@ -1,0 +1,61 @@
+{
+  "experiment_scope": "cut_in",
+  "created_by": "results/build_cutin_paper_experiments.py",
+  "created_at_utc": "2026-06-24T14:48:40.402914+00:00",
+  "no_training_or_rerun_statement": "Only existing JSON/CSV/NPZ/PNG results were read; no training, EVT fitting, or subset simulation was rerun.",
+  "source_files": {
+    "event_scores": "results/highd_events/cutin_event_scores.csv",
+    "event_cache_summary": "results/highd_events/cutin_event_cache_summary.json",
+    "subset_summary": "IDM_subset/results/cutin/latent_subset_summary.json",
+    "subset_level_stats": "IDM_subset/results/cutin/latent_subset_level_stats.csv",
+    "subset_samples": "IDM_subset/results/cutin/latent_subset_samples.npz",
+    "monte_carlo_summary": "IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json",
+    "cutin_diffusion_dataset": "results/diffusion_natural/cutin/dataset.npz",
+    "evt_model": "results/highd_cutin_tail/evt/cutin_peak_evt_model.json",
+    "evt_summary": "results/highd_cutin_tail/evt/cutin_peak_evt_summary.json",
+    "exposure_summary": "results/highd_cutin_tail/exposure/highd_cutin_exposure_summary.json",
+    "tail_condition_distribution": "results/highd_cutin_tail/contexts/scenario_condition_distribution.npz",
+    "tail_contexts": "results/highd_cutin_tail/contexts/tail_contexts.npz",
+    "tail_generated_scenarios": "results/highd_cutin_tail/generated/diffusion_generated_scenarios.npz",
+    "tail_generated_summary": "results/highd_cutin_tail/generated/diffusion_generated_scenarios_summary.json",
+    "tail_distribution_similarity_summary": "results/highd_cutin_tail/generated/figures/distribution_similarity_summary.json"
+  },
+  "missing_source_files": {},
+  "experiments": {
+    "cutin_evt_diagnostic_panels": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/cutin/cutin_safety_threshold_inverse_calibration.png",
+        "results/paper_experiments/cutin/cutin_gpd_diagnostic_panel.png"
+      ],
+      "source_artifacts": [],
+      "skipped_reason": null,
+      "notes": null
+    },
+    "cutin_tail_diffusion_generalization_panel": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/cutin/cutin_tail_diffusion_generalization_panel.png"
+      ],
+      "source_artifacts": [
+        "results/highd_cutin_tail/contexts/scenario_condition_distribution.npz",
+        "results/highd_cutin_tail/contexts/tail_contexts.npz",
+        "results/highd_cutin_tail/generated/diffusion_generated_scenarios.npz",
+        "results/diffusion_natural/cutin/dataset.npz"
+      ],
+      "skipped_reason": null,
+      "notes": "tail diffusion generalization panel is rebuilt from existing EVT-tail contexts and generated scenarios"
+    },
+    "cutin_subset_level_score_histograms": {
+      "status": "generated",
+      "outputs": [
+        "results/paper_experiments/cutin/cutin_subset_level_score_histograms.png"
+      ],
+      "source_artifacts": [
+        "IDM_subset/results/cutin/latent_subset_samples.npz"
+      ],
+      "skipped_reason": null,
+      "notes": "level-wise risk-score histograms are built from stored cut-in subset samples"
+    }
+  }
+}

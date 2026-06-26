@@ -1,0 +1,69 @@
+# Python cache and local environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Packaging and build outputs
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Notebooks and editor state
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Raw highD data and MATLAB exports
+highD_dataset/Matlab/data/
+highD_dataset/Matlab/bin/
+*.mat
+
+# Generated datasets, arrays, and experiment artifacts
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.joblib
+*.parquet
+*.feather
+*.h5
+*.hdf5
+
+# Model checkpoints and learned weights
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+weights/
+*/weights/
+checkpoints/
+*/checkpoints/
+
+# Logs and transient run directories
+*.log
+logs/
+runs/
+wandb/
+mlruns/
+tensorboard/
+
+# Large generated CSV event/data dumps
+highD_dataset/**/*.csv
+results/highd_events/*.csv

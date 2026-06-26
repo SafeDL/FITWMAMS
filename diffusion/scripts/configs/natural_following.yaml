@@ -1,0 +1,94 @@
+# ============================================================
+# Naturalistic action diffusion prior - car-following
+# ============================================================
+
+paths:
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  events_csv: "../../../results/highd_events/events.csv"
+  following_segment_cache: "../../../results/highd_events/following_event_segments.npz"
+  output_dir: "../../../results/diffusion_natural/following"
+
+event:
+  event_type: "following"
+
+sampling:
+  target_fps: 25
+
+sequence:
+  horizon_steps: 125
+
+dataset:
+  rebuild: false
+  stride: 5
+  train_stride: 5
+  val_stride: 25
+  test_stride: 25
+  max_windows_per_event: 12
+  min_current_gap: 0.5
+
+action:
+  source: "smoothed_velocity_diff"
+  representation: "jerk"
+  smoothing:
+    method: "savgol"
+    window: 9
+    polyorder: 2
+  ax_min: -8.0
+  ax_max: 4.0
+  jerk_abs_max: 12.0
+
+filters:
+  max_abs_accel: 8.0
+  max_abs_jerk: 30.0
+  max_position_jump: 5.0
+  min_vehicle_speed: 0.0
+
+split:
+  # train_val_test is the only supported training split.
+  # It is used for model selection, held-out evaluation, and subset simulation.
+  mode: "train_val_test"
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+
+model:
+  hidden_dim: 128
+  num_layers: 3
+  num_heads: 4
+  dropout: 0.10
+
+loss:
+  x0_weight: 0.10
+  smooth_weight: 0.01
+
+diffusion:
+  steps: 100
+
+training:
+  seed: 42
+  batch_size: 256
+  lr: 3.0e-4
+  min_lr: 5.0e-5
+  weight_decay: 1.0e-4
+  epochs: 250
+  grad_clip: 1.0
+  fixed_eval_timesteps: [0, 25, 50, 75, 99]
+  fixed_eval_seed: 12345
+  fixed_eval_max_samples: 512
+  log_every_epochs: 10
+  num_workers: 0
+  device: "auto"
+
+evaluation:
+  split: "test"
+  max_samples: 1000
+  sample_batch_size: 512
+  conditional_samples_per_context: 16
+  conditional_nll_min_variance: 1.0e-4
+  samples_per_context: 8
+  plot_dir: "natural_prior_plots"
+  ttc_cap: 1000.0
+  thw_cap: 200.0
+  near_collision_gap: 2.0
+  seed: 42

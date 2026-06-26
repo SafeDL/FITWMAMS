@@ -1,0 +1,89 @@
+{
+  "policy": "PPO",
+  "selection_rules": {
+    "subset_simulation": {
+      "initial_num_samples": 1000,
+      "increment": 2000,
+      "criterion": "accept the first run with finite probability and reliability status pass"
+    },
+    "monte_carlo": {
+      "initial_num_samples": 10000,
+      "increment": 10000,
+      "max_num_samples": 200000,
+      "criterion": "prefer the first run whose 95% confidence interval covers the corresponding subset estimate; otherwise stop when Monte Carlo precision is adequate and record the remaining estimator difference"
+    }
+  },
+  "events": {
+    "following": {
+      "subset_trials": [
+        {
+          "num_samples": 1000,
+          "probability": 0.1814,
+          "standard_error": 0.0018368560095990104,
+          "ci95": [
+            0.17779976222118596,
+            0.18500023777881405
+          ],
+          "reliability": "pass",
+          "accepted": true
+        }
+      ],
+      "monte_carlo_trials": [
+        {
+          "num_samples": 10000,
+          "probability": 0.183,
+          "standard_error": 0.0038666652298847905,
+          "ci95": [
+            0.17542133614942582,
+            0.19057866385057418
+          ],
+          "contains_subset_probability": true,
+          "accepted": true
+        }
+      ],
+      "selected_subset_num_samples": 1000,
+      "selected_monte_carlo_num_samples": 10000,
+      "subset_summary": "PPO_subset/results/following/latent_subset_summary.json",
+      "monte_carlo_summary": "PPO_subset/results/monte_carlo_following/latent_monte_carlo_summary.json"
+    },
+    "cut_in": {
+      "subset_trials": [
+        {
+          "num_samples": 1000,
+          "probability": 0.0251,
+          "standard_error": 0.0013711272734505723,
+          "ci95": [
+            0.02241259054403688,
+            0.02778740945596312
+          ],
+          "reliability": "pass",
+          "accepted": true
+        }
+      ],
+      "monte_carlo_trials": [
+        {
+          "num_samples": 10000,
+          "probability": 0.0307,
+          "contains_subset_probability": false,
+          "accepted": false
+        },
+        {
+          "num_samples": 20000,
+          "probability": 0.03175,
+          "standard_error": 0.0012397971104176684,
+          "ci95": [
+            0.02931999766358137,
+            0.03418000233641863
+          ],
+          "contains_subset_probability": false,
+          "accepted": true,
+          "acceptance_note": "Monte Carlo standard error is below 0.002; the remaining gap is recorded as estimator disagreement rather than resolved by additional sampling."
+        }
+      ],
+      "selected_subset_num_samples": 1000,
+      "selected_monte_carlo_num_samples": 20000,
+      "subset_summary": "PPO_subset/results/cutin/latent_subset_summary.json",
+      "monte_carlo_summary": "PPO_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json"
+    }
+  }
+}
