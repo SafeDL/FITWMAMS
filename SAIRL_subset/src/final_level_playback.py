@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.utils import load_json, save_json
-from process_highD.src.idm_ego import load_idm_ego_config
+from tools.idm_ego import load_idm_ego_config
 from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.loader import HighDRecording, load_recording
 from process_highD.src.preprocess import (

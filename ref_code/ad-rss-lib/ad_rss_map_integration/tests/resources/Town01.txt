@@ -1,0 +1,4 @@
+[ADMap]
+map=Town01.xodr
+open_drive_overlap_margin=0.2
+open_drive_default_intersection_type=PriorityToRight

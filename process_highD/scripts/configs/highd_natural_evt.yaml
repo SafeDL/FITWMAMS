@@ -1,0 +1,73 @@
+# FiT-AMS highD natural equal-length segment + EVT calibration.
+
+paths:
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  output_dir: "../../../results/highd_natural_evt"
+
+recordings:
+  include: "all"
+  exclude: []
+
+sampling:
+  target_fps: 25
+
+filters:
+  max_abs_accel: 8.0
+  max_abs_jerk: 30.0
+  max_position_jump: 5.0
+  min_vehicle_speed: 0.0
+
+segments:
+  # Natural driving screening uses one complete fixed-length window.  There is
+  # no history/future split for EVT calibration.
+  window_seconds: 6.0
+  # Conservative default for EVT: adjacent anchors for the same ego have
+  # non-overlapping 6 s risk windows.
+  anchor_stride_seconds: 6.0
+  min_ego_speed_mps: 5.0
+  require_passenger_car_ego: true
+  require_ego_no_abnormal: true
+  require_valid_ego_lane_full_window: true
+  max_slot_longitudinal_distance_m: 150.0
+
+risk:
+  # Main EVT score: Safety-Envelope Intrusion Risk, R_SEI.
+  safety_envelope:
+    # Short-horizon constant-velocity prediction at each window frame.  highD
+    # acceleration is noisy, so acceleration prediction is kept off by default.
+    prediction_horizon_seconds: 1.5
+    prediction_dt_seconds: 0.2
+    prediction_use_acceleration: false
+    acceleration_clip_mps2: 3.0
+    # RSS-inspired calibrated headway is less over-conservative on natural
+    # freeway data than the exact worst-case RSS braking formula, while still
+    # retaining a reaction-distance plus braking-distance interpretation.
+    longitudinal_mode: calibrated_headway
+    longitudinal_time_gap_seconds: 0.7
+    longitudinal_min_margin_m: 1.0
+    longitudinal_brake_mps2: 4.0
+    # Exact RSS braking parameters remain available via
+    # longitudinal_mode: rss_braking.
+    rss_response_time_seconds: 0.75
+    rss_accel_max_mps2: 2.0
+    rss_brake_min_mps2: 4.0
+    rss_brake_max_mps2: 8.0
+    lateral_min_margin_m: 0.2
+    lateral_response_time_seconds: 1.0
+    lateral_brake_mps2: 0.8
+    pair_smooth_beta: 8.0
+    horizon_smooth_beta: 8.0
+    horizon_time_discount: 0.1
+    exposure_weight: 0.15
+
+evt:
+  model_path: "../../../results/highd_natural_evt/evt/natural_evt_model.json"
+  summary_path: "../../../results/highd_natural_evt/evt/natural_evt_summary.json"
+  figure_dir: "../../../results/highd_natural_evt/evt/figures"
+  return_periods: [20, 50, 100, 500, 1000]
+  min_exceedances: 200
+  max_tail_fraction: 0.20
+  max_threshold_candidates: 400
+  min_threshold_exceedance_rate: 0.01
+  bootstrap_samples: 200
+  random_seed: 42

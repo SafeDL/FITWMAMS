@@ -19,7 +19,7 @@ if not HIGHWAY_PACKAGE.is_dir():
 if str(HIGHWAY_ROOT) not in sys.path:
     sys.path.insert(0, str(HIGHWAY_ROOT))
 
-from process_highD.src.idm_ego import IDM_PARAMETER_KEYS
+from tools.idm_ego import IDM_PARAMETER_KEYS
 from tools.highd_cutin import cutin_risk_from_series
 from tools.risk import (
     apply_closed_loop_risk,

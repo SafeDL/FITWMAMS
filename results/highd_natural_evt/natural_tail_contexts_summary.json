@@ -1,0 +1,10 @@
+{
+  "segment_csv": "/home/hp/FITWMAMS/results/highd_natural_evt/natural_segments.csv",
+  "output_csv": "/home/hp/FITWMAMS/results/highd_natural_evt/natural_tail_contexts.csv",
+  "selection_threshold": 0.7196520566940308,
+  "threshold_source": "evt_pot_threshold_u",
+  "threshold_comparator": ">",
+  "top_k": 0,
+  "num_selected": 2209,
+  "evt_pot_threshold_u": 0.7196520566940308
+}

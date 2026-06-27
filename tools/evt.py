@@ -1,4 +1,4 @@
-"""Peak-over-threshold EVT calibration for longitudinal event risk."""
+"""Peak-over-threshold EVT calibration for event risk scores."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def empirical_survival(values: np.ndarray, y: np.ndarray | float) -> np.ndarray:
 
 @dataclass(frozen=True)
 class GPDTailModel:
-    """Serializable POT/GPD tail model for event-level longitudinal risk."""
+    """Serializable POT/GPD tail model for event-level risk scores."""
 
     u: float
     xi: float
@@ -81,7 +81,7 @@ class GPDTailModel:
 
     def to_dict(self, model_type: str | None = None) -> dict[str, Any]:
         return {
-            "model_type": str(model_type or "gpd_pot_longitudinal_risk"),
+            "model_type": str(model_type or "gpd_pot_event_risk"),
             "u": float(self.u),
             "xi": float(self.xi),
             "beta": float(self.beta),
@@ -294,7 +294,16 @@ def threshold_stability(
                 "u": float(u),
                 "xi": float(xi),
                 "beta": float(beta),
-                "modified_scale": float(beta + xi * u),
+                "modified_scale": float(beta - xi * u),
+                "endpoint": float(u - beta / xi) if float(xi) < 0.0 else float("inf"),
+                "z1000": event_return_level(
+                    sorted_values,
+                    period=1000.0,
+                    u=float(u),
+                    xi=float(xi),
+                    beta=float(beta),
+                    exceedance_rate=float(exceedances.size / n),
+                ),
                 "exceedance_rate": float(exceedances.size / n),
             }
         )

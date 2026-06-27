@@ -18,7 +18,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.utils import load_json, save_json
-from process_highD.src.idm_ego import load_idm_ego_config
+from tools.idm_ego import load_idm_ego_config
 from tools.io import resolve_path, write_csv
 from A2C_subset.src.closed_loop_runner import (
     ClosedLoopCutInRunner,

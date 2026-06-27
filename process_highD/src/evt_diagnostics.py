@@ -1,4 +1,4 @@
-"""EVT diagnostic plots shared by highD following and cut-in fitting."""
+"""EVT diagnostic plots for highD natural fixed-window risk calibration."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,9 +7,8 @@ from typing import Any
 import numpy as np
 from scipy.stats import genpareto
 
-from tools.evt import RETURN_PERIODS, empirical_survival, fit_gpd_excess
+from tools.evt import empirical_survival, fit_gpd_excess
 from tools.plot_style import (
-    CRITICAL_COLOR,
     GENERATED_COLOR,
     PAPER_FIGURE_DPI,
     PAPER_PANEL_LABELSIZE,
@@ -132,7 +131,7 @@ def _bootstrap_threshold_stability_band(
             except ValueError:
                 continue
             boot_xi.append(float(xi_hat))
-            boot_scale.append(float(beta_hat + xi_hat * float(threshold)))
+            boot_scale.append(float(beta_hat - xi_hat * float(threshold)))
         if boot_xi:
             xi_low.append(float(np.nanpercentile(boot_xi, 2.5)))
             xi_high.append(float(np.nanpercentile(boot_xi, 97.5)))
@@ -157,7 +156,7 @@ def write_gpd_diagnostic_panel(
     *,
     model: Any,
     values: np.ndarray,
-    risk_variable: str = "Y_long",
+    risk_variable: str = "R_tau",
     output_filename: str = "peak_evt_gpd_diagnostic_panel.png",
     output_key: str = "peak_gpd_diagnostic_panel",
     force: bool = True,
@@ -417,10 +416,9 @@ def write_evt_diagnostic_plots(
     *,
     model: Any,
     values: np.ndarray,
-    collision_critical_level: float,
-    risk_variable: str = "Y_long",
-    histogram_filename: str = "peak_evt_y_long_histogram.png",
-    histogram_key: str = "peak_y_long_histogram",
+    risk_variable: str = "R_tau",
+    histogram_filename: str = "peak_evt_r_tau_histogram.png",
+    histogram_key: str = "peak_r_tau_histogram",
 ) -> dict[str, str]:
     """Write standard EVT diagnostic plots without exposure-dependent plots."""
     plt = get_pyplot()
@@ -464,19 +462,6 @@ def write_evt_diagnostic_plots(
             color=GENERATED_COLOR,
             linewidth=2.2,
             label="GPD fit",
-        )
-    for period in RETURN_PERIODS:
-        key = f"z{period}"
-        if key in model.return_levels:
-            z_value = float(model.return_levels[key])
-            if z_value <= x_limit:
-                ax.axvline(z_value, linestyle=":", label=rf"$z_{{{period}}}$")
-    if float(collision_critical_level) <= x_limit:
-        ax.axvline(
-            float(collision_critical_level),
-            color=CRITICAL_COLOR,
-            linestyle="-.",
-            label=r"$x_e^\star$",
         )
     ax.set_yscale("log")
     ax.set_xlim(left=0.0, right=x_limit)
@@ -523,15 +508,6 @@ def write_evt_diagnostic_plots(
                 color=GENERATED_COLOR,
             )
             ax.axvline(float(model.u), color=REFERENCE_COLOR, linestyle="--", label=r"$u_e$")
-            for period in RETURN_PERIODS:
-                key = f"z{period}"
-                if key not in model.return_levels:
-                    continue
-                z_value = float(model.return_levels[key])
-                if z_value <= right_limit:
-                    survival = float(model.survival(z_value))
-                    ax.scatter([z_value], [survival], s=32)
-                    ax.annotate(key, (z_value, survival))
             ax.set_yscale("log")
             ax.set_xlabel(fr"Peak ${risk_math}$")
             ax.set_title(title)
