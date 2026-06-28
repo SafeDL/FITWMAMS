@@ -14,9 +14,9 @@ doc/highd_goal.md
 
 ```text
 process_highD/scripts/extract_highd_natural_segments.py
-process_highD/scripts/estimate_highd_natural_evt.py
-process_highD/scripts/select_highd_natural_tail_contexts.py
+process_highD/scripts/build_natural_evt.py
 process_highD/scripts/play_highd_natural_tail_events.py
+normalizing/scripts/prepare_highd_tail_flow_dataset.py
 ```
 
 核心实现：
@@ -52,13 +52,13 @@ python process_highD/scripts/extract_highd_natural_segments.py --recordings all 
 只用已有 `natural_segments.csv` 重拟合 EVT：
 
 ```bash
-python process_highD/scripts/estimate_highd_natural_evt.py
+python process_highD/scripts/build_natural_evt.py
 ```
 
-选择长尾自然片段上下文：
+整理 normalizing flow 长尾数据集：
 
 ```bash
-python process_highD/scripts/select_highd_natural_tail_contexts.py
+python normalizing/scripts/prepare_highd_tail_flow_dataset.py
 ```
 
 播放最高风险自然片段：
@@ -67,7 +67,7 @@ python process_highD/scripts/select_highd_natural_tail_contexts.py
 python process_highD/scripts/play_highd_natural_tail_events.py --top-k 5
 ```
 
-`select_highd_natural_tail_contexts.py` 默认写出所有 POT exceedance 长尾片段，即 `event_risk > u`。`--top-k` 只用于需要人工抽查固定数量最高风险片段时的可选截断；`play_highd_natural_tail_events.py --top-k` 只限制 GIF 渲染数量，不影响 EVT 标定或 tail context 全量文件。
+`prepare_highd_tail_flow_dataset.py` 会复用已有 `natural_tail_contexts.csv`；如果该文件不存在或显式要求重建，则由上游 EVT 结果选择所有 POT exceedance 长尾片段，即 `event_risk > u`。`play_highd_natural_tail_events.py --top-k` 只限制 GIF 渲染数量，不影响 EVT 标定或 tail context 全量文件。
 
 ## 片段定义
 

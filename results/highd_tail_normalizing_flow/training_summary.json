@@ -1,0 +1,8 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_tail_normalizing_flow/checkpoints/best_tail_conditional_maf.pt",
+  "dataset": "/home/hp/FITWMAMS/results/highd_tail_normalizing_flow/dataset.npz",
+  "training_history_csv": "/home/hp/FITWMAMS/results/highd_tail_normalizing_flow/training_history.csv",
+  "tensorboard_dir": "/home/hp/FITWMAMS/results/highd_tail_normalizing_flow/tensorboard",
+  "best_val_nll": -68.2119233564897,
+  "epochs": 80
+}

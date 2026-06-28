@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit POT/GPD EVT for highD natural equal-length segment risks."""
+"""Build the POT/GPD EVT model for highD natural equal-length segment risks."""
 from __future__ import annotations
 
 import argparse

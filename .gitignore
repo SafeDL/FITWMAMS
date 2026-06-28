@@ -67,3 +67,9 @@ tensorboard/
 # Large generated CSV event/data dumps
 highD_dataset/**/*.csv
 results/highd_events/*.csv
+
+# Large generated media and sample dumps
+results/highd_natural_evt/playbacks/*.gif
+results/highd_tail_normalizing_flow/samples/generated_samples.csv
+results/highd_tail_normalizing_flow/samples/generated_samples_interfaces.json
+results/highd_tail_normalizing_flow/figures/tail_c0_joint_probability_tail_vs_generated.png

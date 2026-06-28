@@ -1,0 +1,87 @@
+# highD EVT-tail event normalizing-flow experiment.
+
+seed: 42
+device: auto
+
+paths:
+  highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
+  output_dir: "../../../results/highd_tail_normalizing_flow"
+
+tail_selection:
+  min_event_risk:
+  top_k: 0
+
+dataset:
+  rebuild: false
+  rebuild_tail_contexts: false
+
+split:
+  group_by: recording_ego
+  ratios: [0.70, 0.15, 0.15]
+  seed: 42
+
+model:
+  type: conditional_maf
+  transform_type: rq_spline
+  num_bins: 8
+  tail_bound: 4.0
+  num_layers: 6
+  hidden_features: 160
+  num_blocks: 2
+  dropout_probability: 0.02
+  use_residual_blocks: true
+  use_batch_norm: false
+
+training:
+  max_epochs: 80
+  patience: 12
+  batch_size: 256
+  learning_rate: 0.0005
+  weight_decay: 0.0
+  grad_clip: 5.0
+  lr_patience: 5
+  lr_decay_factor: 0.5
+  min_lr: 0.00001
+  inactive_noise_std: 0.0
+
+tensorboard:
+  enabled: true
+  log_dir: tensorboard
+  clear_existing: false
+  flush_secs: 30
+
+baselines:
+  enabled: true
+  seed: 42
+  gaussian:
+    ridge: 0.0001
+  gmm:
+    n_components: 8
+    reg_covar: 0.00001
+  copula:
+    ridge: 0.0001
+  realnvp:
+    enabled: true
+    model:
+      num_layers: 4
+      hidden_features: 128
+      num_blocks_per_layer: 2
+      dropout_probability: 0.02
+      batch_norm_within_layers: false
+      batch_norm_between_layers: false
+    training:
+      max_epochs: 35
+      patience: 7
+      batch_size: 256
+      learning_rate: 0.0005
+      weight_decay: 0.0
+      grad_clip: 5.0
+
+evaluation:
+  num_generated_samples: match_reference
+  distribution_reference_split: all
+  sample_event_structure_split: all
+  reject_invalid_samples: true
+  generate_figures: true
