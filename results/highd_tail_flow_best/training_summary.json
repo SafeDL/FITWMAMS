@@ -1,0 +1,64 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt",
+  "dataset": "/home/hp/FITWMAMS/results/highd_tail_flow_best/dataset.npz",
+  "training_history_csv": "/home/hp/FITWMAMS/results/highd_tail_flow_best/training_history.csv",
+  "sample_weighting": {
+    "enabled": true,
+    "min": 0.6000000238418579,
+    "max": 2.4009792804718018,
+    "mean": 1.0011389255523682,
+    "p50": 0.949084997177124,
+    "p90": 1.9329317808151245,
+    "p99": 2.4009792804718018,
+    "effective_train_sample_size": 1214.004638671875,
+    "config": {
+      "enabled": true,
+      "slot_inverse_frequency_power": 0.35,
+      "mask_pattern_inverse_frequency_power": 0.1,
+      "primary_inverse_frequency_power": 0.05,
+      "targeted_slot_multipliers": {
+        "same_rear": 1.15,
+        "left_front": 1.25,
+        "left_rear": 1.6,
+        "right_rear": 1.1
+      },
+      "min_weight": 0.6,
+      "max_weight": 2.5,
+      "normalize_train_mean": true
+    },
+    "slot_active": {
+      "same_front": {
+        "train_active_count": 1512,
+        "mean_weight": 0.9884561896324158
+      },
+      "same_rear": {
+        "train_active_count": 596,
+        "mean_weight": 1.3708747625350952
+      },
+      "left_front": {
+        "train_active_count": 340,
+        "mean_weight": 1.6845089197158813
+      },
+      "left_rear": {
+        "train_active_count": 146,
+        "mean_weight": 2.400979518890381
+      },
+      "right_front": {
+        "train_active_count": 1399,
+        "mean_weight": 0.947085440158844
+      },
+      "right_rear": {
+        "train_active_count": 570,
+        "mean_weight": 1.2977111339569092
+      }
+    }
+  },
+  "resume_from_stage": "likelihood_refinement",
+  "resume_checkpoint_metrics": {
+    "best_val_nll": -88.30928918087122,
+    "epochs": 180
+  },
+  "initial_val_nll": -88.30928918087122,
+  "best_val_nll": -88.37260890151515,
+  "epochs": 230
+}

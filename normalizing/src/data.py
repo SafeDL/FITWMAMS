@@ -19,7 +19,12 @@ from process_highD.src.preprocess import (
     resample_recording,
 )
 
-from .features import SLOT_NAMES, build_feature_schema, extract_c0_features_for_segment
+from .features import (
+    SLOT_NAMES,
+    build_feature_schema,
+    extract_c0_features_for_segment,
+    mask_pattern_from_slot_mask,
+)
 from .transforms import (
     feature_transform_kinds,
     transform_features_for_model,
@@ -58,11 +63,12 @@ def dataset_schema_is_current(output_dir: str | Path) -> bool:
         schema = load_json(schema_path)
     except Exception:  # noqa: BLE001 - corrupted schema should trigger rebuild.
         return False
+    feature_schema = build_feature_schema()
+    expected_transforms = feature_transform_kinds(feature_schema.feature_names)
     return (
-        list(schema.get("feature_names", [])) == list(build_feature_schema().feature_names)
+        list(schema.get("feature_names", [])) == list(feature_schema.feature_names)
         and list(schema.get("context_names", [])) == list(expected_context_names())
-        and list(schema.get("model_feature_transforms", []))
-        == list(feature_transform_kinds(build_feature_schema().feature_names))
+        and list(schema.get("model_feature_transforms", [])) == list(expected_transforms)
     )
 
 
@@ -94,12 +100,9 @@ def ensure_tail_context_csv(config: dict[str, Any], config_dir: Path) -> Path:
     if path.exists():
         return path
     highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
-    selection_cfg = dict(config.get("tail_selection", {}))
     logger.info("Tail context CSV is missing; selecting EVT tail contexts first")
     select_natural_tail_contexts(
         config_path=highd_cfg_path,
-        min_event_risk=selection_cfg.get("min_event_risk"),
-        top_k=int(selection_cfg.get("top_k", 0)),
         output_csv=path,
     )
     return path
@@ -171,11 +174,12 @@ def build_contexts(
     slot_mask: np.ndarray,
     metadata: list[dict[str, Any]],
 ) -> tuple[np.ndarray, tuple[str, ...]]:
+    context_names = expected_context_names()
     names: list[str] = []
     parts: list[np.ndarray] = []
 
     slot_bits = slot_mask.astype(np.float32)
-    names.extend(expected_context_names()[: len(SLOT_NAMES)])
+    names.extend(context_names[: len(SLOT_NAMES)])
     parts.append(slot_bits)
 
     primary_one_hot = np.zeros((len(slot_mask), len(SLOT_NAMES)), dtype=np.float32)
@@ -184,7 +188,7 @@ def build_contexts(
         dtype=np.int64,
     )
     primary_one_hot[np.arange(len(slot_mask)), primary_idx] = 1.0
-    names.extend(expected_context_names()[len(SLOT_NAMES) :])
+    names.extend(context_names[len(SLOT_NAMES) :])
     parts.append(primary_one_hot)
 
     return np.concatenate(parts, axis=1).astype(np.float32), tuple(names)
@@ -196,10 +200,12 @@ def fit_feature_normalizer(
     split_index: np.ndarray,
     feature_names: tuple[str, ...],
 ) -> dict[str, Any]:
+    transform_kinds = feature_transform_kinds(feature_names)
     model_features = transform_features_for_model(
         raw_features,
         feature_valid,
         feature_names,
+        transform_kinds,
     )
     train = split_index == SPLIT_TO_INDEX["train"]
     mean = np.zeros(raw_features.shape[1], dtype=np.float64)
@@ -229,20 +235,17 @@ def apply_feature_normalizer(
 ) -> np.ndarray:
     mean = np.asarray(normalizer["mean"], dtype=np.float32)
     std = np.asarray(normalizer["std"], dtype=np.float32)
+    transform_kinds = feature_transform_kinds(feature_names)
     model_features = transform_features_for_model(
         raw_features,
         feature_valid,
         feature_names,
+        transform_kinds,
     )
     out = np.zeros_like(raw_features, dtype=np.float32)
     valid = feature_valid & np.isfinite(model_features)
     out[valid] = ((model_features - mean) / std)[valid]
     return out
-
-
-def _mask_pattern(slot_mask: np.ndarray) -> np.ndarray:
-    powers = (1 << np.arange(slot_mask.shape[1], dtype=np.int64)).reshape(1, -1)
-    return np.sum(slot_mask.astype(np.int64) * powers, axis=1).astype(np.int64)
 
 
 def _metadata_arrays(metadata: list[dict[str, Any]]) -> dict[str, np.ndarray]:
@@ -339,7 +342,7 @@ def build_tail_flow_dataset(
         normalizer,
         schema.feature_names,
     )
-    mask_pattern = _mask_pattern(slot_mask)
+    mask_pattern = mask_pattern_from_slot_mask(slot_mask)
     meta_arrays = _metadata_arrays(metadata)
 
     arrays = {
@@ -371,43 +374,14 @@ def build_tail_flow_dataset(
         "ego_features": list(schema.ego_features),
         "slot_features": list(schema.slot_features),
         "trajectory_features": list(schema.trajectory_features),
-        "model_feature_transforms": list(feature_transform_kinds(schema.feature_names)),
+        "model_feature_transforms": list(
+            feature_transform_kinds(schema.feature_names)
+        ),
         "slot_names": list(SLOT_NAMES),
         "context_names": list(context_names),
         "split_index": SPLIT_TO_INDEX,
         "split_summary": split_summary,
         "mask_pattern_summary": mask_summary,
-        "scenario_condition_policy": {
-            "learned_continuous_features": (
-                "ego dynamics and active neighbor relative position, relative "
-                "velocity, acceleration, plus per-active-slot future 1s "
-                "action summaries"
-            ),
-            "known_constants_not_learned": [
-                "ego_length_m",
-                "ego_width_m",
-                "neighbor_length_m",
-                "neighbor_width_m",
-                "lane_width_m",
-            ],
-            "conditioning_variables": list(context_names),
-            "removed_redundant_contexts": [
-                "event_risk_stratum",
-                "slot_count_norm",
-                "lane_count_norm",
-                "ego_lane_ordinal_norm",
-            ],
-            "lane_context_note": (
-                "Lane topology is not stored in the Flow dataset. The Flow "
-                "context uses slot mask and primary-slot identity because "
-                "highD lane geometry is known externally and remains available "
-                "from upstream process_highD artifacts."
-            ),
-            "primary_slot_note": (
-                "primary_slot is chosen from EVT peak_slot_name when available; "
-                "otherwise same_front is preferred, then the first active slot."
-            ),
-        },
         "normalization": {
             "mean": np.asarray(normalizer["mean"], dtype=float).tolist(),
             "std": np.asarray(normalizer["std"], dtype=float).tolist(),
@@ -424,21 +398,6 @@ def build_tail_flow_dataset(
             ),
         },
         "reject_counts": {key: int(value) for key, value in sorted(reject.items())},
-        "notes": {
-            "target": "EVT-tail initial-state plus per-slot future-1s action-summary distribution",
-            "future_trajectory_features": (
-                "Compact 1s action summary features are included for every "
-                "active traffic slot; full future trajectories are not stored."
-            ),
-            "inactive_slots": (
-                "Inactive slot features are zero placeholders. Use slot_mask and "
-                "feature_valid to exclude them from physical checks and interfaces."
-            ),
-            "event_risk": (
-                "event_risk is retained only as metadata for audit; it is not a "
-                "conditioning variable because all rows are already EVT-tail events."
-            ),
-        },
     }
     save_json(schema_payload, schema_json_path(output_dir))
     logger.info("Wrote normalizing dataset: %s", dataset_npz_path(output_dir))

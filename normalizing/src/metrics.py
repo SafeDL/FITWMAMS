@@ -1,7 +1,7 @@
 """Evaluation metrics for tail c0 normalizing flows."""
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter
 from typing import Any
 
 import numpy as np
@@ -13,10 +13,10 @@ from .features import (
     DEFAULT_EGO_WIDTH_M,
     DEFAULT_OTHER_LENGTH_M,
     DEFAULT_OTHER_WIDTH_M,
-    EGO_FEATURES,
-    SLOT_FEATURES,
     SLOT_NAMES,
-    TRAJECTORY_FEATURES,
+    feature_index,
+    mask_pattern_from_slot_mask,
+    trajectory_feature_index,
 )
 
 
@@ -45,7 +45,6 @@ def conditional_nll_by_group(
     flow,
     arrays: dict[str, np.ndarray],
     *,
-    schema: dict[str, Any],
     split: str,
     device,
 ) -> dict[str, Any]:
@@ -67,24 +66,22 @@ def conditional_nll_by_group(
             "count": int(np.sum(mask)),
             "nll": float(np.mean(nll[mask])),
         }
-    return out
-
-
-def feature_valid_from_slot_mask(schema: dict[str, Any], slot_mask: np.ndarray) -> np.ndarray:
-    n = slot_mask.shape[0]
-    d = len(schema["feature_names"])
-    out = np.zeros((n, d), dtype=bool)
-    out[:, : len(EGO_FEATURES)] = True
-    base = len(EGO_FEATURES)
-    width = len(SLOT_FEATURES)
-    for slot_idx in range(len(SLOT_NAMES)):
-        start = base + slot_idx * width
-        out[:, start : start + width] = slot_mask[:, [slot_idx]]
-    trajectory_start = base + len(SLOT_NAMES) * width
-    trajectory_width = len(TRAJECTORY_FEATURES)
-    for slot_idx in range(len(SLOT_NAMES)):
-        start = trajectory_start + slot_idx * trajectory_width
-        out[:, start : start + trajectory_width] = slot_mask[:, [slot_idx]]
+    slot_mask = arrays["slot_mask"][idx].astype(bool)
+    out["slot_active"] = {}
+    for slot_idx, slot_name in enumerate(SLOT_NAMES):
+        mask = slot_mask[:, slot_idx]
+        out["slot_active"][slot_name] = {
+            "count": int(np.sum(mask)),
+            "nll": float(np.mean(nll[mask])) if np.any(mask) else float("nan"),
+        }
+    primary_slot = arrays["primary_slot_index"][idx].astype(np.int64)
+    out["primary_slot"] = {}
+    for slot_idx, slot_name in enumerate(SLOT_NAMES):
+        mask = primary_slot == slot_idx
+        out["primary_slot"][slot_name] = {
+            "count": int(np.sum(mask)),
+            "nll": float(np.mean(nll[mask])) if np.any(mask) else float("nan"),
+        }
     return out
 
 
@@ -125,7 +122,32 @@ def distribution_match_metrics(
         "mean_ks": avg_ks,
         "mean_wasserstein": avg_w,
         "per_feature": rows,
+        "slot_wise": _slot_wise_distribution_summary(rows),
     }
+
+
+def _slot_wise_distribution_summary(
+    per_feature: list[dict[str, float | str | int]],
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for slot_name in SLOT_NAMES:
+        prefix = f"{slot_name}_"
+        rows = [row for row in per_feature if str(row["feature"]).startswith(prefix)]
+        if not rows:
+            out[slot_name] = {
+                "num_features_compared": 0,
+                "mean_ks": float("nan"),
+                "mean_wasserstein": float("nan"),
+            }
+            continue
+        out[slot_name] = {
+            "num_features_compared": int(len(rows)),
+            "mean_ks": float(np.mean([float(row["ks"]) for row in rows])),
+            "mean_wasserstein": float(
+                np.mean([float(row["wasserstein"]) for row in rows])
+            ),
+        }
+    return out
 
 
 def correlation_error(
@@ -142,21 +164,6 @@ def correlation_error(
     return {"pearson_corr_mae": float(np.mean(np.abs(real_corr[mask] - gen_corr[mask])))}
 
 
-def _feature_index(slot_name: str | None, feature: str) -> int:
-    if slot_name is None:
-        return EGO_FEATURES.index(feature)
-    return len(EGO_FEATURES) + SLOT_NAMES.index(slot_name) * len(SLOT_FEATURES) + SLOT_FEATURES.index(feature)
-
-
-def _trajectory_feature_index(slot_name: str, feature: str) -> int:
-    return (
-        len(EGO_FEATURES)
-        + len(SLOT_NAMES) * len(SLOT_FEATURES)
-        + SLOT_NAMES.index(slot_name) * len(TRAJECTORY_FEATURES)
-        + TRAJECTORY_FEATURES.index(feature)
-    )
-
-
 def physical_validity_flags(
     features: np.ndarray,
     slot_mask: np.ndarray,
@@ -168,10 +175,10 @@ def physical_validity_flags(
     negative_gap_sample = np.zeros(n, dtype=bool)
     semantic_sample = np.zeros(n, dtype=bool)
 
-    idx_vx = _feature_index(None, "ego_vx_mps")
-    idx_vy = _feature_index(None, "ego_vy_left_mps")
-    idx_ax = _feature_index(None, "ego_ax_mps2")
-    idx_ay = _feature_index(None, "ego_ay_left_mps2")
+    idx_vx = feature_index(None, "ego_vx_mps")
+    idx_vy = feature_index(None, "ego_vy_left_mps")
+    idx_ax = feature_index(None, "ego_ax_mps2")
+    idx_ay = feature_index(None, "ego_ay_left_mps2")
     for i in range(n):
         ego_vx = float(features[i, idx_vx])
         ego_vy = float(features[i, idx_vy])
@@ -188,11 +195,11 @@ def physical_validity_flags(
         for slot_idx, slot_name in enumerate(SLOT_NAMES):
             if not bool(slot_mask[i, slot_idx]):
                 continue
-            rel_x = float(features[i, _feature_index(slot_name, "rel_x_m")])
-            rel_y = float(features[i, _feature_index(slot_name, "rel_y_left_m")])
-            rel_vx = float(features[i, _feature_index(slot_name, "rel_vx_mps")])
-            other_ax = float(features[i, _feature_index(slot_name, "other_ax_mps2")])
-            other_ay = float(features[i, _feature_index(slot_name, "other_ay_left_mps2")])
+            rel_x = float(features[i, feature_index(slot_name, "rel_x_m")])
+            rel_y = float(features[i, feature_index(slot_name, "rel_y_left_m")])
+            rel_vx = float(features[i, feature_index(slot_name, "rel_vx_mps")])
+            other_ax = float(features[i, feature_index(slot_name, "other_ax_mps2")])
+            other_ay = float(features[i, feature_index(slot_name, "other_ay_left_mps2")])
             other_len = DEFAULT_OTHER_LENGTH_M
             other_wid = DEFAULT_OTHER_WIDTH_M
             other_vx = ego_vx + rel_vx
@@ -229,12 +236,12 @@ def physical_validity_flags(
                 reason_counts["bounding_box_overlap"] += 1
                 overlap_sample[i] = True
                 invalid_sample[i] = True
-            delta_vx = float(features[i, _trajectory_feature_index(slot_name, "delta_vx_1s_mps")])
-            delta_vy = float(features[i, _trajectory_feature_index(slot_name, "delta_vy_left_1s_mps")])
-            mean_ax = float(features[i, _trajectory_feature_index(slot_name, "mean_ax_1s_mps2")])
-            min_ax = float(features[i, _trajectory_feature_index(slot_name, "min_ax_1s_mps2")])
-            final_ax = float(features[i, _trajectory_feature_index(slot_name, "final_ax_1s_mps2")])
-            mean_ay = float(features[i, _trajectory_feature_index(slot_name, "mean_ay_left_1s_mps2")])
+            delta_vx = float(features[i, trajectory_feature_index(slot_name, "delta_vx_1s_mps")])
+            delta_vy = float(features[i, trajectory_feature_index(slot_name, "delta_vy_left_1s_mps")])
+            mean_ax = float(features[i, trajectory_feature_index(slot_name, "mean_ax_1s_mps2")])
+            min_ax = float(features[i, trajectory_feature_index(slot_name, "min_ax_1s_mps2")])
+            final_ax = float(features[i, trajectory_feature_index(slot_name, "final_ax_1s_mps2")])
+            mean_ay = float(features[i, trajectory_feature_index(slot_name, "mean_ay_left_1s_mps2")])
             if not (
                 -8.0 <= delta_vx <= 5.0
                 and abs(delta_vy) <= 3.0
@@ -259,9 +266,7 @@ def physical_validity_flags(
 def physical_validity_metrics(
     features: np.ndarray,
     slot_mask: np.ndarray,
-    schema: dict[str, Any],
 ) -> dict[str, Any]:
-    del schema
     invalid_sample, reason_counts, detail = physical_validity_flags(features, slot_mask)
     n = int(features.shape[0])
     return {
@@ -274,10 +279,14 @@ def physical_validity_metrics(
     }
 
 
-def occupancy_metrics(real_slot_mask: np.ndarray, generated_slot_mask: np.ndarray) -> dict[str, Any]:
+def occupancy_metrics(
+    real_slot_mask: np.ndarray,
+    generated_slot_mask: np.ndarray,
+    real_primary_slot_index: np.ndarray | None = None,
+    generated_primary_slot_index: np.ndarray | None = None,
+) -> dict[str, Any]:
     def counts(mask: np.ndarray) -> dict[str, int]:
-        powers = (1 << np.arange(mask.shape[1], dtype=np.int64)).reshape(1, -1)
-        pattern = np.sum(mask.astype(np.int64) * powers, axis=1)
+        pattern = mask_pattern_from_slot_mask(mask)
         return {str(int(k)): int(v) for k, v in Counter(pattern.tolist()).items()}
 
     real_counts = counts(real_slot_mask)
@@ -288,11 +297,40 @@ def occupancy_metrics(real_slot_mask: np.ndarray, generated_slot_mask: np.ndarra
     l1 = 0.0
     for key in keys:
         l1 += abs(real_counts.get(key, 0) / real_total - gen_counts.get(key, 0) / gen_total)
-    return {
+    out = {
         "mask_pattern_l1": float(l1),
         "real_counts": real_counts,
         "generated_counts": gen_counts,
     }
+    if real_primary_slot_index is not None and generated_primary_slot_index is not None:
+        real_primary = np.asarray(real_primary_slot_index, dtype=np.int64).reshape(-1)
+        gen_primary = np.asarray(generated_primary_slot_index, dtype=np.int64).reshape(-1)
+        real_primary_counts = {
+            SLOT_NAMES[int(k)]: int(v)
+            for k, v in Counter(real_primary.tolist()).items()
+            if 0 <= int(k) < len(SLOT_NAMES)
+        }
+        gen_primary_counts = {
+            SLOT_NAMES[int(k)]: int(v)
+            for k, v in Counter(gen_primary.tolist()).items()
+            if 0 <= int(k) < len(SLOT_NAMES)
+        }
+        real_primary_total = max(int(len(real_primary)), 1)
+        gen_primary_total = max(int(len(gen_primary)), 1)
+        primary_l1 = 0.0
+        for slot_name in SLOT_NAMES:
+            primary_l1 += abs(
+                real_primary_counts.get(slot_name, 0) / real_primary_total
+                - gen_primary_counts.get(slot_name, 0) / gen_primary_total
+            )
+        out.update(
+            {
+                "primary_slot_l1": float(primary_l1),
+                "real_primary_slot_counts": real_primary_counts,
+                "generated_primary_slot_counts": gen_primary_counts,
+            }
+        )
+    return out
 
 
 def nll_table_for_report(

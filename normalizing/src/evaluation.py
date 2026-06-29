@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .baselines import fit_density_baselines
-from .data import load_tail_dataset, output_dir_from_config, split_indices
+from .data import output_dir_from_config, split_indices
 from .metrics import (
     conditional_nll_by_group,
     correlation_error,
@@ -22,9 +22,6 @@ from .metrics import (
 from .sampling import (
     load_checkpoint_and_dataset,
     sample_tail_c0,
-    samples_to_frame,
-    to_ads_initialization,
-    to_world_model_start_condition,
 )
 from .utils import ensure_dir, repo_root_from_file, save_json, select_device
 from .visualization import default_checkpoint, write_tail_flow_visual_diagnostics
@@ -66,41 +63,14 @@ def _resolve_num_generated_samples(raw_value: Any, *, reference_size: int) -> in
 
 def _write_samples(
     samples: dict[str, np.ndarray],
-    schema: dict[str, Any],
     output_dir: Path,
     *,
     output_prefix: str,
 ) -> dict[str, str]:
     sample_dir = ensure_dir(output_dir / "samples")
     npz_path = sample_dir / f"{output_prefix}.npz"
-    csv_path = sample_dir / f"{output_prefix}.csv"
-    json_path = sample_dir / f"{output_prefix}_interfaces.json"
     np.savez_compressed(npz_path, **samples)
-    samples_to_frame(samples, schema).to_csv(csv_path, index=False)
-    interfaces = []
-    for i in range(len(samples["features"])):
-        primary_slot_name = (
-            str(samples["primary_slot_name"][i])
-            if "primary_slot_name" in samples
-            else None
-        )
-        interfaces.append(
-            {
-                "ads_initialization": to_ads_initialization(
-                    samples["features"][i],
-                    samples["slot_mask"][i],
-                    sample_id=i,
-                ),
-                "world_model_start_condition": to_world_model_start_condition(
-                    samples["features"][i],
-                    samples["slot_mask"][i],
-                    sample_id=i,
-                    primary_slot_name=primary_slot_name,
-                ),
-            }
-        )
-    save_json(interfaces, json_path)
-    return {"npz": str(npz_path), "csv": str(csv_path), "interfaces_json": str(json_path)}
+    return {"npz": str(npz_path)}
 
 
 def evaluate_tail_flow(
@@ -138,7 +108,6 @@ def evaluate_tail_flow(
     group_nll = conditional_nll_by_group(
         flow,
         arrays,
-        schema=schema,
         split="test",
         device=device,
     )
@@ -166,6 +135,7 @@ def evaluate_tail_flow(
     event_structure_split = str(
         eval_cfg.get("sample_event_structure_split") or reference_split
     )
+    sampling_min_draw = eval_cfg.get("sampling_min_draw")
     samples = sample_tail_c0(
         flow,
         arrays,
@@ -174,11 +144,15 @@ def evaluate_tail_flow(
         device=device,
         seed=int(seed if seed is not None else int(config.get("seed", 42)) + 1000),
         event_structure_split=event_structure_split,
+        event_structure_sampling=str(eval_cfg.get("event_structure_sampling") or "multinomial"),
         reject_invalid=bool(eval_cfg.get("reject_invalid_samples", True)),
+        max_rounds=int(eval_cfg.get("sampling_max_rounds", 10)),
+        oversample_factor=int(eval_cfg.get("sampling_oversample_factor", 3)),
+        min_draw=int(sampling_min_draw) if sampling_min_draw is not None else None,
+        temperature=float(eval_cfg.get("sampling_temperature", 1.0)),
     )
     sample_paths = _write_samples(
         samples,
-        schema,
         output_dir,
         output_prefix=output_prefix,
     )
@@ -198,8 +172,13 @@ def evaluate_tail_flow(
         arrays["features_normalized"][compare_idx],
         samples["features_normalized"],
     )
-    physical_metrics = physical_validity_metrics(samples["features"], samples["slot_mask"], schema)
-    occupancy = occupancy_metrics(arrays["slot_mask"][compare_idx], samples["slot_mask"])
+    physical_metrics = physical_validity_metrics(samples["features"], samples["slot_mask"])
+    occupancy = occupancy_metrics(
+        arrays["slot_mask"][compare_idx],
+        samples["slot_mask"],
+        arrays["primary_slot_index"][compare_idx],
+        samples["primary_slot_index"],
+    )
     comparison = _comparison_flags(main_nll, baselines)
 
     diagnostics_dir = ensure_dir(output_dir / "diagnostics")
@@ -209,6 +188,15 @@ def evaluate_tail_flow(
     )
     pd.DataFrame(distribution_metrics["per_feature"]).to_csv(
         diagnostics_dir / "feature_distribution_metrics.csv",
+        index=False,
+    )
+    pd.DataFrame(
+        [
+            {"slot": slot_name, **values}
+            for slot_name, values in distribution_metrics["slot_wise"].items()
+        ]
+    ).to_csv(
+        diagnostics_dir / "slot_distribution_metrics.csv",
         index=False,
     )
 
@@ -237,6 +225,9 @@ def evaluate_tail_flow(
         "num_real_reference_available": int(len(real_idx)),
         "num_real_reference_samples": int(len(compare_idx)),
         "num_generated_samples": int(len(samples["features"])),
+        "event_structure_sampling": str(
+            samples.get("event_structure_sampling", np.asarray(["multinomial"]))[0]
+        ),
         "distribution_match": distribution_metrics,
         "correlation": corr_metrics,
         "physical_validity": physical_metrics,
@@ -245,6 +236,9 @@ def evaluate_tail_flow(
             "num_rejected": int(samples.get("num_rejected", np.asarray([0]))[0]),
             "rejection_rate": float(samples.get("rejection_rate", np.asarray([0.0]))[0]),
         },
+        "sampling_temperature": float(
+            samples.get("sampling_temperature", np.asarray([1.0]))[0]
+        ),
         "generated_samples": sample_paths,
         "visual_diagnostics": visual_summary,
     }

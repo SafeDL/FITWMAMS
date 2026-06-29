@@ -14,7 +14,11 @@ from normalizing.src.train import train_tail_flow  # noqa: E402
 from normalizing.src.utils import load_yaml, setup_logging  # noqa: E402
 
 
-CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "highd_tail_flow.yaml"
+CONFIG_PATH = (
+    Path(__file__).resolve().parent
+    / "configs"
+    / "highd_tail_flow_best.yaml"
+)
 
 
 def main() -> None:

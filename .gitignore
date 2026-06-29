@@ -70,6 +70,7 @@ results/highd_events/*.csv
 
 # Large generated media and sample dumps
 results/highd_natural_evt/playbacks/*.gif
-results/highd_tail_normalizing_flow/samples/generated_samples.csv
-results/highd_tail_normalizing_flow/samples/generated_samples_interfaces.json
-results/highd_tail_normalizing_flow/figures/tail_c0_joint_probability_tail_vs_generated.png
+results/highd_tail_flow_best/stages/
+results/highd_tail_flow_best/samples/generated_samples.csv
+results/highd_tail_flow_best/samples/generated_samples_interfaces.json
+results/highd_tail_flow_best/figures/tail_c0_joint_probability_tail_vs_generated.png

@@ -208,17 +208,20 @@ def train_realnvp_baseline(
         split: _eval_unconditional_flow(loader=loaders[split], flow=flow, device=device)
         for split in ("train", "val", "test")
     }
-    ckpt = Path(output_dir) / "checkpoints" / "baseline_realnvp.pt"
-    ckpt.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "state_dict": flow.state_dict(),
-            "model_cfg": dict(cfg.get("model", {})),
-            "metrics": metrics,
-        },
-        ckpt,
-    )
-    return {"nll": metrics, "checkpoint": str(ckpt)}
+    result: dict[str, Any] = {"nll": metrics}
+    if bool(cfg.get("save_checkpoint", False)):
+        ckpt = Path(output_dir) / "checkpoints" / "baseline_realnvp.pt"
+        ckpt.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(
+            {
+                "state_dict": flow.state_dict(),
+                "model_cfg": dict(cfg.get("model", {})),
+                "metrics": metrics,
+            },
+            ckpt,
+        )
+        result["checkpoint"] = str(ckpt)
+    return result
 
 
 def _eval_unconditional_flow(flow, loader, device) -> float:

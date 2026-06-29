@@ -67,6 +67,81 @@ def build_feature_schema() -> C0FeatureSchema:
     return C0FeatureSchema(feature_names=tuple(names))
 
 
+def mask_pattern_from_slot_mask(slot_mask: np.ndarray) -> np.ndarray:
+    mask = np.asarray(slot_mask, dtype=bool)
+    if mask.ndim == 1:
+        mask = mask.reshape(1, -1)
+    powers = (1 << np.arange(mask.shape[1], dtype=np.int64)).reshape(1, -1)
+    return np.sum(mask.astype(np.int64) * powers, axis=1).astype(np.int64)
+
+
+def slot_mask_from_pattern(mask_pattern: np.ndarray) -> np.ndarray:
+    pattern = np.asarray(mask_pattern, dtype=np.int64).reshape(-1)
+    powers = (1 << np.arange(len(SLOT_NAMES), dtype=np.int64)).reshape(1, -1)
+    return (pattern.reshape(-1, 1) & powers) > 0
+
+
+def slot_feature_index(slot_name: str, feature: str) -> int:
+    return (
+        len(EGO_FEATURES)
+        + SLOT_NAMES.index(slot_name) * len(SLOT_FEATURES)
+        + SLOT_FEATURES.index(feature)
+    )
+
+
+def trajectory_feature_index(slot_name: str, feature: str) -> int:
+    return (
+        len(EGO_FEATURES)
+        + len(SLOT_NAMES) * len(SLOT_FEATURES)
+        + SLOT_NAMES.index(slot_name) * len(TRAJECTORY_FEATURES)
+        + TRAJECTORY_FEATURES.index(feature)
+    )
+
+
+def feature_index(slot_name: str | None, feature: str) -> int:
+    if slot_name is None:
+        return EGO_FEATURES.index(feature)
+    return slot_feature_index(slot_name, feature)
+
+
+def slot_state_slice(slot_idx: int) -> slice:
+    start = len(EGO_FEATURES) + int(slot_idx) * len(SLOT_FEATURES)
+    return slice(start, start + len(SLOT_FEATURES))
+
+
+def slot_trajectory_slice(slot_idx: int) -> slice:
+    start = (
+        len(EGO_FEATURES)
+        + len(SLOT_NAMES) * len(SLOT_FEATURES)
+        + int(slot_idx) * len(TRAJECTORY_FEATURES)
+    )
+    return slice(start, start + len(TRAJECTORY_FEATURES))
+
+
+def feature_valid_from_slot_mask(schema: dict[str, Any], slot_mask: np.ndarray) -> np.ndarray:
+    mask = np.asarray(slot_mask, dtype=bool)
+    if mask.ndim == 1:
+        mask = mask.reshape(1, -1)
+    out = np.zeros((mask.shape[0], len(schema["feature_names"])), dtype=bool)
+    out[:, : len(EGO_FEATURES)] = True
+    for slot_idx in range(len(SLOT_NAMES)):
+        out[:, slot_state_slice(slot_idx)] = mask[:, [slot_idx]]
+        out[:, slot_trajectory_slice(slot_idx)] = mask[:, [slot_idx]]
+    return out
+
+
+def zero_inactive_slot_features(raw: np.ndarray, slot_mask: np.ndarray) -> np.ndarray:
+    out = np.asarray(raw, dtype=np.float32).copy()
+    mask = np.asarray(slot_mask, dtype=bool)
+    if mask.ndim == 1:
+        mask = mask.reshape(1, -1)
+    for slot_idx in range(len(SLOT_NAMES)):
+        inactive = ~mask[:, slot_idx]
+        out[inactive, slot_state_slice(slot_idx)] = 0.0
+        out[inactive, slot_trajectory_slice(slot_idx)] = 0.0
+    return out
+
+
 def _series_at_frame(track: pd.DataFrame, frame: int) -> pd.Series | None:
     try:
         row = track.loc[int(frame)]
@@ -103,13 +178,6 @@ def _choose_primary_slot(segment_row: pd.Series, slot_mask: np.ndarray) -> tuple
     return slot_idx, slot_name
 
 
-def _future_row(track: pd.DataFrame, frame: int) -> pd.Series | None:
-    row = _series_at_frame(track, frame)
-    if row is None:
-        return None
-    return row
-
-
 def _extract_slot_action_features(
     *,
     target_track: pd.DataFrame,
@@ -119,7 +187,7 @@ def _extract_slot_action_features(
     lat_sign: int,
 ) -> dict[str, float]:
     final_frame = int(anchor_frame) + int(horizon_steps)
-    target_final = _future_row(target_track, final_frame)
+    target_final = _series_at_frame(target_track, final_frame)
     if target_final is None:
         raise ValueError(
             f"missing slot future state at frame={final_frame} for 1s action summary"

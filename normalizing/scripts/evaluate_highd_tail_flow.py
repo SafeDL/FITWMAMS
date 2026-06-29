@@ -14,7 +14,11 @@ from normalizing.src.evaluation import evaluate_tail_flow  # noqa: E402
 from normalizing.src.utils import load_yaml, setup_logging  # noqa: E402
 
 
-CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "highd_tail_flow.yaml"
+CONFIG_PATH = (
+    Path(__file__).resolve().parent
+    / "configs"
+    / "highd_tail_flow_best.yaml"
+)
 
 
 def main() -> None:
@@ -23,6 +27,7 @@ def main() -> None:
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--output-prefix", default="generated_samples")
+    parser.add_argument("--sampling-temperature", type=float, default=None)
     parser.add_argument("--skip-baselines", action="store_true")
     parser.add_argument("--skip-figures", action="store_true")
     parser.add_argument("--log-level", default="INFO")
@@ -30,6 +35,10 @@ def main() -> None:
     setup_logging(args.log_level)
     config_path = Path(args.config).resolve()
     config = load_yaml(config_path)
+    if args.sampling_temperature is not None:
+        eval_cfg = dict(config.get("evaluation", {}))
+        eval_cfg["sampling_temperature"] = float(args.sampling_temperature)
+        config["evaluation"] = eval_cfg
     evaluate_tail_flow(
         config,
         config_dir=config_path.parent,

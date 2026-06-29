@@ -21,7 +21,6 @@ def build_maf_flow(
     from nflows.distributions.normal import StandardNormal
     from nflows.flows.base import Flow
     from nflows.transforms.autoregressive import (
-        MaskedAffineAutoregressiveTransform,
         MaskedPiecewiseRationalQuadraticAutoregressiveTransform,
     )
     from nflows.transforms.base import CompositeTransform
@@ -34,41 +33,26 @@ def build_maf_flow(
     dropout = float(model_cfg.get("dropout_probability", 0.0))
     use_residual = bool(model_cfg.get("use_residual_blocks", True))
     use_batch_norm = bool(model_cfg.get("use_batch_norm", False))
-    transform_type = str(model_cfg.get("transform_type", "affine")).lower()
+    transform_type = str(model_cfg.get("transform_type", "rq_spline")).lower()
+    if transform_type != "rq_spline":
+        raise ValueError(f"Unsupported MAF transform_type={transform_type!r}; expected 'rq_spline'")
     for _ in range(num_layers):
-        if transform_type in {"rq_spline", "rational_quadratic_spline", "spline"}:
-            layers.append(
-                MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
-                    features=int(num_features),
-                    hidden_features=hidden_features,
-                    context_features=int(context_features),
-                    num_bins=int(model_cfg.get("num_bins", 8)),
-                    tails="linear",
-                    tail_bound=float(model_cfg.get("tail_bound", 4.0)),
-                    num_blocks=num_blocks,
-                    use_residual_blocks=use_residual,
-                    random_mask=False,
-                    activation=F.relu,
-                    dropout_probability=dropout,
-                    use_batch_norm=use_batch_norm,
-                )
+        layers.append(
+            MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
+                features=int(num_features),
+                hidden_features=hidden_features,
+                context_features=int(context_features),
+                num_bins=int(model_cfg.get("num_bins", 8)),
+                tails="linear",
+                tail_bound=float(model_cfg.get("tail_bound", 4.0)),
+                num_blocks=num_blocks,
+                use_residual_blocks=use_residual,
+                random_mask=False,
+                activation=F.relu,
+                dropout_probability=dropout,
+                use_batch_norm=use_batch_norm,
             )
-        elif transform_type == "affine":
-            layers.append(
-                MaskedAffineAutoregressiveTransform(
-                    features=int(num_features),
-                    hidden_features=hidden_features,
-                    context_features=int(context_features),
-                    num_blocks=num_blocks,
-                    use_residual_blocks=use_residual,
-                    random_mask=False,
-                    activation=F.relu,
-                    dropout_probability=dropout,
-                    use_batch_norm=use_batch_norm,
-                )
-            )
-        else:
-            raise ValueError(f"Unsupported MAF transform_type={transform_type!r}")
+        )
         layers.append(ReversePermutation(features=int(num_features)))
     transform = CompositeTransform(layers)
     distribution = StandardNormal([int(num_features)])

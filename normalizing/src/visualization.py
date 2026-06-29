@@ -13,7 +13,7 @@ from .data import load_tail_dataset, output_dir_from_config, split_indices
 from .metrics import distribution_match_metrics
 from .model import load_maf_checkpoint
 from .sampling import event_structure_log_prob
-from .utils import ensure_dir, save_json, select_device
+from .utils import ensure_dir, select_device
 
 
 logger = logging.getLogger(__name__)
@@ -932,6 +932,5 @@ def write_tail_flow_visual_diagnostics(
         "all_feature_correlation": all_corr_metrics,
         "figures": {key: str(path) for key, path in figure_paths.items()},
     }
-    save_json(summary, diagnostics_dir / "visualization_summary.json")
     logger.info("Wrote visual diagnostics to %s", figures_dir)
     return summary

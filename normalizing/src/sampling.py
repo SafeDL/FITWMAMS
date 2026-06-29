@@ -5,9 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pandas as pd
 
-from .data import SPLIT_TO_INDEX, load_tail_dataset
+from .data import load_tail_dataset, split_indices
 from .features import (
     DEFAULT_EGO_LENGTH_M,
     DEFAULT_EGO_WIDTH_M,
@@ -15,11 +14,14 @@ from .features import (
     DEFAULT_OTHER_LENGTH_M,
     DEFAULT_OTHER_WIDTH_M,
     EGO_FEATURES,
-    SLOT_FEATURES,
     SLOT_NAMES,
-    TRAJECTORY_FEATURES,
+    feature_valid_from_slot_mask,
+    slot_feature_index,
+    slot_mask_from_pattern,
+    trajectory_feature_index,
+    zero_inactive_slot_features,
 )
-from .metrics import feature_valid_from_slot_mask, physical_validity_flags
+from .metrics import physical_validity_flags
 from .model import load_maf_checkpoint
 from .transforms import inverse_transform_model_features, transform_features_for_model
 
@@ -32,6 +34,7 @@ def inverse_normalize_features(x_norm: np.ndarray, schema: dict[str, Any]) -> np
     return inverse_transform_model_features(
         model_features,
         list(schema["feature_names"]),
+        list(schema.get("model_feature_transforms", [])) or None,
     )
 
 
@@ -43,43 +46,11 @@ def normalize_features(raw: np.ndarray, valid: np.ndarray, schema: dict[str, Any
         np.asarray(raw, dtype=np.float32),
         np.asarray(valid, dtype=bool),
         list(schema["feature_names"]),
+        list(schema.get("model_feature_transforms", [])) or None,
     )
     out = np.zeros_like(raw, dtype=np.float32)
     out[valid] = ((model_features - mean) / std)[valid]
     return out
-
-
-def zero_inactive_slot_features(raw: np.ndarray, slot_mask: np.ndarray) -> np.ndarray:
-    out = np.asarray(raw, dtype=np.float32).copy()
-    base = len(EGO_FEATURES)
-    width = len(SLOT_FEATURES)
-    trajectory_base = base + len(SLOT_NAMES) * width
-    trajectory_width = len(TRAJECTORY_FEATURES)
-    for slot_idx in range(len(SLOT_NAMES)):
-        inactive = ~slot_mask[:, slot_idx].astype(bool)
-        start = base + slot_idx * width
-        out[inactive, start : start + width] = 0.0
-        trajectory_start = trajectory_base + slot_idx * trajectory_width
-        out[inactive, trajectory_start : trajectory_start + trajectory_width] = 0.0
-    return out
-
-
-def _mask_pattern(slot_mask: np.ndarray) -> np.ndarray:
-    powers = (1 << np.arange(slot_mask.shape[1], dtype=np.int64)).reshape(1, -1)
-    return np.sum(slot_mask.astype(np.int64) * powers, axis=1).astype(np.int64)
-
-
-def _slot_mask_from_pattern(mask_pattern: np.ndarray) -> np.ndarray:
-    pattern = np.asarray(mask_pattern, dtype=np.int64).reshape(-1)
-    powers = (1 << np.arange(len(SLOT_NAMES), dtype=np.int64)).reshape(1, -1)
-    return ((pattern.reshape(-1, 1) & powers) > 0)
-
-
-def _split_candidates(arrays: dict[str, np.ndarray], split: str) -> np.ndarray:
-    if str(split).lower() in {"all", "full", "dataset"}:
-        return np.arange(len(arrays["features"]), dtype=np.int64)
-    split_value = SPLIT_TO_INDEX.get(str(split), SPLIT_TO_INDEX["train"])
-    return np.where(arrays["split_index"] == split_value)[0]
 
 
 def _primary_slot_index(primary_slot: str | int | None) -> int | None:
@@ -122,7 +93,7 @@ def _event_structure_distribution(
     mask_pattern: int | None = None,
     primary_slot: str | int | None = None,
 ) -> dict[str, np.ndarray]:
-    candidates = _split_candidates(arrays, split)
+    candidates = split_indices(arrays, split)
     if mask_pattern is not None:
         candidates = candidates[arrays["mask_pattern"][candidates] == int(mask_pattern)]
     primary_idx = _primary_slot_index(primary_slot)
@@ -181,7 +152,7 @@ def sample_event_structures(
     )
     sampled_pattern = table["mask_pattern"][category].astype(np.int64)
     sampled_primary = table["primary_slot_index"][category].astype(np.int64)
-    slot_mask = _slot_mask_from_pattern(sampled_pattern)
+    slot_mask = slot_mask_from_pattern(sampled_pattern)
     contexts = _contexts_from_event_structure(schema, slot_mask, sampled_primary)
     return {
         "contexts": contexts,
@@ -213,7 +184,7 @@ def event_structure_log_prob(
         axis=1,
     )
     support = np.unique(support_keys, axis=0)
-    candidates = _split_candidates(arrays, split)
+    candidates = split_indices(arrays, split)
     train_keys = np.stack(
         [
             arrays["mask_pattern"][candidates].astype(np.int64),
@@ -231,6 +202,208 @@ def event_structure_log_prob(
     return out
 
 
+def _event_structures_from_keys(
+    schema: dict[str, Any],
+    *,
+    mask_pattern: np.ndarray,
+    primary_slot_index: np.ndarray,
+    event_structure_id: np.ndarray | None = None,
+    event_structure_log_prob: np.ndarray | None = None,
+) -> dict[str, np.ndarray]:
+    sampled_pattern = np.asarray(mask_pattern, dtype=np.int64).reshape(-1)
+    sampled_primary = np.asarray(primary_slot_index, dtype=np.int64).reshape(-1)
+    slot_mask = slot_mask_from_pattern(sampled_pattern)
+    contexts = _contexts_from_event_structure(schema, slot_mask, sampled_primary)
+    n = len(sampled_pattern)
+    if event_structure_id is None:
+        event_structure_id = np.zeros(n, dtype=np.int64)
+    if event_structure_log_prob is None:
+        event_structure_log_prob = np.zeros(n, dtype=np.float32)
+    return {
+        "contexts": contexts,
+        "event_structure": contexts.copy(),
+        "slot_mask": slot_mask.astype(bool),
+        "mask_pattern": sampled_pattern,
+        "primary_slot_index": sampled_primary,
+        "primary_slot_name": np.asarray([SLOT_NAMES[int(idx)] for idx in sampled_primary]),
+        "event_structure_id": np.asarray(event_structure_id, dtype=np.int64).reshape(-1),
+        "event_structure_log_prob": np.asarray(
+            event_structure_log_prob,
+            dtype=np.float32,
+        ).reshape(-1),
+    }
+
+
+def _allocate_quota_counts(
+    probabilities: np.ndarray,
+    counts: np.ndarray,
+    *,
+    num_samples: int,
+) -> np.ndarray:
+    total_counts = int(np.sum(counts))
+    if int(num_samples) == total_counts:
+        return np.asarray(counts, dtype=np.int64).copy()
+    expected = np.asarray(probabilities, dtype=np.float64) * int(num_samples)
+    quota = np.floor(expected).astype(np.int64)
+    remaining = int(num_samples) - int(np.sum(quota))
+    if remaining > 0:
+        residual = expected - quota
+        order = np.argsort(-residual, kind="mergesort")
+        quota[order[:remaining]] += 1
+    elif remaining < 0:
+        residual = expected - quota
+        order = np.argsort(residual, kind="mergesort")
+        for idx in order[: abs(remaining)]:
+            if quota[idx] > 0:
+                quota[idx] -= 1
+    return quota.astype(np.int64)
+
+
+def _quota_event_structure_plan(
+    arrays: dict[str, np.ndarray],
+    *,
+    split: str,
+    num_samples: int,
+    mask_pattern: int | None,
+    primary_slot: str | int | None,
+) -> list[dict[str, Any]]:
+    table = _event_structure_distribution(
+        arrays,
+        split=split,
+        mask_pattern=mask_pattern,
+        primary_slot=primary_slot,
+    )
+    quota = _allocate_quota_counts(
+        table["probabilities"],
+        table["counts"],
+        num_samples=int(num_samples),
+    )
+    plan: list[dict[str, Any]] = []
+    for event_id, count in enumerate(quota.tolist()):
+        if int(count) <= 0:
+            continue
+        plan.append(
+            {
+                "event_structure_id": int(event_id),
+                "mask_pattern": int(table["mask_pattern"][event_id]),
+                "primary_slot_index": int(table["primary_slot_index"][event_id]),
+                "event_structure_log_prob": float(
+                    np.log(max(float(table["probabilities"][event_id]), 1.0e-12))
+                ),
+                "quota": int(count),
+            }
+        )
+    return plan
+
+
+def _slice_sample_batch(
+    batch: dict[str, np.ndarray],
+    take: np.ndarray,
+) -> dict[str, np.ndarray]:
+    event_log_prob = batch["event_structure_log_prob"][take].astype(np.float32)
+    return {
+        "features": batch["features"][take].astype(np.float32),
+        "features_normalized": batch["features_normalized"][take].astype(np.float32),
+        "feature_valid": batch["feature_valid"][take],
+        "contexts": batch["contexts"][take],
+        "event_structure": batch["event_structure"][take],
+        "slot_mask": batch["slot_mask"][take],
+        "mask_pattern": batch["mask_pattern"][take].astype(np.int64),
+        "primary_slot_index": batch["primary_slot_index"][take].astype(np.int64),
+        "primary_slot_name": batch["primary_slot_name"][take],
+        "event_structure_id": batch["event_structure_id"][take].astype(np.int64),
+        "event_structure_log_prob": event_log_prob,
+        "conditional_log_prob": batch["conditional_log_prob"][take].astype(np.float32),
+        "log_prob": (batch["conditional_log_prob"][take] + event_log_prob).astype(np.float32),
+    }
+
+
+def _concat_sample_chunks(
+    chunks: list[dict[str, np.ndarray]],
+    *,
+    num_samples: int,
+    seed: int,
+) -> dict[str, np.ndarray]:
+    out = {
+        key: np.concatenate([chunk[key] for chunk in chunks], axis=0)[: int(num_samples)]
+        for key in chunks[0]
+    }
+    rng = np.random.default_rng(int(seed) + 9901)
+    order = rng.permutation(len(out["features"]))
+    return {key: value[order] for key, value in out.items()}
+
+
+def _draw_flow_batch(
+    flow,
+    event_structure: dict[str, np.ndarray],
+    schema: dict[str, Any],
+    *,
+    device,
+    reject_invalid: bool,
+    temperature: float = 1.0,
+) -> tuple[dict[str, np.ndarray], np.ndarray, int]:
+    import torch
+
+    contexts = event_structure["contexts"].astype(np.float32)
+    slot_mask = event_structure["slot_mask"].astype(bool)
+    draw_n = int(len(contexts))
+    temp = float(temperature)
+    if temp <= 0.0:
+        raise ValueError(f"sampling temperature must be positive, got {temperature}")
+    context_t = torch.from_numpy(contexts).float().to(device)
+    with torch.no_grad():
+        embedded_context = flow._embedding_net(context_t)
+        if getattr(flow, "_context_used_in_base", False):
+            noise = flow._distribution.sample(1, context=embedded_context)
+            if noise.ndim == 3:
+                noise = noise[:, 0, :]
+        else:
+            noise = flow._distribution.sample(draw_n)
+        if temp != 1.0:
+            noise = noise * temp
+        samples, _ = flow._transform.inverse(noise, context=embedded_context)
+        x_norm_model = samples.detach().cpu().numpy().astype(np.float32)
+    raw = inverse_normalize_features(x_norm_model, schema)
+    raw = zero_inactive_slot_features(raw, slot_mask)
+    valid = feature_valid_from_slot_mask(schema, slot_mask)
+    x_norm = normalize_features(raw, valid, schema)
+    finite = np.isfinite(x_norm).all(axis=1) & np.isfinite(raw).all(axis=1)
+    conditional_log_prob = np.full(draw_n, -np.inf, dtype=np.float32)
+    if np.any(finite):
+        with torch.no_grad():
+            conditional_log_prob[finite] = flow.log_prob(
+                torch.from_numpy(x_norm[finite]).float().to(device),
+                context=torch.from_numpy(contexts[finite]).float().to(device),
+            ).detach().cpu().numpy().astype(np.float32)
+    keep = finite.copy()
+    rejected = 0
+    if reject_invalid:
+        invalid, _reasons, _detail = physical_validity_flags(
+            np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0),
+            slot_mask,
+        )
+        too_large = np.max(np.abs(x_norm), axis=1) > float(
+            schema.get("sampling_max_abs_normalized", 8.0)
+        )
+        keep = finite & ~(invalid | too_large)
+        rejected = int(np.sum(~keep))
+    batch = {
+        "features": raw.astype(np.float32),
+        "features_normalized": x_norm.astype(np.float32),
+        "feature_valid": valid,
+        "contexts": contexts,
+        "event_structure": event_structure["event_structure"],
+        "slot_mask": slot_mask,
+        "mask_pattern": event_structure["mask_pattern"].astype(np.int64),
+        "primary_slot_index": event_structure["primary_slot_index"].astype(np.int64),
+        "primary_slot_name": event_structure["primary_slot_name"],
+        "event_structure_id": event_structure["event_structure_id"].astype(np.int64),
+        "event_structure_log_prob": event_structure["event_structure_log_prob"].astype(np.float32),
+        "conditional_log_prob": conditional_log_prob.astype(np.float32),
+    }
+    return batch, keep, rejected
+
+
 def sample_tail_c0(
     flow,
     arrays: dict[str, np.ndarray],
@@ -242,8 +415,12 @@ def sample_tail_c0(
     mask_pattern: int | None = None,
     primary_slot: str | int | None = None,
     event_structure_split: str = "train",
+    event_structure_sampling: str = "multinomial",
     reject_invalid: bool = True,
     max_rounds: int = 10,
+    oversample_factor: int = 3,
+    min_draw: int | None = None,
+    temperature: float = 1.0,
 ) -> dict[str, np.ndarray]:
     import torch
 
@@ -253,110 +430,112 @@ def sample_tail_c0(
     flow.eval()
     accepted: list[dict[str, np.ndarray]] = []
     rejected = 0
-    remaining = int(num_samples)
-    rounds = 0
-    while remaining > 0 and rounds < int(max_rounds):
-        rounds += 1
-        draw_n = remaining if not reject_invalid else max(remaining * 3, 128)
-        event_structure = sample_event_structures(
+    strategy = str(event_structure_sampling or "multinomial").lower()
+    multinomial_min_draw = 128 if min_draw is None else int(min_draw)
+    quota_min_draw = 32 if min_draw is None else int(min_draw)
+    if strategy == "multinomial":
+        remaining = int(num_samples)
+        rounds = 0
+        while remaining > 0 and rounds < int(max_rounds):
+            rounds += 1
+            draw_n = remaining if not reject_invalid else max(
+                remaining * int(oversample_factor),
+                multinomial_min_draw,
+            )
+            event_structure = sample_event_structures(
+                arrays,
+                schema,
+                num_samples=draw_n,
+                seed=int(seed) + rounds * 1543,
+                split=event_structure_split,
+                mask_pattern=mask_pattern,
+                primary_slot=primary_slot,
+            )
+            batch, keep, num_rejected = _draw_flow_batch(
+                flow,
+                event_structure,
+                schema,
+                device=device,
+                reject_invalid=reject_invalid,
+                temperature=float(temperature),
+            )
+            rejected += num_rejected
+            take = np.where(keep)[0][:remaining]
+            if len(take):
+                accepted.append(_slice_sample_batch(batch, take))
+                remaining -= len(take)
+    elif strategy == "quota":
+        plan = _quota_event_structure_plan(
             arrays,
-            schema,
-            num_samples=draw_n,
-            seed=int(seed) + rounds * 1543,
             split=event_structure_split,
+            num_samples=int(num_samples),
             mask_pattern=mask_pattern,
             primary_slot=primary_slot,
         )
-        contexts = event_structure["contexts"].astype(np.float32)
-        slot_mask = event_structure["slot_mask"].astype(bool)
-        context_t = torch.from_numpy(contexts).float().to(device)
-        with torch.no_grad():
-            samples = flow.sample(1, context=context_t)
-            if samples.ndim == 3:
-                samples = samples[:, 0, :]
-            x_norm_model = samples.detach().cpu().numpy().astype(np.float32)
-        raw = inverse_normalize_features(x_norm_model, schema)
-        raw = zero_inactive_slot_features(raw, slot_mask)
-        valid = feature_valid_from_slot_mask(schema, slot_mask)
-        x_norm = normalize_features(raw, valid, schema)
-        finite = np.isfinite(x_norm).all(axis=1) & np.isfinite(raw).all(axis=1)
-        conditional_log_prob = np.full(draw_n, -np.inf, dtype=np.float32)
-        if np.any(finite):
-            with torch.no_grad():
-                conditional_log_prob[finite] = flow.log_prob(
-                    torch.from_numpy(x_norm[finite]).float().to(device),
-                    context=torch.from_numpy(contexts[finite]).float().to(device),
-                ).detach().cpu().numpy().astype(np.float32)
-        keep = finite.copy()
-        if reject_invalid:
-            invalid, _reasons, _detail = physical_validity_flags(
-                np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0),
-                slot_mask,
-            )
-            too_large = np.max(np.abs(x_norm), axis=1) > float(
-                schema.get("sampling_max_abs_normalized", 8.0)
-            )
-            keep = finite & ~(invalid | too_large)
-            rejected += int(np.sum(~keep))
-        take = np.where(keep)[0][:remaining]
-        if len(take):
-            event_log_prob = event_structure["event_structure_log_prob"][take].astype(np.float32)
-            accepted.append(
-                {
-                    "features": raw[take].astype(np.float32),
-                    "features_normalized": x_norm[take].astype(np.float32),
-                    "feature_valid": valid[take],
-                    "contexts": contexts[take],
-                    "event_structure": event_structure["event_structure"][take],
-                    "slot_mask": slot_mask[take],
-                    "mask_pattern": event_structure["mask_pattern"][take].astype(np.int64),
-                    "primary_slot_index": event_structure["primary_slot_index"][take].astype(np.int64),
-                    "primary_slot_name": event_structure["primary_slot_name"][take],
-                    "event_structure_id": event_structure["event_structure_id"][take].astype(np.int64),
-                    "event_structure_log_prob": event_log_prob,
-                    "conditional_log_prob": conditional_log_prob[take].astype(np.float32),
-                    "log_prob": (conditional_log_prob[take] + event_log_prob).astype(np.float32),
-                }
-            )
-            remaining -= len(take)
+        for item in plan:
+            remaining = int(item["quota"])
+            rounds = 0
+            while remaining > 0 and rounds < int(max_rounds):
+                rounds += 1
+                draw_n = remaining if not reject_invalid else max(
+                    remaining * int(oversample_factor),
+                    quota_min_draw,
+                )
+                event_structure = _event_structures_from_keys(
+                    schema,
+                    mask_pattern=np.full(draw_n, int(item["mask_pattern"]), dtype=np.int64),
+                    primary_slot_index=np.full(
+                        draw_n,
+                        int(item["primary_slot_index"]),
+                        dtype=np.int64,
+                    ),
+                    event_structure_id=np.full(
+                        draw_n,
+                        int(item["event_structure_id"]),
+                        dtype=np.int64,
+                    ),
+                    event_structure_log_prob=np.full(
+                        draw_n,
+                        float(item["event_structure_log_prob"]),
+                        dtype=np.float32,
+                    ),
+                )
+                batch, keep, num_rejected = _draw_flow_batch(
+                    flow,
+                    event_structure,
+                    schema,
+                    device=device,
+                    reject_invalid=reject_invalid,
+                    temperature=float(temperature),
+                )
+                rejected += num_rejected
+                take = np.where(keep)[0][:remaining]
+                if len(take):
+                    accepted.append(_slice_sample_batch(batch, take))
+                    remaining -= len(take)
+            if remaining > 0:
+                raise RuntimeError(
+                    "Quota sampler could not fill event structure "
+                    f"mask_pattern={item['mask_pattern']} "
+                    f"primary_slot_index={item['primary_slot_index']} "
+                    f"remaining={remaining}"
+                )
+    else:
+        raise ValueError(
+            "Unsupported event_structure_sampling="
+            f"{event_structure_sampling!r}; expected 'multinomial' or 'quota'"
+        )
     if not accepted:
         raise RuntimeError("Flow sampler could not produce any accepted samples")
-    out = {
-        key: np.concatenate([chunk[key] for chunk in accepted], axis=0)[: int(num_samples)]
-        for key in accepted[0]
-    }
+    out = _concat_sample_chunks(accepted, num_samples=int(num_samples), seed=int(seed))
     out["num_rejected"] = np.asarray([rejected], dtype=np.int64)
+    out["event_structure_sampling"] = np.asarray([strategy])
+    out["sampling_temperature"] = np.asarray([float(temperature)], dtype=np.float32)
     out["rejection_rate"] = np.asarray(
         [rejected / max(rejected + len(out["features"]), 1)],
         dtype=np.float32,
     )
     return out
-
-
-def feature_frame(features: np.ndarray, schema: dict[str, Any]) -> pd.DataFrame:
-    return pd.DataFrame(features, columns=list(schema["feature_names"]))
-
-
-def samples_to_frame(samples: dict[str, np.ndarray], schema: dict[str, Any]) -> pd.DataFrame:
-    frame = feature_frame(samples["features"], schema)
-    frame.insert(0, "sample_id", np.arange(len(frame), dtype=np.int64))
-    frame.insert(1, "joint_log_prob", samples["log_prob"])
-    if "conditional_log_prob" in samples:
-        frame.insert(2, "continuous_log_prob", samples["conditional_log_prob"])
-        frame.insert(3, "event_structure_log_prob", samples["event_structure_log_prob"])
-        frame.insert(4, "mask_pattern", samples["mask_pattern"].astype(np.int64))
-        next_insert = 5
-    else:
-        frame.insert(2, "mask_pattern", samples["mask_pattern"].astype(np.int64))
-        next_insert = 3
-    if "primary_slot_name" in samples:
-        frame.insert(next_insert, "primary_slot", samples["primary_slot_name"].astype(str))
-        mask_insert_start = next_insert + 1
-    else:
-        mask_insert_start = next_insert
-    for slot_idx, slot_name in enumerate(SLOT_NAMES):
-        frame.insert(mask_insert_start + slot_idx, f"{slot_name}_mask", samples["slot_mask"][:, slot_idx].astype(int))
-    return frame
 
 
 def _ego_dict(row: np.ndarray) -> dict[str, float]:
@@ -377,17 +556,11 @@ def _ego_dict(row: np.ndarray) -> dict[str, float]:
 
 
 def _slot_feature(row: np.ndarray, slot_idx: int, name: str) -> float:
-    start = len(EGO_FEATURES) + slot_idx * len(SLOT_FEATURES)
-    return float(row[start + SLOT_FEATURES.index(name)])
+    return float(row[slot_feature_index(SLOT_NAMES[int(slot_idx)], name)])
 
 
 def _trajectory_feature(row: np.ndarray, slot_idx: int, name: str) -> float:
-    start = (
-        len(EGO_FEATURES)
-        + len(SLOT_NAMES) * len(SLOT_FEATURES)
-        + int(slot_idx) * len(TRAJECTORY_FEATURES)
-    )
-    return float(row[start + TRAJECTORY_FEATURES.index(name)])
+    return float(row[trajectory_feature_index(SLOT_NAMES[int(slot_idx)], name)])
 
 
 def _slot_action_summary(row: np.ndarray, slot_idx: int, slot_name: str) -> dict[str, Any]:

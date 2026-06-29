@@ -9,7 +9,9 @@ import numpy as np
 _EPS = 1.0e-4
 
 
-def feature_transform_kinds(feature_names: Sequence[str]) -> tuple[str, ...]:
+def feature_transform_kinds(
+    feature_names: Sequence[str],
+) -> tuple[str, ...]:
     kinds: list[str] = []
     for name in feature_names:
         if name.endswith("_min_ax_1s_mps2"):
@@ -46,6 +48,7 @@ def transform_features_for_model(
     raw_features: np.ndarray,
     feature_valid: np.ndarray,
     feature_names: Sequence[str],
+    transform_kinds: Sequence[str] | None = None,
 ) -> np.ndarray:
     """Map raw auditable features into unconstrained model coordinates."""
 
@@ -54,7 +57,8 @@ def transform_features_for_model(
     out = raw.copy()
     names = list(feature_names)
     name_to_idx = {name: idx for idx, name in enumerate(names)}
-    for idx, kind in enumerate(feature_transform_kinds(names)):
+    kinds = list(transform_kinds or feature_transform_kinds(names))
+    for idx, kind in enumerate(kinds):
         if kind == "positive_mean_minus_min_ax_softplus":
             mean_idx = name_to_idx[_matching_mean_ax_name(names[idx])]
             rows = (
@@ -71,6 +75,7 @@ def transform_features_for_model(
 def inverse_transform_model_features(
     model_features: np.ndarray,
     feature_names: Sequence[str],
+    transform_kinds: Sequence[str] | None = None,
 ) -> np.ndarray:
     """Map unconstrained model-coordinate features back to raw audit units."""
 
@@ -78,7 +83,8 @@ def inverse_transform_model_features(
     out = model.copy()
     names = list(feature_names)
     name_to_idx = {name: idx for idx, name in enumerate(names)}
-    for idx, kind in enumerate(feature_transform_kinds(names)):
+    kinds = list(transform_kinds or feature_transform_kinds(names))
+    for idx, kind in enumerate(kinds):
         if kind == "positive_mean_minus_min_ax_softplus":
             mean_idx = name_to_idx[_matching_mean_ax_name(names[idx])]
             gap = _softplus(model[:, idx])

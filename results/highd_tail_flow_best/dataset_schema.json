@@ -1,5 +1,5 @@
 {
-  "dataset_npz": "/home/hp/FITWMAMS/results/highd_tail_normalizing_flow/dataset.npz",
+  "dataset_npz": "/home/hp/FITWMAMS/results/highd_tail_flow_best/dataset.npz",
   "tail_context_csv": "/home/hp/FITWMAMS/results/highd_natural_evt/natural_tail_contexts.csv",
   "raw_dir": "/home/hp/FITWMAMS/highD_dataset/Matlab/data",
   "num_samples": 2209,
@@ -255,38 +255,6 @@
     "37": 1,
     "39": 1
   },
-  "scenario_condition_policy": {
-    "learned_continuous_features": "ego dynamics and active neighbor relative position, relative velocity, acceleration, plus per-active-slot future 1s action summaries",
-    "known_constants_not_learned": [
-      "ego_length_m",
-      "ego_width_m",
-      "neighbor_length_m",
-      "neighbor_width_m",
-      "lane_width_m"
-    ],
-    "conditioning_variables": [
-      "mask_same_front",
-      "mask_same_rear",
-      "mask_left_front",
-      "mask_left_rear",
-      "mask_right_front",
-      "mask_right_rear",
-      "primary_slot_same_front",
-      "primary_slot_same_rear",
-      "primary_slot_left_front",
-      "primary_slot_left_rear",
-      "primary_slot_right_front",
-      "primary_slot_right_rear"
-    ],
-    "removed_redundant_contexts": [
-      "event_risk_stratum",
-      "slot_count_norm",
-      "lane_count_norm",
-      "ego_lane_ordinal_norm"
-    ],
-    "lane_context_note": "Lane topology is not stored in the Flow dataset. The Flow context uses slot mask and primary-slot identity because highD lane geometry is known externally and remains available from upstream process_highD artifacts.",
-    "primary_slot_note": "primary_slot is chosen from EVT peak_slot_name when available; otherwise same_front is preferred, then the first active slot."
-  },
   "normalization": {
     "mean": [
       31.274839401245117,
@@ -526,11 +494,5 @@
     "inactive_slot_policy": "zero_placeholder_not_a_vehicle",
     "coordinate_note": "Mean/std normalization is fitted in model coordinates after the positive mean-minus-min-ax transform. Raw feature values remain stored in dataset.npz."
   },
-  "reject_counts": {},
-  "notes": {
-    "target": "EVT-tail initial-state plus per-slot future-1s action-summary distribution",
-    "future_trajectory_features": "Compact 1s action summary features are included for every active traffic slot; full future trajectories are not stored.",
-    "inactive_slots": "Inactive slot features are zero placeholders. Use slot_mask and feature_valid to exclude them from physical checks and interfaces.",
-    "event_risk": "event_risk is retained only as metadata for audit; it is not a conditioning variable because all rows are already EVT-tail events."
-  }
+  "reject_counts": {}
 }
