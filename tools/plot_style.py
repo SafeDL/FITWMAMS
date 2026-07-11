@@ -244,8 +244,8 @@ def build_manifest(
         "created_by": created_by,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "no_training_or_rerun_statement": (
-            "Only existing JSON/CSV/NPZ/PNG results were read; "
-            "no training, EVT fitting, or subset simulation was rerun."
+            "只读取已有 JSON/CSV/NPZ/PNG 结果；"
+            "没有重跑训练、EVT 拟合或 subset simulation。"
         ),
         "source_files": {
             key: rel_path(path, root) for key, path in source_paths.items() if path.exists()
@@ -286,21 +286,21 @@ def write_experiment_readme(
         description,
         no_rerun_note,
         "",
-        "## Inputs",
+        "## 输入",
         "",
     ]
     lines.extend(f"- `{key}`: `{value}`" for key, value in manifest["source_files"].items())
-    lines.extend(["", "## Generated Artifacts", ""])
+    lines.extend(["", "## 生成产物", ""])
     lines.extend(f"- `{artifact}`" for artifact in generated)
-    lines.extend(["", "## Reused Existing Artifacts", ""])
-    lines.extend(f"- reused existing artifact: `{item}`" for item in reused)
+    lines.extend(["", "## 复用的已有产物", ""])
+    lines.extend(f"- 复用已有产物：`{item}`" for item in reused)
     if not reused:
-        lines.append("- None")
-    lines.extend(["", "## Skipped Artifacts", ""])
+        lines.append("- 无")
+    lines.extend(["", "## 跳过的产物", ""])
     lines.extend(f"- {item}" for item in skipped)
     if not skipped:
-        lines.append("- None")
-    lines.extend(["", "## Interpretation Notes", ""])
+        lines.append("- 无")
+    lines.extend(["", "## 解读说明", ""])
     lines.extend(f"- {note}" for note in interpretation_notes)
 
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,7 @@
-"""Build cut-in paper experiment artifacts from existing results.
+"""基于已有结果生成 cut-in 论文实验产物。
 
-This is a read-only post-processing script for existing experiment outputs.
-It does not retrain models, refit EVT models, or rerun subset simulation.
+这是面向已有实验输出的只读后处理脚本。
+它不会重新训练模型、重新拟合 EVT 模型或重跑 subset simulation。
 """
 from __future__ import annotations
 
@@ -356,7 +356,7 @@ def _write_cutin_safety_threshold_inverse_calibration(
         target_level,
     ]
     if not (values.size and all(np.isfinite(np.asarray(required, dtype=float)))):
-        skip = {"status": "skipped", "reason": "missing inputs for cut-in safety threshold inverse calibration"}
+        skip = {"status": "skipped", "reason": "缺少 cut-in safety threshold inverse calibration 所需输入"}
         path = LOGS / "exp2_skipped_cutin_safety_threshold_inverse_calibration.json"
         write_json(path, skip, force=force)
         return [rel(path)]
@@ -371,7 +371,7 @@ def _write_cutin_safety_threshold_inverse_calibration(
 
     tail_values = np.sort(values[values > u])
     if tail_values.size == 0 or tail_rate_km <= 0.0 or total_exposure_km <= 0.0:
-        skip = {"status": "skipped", "reason": "missing positive tail exposure for inverse calibration"}
+        skip = {"status": "skipped", "reason": "inverse calibration 缺少正的 tail exposure"}
         path = LOGS / "exp2_skipped_cutin_safety_threshold_inverse_calibration.json"
         write_json(path, skip, force=force)
         return [rel(path)]
@@ -904,7 +904,7 @@ def _write_cutin_tail_diffusion_generalization_panel(*, force: bool) -> list[str
     if missing:
         skip = {
             "status": "skipped",
-            "reason": "missing inputs for cut-in tail diffusion generalization panel",
+            "reason": "缺少 cut-in tail diffusion generalization panel 所需输入",
             "missing": missing,
         }
         path = LOGS / "exp3_skipped_cutin_tail_diffusion_generalization_panel.json"
@@ -919,7 +919,7 @@ def _write_cutin_tail_diffusion_generalization_panel(*, force: bool) -> list[str
     if real_keys != gen_keys:
         skip = {
             "status": "skipped",
-            "reason": "tail context and generated scenario condition keys differ",
+            "reason": "tail context 与生成场景的 condition keys 不一致",
             "tail_keys": real_keys,
             "generated_keys": gen_keys,
         }
@@ -960,7 +960,7 @@ def _write_cutin_tail_diffusion_generalization_panel(*, force: bool) -> list[str
     real_std = np.nanstd(real_conditions[:, valid_cols], axis=0)
     scale_cols = real_std > 1.0e-8
     if np.count_nonzero(scale_cols) < 2:
-        skip = {"status": "skipped", "reason": "not enough variable condition dimensions for PCA"}
+        skip = {"status": "skipped", "reason": "可变 condition 维度不足，无法执行 PCA"}
         path = LOGS / "exp3_skipped_cutin_tail_diffusion_generalization_panel.json"
         write_json(path, skip, force=force)
         return [rel(path)]
@@ -1154,7 +1154,7 @@ def tail_diffusion_generalization_panel(
         status=_artifact_status(outputs),
         outputs=outputs,
         sources=sources,
-        notes="tail diffusion generalization panel is rebuilt from existing EVT-tail contexts and generated scenarios",
+        notes="tail diffusion generalization panel 基于已有 EVT-tail contexts 和生成场景重建",
     )
 
 
@@ -1199,7 +1199,7 @@ def _write_cutin_subset_level_score_histograms(*, force: bool) -> list[str]:
     if scores.ndim != 2 or scores.shape[0] < 1:
         skip = {
             "status": "skipped",
-            "reason": f"expected 2-D level x sample scores, got shape={scores.shape}",
+            "reason": f"期望 2-D level x sample scores，实际 shape={scores.shape}",
         }
         log_path = LOGS / "subset_level_score_histograms_skipped.json"
         write_json(log_path, skip, force=force)
@@ -1209,7 +1209,7 @@ def _write_cutin_subset_level_score_histograms(*, force: bool) -> list[str]:
     finite_by_level = [row[np.isfinite(row)] for row in scores]
     pooled = np.concatenate([row for row in finite_by_level if row.size])
     if pooled.size == 0:
-        skip = {"status": "skipped", "reason": "subset scores contain no finite values"}
+        skip = {"status": "skipped", "reason": "subset scores 不包含有限值"}
         log_path = LOGS / "subset_level_score_histograms_skipped.json"
         write_json(log_path, skip, force=force)
         return [rel(log_path)]
@@ -1292,7 +1292,7 @@ def subset_level_score_histograms(manifest: dict[str, Any], *, force: bool) -> N
         status=_artifact_status(outputs),
         outputs=outputs,
         sources=[rel(SOURCE_PATHS["subset_samples"])],
-        notes="level-wise risk-score histograms are built from stored cut-in subset samples",
+        notes="逐层 risk-score 直方图基于已保存的 cut-in subset samples 构建",
     )
 
 
@@ -1300,16 +1300,16 @@ def write_readme(manifest: dict[str, Any], *, force: bool) -> None:
     write_experiment_readme(
         OUT / "CUTIN_EXPERIMENT_README.md",
         manifest,
-        title="Cut-in Paper Experiments",
-        description="This directory contains post-processed cut-in paper artifacts built from existing results only.",
-        no_rerun_note="No cut-in diffusion training, EVT fitting, or subset simulation rerun was performed.",
+        title="Cut-in 论文实验",
+        description="本目录只基于已有结果生成后处理后的 cut-in 论文产物。",
+        no_rerun_note="本次没有重新执行 cut-in diffusion 训练、EVT 拟合或 subset simulation。",
         interpretation_notes=[
-            "All paper figures use the shared TREAD paper style: 300 dpi export, Times-compatible serif text, and STIX/LaTeX-style math rendering.",
-            "Main exposure denominator is `all_vehicle_km`.",
-            "ADS intensity is `conditional exceedance probability x highD tail peak exposure rate`.",
+            "所有论文图都使用共享 TREAD 论文样式：300 dpi 导出、Times 兼容衬线字体，以及 STIX/LaTeX 风格数学渲染。",
+            "主 exposure 分母为 `all_vehicle_km`。",
+            "ADS intensity 定义为 `conditional exceedance probability x highD tail peak exposure rate`。",
             (
-                "The probabilities are conditional on the highD cutin tail scenario-condition distribution, "
-                "not unconditional road crash rates."
+                "这些概率以 highD cutin tail scenario-condition distribution 为条件，"
+                "不是无条件道路事故率。"
             ),
         ],
         force=force,

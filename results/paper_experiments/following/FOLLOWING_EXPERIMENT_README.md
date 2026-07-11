@@ -1,9 +1,10 @@
-# Following Paper Figures
+# Following 论文图
 
-This directory contains car-following paper figures built from existing highD following EVT, exposure, diffusion, Monte Carlo, and subset-simulation results.
-No following diffusion training, EVT fitting, subset simulation, or tables were generated.
+本目录基于已有 highD following EVT、exposure、diffusion、Monte Carlo 和
+subset-simulation 结果生成 car-following 论文图。
+本次没有生成 following diffusion 训练、EVT 拟合、subset simulation 或表格结果。
 
-## Inputs
+## 输入
 
 - `subset_samples`: `IDM_subset/results/following/latent_subset_samples.npz`
 - `evt_model`: `results/highd_following_tail/evt/longitudinal_peak_evt_model.json`
@@ -13,7 +14,7 @@ No following diffusion training, EVT fitting, subset simulation, or tables were 
 - `tail_generated_scenarios`: `results/highd_following_tail/generated/diffusion_generated_scenarios.npz`
 - `following_segment_cache`: `results/highd_events/following_event_segments.npz`
 
-## Generated Artifacts
+## 生成产物
 
 - `results/paper_experiments/following/following_gpd_diagnostic_panel.png`
 - `results/paper_experiments/following/following_safety_threshold_inverse_calibration.png`
@@ -21,28 +22,28 @@ No following diffusion training, EVT fitting, subset simulation, or tables were 
 - `results/paper_experiments/following/following_tail_diffusion_acceleration_profiles.png`
 - `results/paper_experiments/following/following_subset_level_score_histograms.png`
 
-## Reused Existing Artifacts
+## 复用的已有产物
 
-- reused existing artifact: `following_gpd_diagnostic_panel: results/highd_following_tail/evt/longitudinal_peak_evt_model.json`
-- reused existing artifact: `following_safety_threshold_inverse_calibration: results/highd_following_tail/evt/longitudinal_peak_evt_model.json`
-- reused existing artifact: `following_safety_threshold_inverse_calibration: results/highd_following_tail/exposure/highd_exposure_summary.json`
-- reused existing artifact: `following_tail_diffusion_generalization_panel: results/highd_following_tail/contexts/scenario_condition_distribution.npz`
-- reused existing artifact: `following_tail_diffusion_generalization_panel: results/highd_following_tail/contexts/tail_contexts.npz`
-- reused existing artifact: `following_tail_diffusion_generalization_panel: results/highd_following_tail/generated/diffusion_generated_scenarios.npz`
-- reused existing artifact: `following_tail_diffusion_generalization_panel: results/highd_events/following_event_segments.npz`
-- reused existing artifact: `following_tail_diffusion_acceleration_profiles: results/highd_following_tail/generated/diffusion_generated_scenarios.npz`
-- reused existing artifact: `following_subset_level_score_histograms: IDM_subset/results/following/latent_subset_samples.npz`
+- 复用已有产物：`following_gpd_diagnostic_panel: results/highd_following_tail/evt/longitudinal_peak_evt_model.json`
+- 复用已有产物：`following_safety_threshold_inverse_calibration: results/highd_following_tail/evt/longitudinal_peak_evt_model.json`
+- 复用已有产物：`following_safety_threshold_inverse_calibration: results/highd_following_tail/exposure/highd_exposure_summary.json`
+- 复用已有产物：`following_tail_diffusion_generalization_panel: results/highd_following_tail/contexts/scenario_condition_distribution.npz`
+- 复用已有产物：`following_tail_diffusion_generalization_panel: results/highd_following_tail/contexts/tail_contexts.npz`
+- 复用已有产物：`following_tail_diffusion_generalization_panel: results/highd_following_tail/generated/diffusion_generated_scenarios.npz`
+- 复用已有产物：`following_tail_diffusion_generalization_panel: results/highd_events/following_event_segments.npz`
+- 复用已有产物：`following_tail_diffusion_acceleration_profiles: results/highd_following_tail/generated/diffusion_generated_scenarios.npz`
+- 复用已有产物：`following_subset_level_score_histograms: IDM_subset/results/following/latent_subset_samples.npz`
 
-## Skipped Artifacts
+## 跳过的产物
 
-- None
+- 无
 
-## Interpretation Notes
+## 解读说明
 
-- The following paper figures are generated directly in this directory; no `figures/` subdirectory is used.
-- All paper figures use the shared TREAD paper style: 300 dpi export, Times-compatible serif text, and STIX/LaTeX-style math rendering.
-- The panel shows the fitted POT/GPD tail diagnostics with the plotting range capped at `Y_long = 10`.
-- The inverse calibration figure marks the selected 300 km all-vehicle return-level threshold from the exposure summary.
-- The tail diffusion generalization panel compares empirical following EVT-tail contexts with generated lead trajectories; panel f uses the `lead_braking_duration` scenario-condition distribution used by `process_highD`.
-- The acceleration-profile figure summarizes diffusion-generated long-tail lead-vehicle acceleration traces with a 5-95% envelope and representative braking modes.
-- The subset level histogram shows how subset simulation concentrates mass toward the calibrated EVT risk threshold.
+- following 论文图直接生成在本目录下，不使用 `figures/` 子目录。
+- 所有论文图都使用共享 TREAD 论文样式：300 dpi 导出、Times 兼容衬线字体，以及 STIX/LaTeX 风格数学渲染。
+- 诊断面板展示拟合后的 POT/GPD tail 诊断，绘图范围限制在 `Y_long = 10`。
+- inverse calibration 图标出 exposure summary 中选定的 300 km all-vehicle return-level threshold。
+- tail diffusion generalization 面板比较经验 following EVT-tail contexts 与生成的 lead trajectories；面板 f 使用 `process_highD` 中的 `lead_braking_duration` scenario-condition distribution。
+- acceleration-profile 图用 5-95% envelope 和代表性制动模式概括 diffusion 生成的长尾 lead-vehicle acceleration traces。
+- subset level histogram 展示 subset simulation 如何把质量集中到校准后的 EVT risk threshold 附近。

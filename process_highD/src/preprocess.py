@@ -15,11 +15,12 @@ preprocess.py — 轨迹清洗、方向统一与重采样
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from .loader import HighDRecording
+from .loader import HighDRecording, load_recording
 
 logger = logging.getLogger(__name__)
 
@@ -258,3 +259,16 @@ def resample_recording(
     recording._frame_cache.clear()
 
     return recording
+
+
+def prepare_recording(
+    raw_dir: str | Path,
+    recording_id: int,
+    config: dict,
+) -> HighDRecording:
+    """加载并执行项目统一的 highD 预处理步骤。"""
+    recording = load_recording(str(raw_dir), int(recording_id))
+    recording = normalize_driving_direction(recording)
+    recording = filter_abnormal_tracks(recording, config)
+    target_fps = int(config.get("sampling", {}).get("target_fps", 25))
+    return resample_recording(recording, target_fps)

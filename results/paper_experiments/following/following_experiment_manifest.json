@@ -2,7 +2,7 @@
   "experiment_scope": "following",
   "created_by": "results/build_following_paper_experiments.py",
   "created_at_utc": "2026-06-24T14:46:19.742831+00:00",
-  "no_training_or_rerun_statement": "Only existing JSON/CSV/NPZ/PNG results were read; no training, EVT fitting, or subset simulation was rerun.",
+  "no_training_or_rerun_statement": "只读取已有 JSON/CSV/NPZ/PNG 结果；没有重跑训练、EVT 拟合或 subset simulation。",
   "source_files": {
     "subset_samples": "IDM_subset/results/following/latent_subset_samples.npz",
     "evt_model": "results/highd_following_tail/evt/longitudinal_peak_evt_model.json",
@@ -23,7 +23,7 @@
         "results/highd_following_tail/evt/longitudinal_peak_evt_model.json"
       ],
       "skipped_reason": null,
-      "notes": "The display range is truncated at Y_long = 10 for readability."
+      "notes": "为便于阅读，显示范围截断在 Y_long = 10。"
     },
     "following_safety_threshold_inverse_calibration": {
       "status": "generated",
@@ -35,7 +35,7 @@
         "results/highd_following_tail/exposure/highd_exposure_summary.json"
       ],
       "skipped_reason": null,
-      "notes": "The selected car-following safety threshold is the 300 km all-vehicle return level."
+      "notes": "选定的 car-following 安全阈值是 300 km all-vehicle return level。"
     },
     "following_tail_diffusion_generalization_panel": {
       "status": "generated",
@@ -49,7 +49,7 @@
         "results/highd_events/following_event_segments.npz"
       ],
       "skipped_reason": null,
-      "notes": "tail diffusion generalization panel is rebuilt from existing following EVT-tail contexts, generated lead trajectories, and the same lead-braking-duration condition used by process_highD"
+      "notes": "tail diffusion generalization panel 基于已有 following EVT-tail contexts、生成的 lead trajectories，以及 process_highD 使用的同一 lead-braking-duration condition 重建"
     },
     "following_tail_diffusion_acceleration_profiles": {
       "status": "generated",
@@ -60,7 +60,7 @@
         "results/highd_following_tail/generated/diffusion_generated_scenarios.npz"
       ],
       "skipped_reason": null,
-      "notes": "single-panel summary of diffusion-generated following long-tail lead-vehicle longitudinal acceleration profiles"
+      "notes": "单面板概括 diffusion 生成的 following 长尾 lead-vehicle longitudinal acceleration profiles"
     },
     "following_subset_level_score_histograms": {
       "status": "generated",
@@ -71,7 +71,7 @@
         "IDM_subset/results/following/latent_subset_samples.npz"
       ],
       "skipped_reason": null,
-      "notes": "level-wise risk-score histograms are built from stored following subset samples"
+      "notes": "逐层 risk-score 直方图基于已保存的 following subset samples 构建"
     }
   }
 }

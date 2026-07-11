@@ -1,4 +1,4 @@
-# Normalizing Flow 长尾驾驶事件分布建模改进目标
+# 归一化流长尾驾驶事件分布建模改进目标
 
 ## 1. 核心目标
 
@@ -6,10 +6,16 @@
 
 ```text
 尽最大可能提升 highD EVT 长尾驾驶事件的联合分布拟合效果，
-并保证最终效果优于当前 normalizing/ 方法。
+并保证最终效果优于当前 normalizing_flow/ 方法。
 ```
 
-当前 [normalizing/](../normalizing/) 已经形成新的最优基线：它对 EVT 筛选后的 highD 长尾自然驾驶事件建模，默认学习和采样：
+## 当前代码实现边界
+
+当前活动实现位于 `normalizing_flow/`，唯一正式配置为 `normalizing_flow/scripts/configs/highd_tail_flow_best.yaml`。它实现条件 RQ-spline MAF：离散条件为 `slot_mask` 与 `primary_slot`，连续变量为 76 维初始状态和未来 1 秒背景车动作摘要。采样函数 `sample_tail_c0()` 返回 `features`、`slot_mask`、`primary_slot_index` 等数组，可直接作为 `world_model` 的 START 条件。
+
+本文件后续列出的预训练、near-tail、按 slot 拆分等内容是候选研究路线，不表示已经进入当前代码或当前结果。任何路线只有在配置、实现、评测和结果目录都实际新增后，才能被称为活动方法。
+
+当前 [normalizing_flow/](../normalizing_flow/) 已经形成新的最优基线：它对 EVT 筛选后的 highD 长尾自然驾驶事件建模，默认学习和采样：
 
 ```text
 p(event | EVT-tail) = p_hat(e | EVT-tail) * p_flow(y | e, EVT-tail)
@@ -32,15 +38,15 @@ conda activate tread
 从仓库根目录复现当前最优基线：
 
 ```bash
-python normalizing/scripts/prepare_highd_tail_flow_dataset.py \
-  --config normalizing/scripts/configs/highd_tail_flow_best.yaml
-python normalizing/scripts/train_highd_tail_flow.py \
-  --config normalizing/scripts/configs/highd_tail_flow_best.yaml
-python normalizing/scripts/evaluate_highd_tail_flow.py \
-  --config normalizing/scripts/configs/highd_tail_flow_best.yaml
+python normalizing_flow/scripts/prepare_highd_tail_flow_dataset.py \
+  --config normalizing_flow/scripts/configs/highd_tail_flow_best.yaml
+python normalizing_flow/scripts/train_highd_tail_flow.py \
+  --config normalizing_flow/scripts/configs/highd_tail_flow_best.yaml
+python normalizing_flow/scripts/evaluate_highd_tail_flow.py \
+  --config normalizing_flow/scripts/configs/highd_tail_flow_best.yaml
 ```
 
-注意：`highd_tail_flow_best.yaml` 内部的 `training.stages` 已包含 `weighted_quota_lite -> ft_lr1e5 -> best` 的完整训练链；只复现最终评估时可直接使用当前最优 checkpoint。
+注意：`highd_tail_flow_best.yaml` 内部的 `training.stages` 已包含 `density_fit -> likelihood_refinement -> final_refinement` 的完整训练链；只复现最终评估时可直接使用当前最优 checkpoint。
 
 ---
 
@@ -49,7 +55,7 @@ python normalizing/scripts/evaluate_highd_tail_flow.py \
 当前基线位于：
 
 ```text
-normalizing/
+normalizing_flow/
 results/highd_tail_flow_best/
 ```
 
@@ -73,7 +79,7 @@ latent sampling temperature 1.0295
 当前配置：
 
 ```text
-normalizing/scripts/configs/highd_tail_flow_best.yaml
+normalizing_flow/scripts/configs/highd_tail_flow_best.yaml
 ```
 
 最终 checkpoint：
@@ -87,9 +93,9 @@ results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt
 ```text
 strict EVT-tail only
 single staged config: highd_tail_flow_best.yaml
-stage 1: weighted_quota_lite, max_epochs 240
-stage 2: ft_lr1e5, lr 1e-5, epochs 180
-stage 3: best, lr 5e-7, stopped at 230 epochs
+stage 1: density_fit, max_epochs 240
+stage 2: likelihood_refinement, lr 1e-5, max_epochs 180
+stage 3: final_refinement, lr 5e-7, config max_epochs 260; 历史运行在 230 epochs 停止
 best checkpoint selected by unweighted strict-tail validation NLL
 rare-slot / mask-pattern / primary-slot sample weighting enabled
 ```
@@ -135,12 +141,6 @@ rare-slot / mask-pattern / primary-slot sample weighting enabled
   min_ax_1s_mps2
   final_ax_1s_mps2
   mean_ay_left_1s_mps2
-```
-
-因此：
-
-```text
-4 + 6 * 6 + 6 * 6 = 76
 ```
 
 当前 12 维离散事件结构 context 只包含：
@@ -829,7 +829,7 @@ experiment_report.md
 
 实验报告必须包含：
 
-- 与当前 `normalizing/` 基线的指标对比；
+- 与当前 `normalizing_flow/` 基线的指标对比；
 - 哪些 slot 改善；
 - 哪些特征恶化；
 - 是否改变目标分布；

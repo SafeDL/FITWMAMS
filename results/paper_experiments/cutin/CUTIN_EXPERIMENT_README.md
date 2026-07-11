@@ -1,9 +1,9 @@
-# Cut-in Paper Experiments
+# Cut-in 论文实验
 
-This directory contains post-processed cut-in paper artifacts built from existing results only.
-No cut-in diffusion training, EVT fitting, or subset simulation rerun was performed.
+本目录只基于已有结果生成后处理后的 cut-in 论文产物。
+本次没有重新执行 cut-in diffusion 训练、EVT 拟合或 subset simulation。
 
-## Inputs
+## 输入
 
 - `event_scores`: `results/highd_events/cutin_event_scores.csv`
 - `event_cache_summary`: `results/highd_events/cutin_event_cache_summary.json`
@@ -21,28 +21,28 @@ No cut-in diffusion training, EVT fitting, or subset simulation rerun was perfor
 - `tail_generated_summary`: `results/highd_cutin_tail/generated/diffusion_generated_scenarios_summary.json`
 - `tail_distribution_similarity_summary`: `results/highd_cutin_tail/generated/figures/distribution_similarity_summary.json`
 
-## Generated Artifacts
+## 生成产物
 
 - `results/paper_experiments/cutin/cutin_safety_threshold_inverse_calibration.png`
 - `results/paper_experiments/cutin/cutin_gpd_diagnostic_panel.png`
 - `results/paper_experiments/cutin/cutin_tail_diffusion_generalization_panel.png`
 - `results/paper_experiments/cutin/cutin_subset_level_score_histograms.png`
 
-## Reused Existing Artifacts
+## 复用的已有产物
 
-- reused existing artifact: `cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/contexts/scenario_condition_distribution.npz`
-- reused existing artifact: `cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/contexts/tail_contexts.npz`
-- reused existing artifact: `cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/generated/diffusion_generated_scenarios.npz`
-- reused existing artifact: `cutin_tail_diffusion_generalization_panel: results/diffusion_natural/cutin/dataset.npz`
-- reused existing artifact: `cutin_subset_level_score_histograms: IDM_subset/results/cutin/latent_subset_samples.npz`
+- 复用已有产物：`cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/contexts/scenario_condition_distribution.npz`
+- 复用已有产物：`cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/contexts/tail_contexts.npz`
+- 复用已有产物：`cutin_tail_diffusion_generalization_panel: results/highd_cutin_tail/generated/diffusion_generated_scenarios.npz`
+- 复用已有产物：`cutin_tail_diffusion_generalization_panel: results/diffusion_natural/cutin/dataset.npz`
+- 复用已有产物：`cutin_subset_level_score_histograms: IDM_subset/results/cutin/latent_subset_samples.npz`
 
-## Skipped Artifacts
+## 跳过的产物
 
-- None
+- 无
 
-## Interpretation Notes
+## 解读说明
 
-- All paper figures use the shared TREAD paper style: 300 dpi export, Times-compatible serif text, and STIX/LaTeX-style math rendering.
-- Main exposure denominator is `all_vehicle_km`.
-- ADS intensity is `conditional exceedance probability x highD tail peak exposure rate`.
-- The probabilities are conditional on the highD cutin tail scenario-condition distribution, not unconditional road crash rates.
+- 所有论文图都使用共享 TREAD 论文样式：300 dpi 导出、Times 兼容衬线字体，以及 STIX/LaTeX 风格数学渲染。
+- 主 exposure 分母为 `all_vehicle_km`。
+- ADS intensity 定义为 `conditional exceedance probability x highD tail peak exposure rate`。
+- 这些概率以 highD cutin tail scenario-condition distribution 为条件，不是无条件道路事故率。

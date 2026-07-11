@@ -1,4 +1,4 @@
-# highD Natural Segments + SEI EVT
+# highD 自然驾驶片段与 SEI EVT
 
 `process_highD/` 当前只保留 highD 自然驾驶等长片段处理流程。它不再把 following、cut-in、lane-changing 作为入口场景，而是从 highD 全量自然驾驶轨迹中抽取固定 6 s 局部交通片段，计算安全包络侵入风险 `R_SEI`，再用单一 POT-GPD EVT 标定高风险尾部阈值。
 
@@ -16,7 +16,7 @@ doc/highd_goal.md
 process_highD/scripts/extract_highd_natural_segments.py
 process_highD/scripts/build_natural_evt.py
 process_highD/scripts/play_highd_natural_tail_events.py
-normalizing/scripts/prepare_highd_tail_flow_dataset.py
+normalizing_flow/scripts/prepare_highd_tail_flow_dataset.py
 ```
 
 核心实现：
@@ -32,6 +32,12 @@ process_highD/src/preprocess.py
 process_highD/src/lane_utils.py
 process_highD/src/io_utils.py
 ```
+
+## 共享预处理
+
+`process_highD/src/preprocess.py` 的 `prepare_recording(raw_dir, recording_id, config)` 是当前唯一的 highD 读取入口。它按固定顺序执行：读取 recording、统一行驶方向、标记异常轨迹、重采样到配置的目标帧率。
+
+自然片段抽取、真实片段回放、`normalizing_flow/` 数据集构造和 `world_model/` 数据集构造均调用该函数。因此三处模块使用同一套原始轨迹坐标、异常标记和 25 Hz 采样规则。
 
 共享的 highway-env IDM ego helper 已移到 `tools/idm_ego.py`；`process_highD/` 内不再保留生成场景或分场景旧流程代码。
 
@@ -58,7 +64,7 @@ python process_highD/scripts/build_natural_evt.py
 整理 normalizing flow 长尾数据集：
 
 ```bash
-python normalizing/scripts/prepare_highd_tail_flow_dataset.py
+python normalizing_flow/scripts/prepare_highd_tail_flow_dataset.py
 ```
 
 播放最高风险自然片段：

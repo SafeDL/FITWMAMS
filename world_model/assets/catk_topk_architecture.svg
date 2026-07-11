@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">catk_topk 交通行为世界模型架构图</title>
+  <desc id="desc">从 c0、即时关系量和仅限 START 的一秒动作摘要，到共享上下文编码器、Top-K 候选动作头、分支选择与动作积分的流程图。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#314155"/>
+    </marker>
+    <style>
+      .bg { fill: #f7f9fc; }
+      .title { font: 700 42px "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 500 19px "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #475569; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .box-blue { fill: #eef6ff; stroke: #6aa5d8; }
+      .box-green { fill: #ecfdf3; stroke: #5fbf85; }
+      .box-amber { fill: #fff7e6; stroke: #d8a23f; }
+      .box-red { fill: #fff1f2; stroke: #d96b7a; }
+      .box-purple { fill: #f5f1ff; stroke: #9b7bd8; }
+      .head { font: 700 26px "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #0f172a; }
+      .item { font: 500 19px "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #334155; }
+      .tiny { font: 500 16px "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; fill: #475569; }
+      .code { font: 600 17px "JetBrains Mono", Consolas, monospace; fill: #1f2937; }
+      .arrow { stroke: #314155; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .soft-arrow { stroke: #64748b; stroke-width: 2.2; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
+      .pill { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="900"/>
+  <text class="title" x="800" y="70" text-anchor="middle">catk_topk 交通行为世界模型</text>
+  <text class="subtitle" x="800" y="108" text-anchor="middle">面向 highD START/ROLL 的背景交通条件动态：ego 当前/历史状态只作条件，Xi_world 提供候选行为多样性</text>
+
+  <rect class="box box-blue" x="55" y="210" width="260" height="365" rx="18"/>
+  <text class="head" x="185" y="235" text-anchor="middle">输入条件</text>
+  <rect class="pill" x="85" y="265" width="200" height="42" rx="12"/>
+  <text class="code" x="185" y="292" text-anchor="middle">history/current states</text>
+  <rect class="pill" x="85" y="322" width="200" height="42" rx="12"/>
+  <text class="item" x="185" y="349" text-anchor="middle">START / ROLL mode</text>
+  <rect class="pill" x="85" y="379" width="200" height="42" rx="12"/>
+  <text class="item" x="185" y="406" text-anchor="middle">primary slot</text>
+  <rect class="pill" x="85" y="436" width="200" height="42" rx="12"/>
+  <text class="item" x="185" y="463" text-anchor="middle">relation features</text>
+  <rect class="pill" x="85" y="493" width="200" height="58" rx="12"/>
+  <text class="item" x="185" y="517" text-anchor="middle">START 一秒动作摘要</text>
+  <text class="tiny" x="185" y="539" text-anchor="middle">仅 START，ROLL 恒为零</text>
+
+  <rect class="box box-green" x="395" y="210" width="270" height="365" rx="18"/>
+  <text class="head" x="530" y="255" text-anchor="middle">共享上下文编码器</text>
+  <text class="item" x="530" y="310" text-anchor="middle">ego + 6 slots</text>
+  <text class="item" x="530" y="355" text-anchor="middle">slot mask</text>
+  <text class="item" x="530" y="400" text-anchor="middle">relation feature fusion</text>
+  <text class="item" x="530" y="445" text-anchor="middle">mode embedding</text>
+  <text class="tiny" x="530" y="505" text-anchor="middle">输出每个 slot 的 context token</text>
+
+  <rect class="box box-amber" x="745" y="210" width="280" height="365" rx="18"/>
+  <text class="head" x="885" y="255" text-anchor="middle">Top-K 候选动作头</text>
+  <text class="item" x="885" y="315" text-anchor="middle">K = 8 branches</text>
+  <text class="item" x="885" y="365" text-anchor="middle">每个 slot 输出动作序列</text>
+  <text class="code" x="885" y="410" text-anchor="middle">[ax_mps2, ay_left_mps2]</text>
+  <text class="tiny" x="885" y="500" text-anchor="middle">candidate_head + candidate_logit</text>
+
+  <rect class="box box-purple" x="1105" y="190" width="260" height="405" rx="18"/>
+  <text class="head" x="1235" y="235" text-anchor="middle">分支选择</text>
+  <text class="item" x="1235" y="305" text-anchor="middle">训练阶段</text>
+  <text class="tiny" x="1235" y="335" text-anchor="middle">best-of-K MSE</text>
+  <text class="tiny" x="1235" y="365" text-anchor="middle">+ candidate CE</text>
+  <line x1="1145" y1="405" x2="1325" y2="405" stroke="#c4b5fd" stroke-width="2"/>
+  <text class="item" x="1235" y="455" text-anchor="middle">环境推理阶段</text>
+  <text class="tiny" x="1235" y="485" text-anchor="middle">Xi_world: categorical branch</text>
+  <text class="tiny" x="1235" y="530" text-anchor="middle">记录 candidate index + seed</text>
+
+  <rect class="box box-red" x="1115" y="685" width="360" height="150" rx="18"/>
+  <text class="head" x="1295" y="728" text-anchor="middle">动作积分与评测</text>
+  <text class="item" x="1295" y="770" text-anchor="middle">actions → future states</text>
+  <text class="tiny" x="1295" y="805" text-anchor="middle">EVT-tail ADE / closed-loop ADE / gap MAE</text>
+
+  <rect class="box" x="420" y="675" width="430" height="165" rx="18"/>
+  <text class="head" x="635" y="718" text-anchor="middle">Flow 初始场景采样</text>
+  <text class="item" x="635" y="762" text-anchor="middle">E + Z_flow → s0</text>
+  <text class="tiny" x="635" y="798" text-anchor="middle">slot mask、primary slot 与 START 一秒摘要</text>
+
+  <path class="arrow" d="M315 392 C350 392 360 392 395 392"/>
+  <path class="arrow" d="M665 392 C705 392 710 392 745 392"/>
+  <path class="arrow" d="M1025 392 C1065 392 1070 392 1105 392"/>
+  <path class="arrow" d="M1235 595 C1235 630 1265 650 1295 685"/>
+  <path class="soft-arrow" d="M635 675 C610 625 360 595 255 550"/>
+
+  <text class="tiny" x="185" y="650" text-anchor="middle">真实 highD START/ROLL 样本</text>
+  <text class="tiny" x="635" y="865" text-anchor="middle">测试空间：E × Z_flow × Xi_world；logged-highD 重建评测与未来环境接口分离。</text>
+</svg>

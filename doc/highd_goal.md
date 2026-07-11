@@ -101,6 +101,7 @@ u: POT exceedance threshold; natural_tail_contexts.csv uses event_risk > u
 
 6. **真实数据 playback。** `play_highd_natural_tail_events.py` 已能播放 `natural_tail_contexts.csv` 中真实 highD 长尾片段。
 7. **字段与命名清理。** 用户可见风险名改为 `R_SEI`，实现文件为 `safety_envelope_risk.py`；新结果不再输出 `history_*`、`future_*` 或 `uir_*` 字段。
+8. **统一预处理入口。** `process_highD.src.preprocess.prepare_recording()` 集中执行读取、方向统一、异常标记和重采样；自然片段抽取、回放、归一化流和世界模型均调用该函数。
 
 ## 4. 当前重要发现
 

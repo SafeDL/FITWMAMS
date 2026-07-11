@@ -17,13 +17,9 @@ import numpy as np
 import pandas as pd
 
 from process_highD.src.io_utils import ensure_dir, load_config, resolve_data_path
-from process_highD.src.loader import HighDRecording, load_recording
+from process_highD.src.loader import HighDRecording
 from process_highD.src.natural_segments import SLOT_NAMES
-from process_highD.src.preprocess import (
-    filter_abnormal_tracks,
-    normalize_driving_direction,
-    resample_recording,
-)
+from process_highD.src.preprocess import prepare_recording
 
 
 LOGGER = logging.getLogger(__name__)
@@ -519,10 +515,7 @@ def render_natural_tail_event_gif(
     raw_dir = resolve_data_path(cfg["paths"]["raw_dir"], config_path)
     recording_id = int(segment_row["recording_id"])
     target_fps = int(cfg.get("sampling", {}).get("target_fps", 25))
-    recording = load_recording(str(raw_dir), recording_id)
-    recording = normalize_driving_direction(recording)
-    recording = filter_abnormal_tracks(recording, cfg)
-    recording = resample_recording(recording, target_fps)
+    recording = prepare_recording(raw_dir, recording_id, cfg)
 
     start_frame = int(segment_row["window_start_frame"])
     end_frame = int(segment_row["window_end_frame"])

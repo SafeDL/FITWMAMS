@@ -1,8 +1,7 @@
-"""Build car-following paper figure artifacts from existing results.
+"""基于已有结果生成 car-following 论文图产物。
 
-This post-processing script writes car-following paper figures, plus their
-manifest and README. It does not generate following tables, training outputs,
-EVT fits, or subset-simulation outputs.
+这个后处理脚本写出 car-following 论文图，以及对应 manifest 和 README。
+它不会生成 following 表格、训练输出、EVT 拟合或 subset-simulation 输出。
 """
 from __future__ import annotations
 
@@ -287,7 +286,7 @@ def following_gpd_diagnostic_panel(
             status="generated",
             outputs=outputs,
             sources=[rel(evt_model_path)],
-            notes="The display range is truncated at Y_long = 10 for readability.",
+            notes="为便于阅读，显示范围截断在 Y_long = 10。",
         )
     else:
         record(
@@ -295,7 +294,7 @@ def following_gpd_diagnostic_panel(
             "following_gpd_diagnostic_panel",
             status="skipped",
             outputs=[],
-            skipped_reason=f"missing input file: {rel(evt_model_path)}",
+            skipped_reason=f"缺少输入文件：{rel(evt_model_path)}",
         )
 
 
@@ -313,7 +312,7 @@ def following_safety_threshold_inverse_calibration(
             "following_safety_threshold_inverse_calibration",
             status="skipped",
             outputs=[],
-            skipped_reason=f"missing input file(s): {', '.join(missing)}",
+            skipped_reason=f"缺少输入文件：{', '.join(missing)}",
         )
         return
 
@@ -358,7 +357,7 @@ def following_safety_threshold_inverse_calibration(
             "following_safety_threshold_inverse_calibration",
             status="skipped",
             outputs=[],
-            skipped_reason="missing inputs for following safety threshold inverse calibration",
+            skipped_reason="缺少 following safety threshold inverse calibration 所需输入",
             sources=[rel(evt_model_path), rel(exposure_path)],
         )
         return
@@ -370,7 +369,7 @@ def following_safety_threshold_inverse_calibration(
             "following_safety_threshold_inverse_calibration",
             status="skipped",
             outputs=[],
-            skipped_reason="missing positive tail exposure for inverse calibration",
+            skipped_reason="inverse calibration 缺少正的 tail exposure",
             sources=[rel(evt_model_path), rel(exposure_path)],
         )
         return
@@ -490,8 +489,8 @@ def following_safety_threshold_inverse_calibration(
         outputs=outputs,
         sources=[rel(evt_model_path), rel(exposure_path)],
         notes=(
-            "The selected car-following safety threshold is the "
-            f"{target_km:,.0f} km all-vehicle return level."
+            "选定的 car-following 安全阈值是 "
+            f"{target_km:,.0f} km all-vehicle return level。"
         ),
     )
 
@@ -516,7 +515,7 @@ def following_tail_diffusion_generalization_panel(
             status="skipped",
             outputs=[],
             sources=[rel(path) for path in required if path.exists()],
-            skipped_reason=f"missing input file(s): {', '.join(missing)}",
+            skipped_reason=f"缺少输入文件：{', '.join(missing)}",
         )
         return
 
@@ -532,7 +531,7 @@ def following_tail_diffusion_generalization_panel(
             status="skipped",
             outputs=[],
             sources=[rel(path) for path in required],
-            skipped_reason="tail context and generated scenario condition keys differ",
+            skipped_reason="tail context 与生成场景的 condition keys 不一致",
         )
         return
 
@@ -569,7 +568,7 @@ def following_tail_diffusion_generalization_panel(
             status="skipped",
             outputs=[],
             sources=[rel(path) for path in required],
-            skipped_reason="not enough variable condition dimensions for PCA",
+            skipped_reason="可变 condition 维度不足，无法执行 PCA",
         )
         return
     real_mu = real_mu[scale_cols]
@@ -726,9 +725,9 @@ def following_tail_diffusion_generalization_panel(
         outputs=outputs,
         sources=[rel(path) for path in required],
         notes=(
-            "tail diffusion generalization panel is rebuilt from existing "
-            "following EVT-tail contexts, generated lead trajectories, and "
-            "the same lead-braking-duration condition used by process_highD"
+            "tail diffusion generalization panel 基于已有 following EVT-tail contexts、"
+            "生成的 lead trajectories，以及 process_highD 使用的同一 "
+            "lead-braking-duration condition 重建"
         ),
     )
 
@@ -775,7 +774,7 @@ def following_tail_diffusion_acceleration_profiles(
             manifest,
             experiment_key,
             status="skipped",
-            skipped_reason=f"missing source file: {rel(path)}",
+            skipped_reason=f"缺少源文件：{rel(path)}",
         )
         return
 
@@ -790,7 +789,7 @@ def following_tail_diffusion_acceleration_profiles(
             experiment_key,
             status="skipped",
             sources=[rel(path)],
-            skipped_reason="generated following scenarios do not contain acceleration profiles",
+            skipped_reason="生成的 following scenarios 不包含 acceleration profiles",
         )
         return
 
@@ -800,7 +799,7 @@ def following_tail_diffusion_acceleration_profiles(
             experiment_key,
             status="skipped",
             sources=[rel(path)],
-            skipped_reason=f"unexpected acceleration array shape: {generated_ax.shape}",
+            skipped_reason=f"acceleration array shape 不符合预期：{generated_ax.shape}",
         )
         return
 
@@ -812,7 +811,7 @@ def following_tail_diffusion_acceleration_profiles(
             experiment_key,
             status="skipped",
             sources=[rel(path)],
-            skipped_reason="too few finite generated acceleration profiles",
+            skipped_reason="有限的生成 acceleration profiles 数量不足",
         )
         return
 
@@ -960,8 +959,8 @@ def following_tail_diffusion_acceleration_profiles(
         outputs=outputs,
         sources=[rel(path)],
         notes=(
-            "single-panel summary of diffusion-generated following long-tail "
-            "lead-vehicle longitudinal acceleration profiles"
+            "单面板概括 diffusion 生成的 following 长尾 lead-vehicle "
+            "longitudinal acceleration profiles"
         ),
     )
 
@@ -980,7 +979,7 @@ def following_subset_level_score_histograms(
             status="skipped",
             outputs=[],
             sources=[],
-            skipped_reason=f"missing input file: {rel(path)}",
+            skipped_reason=f"缺少输入文件：{rel(path)}",
         )
         return
 
@@ -993,7 +992,7 @@ def following_subset_level_score_histograms(
             status="skipped",
             outputs=[],
             sources=[rel(path)],
-            skipped_reason=f"expected 2-D level x sample scores, got shape={scores.shape}",
+            skipped_reason=f"期望 2-D level x sample scores，实际 shape={scores.shape}",
         )
         return
 
@@ -1007,7 +1006,7 @@ def following_subset_level_score_histograms(
             status="skipped",
             outputs=[],
             sources=[rel(path)],
-            skipped_reason="subset scores contain no finite values",
+            skipped_reason="subset scores 不包含有限值",
         )
         return
 
@@ -1085,7 +1084,7 @@ def following_subset_level_score_histograms(
         status="generated",
         outputs=outputs,
         sources=[rel(path)],
-        notes="level-wise risk-score histograms are built from stored following subset samples",
+        notes="逐层 risk-score 直方图基于已保存的 following subset samples 构建",
     )
 
 
@@ -1093,21 +1092,20 @@ def write_readme(manifest: dict[str, Any], *, force: bool) -> None:
     write_experiment_readme(
         OUT / "FOLLOWING_EXPERIMENT_README.md",
         manifest,
-        title="Following Paper Figures",
+        title="Following 论文图",
         description=(
-            "This directory contains car-following paper figures built from "
-            "existing highD following EVT, exposure, diffusion, Monte Carlo, "
-            "and subset-simulation results."
+            "本目录基于已有 highD following EVT、exposure、diffusion、Monte Carlo "
+            "和 subset-simulation 结果生成 car-following 论文图。"
         ),
-        no_rerun_note="No following diffusion training, EVT fitting, subset simulation, or tables were generated.",
+        no_rerun_note="本次没有生成 following diffusion 训练、EVT 拟合、subset simulation 或表格结果。",
         interpretation_notes=[
-            "The following paper figures are generated directly in this directory; no `figures/` subdirectory is used.",
-            "All paper figures use the shared TREAD paper style: 300 dpi export, Times-compatible serif text, and STIX/LaTeX-style math rendering.",
-            "The panel shows the fitted POT/GPD tail diagnostics with the plotting range capped at `Y_long = 10`.",
-            "The inverse calibration figure marks the selected 300 km all-vehicle return-level threshold from the exposure summary.",
-            "The tail diffusion generalization panel compares empirical following EVT-tail contexts with generated lead trajectories; panel f uses the `lead_braking_duration` scenario-condition distribution used by `process_highD`.",
-            "The acceleration-profile figure summarizes diffusion-generated long-tail lead-vehicle acceleration traces with a 5-95% envelope and representative braking modes.",
-            "The subset level histogram shows how subset simulation concentrates mass toward the calibrated EVT risk threshold.",
+            "following 论文图直接生成在本目录下，不使用 `figures/` 子目录。",
+            "所有论文图都使用共享 TREAD 论文样式：300 dpi 导出、Times 兼容衬线字体，以及 STIX/LaTeX 风格数学渲染。",
+            "诊断面板展示拟合后的 POT/GPD tail 诊断，绘图范围限制在 `Y_long = 10`。",
+            "inverse calibration 图标出 exposure summary 中选定的 300 km all-vehicle return-level threshold。",
+            "tail diffusion generalization 面板比较经验 following EVT-tail contexts 与生成的 lead trajectories；面板 f 使用 `process_highD` 中的 `lead_braking_duration` scenario-condition distribution。",
+            "acceleration-profile 图用 5-95% envelope 和代表性制动模式概括 diffusion 生成的长尾 lead-vehicle acceleration traces。",
+            "subset level histogram 展示 subset simulation 如何把质量集中到校准后的 EVT risk threshold 附近。",
         ],
         force=force,
     )

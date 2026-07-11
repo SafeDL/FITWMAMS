@@ -22,18 +22,13 @@ from process_highD.src.io_utils import (
     resolve_data_path,
     resolve_recording_ids,
 )
-from process_highD.src.loader import load_recording
 from process_highD.src.natural_segments import (
     RISK_COMPONENT_NAMES,
     SLOT_NAMES,
     build_natural_segments_for_recording,
     options_from_config,
 )
-from process_highD.src.preprocess import (
-    filter_abnormal_tracks,
-    normalize_driving_direction,
-    resample_recording,
-)
+from process_highD.src.preprocess import prepare_recording
 from tools.evt import fit_evt_model
 
 
@@ -339,7 +334,6 @@ def build_natural_segments_dataset(
         options.anchor_stride_steps,
     )
 
-    target_fps = int(cfg.get("sampling", {}).get("target_fps", 25))
     all_frames: list[pd.DataFrame] = []
     risk_blocks: list[np.ndarray] = []
     packed_slot_mask_blocks: list[np.ndarray] = []
@@ -347,10 +341,7 @@ def build_natural_segments_dataset(
     reject_totals: Counter[str] = Counter()
 
     for recording_id in tqdm(recording_ids, desc="Natural highD segments"):
-        rec = load_recording(str(raw_dir), int(recording_id))
-        rec = normalize_driving_direction(rec)
-        rec = filter_abnormal_tracks(rec, cfg)
-        rec = resample_recording(rec, target_fps)
+        rec = prepare_recording(raw_dir, int(recording_id), cfg)
         frame, risk_trace, slot_time_mask, recording_summary = (
             build_natural_segments_for_recording(rec, options)
         )

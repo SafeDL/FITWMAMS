@@ -2,7 +2,7 @@
   "experiment_scope": "cut_in",
   "created_by": "results/build_cutin_paper_experiments.py",
   "created_at_utc": "2026-06-24T14:48:40.402914+00:00",
-  "no_training_or_rerun_statement": "Only existing JSON/CSV/NPZ/PNG results were read; no training, EVT fitting, or subset simulation was rerun.",
+  "no_training_or_rerun_statement": "只读取已有 JSON/CSV/NPZ/PNG 结果；没有重跑训练、EVT 拟合或 subset simulation。",
   "source_files": {
     "event_scores": "results/highd_events/cutin_event_scores.csv",
     "event_cache_summary": "results/highd_events/cutin_event_cache_summary.json",
@@ -44,7 +44,7 @@
         "results/diffusion_natural/cutin/dataset.npz"
       ],
       "skipped_reason": null,
-      "notes": "tail diffusion generalization panel is rebuilt from existing EVT-tail contexts and generated scenarios"
+      "notes": "tail diffusion generalization panel 基于已有 EVT-tail contexts 和生成场景重建"
     },
     "cutin_subset_level_score_histograms": {
       "status": "generated",
@@ -55,7 +55,7 @@
         "IDM_subset/results/cutin/latent_subset_samples.npz"
       ],
       "skipped_reason": null,
-      "notes": "level-wise risk-score histograms are built from stored cut-in subset samples"
+      "notes": "逐层 risk-score 直方图基于已保存的 cut-in subset samples 构建"
     }
   }
 }
