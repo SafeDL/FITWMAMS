@@ -29,7 +29,7 @@ from .metrics import (
     physical_diagnostics,
     trajectory_error_metrics,
 )
-from .model import gaussian_nll, load_checkpoint, numpy_batch_to_torch
+from .model import load_checkpoint, numpy_batch_to_torch
 from .rollout import (
     build_relation_features_from_current,
     integrate_background_actions,
@@ -38,7 +38,7 @@ from .rollout import (
     normalize_states,
     unnormalize_actions,
 )
-from .schema import MODE_NAMES, ROLL_MODE_INDEX, START_MODE_INDEX, SLOT_NAMES
+from .schema import ROLL_MODE_INDEX, START_MODE_INDEX, SLOT_NAMES
 from .utils import ensure_dir, save_json, select_device, set_seed
 
 
@@ -117,95 +117,27 @@ def _model_actions_normalized(
     deterministic: bool,
     temperature: float,
     seed: int,
-    std_floor_normalized: np.ndarray | None = None,
 ) -> np.ndarray:
     torch = _torch()
     with torch.no_grad():
-        if hasattr(model, "sample_actions"):
-            actions = model.sample_actions(
-                batch,
-                deterministic=deterministic,
-                temperature=float(temperature),
-                generator=_torch_generator(device, seed),
-            )
-        elif deterministic:
-            actions, _log_std = model(
-                batch["history_states"],
-                batch["history_valid"],
-                batch["current_states"],
-                batch["current_valid"],
-                batch["mode_index"],
-                batch["primary_slot_index"],
-                batch["flow_action_summary"],
-                batch["relation_features"],
-            )
-        else:
-            mean, log_std = model(
-                batch["history_states"],
-                batch["history_valid"],
-                batch["current_states"],
-                batch["current_valid"],
-                batch["mode_index"],
-                batch["primary_slot_index"],
-                batch["flow_action_summary"],
-                batch["relation_features"],
-            )
-            std = log_std.exp()
-            if std_floor_normalized is not None:
-                floor = torch.as_tensor(std_floor_normalized, device=std.device, dtype=std.dtype).view(1, 1, 1, -1)
-                std = torch.maximum(std, floor)
-            noise = torch.randn(mean.shape, device=mean.device, dtype=mean.dtype, generator=_torch_generator(device, seed))
-            actions = mean + noise * std * max(float(temperature), 0.0)
+        actions = model.sample_actions(
+            batch,
+            deterministic=deterministic,
+            temperature=float(temperature),
+            generator=_torch_generator(device, seed),
+        )
     return actions.detach().cpu().numpy()
-
-
-def _sampling_std_floor_normalized(config: dict[str, Any], schema: dict[str, Any]) -> np.ndarray | None:
-    raw = config.get("evaluation", {}).get("sampling_action_std_floor_mps2")
-    if raw is None:
-        return None
-    if isinstance(raw, dict):
-        values = [
-            float(raw.get("ax_mps2", 0.0)),
-            float(raw.get("ay_left_mps2", 0.0)),
-        ]
-    else:
-        values = [float(x) for x in raw]
-    if len(values) != 2 or max(values) <= 0.0:
-        return None
-    action_std = np.asarray(schema["normalization"]["action"]["std"], dtype=np.float32)
-    return (np.asarray(values, dtype=np.float32) / np.maximum(action_std, 1.0e-6)).astype(np.float32)
 
 
 def _model_weighted_nll_or_nan(model, batch: dict[str, Any]) -> float:
     torch = _torch()
     with torch.no_grad():
-        if hasattr(model, "p_losses"):
-            losses = model.p_losses(batch)
-            value = losses.get("mixture_nll", losses.get("loss"))
-            return float(value.detach().cpu())
-        mean, log_std = model(
-            batch["history_states"],
-            batch["history_valid"],
-            batch["current_states"],
-            batch["current_valid"],
-            batch["mode_index"],
-            batch["primary_slot_index"],
-            batch["flow_action_summary"],
-            batch["relation_features"],
-        )
-        nll = gaussian_nll(
-            batch["target_actions"],
-            mean,
-            log_std,
-            batch["target_valid"],
-            batch["sample_weight"],
-        )
-    return float(nll.detach().cpu())
+        losses = model.p_losses(batch)
+        value = losses.get("mixture_nll", losses["loss"])
+    return float(value.detach().cpu())
 
 
 def _candidate_diagnostics_or_empty(model, batch: dict[str, Any]) -> dict[str, float]:
-    if not hasattr(model, "p_losses"):
-        return {}
     torch = _torch()
     with torch.no_grad():
         losses = model.p_losses(batch)
@@ -237,7 +169,6 @@ def _predict_indices(
     batch_size: int,
     num_branches: int,
     sampling_temperature: float,
-    std_floor_normalized: np.ndarray | None,
     label: str = "",
 ) -> dict[str, Any]:
     torch = _torch()
@@ -268,7 +199,6 @@ def _predict_indices(
                 deterministic=True,
                 temperature=1.0,
                 seed=2003 + int(batch_idx[0]),
-                std_floor_normalized=None,
             )
             nll_value = _model_weighted_nll_or_nan(model, batch)
             candidate_metrics = _candidate_diagnostics_or_empty(model, batch)
@@ -301,7 +231,6 @@ def _predict_indices(
                         deterministic=False,
                         temperature=sampling_temperature,
                         seed=1009 + int(branch),
-                        std_floor_normalized=std_floor_normalized,
                     )
                     sample_raw = unnormalize_actions(sample_norm, schema)
                     sample_states, _sample_valid = integrate_background_actions_batch(
@@ -496,7 +425,6 @@ def _closed_loop_start_roll(
                 deterministic=True,
                 temperature=1.0,
                 seed=4001 + int(sidx[0]),
-                std_floor_normalized=None,
             )
             start_actions_raw = unnormalize_actions(start_pred_norm, schema)
             roll_history_raw = []
@@ -566,7 +494,6 @@ def _closed_loop_start_roll(
                 deterministic=True,
                 temperature=1.0,
                 seed=5003 + int(ridx[0]),
-                std_floor_normalized=None,
             )
             nll_value = _model_weighted_nll_or_nan(model, roll_batch)
             if np.isfinite(nll_value):
@@ -683,7 +610,6 @@ def _model_state_reconstruction(
                     deterministic=True,
                     temperature=1.0,
                     seed=7103 + int(chunk_index) + int(current_indices[0]),
-                    std_floor_normalized=None,
                 )
                 action_raw = unnormalize_actions(action_norm, schema)
                 generated_states, generated_valid = integrate_background_actions_batch(
@@ -795,7 +721,6 @@ def _tail_event_reconstruction(
     max_samples: int,
     num_branches: int,
     sampling_temperature: float,
-    std_floor_normalized: np.ndarray | None,
 ) -> dict[str, Any]:
     """Replay logged EVT-tail events with true highD ego response as reference."""
     out: dict[str, Any] = {
@@ -814,7 +739,7 @@ def _tail_event_reconstruction(
             max_samples=max_samples,
         )
         if len(start_idx) > 0:
-                split_out["START_first_second"] = _predict_indices(
+            split_out["START_first_second"] = _predict_indices(
                 model,
                 arrays,
                 schema,
@@ -823,7 +748,6 @@ def _tail_event_reconstruction(
                 batch_size=batch_size,
                 num_branches=num_branches,
                 sampling_temperature=sampling_temperature,
-                std_floor_normalized=std_floor_normalized,
                 label=f"tail/{split}/START_first_second",
             )
         roll_idx = _filter_indices(
@@ -834,7 +758,7 @@ def _tail_event_reconstruction(
             max_samples=max_samples,
         )
         if len(roll_idx) > 0:
-                split_out["ROLL_logged_history"] = _predict_indices(
+            split_out["ROLL_logged_history"] = _predict_indices(
                 model,
                 arrays,
                 schema,
@@ -843,7 +767,6 @@ def _tail_event_reconstruction(
                 batch_size=batch_size,
                 num_branches=num_branches,
                 sampling_temperature=sampling_temperature,
-                std_floor_normalized=std_floor_normalized,
                 label=f"tail/{split}/ROLL_logged_history",
             )
         split_out["START_to_ROLL_logged_ego"] = _closed_loop_start_roll(
@@ -884,7 +807,6 @@ def _sample_event_rows(
             deterministic=True,
             temperature=1.0,
             seed=7001 + int(batch_idx[0]),
-            std_floor_normalized=None,
         )
         pred_actions = unnormalize_actions(pred_norm, schema)
         for local, sample_idx in enumerate(batch_idx):
@@ -1013,20 +935,16 @@ def _deterministic_predictions_for_indices(
             deterministic=True,
             temperature=1.0,
             seed=9001 + int(batch_idx[0]),
-            std_floor_normalized=None,
         )
         actions = unnormalize_actions(pred_norm, schema)
-        states = []
-        for local, sample_idx in enumerate(batch_idx):
-            one_states, _valid = integrate_background_actions(
-                arrays["current_states"][sample_idx],
-                arrays["current_valid"][sample_idx],
-                actions[local],
-                dt=dt,
-            )
-            states.append(one_states)
+        states, _valid = integrate_background_actions_batch(
+            arrays["current_states"][batch_idx],
+            arrays["current_valid"][batch_idx],
+            actions,
+            dt=dt,
+        )
         pred_actions.append(actions)
-        pred_states.append(np.stack(states).astype(np.float32))
+        pred_states.append(states.astype(np.float32))
         target_actions.append(arrays["target_actions"][batch_idx])
         target_states.append(arrays["target_states"][batch_idx])
         target_valid.append(arrays["target_valid"][batch_idx])
@@ -1050,7 +968,6 @@ def _write_basic_visualizations(
     batch_size: int,
     num_branches: int,
     sampling_temperature: float,
-    std_floor_normalized: np.ndarray | None,
     max_samples: int,
 ) -> dict[str, Any]:
     try:
@@ -1195,7 +1112,6 @@ def _write_basic_visualizations(
                 deterministic=False,
                 temperature=sampling_temperature,
                 seed=10009 + branch,
-                std_floor_normalized=std_floor_normalized,
             )
             sample_raw = unnormalize_actions(sample_norm, schema)
             sample_states, _valid = integrate_background_actions(
@@ -1247,7 +1163,6 @@ def evaluate_world_model(
     model, payload = load_checkpoint(str(ckpt), device)
     batch_size = int(config.get("evaluation", {}).get("batch_size", config.get("training", {}).get("batch_size", 256)))
     sampling_temperature = float(config.get("evaluation", {}).get("sampling_temperature", 1.0))
-    std_floor_normalized = _sampling_std_floor_normalized(config, schema)
     splits = config.get("evaluation", {}).get("splits", ["val", "test"])
     result: dict[str, Any] = {
         "checkpoint": str(ckpt),
@@ -1261,9 +1176,6 @@ def evaluate_world_model(
             "fps": float(schema["fps"]),
         },
         "sampling_temperature": float(sampling_temperature),
-        "sampling_action_std_floor_normalized": (
-            std_floor_normalized.astype(float).tolist() if std_floor_normalized is not None else None
-        ),
         "performance": performance,
         "open_loop": {},
     }
@@ -1281,7 +1193,6 @@ def evaluate_world_model(
                     batch_size=batch_size,
                     num_branches=num_branches,
                     sampling_temperature=sampling_temperature,
-                    std_floor_normalized=std_floor_normalized,
                     label=f"{split}/{name}",
                 )
         tail_idx = _filter_indices(arrays, split, evt_tail=True, max_samples=max_samples)
@@ -1295,7 +1206,6 @@ def evaluate_world_model(
                 batch_size=batch_size,
                 num_branches=num_branches,
                 sampling_temperature=sampling_temperature,
-                std_floor_normalized=std_floor_normalized,
                 label=f"{split}/EVT_tail",
             )
         result["open_loop"][split] = split_result
@@ -1346,7 +1256,6 @@ def evaluate_world_model(
             max_samples=int(tail_recon_cfg.get("max_samples", max_samples) or max_samples),
             num_branches=num_branches,
             sampling_temperature=sampling_temperature,
-            std_floor_normalized=std_floor_normalized,
         )
         if bool(tail_recon_cfg.get("write_event_metrics", False)):
             event_metric_summary = _write_event_metrics_csv(
@@ -1373,7 +1282,6 @@ def evaluate_world_model(
             batch_size=batch_size,
             num_branches=int(vis_cfg.get("num_branches", min(max(int(num_branches), 2), 8))),
             sampling_temperature=sampling_temperature,
-            std_floor_normalized=std_floor_normalized,
             max_samples=int(vis_cfg.get("max_samples", 512)),
         )
 

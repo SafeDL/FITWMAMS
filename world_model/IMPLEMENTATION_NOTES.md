@@ -8,7 +8,7 @@
 world_model/scripts/configs/highd_world_model.yaml
 ```
 
-它使用共享 START/ROLL Transformer 编码器和 CAT-K `K=8` 联合背景车动作头。正式 v4 checkpoint 的候选 `0` 是冻结的自然驾驶名义动力学锚点；候选 `1--7` 是场景级 token 控制的联合残差行为。锚点与残差都只读取既有 START/ROLL 状态张量，不引入 ADS、ego future 或新的 latent。历史矩阵候选、比较脚本和矩阵配置已从活动代码删除。
+它使用共享 START/ROLL Transformer 编码器和 CAT-K `K=8` 联合背景车动作头。`NominalCATKDecoder` 先生成内部候选并取其 MAP 动作，作为外层候选 `0`；候选 `1--7` 是场景级 token 控制的联合残差行为。外层将候选 `0` 的 logit 固定为其余候选最大 logit 加 `nominal_logit_margin`，因此 argmax 复现名义分支，categorical 仍可采样全部八个索引。新训练从随机初始化开始，不读取外部初始化路径或基线权重；`resume_from_checkpoint` 只允许续训同一输出目录的 `latest_world_model.pt`。它们都只读取既有 START/ROLL 状态张量，不引入 ADS、ego future 或新的 latent。中间候选、一次性合成工具和重复配置已删除；正式配对比较脚本保留用于复核历史结果与冻结基线。
 
 ## 环境随机变量
 
@@ -18,13 +18,13 @@ world_model/scripts/configs/highd_world_model.yaml
 Omega_test = E x Z_flow x Xi_world
 ```
 
-`E=(slot_mask, primary_slot)` 与 `Z_flow` 属于归一化流初始场景采样。`Xi_world` 是 CAT-K 在每个一秒 chunk 选择的候选索引。`TopKStartRollWorldModel.sample_actions_with_xi()` 显式返回：
+`E=(slot_mask, primary_slot)` 与 `Z_flow` 属于归一化流初始场景采样。`Xi_world` 是 CAT-K 在每个一秒 chunk 选择的候选索引。`CATKTopKWorldModel.sample_actions_with_xi()` 显式返回：
 
 - `actions`：被选候选的背景车动作；
 - `candidate_index`：本 chunk 的 `Xi_world`；
 - `candidate_probabilities`：当前状态下的候选概率。
 
-环境默认按 categorical 分布采样候选，不添加连续动作噪声。若需要确定性环境，应在构造 `WorldSamplingConfig` 时将 `candidate_selection` 设为 `argmax`；此时 `Xi_world` 退化为确定值。
+环境默认按 categorical 分布采样候选，不添加连续动作噪声。若需要确定性环境，应在构造 `WorldSamplingConfig` 时将 `candidate_selection` 设为 `argmax`；此时 `Xi_world` 退化为确定值。调用 `start(candidate_index=...)` 或 `roll(..., candidate_index=...)` 时，显式索引优先于采样设置；完整复现实例应存储该索引序列，而不是只存储随机种子。
 
 ## 正式环境接口
 
@@ -46,7 +46,7 @@ relation(t) = g(ego(t), background(t), primary_slot)
 
 它包含相对位置、gap、相对速度、closing speed、截断 TTC、截断 DRAC、primary-slot 标志和 slot 有效标志。START 由 Flow 初始物理状态计算，ROLL 由当前外部 ego 与世界模型背景状态重新计算。它是模型输入的确定性重参数化，不是测试空间变量，也不由 Flow 单独采样。
 
-实现只保留 `world_model.src.rollout.build_relation_features_from_current()` 一份关系特征计算逻辑；数据构造、重建评测与正式环境共同调用它，避免训练和运行时的特征定义漂移。
+数据构造、重建评测和正式环境调用 `world_model.src.rollout.build_relation_features_from_current()`。多 chunk 训练使用等价的 Torch 实现以保持状态转移可微；两者均采用相同的固定车辆几何、截断阈值和特征顺序。
 
 ## 固定环境约定
 
@@ -64,7 +64,7 @@ relation(t) = g(ego(t), background(t), primary_slot)
 
 `world_model/src/evaluation.py` 中的 START->ROLL replay 保留用于 highD 重建验证。它在进入 ROLL 时使用 logged ground-truth ego future，因此只能说明背景车在真实 ego 条件下的重建误差，不能作为 ADS 测试环境接口或 ADS 闭环结果。
 
-正式 v4 checkpoint 的晋升比较采用 test paired bootstrap（2,000 次）。候选相对冻结 v1 的 EVT-tail START ADE、FDE、gap MAE，以及 logged-ego START->ROLL ADE 的点差和单侧 95% 上界均为 `0`，因此通过“不弱于基线”的门槛。冻结 v1 位于：
+保留 checkpoint 的晋升比较采用 test paired bootstrap（2,000 次）。候选相对冻结基线的 EVT-tail START ADE、FDE、gap MAE，以及 logged-ego START->ROLL ADE 的点差和单侧 95% 上界均为 `0`。该结果是历史证据；从零训练得到的新 checkpoint 必须重新通过相同门槛。冻结基线位于：
 
 ```text
 results/highd_world_model/catk_topk_baseline/checkpoints/best_world_model.pt

@@ -21,7 +21,6 @@ from .schema import (
     START_MODE_INDEX,
 )
 
-
 @dataclass
 class WorldModelConfig:
     history_steps: int
@@ -39,18 +38,13 @@ class WorldModelConfig:
     dropout: float = 0.1
     use_start_flow_summary: bool = False
     use_relation_features: bool = False
+    # 已存档比较 checkpoint 保留这两个字段；活动 CAT-K 推理不使用它们。
     min_log_std: float = -5.0
     max_log_std: float = 2.0
 
 
 class SharedStartRollWorldModel(nn.Module):
-    """A shared stochastic policy for START and ROLL conditions.
-
-    The model follows the practical TrafficBots/VBD pattern at highD scale:
-    a temporal scene encoder, an inter-agent Transformer, and a Gaussian action
-    head. START and ROLL share all parameters and differ only through mode
-    embeddings and the available history mask.
-    """
+    """活动 CAT-K 与已存档比较器共用的 START/ROLL 编码器。"""
 
     def __init__(self, cfg: WorldModelConfig) -> None:
         super().__init__()
@@ -110,6 +104,7 @@ class SharedStartRollWorldModel(nn.Module):
             nn.Linear(hidden, hidden),
             nn.SiLU(),
         )
+        # 仅用于严格加载已存档比较 checkpoint；活动 CAT-K 推理不使用这两个头。
         self.mean = nn.Linear(hidden, cfg.action_dim)
         self.log_std = nn.Linear(hidden, cfg.action_dim)
 
@@ -199,8 +194,7 @@ class SharedStartRollWorldModel(nn.Module):
     ) -> torch.Tensor:
         """Return per-background-slot condition tokens.
 
-        This wrapper preserves the original Gaussian and v1 CAT-K interface;
-        the v2 CAT-K model additionally consumes the ego token internally.
+        已存档比较器直接使用逐槽位 token；活动 CAT-K 还通过场景级交互图使用 ego token。
         """
         return self.encode_agent_context(
             history_states,
@@ -213,69 +207,9 @@ class SharedStartRollWorldModel(nn.Module):
             relation_features,
         )[:, 1:, :]
 
-    def decode_gaussian(self, slot_context: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        b = int(slot_context.shape[0])
-        device = slot_context.device
-        t_ids = torch.arange(self.cfg.horizon_steps, device=device)
-        horizon = self.horizon_embed(t_ids).view(1, self.cfg.horizon_steps, 1, -1)
-        slot = slot_context.view(b, 1, self.cfg.num_slots, -1)
-        decoded = self.action_head(slot + horizon)
-        mean = self.mean(decoded)
-        log_std = torch.clamp(self.log_std(decoded), self.cfg.min_log_std, self.cfg.max_log_std)
-        return mean, log_std
 
-    def forward(
-        self,
-        history_states: torch.Tensor,
-        history_valid: torch.Tensor,
-        current_states: torch.Tensor,
-        current_valid: torch.Tensor,
-        mode_index: torch.Tensor,
-        primary_slot_index: torch.Tensor,
-        flow_action_summary: torch.Tensor | None = None,
-        relation_features: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return Gaussian mean/log_std over future slot actions."""
-        slot_context = self.encode_context(
-            history_states,
-            history_valid,
-            current_states,
-            current_valid,
-            mode_index,
-            primary_slot_index,
-            flow_action_summary,
-            relation_features,
-        )
-        return self.decode_gaussian(slot_context)
-
-    def sample(
-        self,
-        batch: dict[str, torch.Tensor],
-        *,
-        deterministic: bool = False,
-        temperature: float = 1.0,
-        generator: torch.Generator | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        mean, log_std = self(
-            batch["history_states"],
-            batch["history_valid"],
-            batch["current_states"],
-            batch["current_valid"],
-            batch["mode_index"],
-            batch["primary_slot_index"],
-            batch.get("flow_action_summary"),
-            batch.get("relation_features"),
-        )
-        if deterministic:
-            action = mean
-        else:
-            noise = torch.randn(mean.shape, device=mean.device, dtype=mean.dtype, generator=generator)
-            action = mean + noise * log_std.exp() * max(float(temperature), 0.0)
-        return action, mean, log_std
-
-
-class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
-    """Frozen v1 CAT-K implementation for strict baseline checkpoint loading."""
+class NominalCATKDecoder(SharedStartRollWorldModel):
+    """候选 ``0`` 使用的可训练名义 CAT-K 解码器。"""
 
     def __init__(
         self,
@@ -283,12 +217,10 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
         *,
         num_candidates: int = 8,
         candidate_ce_weight: float = 0.05,
-        branch_noise_std: float = 0.0,
     ) -> None:
         super().__init__(cfg)
         self.num_candidates = max(2, int(num_candidates))
         self.candidate_ce_weight = float(candidate_ce_weight)
-        self.branch_noise_std = float(branch_noise_std)
         hidden = int(cfg.hidden_dim)
         self.candidate_head = nn.Sequential(
             nn.Linear(hidden, hidden),
@@ -330,13 +262,42 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
         logits = self.candidate_logit(context)
         return candidates, logits
 
+    def _candidate_probabilities(
+        self,
+        logits: torch.Tensor,
+        current_valid: torch.Tensor,
+        temperature: float = 1.0,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        slot_valid = current_valid[:, 1:].float()
+        pooled_logits = (logits * slot_valid.unsqueeze(-1)).sum(dim=1) / slot_valid.sum(
+            dim=1,
+            keepdim=True,
+        ).clamp_min(1.0)
+        probabilities = F.softmax(pooled_logits / max(float(temperature), 1.0e-3), dim=-1)
+        return pooled_logits, probabilities
+
+    def select_map_actions_st(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+        """以直通 MAP 选择名义分支，使其在训练中保留梯度。"""
+        candidates, logits = self.forward_candidates(batch)
+        pooled_logits, probabilities = self._candidate_probabilities(logits, batch["current_valid"])
+        choice = torch.argmax(pooled_logits, dim=-1)
+        gather = choice.view(-1, 1, 1, 1, 1).expand(
+            -1,
+            1,
+            self.cfg.horizon_steps,
+            self.cfg.num_slots,
+            self.cfg.action_dim,
+        )
+        hard_actions = candidates.gather(1, gather).squeeze(1)
+        soft_actions = (probabilities.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
+        actions = hard_actions + (soft_actions - soft_actions.detach())
+        return actions, choice
+
     def _losses_from_candidates(
         self,
         candidates: torch.Tensor,
         logits: torch.Tensor,
         batch: dict[str, torch.Tensor],
-        *,
-        physics_actions: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         target = batch["target_actions"].unsqueeze(1)
         valid = batch["target_valid"].float().unsqueeze(1).unsqueeze(-1)
@@ -377,7 +338,6 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
         deterministic: bool = False,
         temperature: float = 1.0,
         generator: torch.Generator | None = None,
-        add_branch_noise: bool = False,
     ) -> dict[str, torch.Tensor]:
         """根据显式的 ``Xi_world`` 选择一个 CAT-K 背景车动作分支。
 
@@ -386,9 +346,11 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
         默认关闭连续动作噪声，因此测试空间中的世界模型随机性仅为候选分支。
         """
         candidates, logits = self.forward_candidates(batch)
-        slot_valid = batch["current_valid"][:, 1:].float()
-        pooled_logits = (logits * slot_valid.unsqueeze(-1)).sum(dim=1) / slot_valid.sum(dim=1, keepdim=True).clamp_min(1.0)
-        probs = F.softmax(pooled_logits / max(float(temperature), 1.0e-3), dim=-1)
+        pooled_logits, probs = self._candidate_probabilities(
+            logits,
+            batch["current_valid"],
+            temperature=temperature,
+        )
         if candidate_index is not None:
             choice = candidate_index.to(device=candidates.device, dtype=torch.long).reshape(-1)
             if len(choice) != int(candidates.shape[0]):
@@ -410,9 +372,6 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
             self.cfg.action_dim,
         )
         action = candidates.gather(1, gather).squeeze(1)
-        if add_branch_noise and self.branch_noise_std > 0.0:
-            noise = torch.randn(action.shape, device=action.device, dtype=action.dtype, generator=generator)
-            action = action + noise * self.branch_noise_std * max(float(temperature), 0.0)
         return {
             "actions": action,
             "candidate_index": choice,
@@ -428,13 +387,12 @@ class LegacyTopKStartRollWorldModel(SharedStartRollWorldModel):
         temperature: float = 1.0,
         generator: torch.Generator | None = None,
     ) -> torch.Tensor:
-        """兼容旧评测接口的动作采样包装。"""
+        """返回单个候选动作的统一采样接口。"""
         sampled = self.sample_actions_with_xi(
             batch,
             deterministic=deterministic,
             temperature=temperature,
             generator=generator,
-            add_branch_noise=not deterministic,
         )
         return sampled["actions"]
 
@@ -505,10 +463,8 @@ class RelativeInteractionGraphAttention(nn.Module):
         return torch.where(current_valid.bool().unsqueeze(-1), updated, torch.zeros_like(updated))
 
 
-class TopKStartRollWorldModel(SharedStartRollWorldModel):
-    """v2 CAT-K: calibrated scene-intent, physics-residual traffic dynamics."""
-
-    architecture_version = 2
+class CATKResidualDynamics(SharedStartRollWorldModel):
+    """Internal CAT-K residual decoder."""
 
     def __init__(
         self,
@@ -530,7 +486,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
         jerk_control_points: int = 5,
         max_jerk_longitudinal_mps3: float = 8.0,
         max_jerk_lateral_mps3: float = 5.0,
-        branch_noise_std: float = 0.0,
     ) -> None:
         super().__init__(cfg)
         self.num_candidates = max(2, int(num_candidates))
@@ -543,7 +498,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
         self.probability_entropy_weight = max(float(probability_entropy_weight), 0.0)
         self.min_probability_entropy = max(float(min_probability_entropy), 0.0)
         self.jerk_control_points = max(2, int(jerk_control_points))
-        self.branch_noise_std = float(branch_noise_std)
         hidden = int(cfg.hidden_dim)
         state_mean = np.zeros(cfg.state_dim, dtype=np.float32) if state_norm_mean is None else np.asarray(state_norm_mean, dtype=np.float32)
         state_std = np.ones(cfg.state_dim, dtype=np.float32) if state_norm_std is None else np.asarray(state_norm_std, dtype=np.float32)
@@ -690,8 +644,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
         candidates: torch.Tensor,
         logits: torch.Tensor,
         batch: dict[str, torch.Tensor],
-        *,
-        physics_actions: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         terms = self._candidate_terms(candidates, logits, batch["target_actions"], batch["target_valid"])
         weights = batch.get("sample_weight")
@@ -701,20 +653,21 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
         smooth = self._weighted_mean(terms["smooth"], weights)
         probs = F.softmax(logits, dim=-1)
         map_choice = torch.argmax(logits, dim=-1)
-        map_hard = F.one_hot(map_choice, num_classes=self.num_candidates).to(dtype=candidates.dtype)
-        map_st = map_hard + probs - probs.detach()
-        map_actions = (map_st.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
+        map_gather = map_choice.view(-1, 1, 1, 1, 1).expand(
+            -1,
+            1,
+            self.cfg.horizon_steps,
+            self.cfg.num_slots,
+            self.cfg.action_dim,
+        )
+        map_hard_actions = candidates.gather(1, map_gather).squeeze(1)
+        map_soft_actions = (probs.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
+        map_actions = map_hard_actions + (map_soft_actions - map_soft_actions.detach())
         map_mask = batch["target_valid"].float().unsqueeze(-1)
         map_distance = ((map_actions - batch["target_actions"]).square() * map_mask).sum(
             dim=(1, 2, 3)
         ) / map_mask.sum(dim=(1, 2, 3)).clamp_min(1.0)
         map_action = self._weighted_mean(map_distance, weights)
-        physics_action = None
-        if physics_actions is not None:
-            physics_distance = ((physics_actions - batch["target_actions"]).square() * map_mask).sum(
-                dim=(1, 2, 3)
-            ) / map_mask.sum(dim=(1, 2, 3)).clamp_min(1.0)
-            physics_action = self._weighted_mean(physics_distance, weights)
         probability_entropy_per_sample = -(probs * probs.clamp_min(1.0e-8).log()).sum(dim=-1)
         entropy_penalty = self._weighted_mean(F.relu(self.min_probability_entropy - probability_entropy_per_sample), weights)
         loss = (
@@ -725,8 +678,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
             + self.map_action_weight * map_action
             + self.probability_entropy_weight * entropy_penalty
         )
-        if physics_action is not None:
-            loss = loss + self.physics_action_weight * physics_action
         responsibilities = terms["responsibilities"]
         expected = (responsibilities.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
         entropy = probability_entropy_per_sample.mean()
@@ -756,26 +707,11 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
             "candidate_probabilities": probs,
             "candidate_logits": logits,
         }
-        if physics_action is not None:
-            result["physics_action_mse_norm"] = physics_action.detach()
-            result["physics_actions_normalized"] = physics_actions
         return result
 
     def p_losses(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         candidates, logits = self.forward_candidates(batch)
         return self._losses_from_candidates(candidates, logits, batch)
-
-    def select_actions_st(
-        self,
-        candidates: torch.Tensor,
-        responsibilities: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Choose one Xi_world branch in forward while preserving soft gradients."""
-        choice = torch.multinomial(responsibilities.detach().float(), num_samples=1).squeeze(1)
-        hard = F.one_hot(choice, num_classes=self.num_candidates).to(dtype=candidates.dtype)
-        straight_through = hard + responsibilities - responsibilities.detach()
-        actions = (straight_through.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
-        return actions, choice
 
     def select_map_actions_st(
         self,
@@ -784,9 +720,16 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Use the environment's MAP Xi branch while retaining probability gradients."""
         choice = torch.argmax(probabilities, dim=-1)
-        hard = F.one_hot(choice, num_classes=self.num_candidates).to(dtype=candidates.dtype)
-        straight_through = hard + probabilities - probabilities.detach()
-        actions = (straight_through.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
+        gather = choice.view(-1, 1, 1, 1, 1).expand(
+            -1,
+            1,
+            self.cfg.horizon_steps,
+            self.cfg.num_slots,
+            self.cfg.action_dim,
+        )
+        hard_actions = candidates.gather(1, gather).squeeze(1)
+        soft_actions = (probabilities.view(-1, self.num_candidates, 1, 1, 1) * candidates).sum(dim=1)
+        actions = hard_actions + (soft_actions - soft_actions.detach())
         return actions, choice
 
     @torch.no_grad()
@@ -798,7 +741,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
         deterministic: bool = False,
         temperature: float = 1.0,
         generator: torch.Generator | None = None,
-        add_branch_noise: bool = False,
     ) -> dict[str, torch.Tensor]:
         candidates, logits = self.forward_candidates(batch)
         probs = F.softmax(logits / max(float(temperature), 1.0e-3), dim=-1)
@@ -816,8 +758,6 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
             1,
             choice.view(-1, 1, 1, 1, 1).expand(-1, 1, self.cfg.horizon_steps, self.cfg.num_slots, self.cfg.action_dim),
         ).squeeze(1)
-        if add_branch_noise and self.branch_noise_std > 0.0:
-            actions = actions + torch.randn(actions.shape, device=actions.device, dtype=actions.dtype, generator=generator) * self.branch_noise_std
         return {
             "actions": actions,
             "candidate_index": choice,
@@ -838,167 +778,37 @@ class TopKStartRollWorldModel(SharedStartRollWorldModel):
             deterministic=deterministic,
             temperature=temperature,
             generator=generator,
-            add_branch_noise=not deterministic,
         )["actions"]
 
 
-class PhysicsBackboneTopKStartRollWorldModel(TopKStartRollWorldModel):
-    """CAT-K v3 with a shared physical action backbone and intent residuals."""
-
-    architecture_version = 3
-
-    def __init__(self, *args, physics_action_weight: float = 0.25, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        hidden = int(self.cfg.hidden_dim)
-        self.physics_action_weight = max(float(physics_action_weight), 0.0)
-        self.physics_decoder = nn.Sequential(
-            nn.Linear(hidden, hidden),
-            nn.SiLU(),
-            nn.LayerNorm(hidden),
-            nn.Linear(hidden, hidden),
-            nn.SiLU(),
-        )
-        self.physics_jerk_controls = nn.Linear(
-            hidden,
-            self.cfg.action_dim * self.jerk_control_points,
-        )
-        nn.init.zeros_(self.physics_jerk_controls.weight)
-        nn.init.zeros_(self.physics_jerk_controls.bias)
-
-    def _reference_actions(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
-        raw_current = self.graph_attention.state_mean.view(1, 1, -1) + (
-            batch["current_states"][:, 1:, :] * self.graph_attention.state_std.view(1, 1, -1)
-        )
-        return raw_current[:, None, :, 4:6]
-
-    def _normalize_actions(self, raw_actions: torch.Tensor) -> torch.Tensor:
-        return (raw_actions - self.action_mean.view(1, 1, 1, -1)) / self.action_std.view(1, 1, 1, -1)
-
-    def _decode_candidates_and_physics(
-        self,
-        batch: dict[str, torch.Tensor],
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        slot_context, scene_context = self._scene_context(batch)
-        b = int(slot_context.shape[0])
-        reference = self._reference_actions(batch)
-
-        physics_hidden = self.physics_decoder(slot_context + scene_context[:, None, :])
-        physics_controls = self.physics_jerk_controls(physics_hidden).view(
-            b,
-            self.cfg.num_slots,
-            self.cfg.action_dim,
-            self.jerk_control_points,
-        )
-        physics_jerk = torch.einsum("tc,bsdc->btsd", self.jerk_spline_basis, physics_controls)
-        physics_jerk = torch.tanh(physics_jerk) * self.jerk_limits.view(1, 1, 1, -1)
-        physics_raw = reference + torch.cumsum(physics_jerk, dim=1) / 25.0
-        physics_raw = torch.stack(
-            (
-                torch.clamp(physics_raw[..., 0], -8.0, 4.0),
-                torch.clamp(physics_raw[..., 1], -4.0, 4.0),
-            ),
-            dim=-1,
-        )
-
-        token = self.intent_tokens.weight.view(1, self.num_candidates, 1, -1)
-        decoded = self.intent_decoder(
-            slot_context.unsqueeze(1) + scene_context.view(b, 1, 1, -1) + token
-        )
-        controls = self.jerk_controls(decoded).view(
-            b,
-            self.num_candidates,
-            self.cfg.num_slots,
-            self.cfg.action_dim,
-            self.jerk_control_points,
-        )
-        residual_jerk = torch.einsum("tc,bnsdc->bntsd", self.jerk_spline_basis, controls)
-        residual_jerk = torch.tanh(residual_jerk) * self.jerk_limits.view(1, 1, 1, 1, -1)
-        raw_actions = physics_raw.unsqueeze(1) + torch.cumsum(residual_jerk, dim=2) / 25.0
-        raw_actions = torch.stack(
-            (
-                torch.clamp(raw_actions[..., 0], -8.0, 4.0),
-                torch.clamp(raw_actions[..., 1], -4.0, 4.0),
-            ),
-            dim=-1,
-        )
-        candidates = (
-            raw_actions - self.action_mean.view(1, 1, 1, 1, -1)
-        ) / self.action_std.view(1, 1, 1, 1, -1)
-        return candidates, self.intent_logits(scene_context), self._normalize_actions(physics_raw)
-
-    def forward_candidates(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
-        candidates, logits, _physics = self._decode_candidates_and_physics(batch)
-        return candidates, logits
-
-    def p_losses(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        candidates, logits, physics_actions = self._decode_candidates_and_physics(batch)
-        return self._losses_from_candidates(
-            candidates,
-            logits,
-            batch,
-            physics_actions=physics_actions,
-        )
-
-
-class AnchoredTopKStartRollWorldModel(TopKStartRollWorldModel):
-    """CAT-K v4: a frozen nominal traffic anchor plus seven learned intent residuals."""
-
-    architecture_version = 4
+class CATKTopKWorldModel(CATKResidualDynamics):
+    """最终 CAT-K：一个名义分支与七个可学习残差意图。"""
 
     def __init__(
         self,
         cfg: WorldModelConfig,
         *,
-        nominal_candidate_ce_weight: float = 0.05,
         nominal_logit_margin: float = 0.05,
         **kwargs,
     ) -> None:
         super().__init__(cfg, **kwargs)
         self.nominal_logit_margin = max(float(nominal_logit_margin), 0.0)
-        self.nominal_model = LegacyTopKStartRollWorldModel(
+        self.nominal_decoder = NominalCATKDecoder(
             cfg,
             num_candidates=self.num_candidates,
-            candidate_ce_weight=nominal_candidate_ce_weight,
-            branch_noise_std=0.0,
         )
-        self.nominal_model.requires_grad_(False)
-
-    def train(self, mode: bool = True):
-        super().train(mode)
-        self.nominal_model.eval()
-        return self
 
     def forward_candidates(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         residual_candidates, residual_logits = super().forward_candidates(batch)
-        with torch.no_grad():
-            nominal_actions = self.nominal_model.sample_actions(batch, deterministic=True)
+        if self.training:
+            nominal_actions, _nominal_choice = self.nominal_decoder.select_map_actions_st(batch)
+        else:
+            nominal_actions = self.nominal_decoder.sample_actions(batch, deterministic=True)
         candidates = residual_candidates.clone()
         candidates[:, 0] = nominal_actions
         logits = residual_logits.clone()
         logits[:, 0] = logits[:, 1:].max(dim=-1).values + self.nominal_logit_margin
         return candidates, logits
-
-
-def gaussian_nll(
-    actions: torch.Tensor,
-    mean: torch.Tensor,
-    log_std: torch.Tensor,
-    valid: torch.Tensor,
-    sample_weight: torch.Tensor | None = None,
-) -> torch.Tensor:
-    valid_f = valid.float().unsqueeze(-1)
-    nll = 0.5 * ((actions - mean) / log_std.exp()).pow(2) + log_std
-    per_sample = (nll * valid_f).sum(dim=(1, 2, 3)) / valid_f.sum(dim=(1, 2, 3)).clamp_min(1.0)
-    if sample_weight is not None:
-        weight = sample_weight.float()
-        return (per_sample * weight).sum() / weight.sum().clamp_min(1.0e-6)
-    return per_sample.mean()
-
-
-def masked_action_mse(actions: torch.Tensor, mean: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
-    valid_f = valid.float().unsqueeze(-1)
-    return (((actions - mean).pow(2) * valid_f).sum() / valid_f.sum().clamp_min(1.0)).mean()
-
 
 def build_model_from_schema(schema: dict[str, Any], config: dict[str, Any]) -> SharedStartRollWorldModel:
     model_cfg = dict(config.get("model", {}))
@@ -1017,56 +827,36 @@ def build_model_from_schema(schema: dict[str, Any], config: dict[str, Any]) -> S
         min_log_std=float(model_cfg.get("min_log_std", -5.0)),
         max_log_std=float(model_cfg.get("max_log_std", 2.0)),
     )
-    if model_type == "catk_topk":
-        architecture_version = int(model_cfg.get("architecture_version", 2))
-        model_class = {
-            PhysicsBackboneTopKStartRollWorldModel.architecture_version: PhysicsBackboneTopKStartRollWorldModel,
-            AnchoredTopKStartRollWorldModel.architecture_version: AnchoredTopKStartRollWorldModel,
-        }.get(architecture_version, TopKStartRollWorldModel)
-        kwargs = {
-            "num_candidates": int(model_cfg.get("num_candidates", 8)),
-            "state_norm_mean": np.asarray(schema["normalization"]["state"]["mean"], dtype=np.float32),
-            "state_norm_std": np.asarray(schema["normalization"]["state"]["std"], dtype=np.float32),
-            "action_norm_mean": np.asarray(schema["normalization"]["action"]["mean"], dtype=np.float32),
-            "action_norm_std": np.asarray(schema["normalization"]["action"]["std"], dtype=np.float32),
-            "responsibility_temperature": float(model_cfg.get("responsibility_temperature", 1.0)),
-            "energy_weight": float(model_cfg.get("energy_weight", 0.01)),
-            "diversity_weight": float(model_cfg.get("diversity_weight", 0.02)),
-            "diversity_margin_normalized": float(model_cfg.get("diversity_margin_normalized", 0.10)),
-            "smoothness_weight": float(model_cfg.get("smoothness_weight", 0.01)),
-            "map_action_weight": float(model_cfg.get("map_action_weight", 0.0)),
-            "probability_entropy_weight": float(model_cfg.get("probability_entropy_weight", 0.0)),
-            "min_probability_entropy": float(model_cfg.get("min_probability_entropy", 1.50)),
-            "jerk_control_points": int(model_cfg.get("jerk_control_points", 5)),
-            "max_jerk_longitudinal_mps3": float(model_cfg.get("max_jerk_longitudinal_mps3", 8.0)),
-            "max_jerk_lateral_mps3": float(model_cfg.get("max_jerk_lateral_mps3", 5.0)),
-            "branch_noise_std": float(model_cfg.get("branch_noise_std", 0.0)),
-        }
-        if model_class is PhysicsBackboneTopKStartRollWorldModel:
-            kwargs["physics_action_weight"] = float(model_cfg.get("physics_action_weight", 0.25))
-        if model_class is AnchoredTopKStartRollWorldModel:
-            kwargs["nominal_candidate_ce_weight"] = float(model_cfg.get("nominal_candidate_ce_weight", 0.05))
-            kwargs["nominal_logit_margin"] = float(model_cfg.get("nominal_logit_margin", 0.05))
-        return model_class(
-            cfg,
-            **kwargs,
-        )
-    if model_type == "gaussian_baseline":
-        return SharedStartRollWorldModel(cfg)
-    raise ValueError(
-        "Unsupported world-model type. Use 'catk_topk' or the retained "
-        "comparison baseline 'gaussian_baseline'."
-    )
+    if model_type != "catk_topk":
+        raise ValueError("The active world model type is 'catk_topk'.")
+    kwargs = {
+        "num_candidates": int(model_cfg.get("num_candidates", 8)),
+        "state_norm_mean": np.asarray(schema["normalization"]["state"]["mean"], dtype=np.float32),
+        "state_norm_std": np.asarray(schema["normalization"]["state"]["std"], dtype=np.float32),
+        "action_norm_mean": np.asarray(schema["normalization"]["action"]["mean"], dtype=np.float32),
+        "action_norm_std": np.asarray(schema["normalization"]["action"]["std"], dtype=np.float32),
+        "responsibility_temperature": float(model_cfg.get("responsibility_temperature", 1.0)),
+        "energy_weight": float(model_cfg.get("energy_weight", 0.01)),
+        "diversity_weight": float(model_cfg.get("diversity_weight", 0.02)),
+        "diversity_margin_normalized": float(model_cfg.get("diversity_margin_normalized", 0.10)),
+        "smoothness_weight": float(model_cfg.get("smoothness_weight", 0.01)),
+        "map_action_weight": float(model_cfg.get("map_action_weight", 0.0)),
+        "probability_entropy_weight": float(model_cfg.get("probability_entropy_weight", 0.0)),
+        "min_probability_entropy": float(model_cfg.get("min_probability_entropy", 1.50)),
+        "jerk_control_points": int(model_cfg.get("jerk_control_points", 5)),
+        "max_jerk_longitudinal_mps3": float(model_cfg.get("max_jerk_longitudinal_mps3", 8.0)),
+        "max_jerk_lateral_mps3": float(model_cfg.get("max_jerk_lateral_mps3", 5.0)),
+    }
+    kwargs["nominal_logit_margin"] = float(model_cfg.get("nominal_logit_margin", 0.05))
+    return CATKTopKWorldModel(cfg, **kwargs)
 
 
 def model_config_payload(model: SharedStartRollWorldModel) -> dict[str, Any]:
     cfg = model.cfg
-    if isinstance(model, (TopKStartRollWorldModel, LegacyTopKStartRollWorldModel)):
-        model_type = "catk_topk"
-    else:
-        model_type = "gaussian_baseline"
+    if not isinstance(model, CATKTopKWorldModel):
+        raise TypeError(f"Unsupported checkpoint model={model.__class__.__name__}")
     payload = {
-        "model_type": model_type,
+        "model_type": "catk_topk",
         "history_steps": int(cfg.history_steps),
         "horizon_steps": int(cfg.horizon_steps),
         "state_dim": int(cfg.state_dim),
@@ -1085,43 +875,27 @@ def model_config_payload(model: SharedStartRollWorldModel) -> dict[str, Any]:
         "min_log_std": float(cfg.min_log_std),
         "max_log_std": float(cfg.max_log_std),
     }
-    if isinstance(model, LegacyTopKStartRollWorldModel):
-        payload.update(
-            {
-                "architecture_version": 1,
-                "num_candidates": int(model.num_candidates),
-                "candidate_ce_weight": float(model.candidate_ce_weight),
-                "branch_noise_std": float(model.branch_noise_std),
-            }
-        )
-    if isinstance(model, TopKStartRollWorldModel):
-        payload.update(
-            {
-                "architecture_version": int(model.architecture_version),
-                "num_candidates": int(model.num_candidates),
-                "state_norm_mean": model.graph_attention.state_mean.detach().cpu().tolist(),
-                "state_norm_std": model.graph_attention.state_std.detach().cpu().tolist(),
-                "action_norm_mean": model.action_mean.detach().cpu().tolist(),
-                "action_norm_std": model.action_std.detach().cpu().tolist(),
-                "responsibility_temperature": float(model.responsibility_temperature),
-                "energy_weight": float(model.energy_weight),
-                "diversity_weight": float(model.diversity_weight),
-                "diversity_margin_normalized": float(model.diversity_margin_normalized),
-                "smoothness_weight": float(model.smoothness_weight),
-                "map_action_weight": float(model.map_action_weight),
-                "probability_entropy_weight": float(model.probability_entropy_weight),
-                "min_probability_entropy": float(model.min_probability_entropy),
-                "jerk_control_points": int(model.jerk_control_points),
-                "max_jerk_longitudinal_mps3": float(model.jerk_limits[0].detach().cpu()),
-                "max_jerk_lateral_mps3": float(model.jerk_limits[1].detach().cpu()),
-                "branch_noise_std": float(model.branch_noise_std),
-            }
-        )
-    if isinstance(model, PhysicsBackboneTopKStartRollWorldModel):
-        payload["physics_action_weight"] = float(model.physics_action_weight)
-    if isinstance(model, AnchoredTopKStartRollWorldModel):
-        payload["nominal_candidate_ce_weight"] = float(model.nominal_model.candidate_ce_weight)
-        payload["nominal_logit_margin"] = float(model.nominal_logit_margin)
+    payload.update(
+        {
+            "num_candidates": int(model.num_candidates),
+            "state_norm_mean": model.graph_attention.state_mean.detach().cpu().tolist(),
+            "state_norm_std": model.graph_attention.state_std.detach().cpu().tolist(),
+            "action_norm_mean": model.action_mean.detach().cpu().tolist(),
+            "action_norm_std": model.action_std.detach().cpu().tolist(),
+            "responsibility_temperature": float(model.responsibility_temperature),
+            "energy_weight": float(model.energy_weight),
+            "diversity_weight": float(model.diversity_weight),
+            "diversity_margin_normalized": float(model.diversity_margin_normalized),
+            "smoothness_weight": float(model.smoothness_weight),
+            "map_action_weight": float(model.map_action_weight),
+            "probability_entropy_weight": float(model.probability_entropy_weight),
+            "min_probability_entropy": float(model.min_probability_entropy),
+            "jerk_control_points": int(model.jerk_control_points),
+            "max_jerk_longitudinal_mps3": float(model.jerk_limits[0].detach().cpu()),
+            "max_jerk_lateral_mps3": float(model.jerk_limits[1].detach().cpu()),
+        }
+    )
+    payload["nominal_logit_margin"] = float(model.nominal_logit_margin)
     return payload
 
 
@@ -1129,84 +903,59 @@ def load_checkpoint(path: str, device: torch.device) -> tuple[nn.Module, dict[st
     payload = torch.load(path, map_location=device)
     model_config = dict(payload["model_config"])
     model_type = str(model_config.pop("model_type", "catk_topk")).lower()
-    if model_type == "catk_topk":
-        architecture_version = int(model_config.pop("architecture_version", 1))
-        num_candidates = int(model_config.pop("num_candidates", 8))
-        if architecture_version == 1:
-            candidate_ce_weight = float(model_config.pop("candidate_ce_weight", 0.05))
-            branch_noise_std = float(model_config.pop("branch_noise_std", 0.0))
-            cfg = WorldModelConfig(**model_config)
-            model = LegacyTopKStartRollWorldModel(
-                cfg,
-                num_candidates=num_candidates,
-                candidate_ce_weight=candidate_ce_weight,
-                branch_noise_std=branch_noise_std,
-            )
-        elif architecture_version in {
-            TopKStartRollWorldModel.architecture_version,
-            PhysicsBackboneTopKStartRollWorldModel.architecture_version,
-            AnchoredTopKStartRollWorldModel.architecture_version,
-        }:
-            state_norm_mean = model_config.pop("state_norm_mean", None)
-            state_norm_std = model_config.pop("state_norm_std", None)
-            action_norm_mean = model_config.pop("action_norm_mean", None)
-            action_norm_std = model_config.pop("action_norm_std", None)
-            responsibility_temperature = float(model_config.pop("responsibility_temperature", 1.0))
-            energy_weight = float(model_config.pop("energy_weight", 0.01))
-            diversity_weight = float(model_config.pop("diversity_weight", 0.02))
-            diversity_margin_normalized = float(model_config.pop("diversity_margin_normalized", 0.10))
-            smoothness_weight = float(model_config.pop("smoothness_weight", 0.01))
-            map_action_weight = float(model_config.pop("map_action_weight", 0.0))
-            probability_entropy_weight = float(model_config.pop("probability_entropy_weight", 0.0))
-            min_probability_entropy = float(model_config.pop("min_probability_entropy", 1.50))
-            jerk_control_points = int(model_config.pop("jerk_control_points", 5))
-            max_jerk_longitudinal_mps3 = float(model_config.pop("max_jerk_longitudinal_mps3", 8.0))
-            max_jerk_lateral_mps3 = float(model_config.pop("max_jerk_lateral_mps3", 5.0))
-            branch_noise_std = float(model_config.pop("branch_noise_std", 0.0))
-            physics_action_weight = float(model_config.pop("physics_action_weight", 0.25))
-            nominal_candidate_ce_weight = float(model_config.pop("nominal_candidate_ce_weight", 0.05))
-            nominal_logit_margin = float(model_config.pop("nominal_logit_margin", 0.05))
-            cfg = WorldModelConfig(**model_config)
-            model_class = {
-                PhysicsBackboneTopKStartRollWorldModel.architecture_version: PhysicsBackboneTopKStartRollWorldModel,
-                AnchoredTopKStartRollWorldModel.architecture_version: AnchoredTopKStartRollWorldModel,
-            }.get(architecture_version, TopKStartRollWorldModel)
-            kwargs = {
-                "num_candidates": num_candidates,
-                "state_norm_mean": state_norm_mean,
-                "state_norm_std": state_norm_std,
-                "action_norm_mean": action_norm_mean,
-                "action_norm_std": action_norm_std,
-                "responsibility_temperature": responsibility_temperature,
-                "energy_weight": energy_weight,
-                "diversity_weight": diversity_weight,
-                "diversity_margin_normalized": diversity_margin_normalized,
-                "smoothness_weight": smoothness_weight,
-                "map_action_weight": map_action_weight,
-                "probability_entropy_weight": probability_entropy_weight,
-                "min_probability_entropy": min_probability_entropy,
-                "jerk_control_points": jerk_control_points,
-                "max_jerk_longitudinal_mps3": max_jerk_longitudinal_mps3,
-                "max_jerk_lateral_mps3": max_jerk_lateral_mps3,
-                "branch_noise_std": branch_noise_std,
-            }
-            if model_class is PhysicsBackboneTopKStartRollWorldModel:
-                kwargs["physics_action_weight"] = physics_action_weight
-            if model_class is AnchoredTopKStartRollWorldModel:
-                kwargs["nominal_candidate_ce_weight"] = nominal_candidate_ce_weight
-                kwargs["nominal_logit_margin"] = nominal_logit_margin
-            model = model_class(
-                cfg,
-                **kwargs,
-            )
-        else:
-            raise ValueError(f"Unsupported CAT-K architecture_version={architecture_version}")
-    elif model_type == "gaussian_baseline":
-        cfg = WorldModelConfig(**model_config)
-        model = SharedStartRollWorldModel(cfg)
-    else:
+    if model_type != "catk_topk":
         raise ValueError(f"Unsupported checkpoint model_type={model_type!r}")
-    model.load_state_dict(payload["state_dict"], strict=True)
+    state_dict = payload["state_dict"]
+    num_candidates = int(model_config.pop("num_candidates", 8))
+    if any(key.startswith("nominal_decoder.") for key in state_dict):
+        state_norm_mean = model_config.pop("state_norm_mean", None)
+        state_norm_std = model_config.pop("state_norm_std", None)
+        action_norm_mean = model_config.pop("action_norm_mean", None)
+        action_norm_std = model_config.pop("action_norm_std", None)
+        responsibility_temperature = float(model_config.pop("responsibility_temperature", 1.0))
+        energy_weight = float(model_config.pop("energy_weight", 0.01))
+        diversity_weight = float(model_config.pop("diversity_weight", 0.02))
+        diversity_margin_normalized = float(model_config.pop("diversity_margin_normalized", 0.10))
+        smoothness_weight = float(model_config.pop("smoothness_weight", 0.01))
+        map_action_weight = float(model_config.pop("map_action_weight", 0.0))
+        probability_entropy_weight = float(model_config.pop("probability_entropy_weight", 0.0))
+        min_probability_entropy = float(model_config.pop("min_probability_entropy", 1.50))
+        jerk_control_points = int(model_config.pop("jerk_control_points", 5))
+        max_jerk_longitudinal_mps3 = float(model_config.pop("max_jerk_longitudinal_mps3", 8.0))
+        max_jerk_lateral_mps3 = float(model_config.pop("max_jerk_lateral_mps3", 5.0))
+        nominal_logit_margin = float(model_config.pop("nominal_logit_margin", 0.05))
+        cfg = WorldModelConfig(**model_config)
+        model = CATKTopKWorldModel(
+            cfg,
+            num_candidates=num_candidates,
+            state_norm_mean=state_norm_mean,
+            state_norm_std=state_norm_std,
+            action_norm_mean=action_norm_mean,
+            action_norm_std=action_norm_std,
+            responsibility_temperature=responsibility_temperature,
+            energy_weight=energy_weight,
+            diversity_weight=diversity_weight,
+            diversity_margin_normalized=diversity_margin_normalized,
+            smoothness_weight=smoothness_weight,
+            map_action_weight=map_action_weight,
+            probability_entropy_weight=probability_entropy_weight,
+            min_probability_entropy=min_probability_entropy,
+            jerk_control_points=jerk_control_points,
+            max_jerk_longitudinal_mps3=max_jerk_longitudinal_mps3,
+            max_jerk_lateral_mps3=max_jerk_lateral_mps3,
+            nominal_logit_margin=nominal_logit_margin,
+        )
+    elif "candidate_head.0.weight" in state_dict:
+        candidate_ce_weight = float(model_config.pop("candidate_ce_weight", 0.05))
+        cfg = WorldModelConfig(**model_config)
+        model = NominalCATKDecoder(
+            cfg,
+            num_candidates=num_candidates,
+            candidate_ce_weight=candidate_ce_weight,
+        )
+    else:
+        raise ValueError("Checkpoint state_dict does not match a supported CAT-K model")
+    model.load_state_dict(state_dict, strict=True)
     model.to(device)
     model.eval()
     return model, payload

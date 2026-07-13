@@ -26,7 +26,7 @@ Flow 先生成完整初始场景：
 s0 = Flow(E, Z_flow)
 ```
 
-随后世界模型在每个 chunk 根据当前/历史场景状态和 `Xi_world` 生成背景车动作。关系特征是当前状态的确定性变换，不属于测试空间的新随机变量。
+随后世界模型在每个 chunk 根据当前/历史场景状态和 `Xi_world` 生成背景车动作。关系特征是当前状态的确定性变换，不属于测试空间的新随机变量。未显式传入候选索引时，`world_seed` 只用于生成 `Xi_world`；已记录的候选索引序列可直接传回 `start()` 与 `roll()` 复现对应背景车行为。
 
 ## 输入与边界
 
@@ -99,11 +99,11 @@ next_second = environment.roll(ego_history_states, ego_history_valid)
 当前正式 checkpoint：
 
 ```text
-results/highd_world_model/catk_topk_anchored/checkpoints/best_world_model.pt
+results/highd_world_model/catk_topk/checkpoints/best_world_model.pt
 ```
 
-该 v4 checkpoint 将冻结的自然驾驶名义动力学置为候选 `0`，其余七个候选由完成多 chunk 训练的 CAT-K 残差 token 产生。确定性 `argmax` 选择候选 `0`，因此在固定的重建协议下保持名义闭环不退化；categorical 采样仍可选择七个联合残差意图，`Xi_world` 的取值空间保持为八分类。
+最终 `catk_topk` 从随机初始化直接训练：`NominalCATKDecoder` 的内部 MAP 动作构成候选 `0`，候选 `1--7` 由场景级残差 token 生成。外层 `nominal_logit_margin` 保证确定性 `argmax` 选择候选 `0`；categorical 采样仍可选择八个联合意图。训练不依赖外部初始化 checkpoint 或冻结基线权重；`resume_from_checkpoint` 仅续训同一输出目录的最新 checkpoint。
 
-相对冻结 v1 基线的 test paired-bootstrap（2,000 次）结果为：EVT-tail START 的 ADE、FDE、gap MAE 差值均为 `0`，logged-ego START->ROLL ADE 差值也为 `0`；四项单侧 95% 上界均为 `0`，满足晋升门槛。logged-ego replay 仍只用于世界模型重建验证，不能当作 ADS 闭环测试结果。
+保留的历史 checkpoint 相对冻结基线的 test paired-bootstrap（2,000 次）结果为：EVT-tail START 的 ADE、FDE、gap MAE 差值均为 `0`，logged-ego START->ROLL ADE 差值也为 `0`；四项单侧 95% 上界均为 `0`。从零训练得到的新 checkpoint 必须重新通过相同门槛。logged-ego replay 仍只用于世界模型重建验证，不能当作 ADS 闭环测试结果。
 
 完整实现边界见 [IMPLEMENTATION_NOTES.md](IMPLEMENTATION_NOTES.md)。

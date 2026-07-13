@@ -28,6 +28,7 @@ from .schema import (
     AGENT_NAMES,
     AGENT_STATE_FEATURES,
     FLOW_ACTION_SUMMARY_FEATURES,
+    RELATION_FEATURES,
     ROLL_MODE_INDEX,
     START_MODE_INDEX,
     WorldModelSchema,
@@ -88,11 +89,6 @@ TRAINING_CORE_ARRAY_KEYS = (
     "is_evt_tail",
 )
 TRAINING_RELATION_ARRAY_KEYS = ("relation_features_normalized",)
-TRAINING_AUXILIARY_ARRAY_KEYS = (
-    "current_states",
-    "target_states",
-    "ego_future_states",
-)
 MODEL_STATE_CLOSED_LOOP_ARRAY_KEYS = (
     "current_states",
     "ego_future_states",
@@ -125,36 +121,11 @@ PREPARED_DATASET_ARRAY_KEYS = (
     "event_risk",
 )
 
-def _training_loss_weights(config: dict[str, Any]) -> dict[str, float]:
-    training_cfg = dict(config.get("training", {}))
-    weights = dict(training_cfg.get("loss_weights", {}))
-    return {key: float(value) for key, value in weights.items()}
-
-
-def training_uses_relation_features(config: dict[str, Any]) -> bool:
-    model_cfg = dict(config.get("model", {}))
-    return bool(model_cfg.get("use_relation_features", False))
-
-
-def training_uses_auxiliary_states(config: dict[str, Any]) -> bool:
-    weights = _training_loss_weights(config)
-    return any(float(weights.get(key, 0.0)) > 0.0 for key in ("trajectory", "interaction", "physics"))
-
-
-def training_uses_model_state_closed_loop(config: dict[str, Any]) -> bool:
-    training_cfg = dict(config.get("training", {}))
-    return bool(dict(training_cfg.get("model_state_closed_loop", {})).get("enabled", True))
-
-
-def training_array_keys_for_config(config: dict[str, Any]) -> tuple[str, ...]:
-    keys = list(TRAINING_CORE_ARRAY_KEYS)
-    if training_uses_relation_features(config):
-        keys.extend(TRAINING_RELATION_ARRAY_KEYS)
-    if training_uses_auxiliary_states(config):
-        keys.extend(TRAINING_AUXILIARY_ARRAY_KEYS)
-    if training_uses_model_state_closed_loop(config):
-        keys.extend(MODEL_STATE_CLOSED_LOOP_ARRAY_KEYS)
-    return tuple(keys)
+TRAINING_ARRAY_KEYS = (
+    *TRAINING_CORE_ARRAY_KEYS,
+    *TRAINING_RELATION_ARRAY_KEYS,
+    *MODEL_STATE_CLOSED_LOOP_ARRAY_KEYS,
+)
 
 
 def _resolve_highd_evt_config(config: dict[str, Any], config_dir: Path) -> Path:
@@ -1122,9 +1093,9 @@ def load_world_model_prepared_dataset(
     return arrays, schema, cache_path
 
 
-def _training_source_array_keys(config: dict[str, Any]) -> tuple[str, ...]:
+def _training_source_array_keys() -> tuple[str, ...]:
     keys = {"split_index", "mode_index", "is_evt_tail"}
-    for key in training_array_keys_for_config(config):
+    for key in TRAINING_ARRAY_KEYS:
         if key == "current_states_normalized":
             keys.update(("current_states", "current_valid"))
         elif key == "target_actions_normalized":
@@ -1136,10 +1107,8 @@ def _training_source_array_keys(config: dict[str, Any]) -> tuple[str, ...]:
 
 def load_world_model_training_dataset(
     output_dir: str | Path,
-    *,
-    config: dict[str, Any],
 ) -> tuple[dict[str, np.ndarray], dict[str, Any], Path]:
-    required_keys = training_array_keys_for_config(config)
+    required_keys = TRAINING_ARRAY_KEYS
     out_dir = Path(output_dir)
     schema_path = schema_json_path(out_dir)
     if not schema_path.exists():
@@ -1148,7 +1117,7 @@ def load_world_model_training_dataset(
     cache_path = prepared_dataset_cache_path(out_dir)
     if cache_path is None:
         raise _missing_prepared_cache_error(out_dir)
-    source_keys = _training_source_array_keys(config)
+    source_keys = _training_source_array_keys()
     split_index = _load_prepared_array(cache_path, "split_index", mmap=True)
     row_mask = _training_row_mask(split_index)
     n_rows = int(len(split_index))
@@ -1164,7 +1133,7 @@ def load_world_model_training_dataset(
     arrays = _ensure_model_arrays(
         arrays,
         schema,
-        require_relation_features=training_uses_relation_features(config),
+        require_relation_features=True,
     )
     if "target_actions" not in required_keys:
         arrays.pop("target_actions", None)

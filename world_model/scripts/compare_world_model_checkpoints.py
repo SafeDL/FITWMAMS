@@ -80,7 +80,6 @@ def _predict_one_chunk(
             deterministic=True,
             temperature=1.0,
             seed=seed_offset + int(batch_indices[0]),
-            std_floor_normalized=None,
         )
         action_raw = unnormalize_actions(action_norm, schema)
         state_raw, _valid = integrate_background_actions_batch(
@@ -122,7 +121,6 @@ def _start_to_roll_predictions(
             deterministic=True,
             temperature=1.0,
             seed=seed_offset + int(start_idx[0]),
-            std_floor_normalized=None,
         )
         first_actions = unnormalize_actions(first_norm, schema)
         first_states, first_valid = integrate_background_actions_batch(
@@ -178,7 +176,6 @@ def _start_to_roll_predictions(
             deterministic=True,
             temperature=1.0,
             seed=seed_offset + 100000 + int(roll_idx[0]),
-            std_floor_normalized=None,
         )
         second_actions = unnormalize_actions(second_norm, schema)
         second_states, _second_valid = integrate_background_actions_batch(

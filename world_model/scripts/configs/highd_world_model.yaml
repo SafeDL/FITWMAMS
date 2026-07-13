@@ -1,6 +1,4 @@
-# highD 长尾背景交通世界模型：唯一活动实现。
-
-seed: 42
+# highD 长尾背景交通世界模型：唯一活动实现 CAT-K。
 
 paths:
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
@@ -8,7 +6,7 @@ paths:
   natural_segments_csv: "../../../results/highd_natural_evt/natural_segments.csv"
   tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
   dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/catk_topk_anchored"
+  output_dir: "../../../results/highd_world_model/catk_topk"
 
 sampling:
   target_fps: 25
@@ -29,7 +27,6 @@ split:
 
 model:
   type: "catk_topk"
-  architecture_version: 4
   hidden_dim: 128
   history_layers: 2
   interaction_layers: 2
@@ -49,15 +46,7 @@ model:
   jerk_control_points: 5
   max_jerk_longitudinal_mps3: 8.0
   max_jerk_lateral_mps3: 5.0
-  branch_noise_std: 0.0
-  nominal_candidate_ce_weight: 0.05
   nominal_logit_margin: 0.05
-
-# Xi_world 只表示 CAT-K 候选索引；环境接口不添加额外连续动作噪声。
-environment:
-  candidate_selection: "categorical"
-  candidate_temperature: 1.0
-  world_seed: 123
 
 training:
   seed: 42
@@ -80,23 +69,7 @@ training:
   no_improvement_patience: 0
   no_improvement_min_delta: 0.0001
   diagnostic_validation_interval: 5
-  closed_loop_adaptation:
-    enabled: false
-    probability: 0.35
-    history_dropout_probability: 0.05
-    state_noise_std:
-      x_m: 0.20
-      y_left_m: 0.05
-      vx_mps: 0.20
-      vy_left_mps: 0.05
-      ax_mps2: 0.15
-      ay_left_mps2: 0.05
-  loss_weights:
-    trajectory: 0.0
-    interaction: 0.0
-    physics: 0.0
   model_state_closed_loop:
-    enabled: true
     max_chunks: 5
     curriculum_epochs_per_chunk: 8
     state_consistency_weight: 0.10
@@ -109,7 +82,6 @@ evaluation:
     allow_tf32: false
     float32_matmul_precision: "highest"
   sampling_temperature: 1.0
-  sampling_action_std_floor_mps2: null
   splits: ["val", "test"]
   closed_loop:
     enabled: true

@@ -19,14 +19,9 @@ from .data import (
     output_dir_from_config,
     prepared_dataset_available,
     split_indices,
-    training_uses_auxiliary_states,
-    training_uses_relation_features,
 )
 from .model import (
     build_model_from_schema,
-    gaussian_nll,
-    load_checkpoint,
-    masked_action_mse,
     model_config_payload,
 )
 from .schema import ROLL_MODE_INDEX, START_MODE_INDEX
@@ -65,17 +60,10 @@ CORE_BATCH_FIELDS = (
     ("mode_index", "mode_index", "long"),
     ("primary_slot_index", "primary_slot_index", "long"),
     ("flow_action_summary", "flow_action_summary_normalized", "float"),
+    ("relation_features", "relation_features_normalized", "float"),
     ("target_actions", "target_actions_normalized", "float"),
     ("target_valid", "target_valid", "bool"),
     ("sample_weight", "sample_weight", "float"),
-)
-RELATION_BATCH_FIELDS = (
-    ("relation_features", "relation_features_normalized", "float"),
-)
-AUXILIARY_BATCH_FIELDS = (
-    ("current_states_raw", "current_states", "float"),
-    ("target_states_raw", "target_states", "float"),
-    ("ego_future_states_raw", "ego_future_states", "float"),
 )
 SEQUENCE_BATCH_FIELDS = (
     ("history_states", "history_states_normalized", "float"),
@@ -104,9 +92,6 @@ DEFAULT_BATCH_KEYS = (
     "target_actions",
     "target_valid",
     "sample_weight",
-    "current_states_raw",
-    "target_states_raw",
-    "ego_future_states_raw",
 )
 
 
@@ -131,8 +116,6 @@ def _make_loader(
     max_samples: int = 0,
     mode_index: int | None = None,
     evt_tail: bool | None = None,
-    include_relation_features: bool = False,
-    include_auxiliary_states: bool = False,
 ):
     torch, DataLoader, TensorDataset = _torch()
     idx = split_indices(arrays, split)
@@ -144,11 +127,7 @@ def _make_loader(
         idx = idx[: int(max_samples)]
     if len(idx) == 0:
         raise RuntimeError(f"No samples for split={split}")
-    fields = list(CORE_BATCH_FIELDS)
-    if include_relation_features:
-        fields.extend(RELATION_BATCH_FIELDS)
-    if include_auxiliary_states:
-        fields.extend(AUXILIARY_BATCH_FIELDS)
+    fields = CORE_BATCH_FIELDS
     tensors = [
         _tensor_from_array(torch, arrays[array_key][idx], dtype_name)
         for _name, array_key, dtype_name in fields
@@ -390,89 +369,6 @@ def _maybe_make_diagnostic_loader_from_val(
         return None
 
 
-def _history_corruption_noise(training_cfg: dict[str, Any], schema: dict[str, Any]) -> np.ndarray:
-    adaptation = dict(training_cfg.get("closed_loop_adaptation", {}))
-    raw = adaptation.get(
-        "state_noise_std",
-        {
-            "x_m": 0.20,
-            "y_left_m": 0.05,
-            "vx_mps": 0.20,
-            "vy_left_mps": 0.05,
-            "ax_mps2": 0.15,
-            "ay_left_mps2": 0.05,
-        },
-    )
-    names = list(schema["state_features"])
-    state_std = np.asarray(schema["normalization"]["state"]["std"], dtype=np.float32)
-    noise = np.zeros(len(names), dtype=np.float32)
-    for idx, name in enumerate(names):
-        noise[idx] = float(raw.get(name, 0.0)) / max(float(state_std[idx]), 1.0e-6)
-    return noise.astype(np.float32)
-
-
-def _apply_history_corruption(
-    item: dict[str, Any],
-    training_cfg: dict[str, Any],
-    schema: dict[str, Any],
-    *,
-    noise_scale=None,
-    noise_enabled: bool | None = None,
-) -> None:
-    adaptation = dict(training_cfg.get("closed_loop_adaptation", {}))
-    if not bool(adaptation.get("enabled", True)):
-        return
-    torch, _, _ = _torch()
-    probability = float(adaptation.get("probability", 0.35))
-    if probability <= 0.0:
-        return
-    roll_mask = item["mode_index"].long() == 1
-    if not bool(torch.any(roll_mask)):
-        return
-    selected = roll_mask & (torch.rand_like(item["sample_weight"]) < probability)
-    if not bool(torch.any(selected)):
-        return
-
-    if noise_enabled is None:
-        noise_values = _history_corruption_noise(training_cfg, schema)
-        noise_enabled = bool(np.any(noise_values > 0))
-        noise_scale = torch.from_numpy(noise_values).to(
-            item["history_states"].device,
-            dtype=item["history_states"].dtype,
-        )
-    if noise_enabled:
-        if noise_scale is None:
-            noise_scale = torch.from_numpy(_history_corruption_noise(training_cfg, schema)).to(
-                item["history_states"].device,
-                dtype=item["history_states"].dtype,
-            )
-        else:
-            noise_scale = noise_scale.to(device=item["history_states"].device, dtype=item["history_states"].dtype)
-        hist_noise = torch.randn_like(item["history_states"]) * noise_scale.view(1, 1, 1, -1)
-        curr_noise = torch.randn_like(item["current_states"]) * noise_scale.view(1, 1, -1)
-        hist_mask = selected.view(-1, 1, 1, 1) & item["history_valid"].unsqueeze(-1)
-        curr_mask = selected.view(-1, 1, 1) & item["current_valid"].unsqueeze(-1)
-        item["history_states"] = torch.where(hist_mask, item["history_states"] + hist_noise, item["history_states"])
-        item["current_states"] = torch.where(curr_mask, item["current_states"] + curr_noise, item["current_states"])
-
-    dropout_prob = float(adaptation.get("history_dropout_probability", 0.05))
-    if dropout_prob > 0.0:
-        drop = (
-            torch.rand(item["history_valid"].shape, device=item["history_valid"].device)
-            < dropout_prob
-        ) & selected.view(-1, 1, 1)
-        # Keep the current frame and ego history so ROLL remains well-defined.
-        drop[:, -1, :] = False
-        drop[:, :, 0] = False
-        item["history_valid"] = item["history_valid"] & ~drop
-        item["history_states"] = item["history_states"].masked_fill(drop.unsqueeze(-1), 0.0)
-
-
-def _loss_weights(training_cfg: dict[str, Any]) -> dict[str, float]:
-    weights = dict(training_cfg.get("loss_weights", {}))
-    return {key: float(value) for key, value in weights.items()}
-
-
 def _unnormalize_actions_torch(actions_normalized, schema: dict[str, Any]):
     torch, _, _ = _torch()
     norm = schema["normalization"]["action"]
@@ -500,71 +396,18 @@ def _integrate_actions_torch(current_states, actions, *, dt: float):
     return torch.stack(states, dim=1)
 
 
-def _auxiliary_rollout_losses(
-    item: dict[str, Any],
-    actions_normalized,
-    schema: dict[str, Any],
-    training_cfg: dict[str, Any],
-    weights: dict[str, float] | None = None,
-) -> dict[str, Any]:
+def _normalize_torch(values, valid, normalization: dict[str, Any]):
+    """按 schema 归一化并将无效项置零。"""
     torch, _, _ = _torch()
-    weights = weights if weights is not None else _loss_weights(training_cfg)
-    if not any(float(weights.get(key, 0.0)) > 0.0 for key in ("trajectory", "interaction", "physics")):
-        return {}
-    missing = [
-        key
-        for key in ("current_states_raw", "target_states_raw", "ego_future_states_raw")
-        if key not in item
-    ]
-    if missing:
-        raise RuntimeError(f"Auxiliary rollout losses require raw state tensors; missing={missing}")
-    actions_raw = _unnormalize_actions_torch(actions_normalized, schema)
-    pred = _integrate_actions_torch(
-        item["current_states_raw"],
-        actions_raw,
-        dt=1.0 / float(schema["fps"]),
-    )
-    target = item["target_states_raw"]
-    valid = item["target_valid"].float().unsqueeze(-1)
-    out: dict[str, Any] = {}
-    if float(weights.get("trajectory", 0.0)) > 0.0:
-        pos_mse = ((pred[..., :2] - target[..., :2]).pow(2) * valid).sum() / valid.sum().clamp_min(1.0)
-        vel_mse = ((pred[..., 2:4] - target[..., 2:4]).pow(2) * valid).sum() / valid.sum().clamp_min(1.0)
-        out["trajectory_mse_m2"] = pos_mse + 0.10 * vel_mse
-    if float(weights.get("interaction", 0.0)) > 0.0:
-        ego = item["ego_future_states_raw"]
-        pred_gap = torch.abs(pred[..., 0] - ego[:, :, None, 0])
-        target_gap = torch.abs(target[..., 0] - ego[:, :, None, 0])
-        pred_rel_v = pred[..., 2] - ego[:, :, None, 2]
-        target_rel_v = target[..., 2] - ego[:, :, None, 2]
-        mask = item["target_valid"].float()
-        gap_loss = (torch.abs(pred_gap - target_gap) * mask).sum() / mask.sum().clamp_min(1.0)
-        rel_v_loss = (torch.abs(pred_rel_v - target_rel_v) * mask).sum() / mask.sum().clamp_min(1.0)
-        out["interaction_mae"] = gap_loss + 0.25 * rel_v_loss
-    if float(weights.get("physics", 0.0)) > 0.0:
-        ego = item["ego_future_states_raw"]
-        rel_x = pred[..., 0] - ego[:, :, None, 0]
-        rel_y = pred[..., 1] - ego[:, :, None, 1]
-        longitudinal_gap = torch.abs(rel_x) - 4.75
-        lateral_clearance = torch.abs(rel_y) - 1.9
-        mask = item["target_valid"].float()
-        negative_gap = torch.nn.functional.softplus(-longitudinal_gap) * mask
-        overlap = (
-            torch.nn.functional.softplus(-longitudinal_gap)
-            * torch.nn.functional.softplus(-lateral_clearance)
-            * mask
-        )
-        out["physics_soft_penalty"] = (negative_gap + overlap).sum() / mask.sum().clamp_min(1.0)
-    return out
+    shape = (*([1] * (values.ndim - 1)), -1)
+    mean = torch.as_tensor(normalization["mean"], device=values.device, dtype=values.dtype).view(shape)
+    std = torch.as_tensor(normalization["std"], device=values.device, dtype=values.dtype).view(shape)
+    normalized = (values - mean) / std
+    return torch.where(valid.unsqueeze(-1), normalized, torch.zeros_like(normalized))
 
 
 def _normalize_states_torch(raw_states, valid, schema: dict[str, Any]):
-    torch, _, _ = _torch()
-    norm = schema["normalization"]["state"]
-    mean = torch.as_tensor(norm["mean"], device=raw_states.device, dtype=raw_states.dtype)
-    std = torch.as_tensor(norm["std"], device=raw_states.device, dtype=raw_states.dtype)
-    normalized = (raw_states - mean.view(*([1] * (raw_states.ndim - 1)), -1)) / std.view(*([1] * (raw_states.ndim - 1)), -1)
-    return torch.where(valid.unsqueeze(-1), normalized, torch.zeros_like(normalized))
+    return _normalize_torch(raw_states, valid, schema["normalization"]["state"])
 
 
 def _unnormalize_states_torch(normalized_states, valid, schema: dict[str, Any]):
@@ -577,12 +420,7 @@ def _unnormalize_states_torch(normalized_states, valid, schema: dict[str, Any]):
 
 
 def _normalize_relation_torch(raw_features, slot_valid, schema: dict[str, Any]):
-    torch, _, _ = _torch()
-    norm = schema["normalization"]["relation_features"]
-    mean = torch.as_tensor(norm["mean"], device=raw_features.device, dtype=raw_features.dtype)
-    std = torch.as_tensor(norm["std"], device=raw_features.device, dtype=raw_features.dtype)
-    normalized = (raw_features - mean.view(1, 1, -1)) / std.view(1, 1, -1)
-    return torch.where(slot_valid.unsqueeze(-1), normalized, torch.zeros_like(normalized))
+    return _normalize_torch(raw_features, slot_valid, schema["normalization"]["relation_features"])
 
 
 def _relation_features_torch(current_states, current_valid, primary_slot_index):
@@ -687,13 +525,9 @@ def _multichunk_epoch(
     grad_scaler,
     active_chunks: int,
     state_consistency_weight: float,
-    teacher_model=None,
-    teacher_action_weight: float = 0.0,
 ) -> dict[str, float]:
     """Train on model-generated background history across consecutive chunks."""
     torch, _, _ = _torch()
-    if not hasattr(model, "select_actions_st"):
-        raise RuntimeError("Multi-chunk closed-loop training requires CAT-K architecture_version=2")
     model.train(True)
     totals: dict[str, float] = {}
     total_n = 0
@@ -713,13 +547,6 @@ def _multichunk_epoch(
                     losses["candidate_actions_normalized"],
                     losses["candidate_probabilities"],
                 )
-                teacher_loss = torch.zeros((), device=device, dtype=chunk_loss.dtype)
-                if teacher_model is not None and float(teacher_action_weight) > 0.0:
-                    with torch.no_grad():
-                        teacher_actions = teacher_model.sample_actions(item, deterministic=True)
-                    valid_f = item["target_valid"].float().unsqueeze(-1)
-                    teacher_loss = ((selected_actions - teacher_actions).square() * valid_f).sum() / valid_f.sum().clamp_min(1.0)
-                    chunk_loss = chunk_loss + float(teacher_action_weight) * teacher_loss
                 actions_raw = _unnormalize_actions_torch(selected_actions, schema)
                 predicted_background = _integrate_actions_torch(
                     item["current_states_raw"],
@@ -741,7 +568,6 @@ def _multichunk_epoch(
                     chunk_loss = chunk_loss + float(state_consistency_weight) * state_loss
                 aggregate_loss = chunk_loss if aggregate_loss is None else aggregate_loss + chunk_loss
                 scalar_metrics["state_consistency_m2"] = scalar_metrics.get("state_consistency_m2", 0.0) + state_loss.detach()
-                scalar_metrics["teacher_action_mse_norm"] = scalar_metrics.get("teacher_action_mse_norm", 0.0) + teacher_loss.detach()
                 scalar_metrics["selected_xi_mean"] = scalar_metrics.get("selected_xi_mean", 0.0) + selected_xi.float().mean().detach()
                 for key, value in losses.items():
                     if hasattr(value, "ndim") and value.ndim == 0:
@@ -780,8 +606,6 @@ def _epoch(
     loader,
     device,
     *,
-    schema: dict[str, Any],
-    training_cfg: dict[str, Any],
     optimizer=None,
     grad_clip: float = 0.0,
     amp_enabled: bool = False,
@@ -794,14 +618,6 @@ def _epoch(
     totals: dict[str, list[Any]] = {}
     total_n = 0
     batch_keys = getattr(loader, "world_model_batch_keys", DEFAULT_BATCH_KEYS)
-    loss_weights = _loss_weights(training_cfg)
-    history_noise_scale = None
-    history_noise_enabled: bool | None = None
-    if train:
-        history_noise_values = _history_corruption_noise(training_cfg, schema)
-        history_noise_enabled = bool(np.any(history_noise_values > 0))
-        if history_noise_enabled:
-            history_noise_scale = torch.from_numpy(history_noise_values).to(device=device)
 
     def add_metric(name: str, value, n: int) -> None:
         if not hasattr(value, "detach") or value.ndim != 0:
@@ -813,65 +629,10 @@ def _epoch(
     with epoch_context():
         for batch in loader:
             item = _batch_to_device(batch, device, batch_keys)
-            if train:
-                _apply_history_corruption(
-                    item,
-                    training_cfg,
-                    schema,
-                    noise_scale=history_noise_scale,
-                    noise_enabled=history_noise_enabled,
-                )
             with _autocast_context(torch, device, amp_enabled, amp_dtype):
-                if hasattr(model, "p_losses"):
-                    losses = model.p_losses(item)
-                    loss = losses["loss"]
-                    if "pred_actions_normalized" in losses:
-                        aux_losses = _auxiliary_rollout_losses(
-                            item,
-                            losses["pred_actions_normalized"],
-                            schema,
-                            training_cfg,
-                            weights=loss_weights,
-                        )
-                        for aux_name, aux_value in aux_losses.items():
-                            loss = loss + float(loss_weights.get(
-                                aux_name.replace("_mse_m2", "").replace("_mae", "").replace("_soft_penalty", ""),
-                                0.0,
-                            )) * aux_value
-                            losses[aux_name] = aux_value
-                        losses["loss"] = loss
-                    mse = losses["action_mse_norm"]
-                else:
-                    mean, log_std = model(
-                        item["history_states"],
-                        item["history_valid"],
-                        item["current_states"],
-                        item["current_valid"],
-                        item["mode_index"],
-                        item["primary_slot_index"],
-                        item["flow_action_summary"],
-                        item.get("relation_features"),
-                    )
-                    loss = gaussian_nll(
-                        item["target_actions"],
-                        mean,
-                        log_std,
-                        item["target_valid"],
-                        item["sample_weight"],
-                    )
-                    losses = {
-                        "loss": loss,
-                        "action_mse_norm": masked_action_mse(item["target_actions"], mean, item["target_valid"]),
-                    }
-                    aux_losses = _auxiliary_rollout_losses(item, mean, schema, training_cfg, weights=loss_weights)
-                    for aux_name, aux_value in aux_losses.items():
-                        loss = loss + float(loss_weights.get(
-                            aux_name.replace("_mse_m2", "").replace("_mae", "").replace("_soft_penalty", ""),
-                            0.0,
-                        )) * aux_value
-                        losses[aux_name] = aux_value
-                    losses["loss"] = loss
-                    mse = masked_action_mse(item["target_actions"], mean, item["target_valid"])
+                losses = model.p_losses(item)
+                loss = losses["loss"]
+                mse = losses["action_mse_norm"]
             if train:
                 optimizer.zero_grad(set_to_none=True)
                 if grad_scaler is not None:
@@ -970,8 +731,6 @@ def _maybe_make_loader(
     max_samples: int,
     mode_index: int | None = None,
     evt_tail: bool | None = None,
-    include_relation_features: bool = False,
-    include_auxiliary_states: bool = False,
 ):
     try:
         return _make_loader(
@@ -983,8 +742,6 @@ def _maybe_make_loader(
             max_samples=max_samples,
             mode_index=mode_index,
             evt_tail=evt_tail,
-            include_relation_features=include_relation_features,
-            include_auxiliary_states=include_auxiliary_states,
         )
     except RuntimeError:
         return None
@@ -1070,60 +827,22 @@ def train_world_model(
     torch_performance = _configure_torch_performance(torch, training, device)
     amp_enabled, amp_dtype, mixed_precision_mode = _resolve_mixed_precision(torch, training, device)
     grad_scaler = _make_grad_scaler(torch, mixed_precision_mode)
-    arrays, schema, dataset_cache_path = load_world_model_training_dataset(
-        data_dir,
-        config=config,
-    )
+    arrays, schema, dataset_cache_path = load_world_model_training_dataset(data_dir)
     model = build_model_from_schema(schema, config).to(device)
-    initialization_checkpoint = str(training.get("initialize_from_checkpoint", "")).strip()
-    initialized_from_checkpoint = False
-    if initialization_checkpoint:
-        init_path = Path(initialization_checkpoint)
-        if not init_path.is_absolute():
-            init_path = (config_dir / init_path).resolve()
-        payload = torch.load(str(init_path), map_location=device)
-        model.load_state_dict(payload["state_dict"], strict=True)
-        initialized_from_checkpoint = True
-        logger.info("Initialized model weights from %s; optimizer and scheduler start fresh.", init_path)
-    teacher_checkpoint = str(training.get("teacher_checkpoint", "")).strip()
-    teacher_model = None
-    if teacher_checkpoint:
-        teacher_path = Path(teacher_checkpoint)
-        if not teacher_path.is_absolute():
-            teacher_path = (config_dir / teacher_path).resolve()
-        teacher_model, _teacher_payload = load_checkpoint(str(teacher_path), device)
-        teacher_model.requires_grad_(False)
-        teacher_model.eval()
-        logger.info("Loaded frozen closed-loop teacher from %s.", teacher_path)
     batch_size = int(training.get("batch_size", 256))
     num_workers = int(training.get("num_workers", 0))
-    include_relation_features = training_uses_relation_features(config)
-    include_auxiliary_states = training_uses_auxiliary_states(config)
     closed_loop_training = dict(training.get("model_state_closed_loop", {}))
-    model_state_closed_loop_enabled = bool(closed_loop_training.get("enabled", True))
     max_closed_loop_chunks = max(1, int(closed_loop_training.get("max_chunks", 5)))
-    if model_state_closed_loop_enabled:
-        train_loader = _make_multichunk_loader(
-            arrays,
-            "train",
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            max_sequences=max_train_samples,
-            horizon_steps=int(schema["horizon_steps"]),
-            max_chunks=max_closed_loop_chunks,
-        )
-    else:
-        train_loader = _make_loader(
-            arrays,
-            "train",
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            max_samples=max_train_samples,
-            include_relation_features=include_relation_features,
-            include_auxiliary_states=include_auxiliary_states,
-        )
+    train_loader = _make_multichunk_loader(
+        arrays,
+        "train",
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        max_sequences=max_train_samples,
+        horizon_steps=int(schema["horizon_steps"]),
+        max_chunks=max_closed_loop_chunks,
+    )
     val_loader = _make_loader(
         arrays,
         "val",
@@ -1131,8 +850,6 @@ def train_world_model(
         shuffle=False,
         num_workers=num_workers,
         max_samples=max_val_samples,
-        include_relation_features=include_relation_features,
-        include_auxiliary_states=include_auxiliary_states,
     )
     val_start_loader = _maybe_make_diagnostic_loader_from_val(
         val_loader,
@@ -1148,8 +865,6 @@ def train_world_model(
         num_workers=num_workers,
         max_samples=max_val_samples,
         mode_index=START_MODE_INDEX,
-        include_relation_features=include_relation_features,
-        include_auxiliary_states=include_auxiliary_states,
     )
     val_roll_loader = _maybe_make_diagnostic_loader_from_val(
         val_loader,
@@ -1165,8 +880,6 @@ def train_world_model(
         num_workers=num_workers,
         max_samples=max_val_samples,
         mode_index=ROLL_MODE_INDEX,
-        include_relation_features=include_relation_features,
-        include_auxiliary_states=include_auxiliary_states,
     )
     val_evt_tail_loader = _maybe_make_diagnostic_loader_from_val(
         val_loader,
@@ -1182,8 +895,6 @@ def train_world_model(
         num_workers=num_workers,
         max_samples=max_val_samples,
         evt_tail=True,
-        include_relation_features=include_relation_features,
-        include_auxiliary_states=include_auxiliary_states,
     )
     num_train_samples = int(len(train_loader.dataset))
     num_val_samples = int(len(val_loader.dataset))
@@ -1301,41 +1012,23 @@ def train_world_model(
             max_closed_loop_chunks,
             1 + (epoch - 1) // curriculum_epochs,
         )
-        if model_state_closed_loop_enabled:
-            train_metrics = _multichunk_epoch(
-                runtime_model,
-                train_loader,
-                device,
-                schema=schema,
-                optimizer=optimizer,
-                grad_clip=grad_clip,
-                amp_enabled=amp_enabled,
-                amp_dtype=amp_dtype,
-                grad_scaler=grad_scaler,
-                active_chunks=active_closed_loop_chunks,
-                state_consistency_weight=float(closed_loop_training.get("state_consistency_weight", 0.10)),
-                teacher_model=teacher_model,
-                teacher_action_weight=float(closed_loop_training.get("teacher_action_weight", 0.0)),
-            )
-        else:
-            train_metrics = _epoch(
-                runtime_model,
-                train_loader,
-                device,
-                schema=schema,
-                training_cfg=training,
-                optimizer=optimizer,
-                grad_clip=grad_clip,
-                amp_enabled=amp_enabled,
-                amp_dtype=amp_dtype,
-                grad_scaler=grad_scaler,
-            )
+        train_metrics = _multichunk_epoch(
+            runtime_model,
+            train_loader,
+            device,
+            schema=schema,
+            optimizer=optimizer,
+            grad_clip=grad_clip,
+            amp_enabled=amp_enabled,
+            amp_dtype=amp_dtype,
+            grad_scaler=grad_scaler,
+            active_chunks=active_closed_loop_chunks,
+            state_consistency_weight=float(closed_loop_training.get("state_consistency_weight", 0.10)),
+        )
         val_metrics = _epoch(
             runtime_model,
             val_loader,
             device,
-            schema=schema,
-            training_cfg=training,
             optimizer=None,
             amp_enabled=amp_enabled,
             amp_dtype=amp_dtype,
@@ -1345,8 +1038,6 @@ def train_world_model(
                 runtime_model,
                 val_start_loader,
                 device,
-                schema=schema,
-                training_cfg=training,
                 optimizer=None,
                 amp_enabled=amp_enabled,
                 amp_dtype=amp_dtype,
@@ -1359,8 +1050,6 @@ def train_world_model(
                 runtime_model,
                 val_roll_loader,
                 device,
-                schema=schema,
-                training_cfg=training,
                 optimizer=None,
                 amp_enabled=amp_enabled,
                 amp_dtype=amp_dtype,
@@ -1373,8 +1062,6 @@ def train_world_model(
                 runtime_model,
                 val_evt_tail_loader,
                 device,
-                schema=schema,
-                training_cfg=training,
                 optimizer=None,
                 amp_enabled=amp_enabled,
                 amp_dtype=amp_dtype,
@@ -1386,7 +1073,7 @@ def train_world_model(
         row = {
             "epoch": epoch,
             "lr": float(optimizer.param_groups[0]["lr"]),
-            "active_closed_loop_chunks": int(active_closed_loop_chunks) if model_state_closed_loop_enabled else 0,
+            "active_closed_loop_chunks": int(active_closed_loop_chunks),
             "train_loss": float(train_metrics["loss"]),
             "train_action_mse_norm": float(train_metrics.get("action_mse_norm", float("nan"))),
             "val_loss": float(val_metrics["loss"]),
@@ -1483,8 +1170,7 @@ def train_world_model(
         "dataset_dir": str(data_dir),
         "dataset_cache": str(dataset_cache_path),
         "dataset_format": str(schema.get("dataset_format", "")),
-        "dataset_cache_uses_relation_features": bool(include_relation_features),
-        "dataset_cache_uses_auxiliary_states": bool(include_auxiliary_states),
+        "dataset_cache_uses_relation_features": True,
         "diagnostic_validation_interval": int(training.get("diagnostic_validation_interval", 5) or 0),
         "best_epoch": int(best_epoch),
         "best_val_loss": float(best_val),
@@ -1496,7 +1182,6 @@ def train_world_model(
         "patience_best_val_loss": float(patience_best_val),
         "start_epoch": int(start_epoch),
         "resumed_from_checkpoint": bool(resumed_from_checkpoint),
-        "initialized_from_checkpoint": str(initialization_checkpoint) if initialized_from_checkpoint else "",
         "tensorboard_log_dir": str(tensorboard_dir),
         "tensorboard_available": writer is not None,
         "device": str(device),
@@ -1511,10 +1196,9 @@ def train_world_model(
         "num_train_samples": int(num_train_samples),
         "num_val_samples": int(num_val_samples),
         "use_start_flow_summary": bool(config.get("model", {}).get("use_start_flow_summary", False)),
-        "closed_loop_adaptation": dict(training.get("closed_loop_adaptation", {})),
         "model_state_closed_loop": {
             **closed_loop_training,
-            "enabled": bool(model_state_closed_loop_enabled),
+            "enabled": True,
             "max_chunks": int(max_closed_loop_chunks),
         },
     }

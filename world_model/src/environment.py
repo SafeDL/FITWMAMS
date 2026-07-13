@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from .model import TopKStartRollWorldModel, load_checkpoint
+from .model import CATKTopKWorldModel, load_checkpoint
 from .rollout import (
     build_relation_features_from_current,
     build_start_condition_from_flow_feature,
@@ -56,7 +56,7 @@ class CATKBackgroundEnvironment:
 
     def __init__(
         self,
-        model: TopKStartRollWorldModel,
+        model: CATKTopKWorldModel,
         schema: dict[str, Any],
         *,
         device,
@@ -83,9 +83,9 @@ class CATKBackgroundEnvironment:
         sampling: WorldSamplingConfig | None = None,
     ) -> "CATKBackgroundEnvironment":
         model, payload = load_checkpoint(str(checkpoint), device)
-        if not isinstance(model, TopKStartRollWorldModel):
+        if not isinstance(model, CATKTopKWorldModel):
             raise TypeError(
-                "CATKBackgroundEnvironment requires a TopKStartRollWorldModel, "
+                "CATKBackgroundEnvironment requires a CATKTopKWorldModel, "
                 f"got {model.__class__.__name__}"
             )
         schema = dict(payload.get("schema", {}))
@@ -280,7 +280,6 @@ class CATKBackgroundEnvironment:
             deterministic=self.sampling.candidate_selection == "argmax",
             temperature=float(self.sampling.candidate_temperature),
             generator=self._generator,
-            add_branch_noise=False,
         )
         action_raw = unnormalize_actions(sampled["actions"].detach().cpu().numpy(), self.schema)[0]
         states_local, valid = integrate_background_actions(
