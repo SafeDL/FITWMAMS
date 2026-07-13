@@ -8,7 +8,7 @@
 world_model/scripts/configs/highd_world_model.yaml
 ```
 
-它使用共享 START/ROLL Transformer 编码器和 CAT-K `K=8` 候选背景车动作头。历史矩阵候选、比较脚本和矩阵配置已从活动代码删除。代码保留 `gaussian_baseline` 作为未来最小学习基线；物理常速度、常加速度和 IDM-like 基线保留在评测模块。
+它使用共享 START/ROLL Transformer 编码器和 CAT-K `K=8` 联合背景车动作头。正式 v4 checkpoint 的候选 `0` 是冻结的自然驾驶名义动力学锚点；候选 `1--7` 是场景级 token 控制的联合残差行为。锚点与残差都只读取既有 START/ROLL 状态张量，不引入 ADS、ego future 或新的 latent。历史矩阵候选、比较脚本和矩阵配置已从活动代码删除。
 
 ## 环境随机变量
 
@@ -63,6 +63,12 @@ relation(t) = g(ego(t), background(t), primary_slot)
 ## logged-ego 重建评测
 
 `world_model/src/evaluation.py` 中的 START->ROLL replay 保留用于 highD 重建验证。它在进入 ROLL 时使用 logged ground-truth ego future，因此只能说明背景车在真实 ego 条件下的重建误差，不能作为 ADS 测试环境接口或 ADS 闭环结果。
+
+正式 v4 checkpoint 的晋升比较采用 test paired bootstrap（2,000 次）。候选相对冻结 v1 的 EVT-tail START ADE、FDE、gap MAE，以及 logged-ego START->ROLL ADE 的点差和单侧 95% 上界均为 `0`，因此通过“不弱于基线”的门槛。冻结 v1 位于：
+
+```text
+results/highd_world_model/catk_topk_baseline/checkpoints/best_world_model.pt
+```
 
 当前 checkpoint 的历史重建指标：
 

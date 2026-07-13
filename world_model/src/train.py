@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from .data import (
+    aligned_multichunk_indices,
     build_world_model_dataset,
     checkpoint_path,
     dataset_dir_from_config,
@@ -24,6 +25,7 @@ from .data import (
 from .model import (
     build_model_from_schema,
     gaussian_nll,
+    load_checkpoint,
     masked_action_mse,
     model_config_payload,
 )
@@ -74,6 +76,21 @@ AUXILIARY_BATCH_FIELDS = (
     ("current_states_raw", "current_states", "float"),
     ("target_states_raw", "target_states", "float"),
     ("ego_future_states_raw", "ego_future_states", "float"),
+)
+SEQUENCE_BATCH_FIELDS = (
+    ("history_states", "history_states_normalized", "float"),
+    ("history_valid", "history_valid", "bool"),
+    ("current_states", "current_states_normalized", "float"),
+    ("current_states_raw", "current_states", "float"),
+    ("current_valid", "current_valid", "bool"),
+    ("mode_index", "mode_index", "long"),
+    ("primary_slot_index", "primary_slot_index", "long"),
+    ("flow_action_summary", "flow_action_summary_normalized", "float"),
+    ("target_actions", "target_actions_normalized", "float"),
+    ("target_valid", "target_valid", "bool"),
+    ("sample_weight", "sample_weight", "float"),
+    ("ego_future_states_raw", "ego_future_states", "float"),
+    ("ego_future_valid", "ego_future_valid", "bool"),
 )
 DEFAULT_BATCH_KEYS = (
     "history_states",
@@ -146,6 +163,59 @@ def _make_loader(
     )
     loader.world_model_batch_keys = tuple(name for name, _array_key, _dtype_name in fields)
     loader.world_model_indices = idx
+    return loader
+
+
+def _make_multichunk_loader(
+    arrays: dict[str, np.ndarray],
+    split: str,
+    *,
+    batch_size: int,
+    shuffle: bool,
+    num_workers: int,
+    max_sequences: int,
+    horizon_steps: int,
+    max_chunks: int,
+):
+    """Create a lazy loader over aligned cached START/ROLL rows."""
+    torch, DataLoader, _TensorDataset = _torch()
+    from torch.utils.data import Dataset
+
+    sequence_indices = aligned_multichunk_indices(
+        arrays,
+        split,
+        horizon_steps=int(horizon_steps),
+        max_chunks=int(max_chunks),
+    )
+    if max_sequences and int(max_sequences) > 0:
+        sequence_indices = sequence_indices[: int(max_sequences)]
+    if len(sequence_indices) == 0:
+        raise RuntimeError(f"No aligned multi-chunk sequences for split={split}")
+
+    fields = tuple(SEQUENCE_BATCH_FIELDS)
+
+    class _SequenceDataset(Dataset):
+        def __len__(self) -> int:
+            return len(sequence_indices)
+
+        def __getitem__(self, item_index: int):
+            sample_indices = sequence_indices[int(item_index)]
+            return tuple(
+                _tensor_from_array(torch, np.asarray(arrays[array_key][sample_indices]), dtype_name)
+                for _name, array_key, dtype_name in fields
+            )
+
+    loader = DataLoader(
+        _SequenceDataset(),
+        batch_size=int(batch_size),
+        shuffle=bool(shuffle),
+        drop_last=False,
+        num_workers=max(0, int(num_workers)),
+        pin_memory=torch.cuda.is_available(),
+    )
+    loader.world_model_batch_keys = tuple(name for name, _array_key, _dtype_name in fields)
+    loader.world_model_sequence = True
+    loader.world_model_sequence_count = int(len(sequence_indices))
     return loader
 
 
@@ -488,6 +558,223 @@ def _auxiliary_rollout_losses(
     return out
 
 
+def _normalize_states_torch(raw_states, valid, schema: dict[str, Any]):
+    torch, _, _ = _torch()
+    norm = schema["normalization"]["state"]
+    mean = torch.as_tensor(norm["mean"], device=raw_states.device, dtype=raw_states.dtype)
+    std = torch.as_tensor(norm["std"], device=raw_states.device, dtype=raw_states.dtype)
+    normalized = (raw_states - mean.view(*([1] * (raw_states.ndim - 1)), -1)) / std.view(*([1] * (raw_states.ndim - 1)), -1)
+    return torch.where(valid.unsqueeze(-1), normalized, torch.zeros_like(normalized))
+
+
+def _unnormalize_states_torch(normalized_states, valid, schema: dict[str, Any]):
+    torch, _, _ = _torch()
+    norm = schema["normalization"]["state"]
+    mean = torch.as_tensor(norm["mean"], device=normalized_states.device, dtype=normalized_states.dtype)
+    std = torch.as_tensor(norm["std"], device=normalized_states.device, dtype=normalized_states.dtype)
+    raw = normalized_states * std.view(*([1] * (normalized_states.ndim - 1)), -1) + mean.view(*([1] * (normalized_states.ndim - 1)), -1)
+    return torch.where(valid.unsqueeze(-1), raw, torch.zeros_like(raw))
+
+
+def _normalize_relation_torch(raw_features, slot_valid, schema: dict[str, Any]):
+    torch, _, _ = _torch()
+    norm = schema["normalization"]["relation_features"]
+    mean = torch.as_tensor(norm["mean"], device=raw_features.device, dtype=raw_features.dtype)
+    std = torch.as_tensor(norm["std"], device=raw_features.device, dtype=raw_features.dtype)
+    normalized = (raw_features - mean.view(1, 1, -1)) / std.view(1, 1, -1)
+    return torch.where(slot_valid.unsqueeze(-1), normalized, torch.zeros_like(normalized))
+
+
+def _relation_features_torch(current_states, current_valid, primary_slot_index):
+    """Torch equivalent of the fixed current-state relation transform."""
+    torch, _, _ = _torch()
+    ego = current_states[:, :1, :]
+    slots = current_states[:, 1:, :]
+    valid = current_valid[:, 1:]
+    rel_x = slots[..., 0] - ego[..., 0]
+    rel_y = slots[..., 1] - ego[..., 1]
+    rel_vx = slots[..., 2] - ego[..., 2]
+    rel_vy = slots[..., 3] - ego[..., 3]
+    gap = torch.clamp(torch.abs(rel_x) - 4.75, min=0.0)
+    closing = torch.clamp(torch.where(rel_x >= 0.0, -rel_vx, rel_vx), min=0.0)
+    ttc = torch.clamp(gap / closing.clamp_min(1.0e-3), min=0.0, max=10.0)
+    drac = torch.clamp(closing.square() / (2.0 * gap.clamp_min(1.0e-3)), min=0.0, max=12.0)
+    primary = torch.nn.functional.one_hot(
+        primary_slot_index.long().clamp(0, slots.shape[1] - 1),
+        num_classes=slots.shape[1],
+    ).to(dtype=current_states.dtype)
+    features = torch.stack(
+        (rel_x, gap, rel_y, rel_vx, rel_vy, closing, ttc, drac, primary, valid.float()),
+        dim=-1,
+    )
+    return torch.where(valid.unsqueeze(-1), features, torch.zeros_like(features))
+
+
+def _sequence_chunk_item(sequence: dict[str, Any], chunk_index: int, schema: dict[str, Any], previous: dict[str, Any] | None):
+    """Build one START/ROLL condition, replacing only background history after START."""
+    torch, _, _ = _torch()
+    if previous is None:
+        current_raw = sequence["current_states_raw"][:, chunk_index]
+        current_valid = sequence["current_valid"][:, chunk_index]
+        history_valid = sequence["history_valid"][:, chunk_index]
+        flow_summary = sequence["flow_action_summary"][:, chunk_index]
+    else:
+        history_raw_logged = _unnormalize_states_torch(
+            sequence["history_states"][:, chunk_index],
+            sequence["history_valid"][:, chunk_index],
+            schema,
+        )
+        ego_history = history_raw_logged[:, :, 0, :]
+        ego_valid = sequence["history_valid"][:, chunk_index, :, 0]
+        background_history = previous["background_states"].clone()
+        ego_shift = previous["ego_future_states"][:, -1, :2]
+        background_history[..., :2] = background_history[..., :2] - ego_shift[:, None, None, :]
+        history_raw = torch.zeros(
+            (
+                background_history.shape[0],
+                background_history.shape[1],
+                1 + background_history.shape[2],
+                background_history.shape[3],
+            ),
+            device=background_history.device,
+            dtype=background_history.dtype,
+        )
+        history_valid = torch.zeros(
+            history_raw.shape[:-1],
+            device=background_history.device,
+            dtype=torch.bool,
+        )
+        history_raw[:, :, 0, :] = ego_history
+        history_valid[:, :, 0] = ego_valid
+        history_raw[:, :, 1:, :] = background_history
+        history_valid[:, :, 1:] = previous["background_valid"].unsqueeze(1)
+        history_raw = torch.where(history_valid.unsqueeze(-1), history_raw, torch.zeros_like(history_raw))
+        current_raw = history_raw[:, -1]
+        current_valid = history_valid[:, -1]
+        flow_summary = torch.zeros_like(sequence["flow_action_summary"][:, chunk_index])
+    primary = sequence["primary_slot_index"][:, chunk_index]
+    relation_raw = _relation_features_torch(current_raw, current_valid, primary)
+    return {
+        "history_states": (
+            sequence["history_states"][:, chunk_index]
+            if previous is None
+            else _normalize_states_torch(history_raw, history_valid, schema)
+        ),
+        "history_valid": history_valid,
+        "current_states": _normalize_states_torch(current_raw, current_valid, schema),
+        "current_valid": current_valid,
+        "current_states_raw": current_raw,
+        "mode_index": sequence["mode_index"][:, chunk_index],
+        "primary_slot_index": primary,
+        "flow_action_summary": flow_summary,
+        "relation_features": _normalize_relation_torch(relation_raw, current_valid[:, 1:], schema),
+        "target_actions": sequence["target_actions"][:, chunk_index],
+        "target_valid": sequence["target_valid"][:, chunk_index],
+        "sample_weight": sequence["sample_weight"][:, chunk_index],
+    }
+
+
+def _multichunk_epoch(
+    model,
+    loader,
+    device,
+    *,
+    schema: dict[str, Any],
+    optimizer,
+    grad_clip: float,
+    amp_enabled: bool,
+    amp_dtype,
+    grad_scaler,
+    active_chunks: int,
+    state_consistency_weight: float,
+    teacher_model=None,
+    teacher_action_weight: float = 0.0,
+) -> dict[str, float]:
+    """Train on model-generated background history across consecutive chunks."""
+    torch, _, _ = _torch()
+    if not hasattr(model, "select_actions_st"):
+        raise RuntimeError("Multi-chunk closed-loop training requires CAT-K architecture_version=2")
+    model.train(True)
+    totals: dict[str, float] = {}
+    total_n = 0
+    batch_keys = getattr(loader, "world_model_batch_keys", DEFAULT_BATCH_KEYS)
+    for batch in loader:
+        sequence = _batch_to_device(batch, device, batch_keys)
+        max_chunks = min(int(active_chunks), int(sequence["mode_index"].shape[1]))
+        previous: dict[str, Any] | None = None
+        aggregate_loss = None
+        scalar_metrics: dict[str, Any] = {}
+        for chunk_index in range(max_chunks):
+            item = _sequence_chunk_item(sequence, chunk_index, schema, previous)
+            with _autocast_context(torch, device, amp_enabled, amp_dtype):
+                losses = model.p_losses(item)
+                chunk_loss = losses["loss"]
+                selected_actions, selected_xi = model.select_map_actions_st(
+                    losses["candidate_actions_normalized"],
+                    losses["candidate_probabilities"],
+                )
+                teacher_loss = torch.zeros((), device=device, dtype=chunk_loss.dtype)
+                if teacher_model is not None and float(teacher_action_weight) > 0.0:
+                    with torch.no_grad():
+                        teacher_actions = teacher_model.sample_actions(item, deterministic=True)
+                    valid_f = item["target_valid"].float().unsqueeze(-1)
+                    teacher_loss = ((selected_actions - teacher_actions).square() * valid_f).sum() / valid_f.sum().clamp_min(1.0)
+                    chunk_loss = chunk_loss + float(teacher_action_weight) * teacher_loss
+                actions_raw = _unnormalize_actions_torch(selected_actions, schema)
+                predicted_background = _integrate_actions_torch(
+                    item["current_states_raw"],
+                    actions_raw,
+                    dt=1.0 / float(schema["fps"]),
+                )
+                background_valid = item["current_valid"][:, 1:]
+                state_loss = torch.zeros((), device=device, dtype=chunk_loss.dtype)
+                if chunk_index + 1 < max_chunks:
+                    ego_shift = sequence["ego_future_states_raw"][:, chunk_index, -1, :2]
+                    predicted_next = predicted_background[:, -1].clone()
+                    predicted_next[..., :2] = predicted_next[..., :2] - ego_shift[:, None, :]
+                    target_next = sequence["current_states_raw"][:, chunk_index + 1, 1:, :]
+                    valid_next = background_valid & sequence["current_valid"][:, chunk_index + 1, 1:]
+                    valid_f = valid_next.float().unsqueeze(-1)
+                    position_mse = ((predicted_next[..., :2] - target_next[..., :2]).square() * valid_f).sum()
+                    velocity_mse = ((predicted_next[..., 2:4] - target_next[..., 2:4]).square() * valid_f).sum()
+                    state_loss = (position_mse + 0.10 * velocity_mse) / (2.0 * valid_f.sum().clamp_min(1.0))
+                    chunk_loss = chunk_loss + float(state_consistency_weight) * state_loss
+                aggregate_loss = chunk_loss if aggregate_loss is None else aggregate_loss + chunk_loss
+                scalar_metrics["state_consistency_m2"] = scalar_metrics.get("state_consistency_m2", 0.0) + state_loss.detach()
+                scalar_metrics["teacher_action_mse_norm"] = scalar_metrics.get("teacher_action_mse_norm", 0.0) + teacher_loss.detach()
+                scalar_metrics["selected_xi_mean"] = scalar_metrics.get("selected_xi_mean", 0.0) + selected_xi.float().mean().detach()
+                for key, value in losses.items():
+                    if hasattr(value, "ndim") and value.ndim == 0:
+                        scalar_metrics[key] = scalar_metrics.get(key, 0.0) + value.detach()
+            previous = {
+                "background_states": predicted_background,
+                "background_valid": background_valid,
+                "ego_future_states": sequence["ego_future_states_raw"][:, chunk_index],
+            }
+        if aggregate_loss is None:
+            continue
+        aggregate_loss = aggregate_loss / float(max_chunks)
+        optimizer.zero_grad(set_to_none=True)
+        if grad_scaler is not None:
+            grad_scaler.scale(aggregate_loss).backward()
+            if grad_clip > 0.0:
+                grad_scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), float(grad_clip))
+            grad_scaler.step(optimizer)
+            grad_scaler.update()
+        else:
+            aggregate_loss.backward()
+            if grad_clip > 0.0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), float(grad_clip))
+            optimizer.step()
+        n = int(sequence["target_actions"].shape[0])
+        totals["loss"] = totals.get("loss", 0.0) + float(aggregate_loss.detach().cpu()) * n
+        for key, value in scalar_metrics.items():
+            totals[key] = totals.get(key, 0.0) + float((value / float(max_chunks)).detach().cpu()) * n
+        total_n += n
+    return {key: value / float(max(total_n, 1)) for key, value in totals.items()}
+
+
 def _epoch(
     model,
     loader,
@@ -650,6 +937,30 @@ def _metric_or_nan(metrics: dict[str, float] | None, key: str) -> float:
     return float(metrics.get(key, float("nan")))
 
 
+def _checkpoint_payload(
+    model,
+    optimizer,
+    scheduler,
+    *,
+    schema: dict[str, Any],
+    config: dict[str, Any],
+    epoch: int,
+    best_epoch: int,
+    best_val_loss: float,
+) -> dict[str, Any]:
+    return {
+        "state_dict": model.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
+        "scheduler_state": scheduler.state_dict(),
+        "model_config": model_config_payload(model),
+        "schema": schema,
+        "config": config,
+        "epoch": int(epoch),
+        "best_epoch": int(best_epoch),
+        "best_val_loss": float(best_val_loss),
+    }
+
+
 def _maybe_make_loader(
     arrays: dict[str, np.ndarray],
     split: str,
@@ -764,20 +1075,55 @@ def train_world_model(
         config=config,
     )
     model = build_model_from_schema(schema, config).to(device)
+    initialization_checkpoint = str(training.get("initialize_from_checkpoint", "")).strip()
+    initialized_from_checkpoint = False
+    if initialization_checkpoint:
+        init_path = Path(initialization_checkpoint)
+        if not init_path.is_absolute():
+            init_path = (config_dir / init_path).resolve()
+        payload = torch.load(str(init_path), map_location=device)
+        model.load_state_dict(payload["state_dict"], strict=True)
+        initialized_from_checkpoint = True
+        logger.info("Initialized model weights from %s; optimizer and scheduler start fresh.", init_path)
+    teacher_checkpoint = str(training.get("teacher_checkpoint", "")).strip()
+    teacher_model = None
+    if teacher_checkpoint:
+        teacher_path = Path(teacher_checkpoint)
+        if not teacher_path.is_absolute():
+            teacher_path = (config_dir / teacher_path).resolve()
+        teacher_model, _teacher_payload = load_checkpoint(str(teacher_path), device)
+        teacher_model.requires_grad_(False)
+        teacher_model.eval()
+        logger.info("Loaded frozen closed-loop teacher from %s.", teacher_path)
     batch_size = int(training.get("batch_size", 256))
     num_workers = int(training.get("num_workers", 0))
     include_relation_features = training_uses_relation_features(config)
     include_auxiliary_states = training_uses_auxiliary_states(config)
-    train_loader = _make_loader(
-        arrays,
-        "train",
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        max_samples=max_train_samples,
-        include_relation_features=include_relation_features,
-        include_auxiliary_states=include_auxiliary_states,
-    )
+    closed_loop_training = dict(training.get("model_state_closed_loop", {}))
+    model_state_closed_loop_enabled = bool(closed_loop_training.get("enabled", True))
+    max_closed_loop_chunks = max(1, int(closed_loop_training.get("max_chunks", 5)))
+    if model_state_closed_loop_enabled:
+        train_loader = _make_multichunk_loader(
+            arrays,
+            "train",
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            max_sequences=max_train_samples,
+            horizon_steps=int(schema["horizon_steps"]),
+            max_chunks=max_closed_loop_chunks,
+        )
+    else:
+        train_loader = _make_loader(
+            arrays,
+            "train",
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            max_samples=max_train_samples,
+            include_relation_features=include_relation_features,
+            include_auxiliary_states=include_auxiliary_states,
+        )
     val_loader = _make_loader(
         arrays,
         "val",
@@ -854,6 +1200,7 @@ def train_world_model(
     best_epoch = -1
     ckpt = checkpoint_path(out_dir)
     ensure_dir(ckpt.parent)
+    latest_ckpt = ckpt.with_name("latest_world_model.pt")
     history_path = out_dir / "training_history.csv"
     resume_enabled = bool(training.get("resume_from_checkpoint", False)) and not bool(rebuild_dataset)
     history_rows = _read_history(history_path) if resume_enabled else []
@@ -869,8 +1216,9 @@ def train_world_model(
             best_val = _numeric_metric(best_row, "val_loss")
             best_epoch = int(_numeric_metric(best_row, "epoch", -1))
 
-    if resume_enabled and ckpt.exists():
-        payload = torch.load(str(ckpt), map_location=device)
+    resume_ckpt = latest_ckpt if latest_ckpt.exists() else ckpt
+    if resume_enabled and resume_ckpt.exists():
+        payload = torch.load(str(resume_ckpt), map_location=device)
         missing, unexpected = model.load_state_dict(payload["state_dict"], strict=False)
         disallowed_missing = [
             key for key in missing
@@ -883,19 +1231,20 @@ def train_world_model(
             )
         best_val = float(payload.get("best_val_loss", best_val))
         best_epoch = int(payload.get("best_epoch", best_epoch))
-        if history_rows and best_epoch >= 0 and best_epoch < start_epoch:
+        resume_epoch = int(payload.get("epoch", best_epoch))
+        if history_rows and resume_epoch >= 0 and resume_epoch < start_epoch:
             history_rows = [
                 row for row in history_rows
-                if int(_numeric_metric(row, "epoch", 0)) <= best_epoch
+                if int(_numeric_metric(row, "epoch", 0)) <= resume_epoch
             ]
-            start_epoch = best_epoch
+            start_epoch = resume_epoch
             logger.info(
                 "Truncated history to checkpoint epoch=%d before continuing.",
-                best_epoch,
+                resume_epoch,
             )
-        elif not history_rows and best_epoch > start_epoch:
-            start_epoch = best_epoch
-            logger.info("Continuing from checkpoint epoch=%d without history rows.", best_epoch)
+        elif not history_rows and resume_epoch > start_epoch:
+            start_epoch = resume_epoch
+            logger.info("Continuing from checkpoint epoch=%d without history rows.", resume_epoch)
         if "optimizer_state" in payload:
             try:
                 optimizer.load_state_dict(payload["optimizer_state"])
@@ -909,7 +1258,7 @@ def train_world_model(
         resumed_from_checkpoint = True
         logger.info(
             "Resumed model from %s at best_epoch=%s best_val=%.6f",
-            ckpt,
+            resume_ckpt,
             best_epoch,
             best_val,
         )
@@ -947,18 +1296,40 @@ def train_world_model(
             or epoch == total_epochs
             or (detail_interval > 1 and epoch % detail_interval == 0)
         )
-        train_metrics = _epoch(
-            runtime_model,
-            train_loader,
-            device,
-            schema=schema,
-            training_cfg=training,
-            optimizer=optimizer,
-            grad_clip=grad_clip,
-            amp_enabled=amp_enabled,
-            amp_dtype=amp_dtype,
-            grad_scaler=grad_scaler,
+        curriculum_epochs = max(1, int(closed_loop_training.get("curriculum_epochs_per_chunk", 8)))
+        active_closed_loop_chunks = min(
+            max_closed_loop_chunks,
+            1 + (epoch - 1) // curriculum_epochs,
         )
+        if model_state_closed_loop_enabled:
+            train_metrics = _multichunk_epoch(
+                runtime_model,
+                train_loader,
+                device,
+                schema=schema,
+                optimizer=optimizer,
+                grad_clip=grad_clip,
+                amp_enabled=amp_enabled,
+                amp_dtype=amp_dtype,
+                grad_scaler=grad_scaler,
+                active_chunks=active_closed_loop_chunks,
+                state_consistency_weight=float(closed_loop_training.get("state_consistency_weight", 0.10)),
+                teacher_model=teacher_model,
+                teacher_action_weight=float(closed_loop_training.get("teacher_action_weight", 0.0)),
+            )
+        else:
+            train_metrics = _epoch(
+                runtime_model,
+                train_loader,
+                device,
+                schema=schema,
+                training_cfg=training,
+                optimizer=optimizer,
+                grad_clip=grad_clip,
+                amp_enabled=amp_enabled,
+                amp_dtype=amp_dtype,
+                grad_scaler=grad_scaler,
+            )
         val_metrics = _epoch(
             runtime_model,
             val_loader,
@@ -1015,6 +1386,7 @@ def train_world_model(
         row = {
             "epoch": epoch,
             "lr": float(optimizer.param_groups[0]["lr"]),
+            "active_closed_loop_chunks": int(active_closed_loop_chunks) if model_state_closed_loop_enabled else 0,
             "train_loss": float(train_metrics["loss"]),
             "train_action_mse_norm": float(train_metrics.get("action_mse_norm", float("nan"))),
             "val_loss": float(val_metrics["loss"]),
@@ -1059,18 +1431,31 @@ def train_world_model(
             best_val = row["val_loss"]
             best_epoch = epoch
             torch.save(
-                {
-                    "state_dict": model.state_dict(),
-                    "optimizer_state": optimizer.state_dict(),
-                    "scheduler_state": scheduler.state_dict(),
-                    "model_config": model_config_payload(model),
-                    "schema": schema,
-                    "config": config,
-                    "best_epoch": int(best_epoch),
-                    "best_val_loss": float(best_val),
-                },
+                _checkpoint_payload(
+                    model,
+                    optimizer,
+                    scheduler,
+                    schema=schema,
+                    config=config,
+                    epoch=epoch,
+                    best_epoch=best_epoch,
+                    best_val_loss=best_val,
+                ),
                 ckpt,
             )
+        torch.save(
+            _checkpoint_payload(
+                model,
+                optimizer,
+                scheduler,
+                schema=schema,
+                config=config,
+                epoch=epoch,
+                best_epoch=best_epoch,
+                best_val_loss=best_val,
+            ),
+            latest_ckpt,
+        )
         if material_improved:
             patience_best_val = row["val_loss"]
             epochs_without_improvement = 0
@@ -1093,6 +1478,7 @@ def train_world_model(
     )
     summary = {
         "checkpoint": str(ckpt),
+        "latest_checkpoint": str(latest_ckpt),
         "training_history": str(history_path),
         "dataset_dir": str(data_dir),
         "dataset_cache": str(dataset_cache_path),
@@ -1110,6 +1496,7 @@ def train_world_model(
         "patience_best_val_loss": float(patience_best_val),
         "start_epoch": int(start_epoch),
         "resumed_from_checkpoint": bool(resumed_from_checkpoint),
+        "initialized_from_checkpoint": str(initialization_checkpoint) if initialized_from_checkpoint else "",
         "tensorboard_log_dir": str(tensorboard_dir),
         "tensorboard_available": writer is not None,
         "device": str(device),
@@ -1125,6 +1512,11 @@ def train_world_model(
         "num_val_samples": int(num_val_samples),
         "use_start_flow_summary": bool(config.get("model", {}).get("use_start_flow_summary", False)),
         "closed_loop_adaptation": dict(training.get("closed_loop_adaptation", {})),
+        "model_state_closed_loop": {
+            **closed_loop_training,
+            "enabled": bool(model_state_closed_loop_enabled),
+            "max_chunks": int(max_closed_loop_chunks),
+        },
     }
     save_json(summary, out_dir / "training_summary.json")
     return summary

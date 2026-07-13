@@ -14,6 +14,7 @@ from .baselines import (
     idm_like_same_lane_actions,
 )
 from .data import (
+    aligned_multichunk_indices,
     checkpoint_path,
     dataset_dir_from_config,
     load_world_model_dataset,
@@ -177,9 +178,11 @@ def _sampling_std_floor_normalized(config: dict[str, Any], schema: dict[str, Any
 
 def _model_weighted_nll_or_nan(model, batch: dict[str, Any]) -> float:
     torch = _torch()
-    if hasattr(model, "sample_actions"):
-        return float("nan")
     with torch.no_grad():
+        if hasattr(model, "p_losses"):
+            losses = model.p_losses(batch)
+            value = losses.get("mixture_nll", losses.get("loss"))
+            return float(value.detach().cpu())
         mean, log_std = model(
             batch["history_states"],
             batch["history_valid"],
@@ -198,6 +201,30 @@ def _model_weighted_nll_or_nan(model, batch: dict[str, Any]) -> float:
             batch["sample_weight"],
         )
     return float(nll.detach().cpu())
+
+
+def _candidate_diagnostics_or_empty(model, batch: dict[str, Any]) -> dict[str, float]:
+    if not hasattr(model, "p_losses"):
+        return {}
+    torch = _torch()
+    with torch.no_grad():
+        losses = model.p_losses(batch)
+    keys = (
+        "mixture_nll",
+        "energy_score",
+        "diversity_penalty",
+        "smoothness_penalty",
+        "candidate_entropy",
+        "responsibility_entropy",
+        "effective_candidates",
+        "pairwise_trajectory_distance_norm",
+        "probability_responsibility_l1",
+    )
+    return {
+        key: float(losses[key].detach().cpu())
+        for key in keys
+        if key in losses and np.isfinite(float(losses[key].detach().cpu()))
+    }
 
 
 def _predict_indices(
@@ -221,6 +248,8 @@ def _predict_indices(
     mse_values: list[float] = []
     branch_metric_sums: dict[str, float] = {}
     branch_metric_count = 0
+    candidate_metric_sums: dict[str, float] = {}
+    candidate_metric_count = 0
     model.eval()
     with torch.no_grad():
         for batch_number, batch_idx in enumerate(_batched_indices(idx, batch_size), start=1):
@@ -242,11 +271,16 @@ def _predict_indices(
                 std_floor_normalized=None,
             )
             nll_value = _model_weighted_nll_or_nan(model, batch)
+            candidate_metrics = _candidate_diagnostics_or_empty(model, batch)
             valid_f = batch["target_valid"].float().unsqueeze(-1)
             pred_t = torch.from_numpy(pred_norm).float().to(device)
             mse = ((batch["target_actions"] - pred_t).pow(2) * valid_f).sum() / valid_f.sum().clamp_min(1.0)
             if np.isfinite(nll_value):
                 nll_values.append(nll_value)
+            for key, value in candidate_metrics.items():
+                candidate_metric_sums[key] = candidate_metric_sums.get(key, 0.0) + float(value) * len(batch_idx)
+            if candidate_metrics:
+                candidate_metric_count += len(batch_idx)
             mse_values.append(float(mse.detach().cpu()))
             mean_raw = unnormalize_actions(pred_norm, schema)
             pred_actions.append(mean_raw)
@@ -316,6 +350,11 @@ def _predict_indices(
             dt=dt,
         )
     )
+    if candidate_metric_count > 0:
+        result["candidate_diagnostics"] = {
+            key: float(value / candidate_metric_count)
+            for key, value in candidate_metric_sums.items()
+        }
     result["target_physical"] = physical_diagnostics(
         target_states,
         target_valid,
@@ -588,6 +627,161 @@ def _closed_loop_start_roll(
         )
     )
     return out
+
+
+def _model_state_reconstruction(
+    model,
+    arrays: dict[str, np.ndarray],
+    schema: dict[str, Any],
+    split: str,
+    *,
+    device,
+    batch_size: int,
+    num_chunks: int,
+    max_samples: int,
+) -> dict[str, Any]:
+    """Evaluate final-chunk reconstruction after repeated model-state rollout.
+
+    Logged ego states enter only after each one-second transition to form the
+    next past-history condition.  This is a reconstruction diagnostic, not the
+    future ADS environment interface.
+    """
+    torch = _torch()
+    horizon = int(schema["horizon_steps"])
+    sequences = aligned_multichunk_indices(
+        arrays,
+        split,
+        horizon_steps=horizon,
+        max_chunks=int(num_chunks),
+    )
+    if max_samples and int(max_samples) > 0:
+        sequences = sequences[: int(max_samples)]
+    if len(sequences) == 0:
+        return {"available": False, "reason": f"no {num_chunks}-chunk sequences for split={split}"}
+    dt = 1.0 / float(schema["fps"])
+    pred_actions: list[np.ndarray] = []
+    pred_states: list[np.ndarray] = []
+    target_actions: list[np.ndarray] = []
+    target_states: list[np.ndarray] = []
+    target_valid: list[np.ndarray] = []
+    target_ego: list[np.ndarray] = []
+    model.eval()
+    with torch.no_grad():
+        for row_indices in _batched_indices(np.arange(len(sequences), dtype=np.int64), batch_size):
+            sequence = sequences[row_indices]
+            current_indices = sequence[:, 0]
+            batch = numpy_batch_to_torch(arrays, current_indices, device)
+            current_raw = arrays["current_states"][current_indices].astype(np.float32)
+            current_valid = arrays["current_valid"][current_indices].astype(bool)
+            final_actions = None
+            final_states = None
+            for chunk_index in range(int(num_chunks)):
+                action_norm = _model_actions_normalized(
+                    model,
+                    batch,
+                    device=device,
+                    deterministic=True,
+                    temperature=1.0,
+                    seed=7103 + int(chunk_index) + int(current_indices[0]),
+                    std_floor_normalized=None,
+                )
+                action_raw = unnormalize_actions(action_norm, schema)
+                generated_states, generated_valid = integrate_background_actions_batch(
+                    current_raw,
+                    current_valid,
+                    action_raw,
+                    dt=dt,
+                )
+                final_actions = action_raw
+                final_states = generated_states
+                if chunk_index + 1 >= int(num_chunks):
+                    break
+                next_indices = sequence[:, chunk_index + 1]
+                ego_history = arrays["ego_future_states"][current_indices].astype(np.float32)
+                ego_valid = arrays["ego_future_valid"][current_indices].astype(bool)
+                history_raw = np.zeros(
+                    (len(current_indices), horizon, 1 + len(SLOT_NAMES), len(schema["state_features"])),
+                    dtype=np.float32,
+                )
+                history_valid = np.zeros((len(current_indices), horizon, 1 + len(SLOT_NAMES)), dtype=bool)
+                history_raw[:, :, 0] = ego_history
+                history_valid[:, :, 0] = ego_valid
+                history_raw[:, :, 1:] = generated_states
+                history_valid[:, :, 1:] = generated_valid
+                origin_xy = ego_history[:, -1, :2].copy()
+                history_raw[..., 0] -= origin_xy[:, None, None, 0]
+                history_raw[..., 1] -= origin_xy[:, None, None, 1]
+                history_raw[~history_valid] = 0.0
+                current_raw = history_raw[:, -1]
+                current_valid = history_valid[:, -1]
+                relations = np.stack(
+                    [
+                        build_relation_features_from_current(
+                            current_raw[local],
+                            current_valid[local],
+                            primary_slot_index=int(arrays["primary_slot_index"][next_indices[local]]),
+                        )
+                        for local in range(len(next_indices))
+                    ]
+                ).astype(np.float32)
+                relation_valid = current_valid[:, 1:]
+                batch = {
+                    "history_states": torch.from_numpy(normalize_states(history_raw, history_valid, schema)).float().to(device),
+                    "history_valid": torch.from_numpy(history_valid).bool().to(device),
+                    "current_states": torch.from_numpy(normalize_states(current_raw, current_valid, schema)).float().to(device),
+                    "current_valid": torch.from_numpy(current_valid).bool().to(device),
+                    "mode_index": torch.full((len(next_indices),), ROLL_MODE_INDEX, dtype=torch.long, device=device),
+                    "primary_slot_index": torch.from_numpy(arrays["primary_slot_index"][next_indices]).long().to(device),
+                    "flow_action_summary": torch.zeros(
+                        (len(next_indices), len(SLOT_NAMES), len(schema["flow_action_summary_features"])),
+                        dtype=torch.float32,
+                        device=device,
+                    ),
+                    "relation_features": torch.from_numpy(
+                        normalize_relation_features(relations, relation_valid, schema)
+                    ).float().to(device),
+                }
+                current_indices = next_indices
+            assert final_actions is not None and final_states is not None
+            pred_actions.append(final_actions.astype(np.float32))
+            pred_states.append(final_states.astype(np.float32))
+            target_actions.append(arrays["target_actions"][current_indices])
+            target_states.append(arrays["target_states"][current_indices])
+            target_valid.append(arrays["target_valid"][current_indices])
+            target_ego.append(arrays["ego_future_states"][current_indices])
+    actions = np.concatenate(pred_actions, axis=0)
+    states = np.concatenate(pred_states, axis=0)
+    target_actions_arr = np.concatenate(target_actions, axis=0)
+    target_states_arr = np.concatenate(target_states, axis=0)
+    target_valid_arr = np.concatenate(target_valid, axis=0)
+    target_ego_arr = np.concatenate(target_ego, axis=0)
+    result: dict[str, Any] = {
+        "available": True,
+        "num_sequences": int(len(sequences)),
+        "num_chunks": int(num_chunks),
+        "horizon_seconds": float(num_chunks * horizon / float(schema["fps"])),
+        "ego_response": "logged_highd_ego_history_after_each_transition",
+    }
+    result.update(action_error_metrics(actions, target_actions_arr, target_valid_arr))
+    result.update(trajectory_error_metrics(states, target_states_arr, target_valid_arr))
+    result.update(
+        interaction_metrics(
+            states,
+            target_states_arr,
+            target_valid_arr,
+            ego_future_states=target_ego_arr,
+        )
+    )
+    result.update(
+        physical_diagnostics(
+            states,
+            target_valid_arr,
+            ego_future_states=target_ego_arr,
+            actions=actions,
+            dt=dt,
+        )
+    )
+    return result
 
 
 def _tail_event_reconstruction(
@@ -1108,6 +1302,7 @@ def evaluate_world_model(
 
     closed_loop_cfg = dict(config.get("evaluation", {}).get("closed_loop", {}))
     if bool(closed_loop_cfg.get("enabled", True)):
+        closed_loop_max_samples = int(max_samples) if int(max_samples) > 0 else int(closed_loop_cfg.get("max_samples", 0) or 0)
         result["closed_loop"] = {}
         for split in splits:
             result["closed_loop"][split] = _closed_loop_start_roll(
@@ -1117,8 +1312,27 @@ def evaluate_world_model(
                 split,
                 device=device,
                 batch_size=batch_size,
-                max_samples=int(closed_loop_cfg.get("max_samples", 0) or 0),
+                max_samples=closed_loop_max_samples,
             )
+
+    model_state_cfg = dict(config.get("evaluation", {}).get("model_state_reconstruction", {}))
+    if bool(model_state_cfg.get("enabled", True)):
+        max_chunks = max(2, int(model_state_cfg.get("max_chunks", 5)))
+        model_state_max_samples = int(max_samples) if int(max_samples) > 0 else int(model_state_cfg.get("max_samples", 0) or 0)
+        result["model_state_reconstruction"] = {}
+        for split in splits:
+            result["model_state_reconstruction"][split] = {}
+            for chunks in range(2, max_chunks + 1):
+                result["model_state_reconstruction"][split][f"{chunks}_chunks"] = _model_state_reconstruction(
+                    model,
+                    arrays,
+                    schema,
+                    split,
+                    device=device,
+                    batch_size=batch_size,
+                    num_chunks=chunks,
+                    max_samples=model_state_max_samples,
+                )
 
     tail_recon_cfg = dict(config.get("evaluation", {}).get("tail_event_reconstruction", {}))
     if bool(tail_recon_cfg.get("enabled", True)):

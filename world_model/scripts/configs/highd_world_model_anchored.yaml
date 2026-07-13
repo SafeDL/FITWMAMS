@@ -1,0 +1,53 @@
+# CAT-K v4：冻结自然驾驶名义锚点 + 七个联合残差意图。
+seed: 42
+paths:
+  dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
+  output_dir: "../../../results/highd_world_model/catk_topk_anchored"
+model:
+  type: "catk_topk"
+  architecture_version: 4
+  hidden_dim: 128
+  history_layers: 2
+  interaction_layers: 2
+  num_heads: 4
+  dropout: 0.10
+  use_start_flow_summary: true
+  use_relation_features: true
+  num_candidates: 8
+  responsibility_temperature: 1.0
+  energy_weight: 0.01
+  diversity_weight: 0.15
+  diversity_margin_normalized: 0.15
+  smoothness_weight: 0.01
+  map_action_weight: 0.10
+  probability_entropy_weight: 0.05
+  min_probability_entropy: 1.50
+  jerk_control_points: 5
+  max_jerk_longitudinal_mps3: 8.0
+  max_jerk_lateral_mps3: 5.0
+  branch_noise_std: 0.0
+  nominal_candidate_ce_weight: 0.05
+  nominal_logit_margin: 0.05
+evaluation:
+  seed: 123
+  device: "auto"
+  batch_size: 1024
+  performance:
+    allow_tf32: false
+    float32_matmul_precision: "highest"
+  sampling_temperature: 1.0
+  sampling_action_std_floor_mps2: null
+  splits: ["val", "test"]
+  closed_loop:
+    enabled: true
+    max_samples: 0
+  model_state_reconstruction:
+    enabled: true
+    max_chunks: 5
+    max_samples: 0
+  tail_event_reconstruction:
+    enabled: true
+    max_samples: 0
+    write_event_metrics: false
+  visualizations:
+    enabled: false

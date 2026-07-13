@@ -1,18 +1,18 @@
 {
-  "best_epoch": 144,
-  "best_val_loss": 0.19147696601309416,
-  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
+  "best_epoch": 14,
+  "best_val_loss": 0.18397218713963565,
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk_map_calibrated_full/checkpoints/best_world_model.pt",
   "closed_loop_adaptation": {
     "enabled": false,
-    "history_dropout_probability": 0.05,
-    "probability": 0.35,
+    "history_dropout_probability": 0.0,
+    "probability": 0.0,
     "state_noise_std": {
-      "ax_mps2": 0.15,
-      "ay_left_mps2": 0.05,
-      "vx_mps": 0.2,
-      "vy_left_mps": 0.05,
-      "x_m": 0.2,
-      "y_left_m": 0.05
+      "ax_mps2": 0.0,
+      "ay_left_mps2": 0.0,
+      "vx_mps": 0.0,
+      "vy_left_mps": 0.0,
+      "x_m": 0.0,
+      "y_left_m": 0.0
     }
   },
   "dataset_cache": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll/dataset_cache_arrays",
@@ -24,17 +24,20 @@
   "diagnostic_validation_interval": 5,
   "epochs": 160,
   "epochs_completed": 160,
+  "initialized_from_checkpoint": "../../../results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
+  "latest_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk_map_calibrated_full/checkpoints/latest_world_model.pt",
   "model_state_closed_loop": {
     "curriculum_epochs_per_chunk": 8,
     "enabled": true,
     "max_chunks": 5,
-    "state_consistency_weight": 0.1
+    "state_consistency_weight": 0.35,
+    "teacher_action_weight": 0.0
   },
   "no_improvement_min_delta": 0.0001,
   "no_improvement_patience": 0,
   "num_train_samples": 112943,
   "num_val_samples": 507255,
-  "patience_best_val_loss": 0.19147696601309416,
+  "patience_best_val_loss": 0.18397218713963565,
   "performance": {
     "allow_tf32": true,
     "float32_matmul_precision": "high",
@@ -48,7 +51,7 @@
   "start_epoch": 0,
   "stopped_early": false,
   "tensorboard_available": true,
-  "tensorboard_log_dir": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/tensorboard",
-  "training_history": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/training_history.csv",
+  "tensorboard_log_dir": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk_map_calibrated_full/tensorboard",
+  "training_history": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk_map_calibrated_full/training_history.csv",
   "use_start_flow_summary": true
 }

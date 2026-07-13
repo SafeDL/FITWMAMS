@@ -1,4 +1,5 @@
-# highD 长尾背景交通世界模型：唯一活动实现。
+# CAT-K v3：共享物理动作骨干与场景级离散意图残差。
+# 所有随机性仍只来自每个 chunk 的 Xi_world 八分类索引。
 
 seed: 42
 
@@ -8,28 +9,11 @@ paths:
   natural_segments_csv: "../../../results/highd_natural_evt/natural_segments.csv"
   tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
   dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/catk_topk_anchored"
-
-sampling:
-  target_fps: 25
-
-dataset:
-  history_seconds: 1.0
-  horizon_seconds: 1.0
-  segment_window_seconds: 6.0
-  roll_start_seconds: 1.0
-  roll_end_seconds: 4.8
-  roll_stride_seconds: 0.20
-  max_segments: 0
-
-split:
-  group_by: "recording_ego"
-  ratios: [0.70, 0.15, 0.15]
-  seed: 42
+  output_dir: "../../../results/highd_world_model/catk_topk_physics_backbone_zero_init"
 
 model:
   type: "catk_topk"
-  architecture_version: 4
+  architecture_version: 3
   hidden_dim: 128
   history_layers: 2
   interaction_layers: 2
@@ -40,20 +24,18 @@ model:
   num_candidates: 8
   responsibility_temperature: 1.0
   energy_weight: 0.01
-  diversity_weight: 0.15
-  diversity_margin_normalized: 0.15
+  diversity_weight: 0.05
+  diversity_margin_normalized: 0.10
   smoothness_weight: 0.01
-  map_action_weight: 0.10
-  probability_entropy_weight: 0.05
-  min_probability_entropy: 1.50
+  map_action_weight: 0.0
+  probability_entropy_weight: 0.02
+  min_probability_entropy: 1.0
+  physics_action_weight: 0.50
   jerk_control_points: 5
   max_jerk_longitudinal_mps3: 8.0
   max_jerk_lateral_mps3: 5.0
   branch_noise_std: 0.0
-  nominal_candidate_ce_weight: 0.05
-  nominal_logit_margin: 0.05
 
-# Xi_world 只表示 CAT-K 候选索引；环境接口不添加额外连续动作噪声。
 environment:
   candidate_selection: "categorical"
   candidate_temperature: 1.0
@@ -63,13 +45,14 @@ training:
   seed: 42
   device: "auto"
   epochs: 160
-  batch_size: 1024
+  batch_size: 384
   num_workers: 0
   learning_rate: 0.00005
   min_learning_rate: 0.000002
   weight_decay: 0.0001
   grad_clip: 1.0
-  resume_from_checkpoint: false
+  resume_from_checkpoint: true
+  initialize_from_checkpoint: ""
   performance:
     allow_tf32: true
     float32_matmul_precision: "high"
@@ -82,15 +65,15 @@ training:
   diagnostic_validation_interval: 5
   closed_loop_adaptation:
     enabled: false
-    probability: 0.35
-    history_dropout_probability: 0.05
+    probability: 0.0
+    history_dropout_probability: 0.0
     state_noise_std:
-      x_m: 0.20
-      y_left_m: 0.05
-      vx_mps: 0.20
-      vy_left_mps: 0.05
-      ax_mps2: 0.15
-      ay_left_mps2: 0.05
+      x_m: 0.0
+      y_left_m: 0.0
+      vx_mps: 0.0
+      vy_left_mps: 0.0
+      ax_mps2: 0.0
+      ay_left_mps2: 0.0
   loss_weights:
     trajectory: 0.0
     interaction: 0.0
@@ -99,7 +82,8 @@ training:
     enabled: true
     max_chunks: 5
     curriculum_epochs_per_chunk: 8
-    state_consistency_weight: 0.10
+    state_consistency_weight: 0.20
+    teacher_action_weight: 0.0
 
 evaluation:
   seed: 123

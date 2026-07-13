@@ -93,6 +93,13 @@ TRAINING_AUXILIARY_ARRAY_KEYS = (
     "target_states",
     "ego_future_states",
 )
+MODEL_STATE_CLOSED_LOOP_ARRAY_KEYS = (
+    "current_states",
+    "ego_future_states",
+    "ego_future_valid",
+    "segment_id",
+    "offset",
+)
 PREPARED_DATASET_ARRAY_KEYS = (
     "history_states_normalized",
     "history_valid",
@@ -134,12 +141,19 @@ def training_uses_auxiliary_states(config: dict[str, Any]) -> bool:
     return any(float(weights.get(key, 0.0)) > 0.0 for key in ("trajectory", "interaction", "physics"))
 
 
+def training_uses_model_state_closed_loop(config: dict[str, Any]) -> bool:
+    training_cfg = dict(config.get("training", {}))
+    return bool(dict(training_cfg.get("model_state_closed_loop", {})).get("enabled", True))
+
+
 def training_array_keys_for_config(config: dict[str, Any]) -> tuple[str, ...]:
     keys = list(TRAINING_CORE_ARRAY_KEYS)
     if training_uses_relation_features(config):
         keys.extend(TRAINING_RELATION_ARRAY_KEYS)
     if training_uses_auxiliary_states(config):
         keys.extend(TRAINING_AUXILIARY_ARRAY_KEYS)
+    if training_uses_model_state_closed_loop(config):
+        keys.extend(MODEL_STATE_CLOSED_LOOP_ARRAY_KEYS)
     return tuple(keys)
 
 
@@ -224,6 +238,44 @@ def split_indices(arrays: dict[str, np.ndarray], split: str) -> np.ndarray:
     if split_name not in SPLIT_TO_INDEX:
         raise KeyError(f"Unknown split={split!r}; expected {sorted(SPLIT_TO_INDEX)} or 'all'")
     return np.where(arrays["split_index"] == SPLIT_TO_INDEX[split_name])[0]
+
+
+def aligned_multichunk_indices(
+    arrays: dict[str, np.ndarray],
+    split: str,
+    *,
+    horizon_steps: int,
+    max_chunks: int,
+) -> np.ndarray:
+    """Return START plus aligned ROLL sample indices for model-state training.
+
+    Rows remain references into the existing dense cache.  A sequence contains
+    START at offset 0 followed by ROLL offsets 25, 50, 75 and 100 for the
+    default highD schema; no new cache field or future conditioning is added.
+    """
+    chunks = max(1, int(max_chunks))
+    split_idx = split_indices(arrays, split)
+    starts = split_idx[
+        (arrays["mode_index"][split_idx] == START_MODE_INDEX)
+        & (arrays["offset"][split_idx] == 0)
+    ]
+    roll_lookup: dict[tuple[str, int], int] = {}
+    for index in split_idx[arrays["mode_index"][split_idx] == ROLL_MODE_INDEX]:
+        roll_lookup[(str(arrays["segment_id"][index]), int(arrays["offset"][index]))] = int(index)
+    sequences: list[list[int]] = []
+    for start_index in starts:
+        segment_id = str(arrays["segment_id"][start_index])
+        row = [int(start_index)]
+        for chunk in range(1, chunks):
+            roll_index = roll_lookup.get((segment_id, int(chunk * horizon_steps)))
+            if roll_index is None:
+                break
+            row.append(int(roll_index))
+        if len(row) == chunks:
+            sequences.append(row)
+    if not sequences:
+        return np.empty((0, chunks), dtype=np.int64)
+    return np.asarray(sequences, dtype=np.int64)
 
 
 def _segment_slot_ids(row: pd.Series) -> np.ndarray:

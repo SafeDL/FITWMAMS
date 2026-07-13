@@ -8,7 +8,7 @@ paths:
   natural_segments_csv: "../../../results/highd_natural_evt/natural_segments.csv"
   tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
   dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/catk_topk_anchored"
+  output_dir: "../../../results/highd_world_model/catk_topk_map"
 
 sampling:
   target_fps: 25
@@ -29,7 +29,7 @@ split:
 
 model:
   type: "catk_topk"
-  architecture_version: 4
+  architecture_version: 2
   hidden_dim: 128
   history_layers: 2
   interaction_layers: 2
@@ -42,16 +42,13 @@ model:
   energy_weight: 0.01
   diversity_weight: 0.15
   diversity_margin_normalized: 0.15
-  smoothness_weight: 0.01
-  map_action_weight: 0.10
   probability_entropy_weight: 0.05
   min_probability_entropy: 1.50
+  smoothness_weight: 0.01
   jerk_control_points: 5
   max_jerk_longitudinal_mps3: 8.0
   max_jerk_lateral_mps3: 5.0
   branch_noise_std: 0.0
-  nominal_candidate_ce_weight: 0.05
-  nominal_logit_margin: 0.05
 
 # Xi_world 只表示 CAT-K 候选索引；环境接口不添加额外连续动作噪声。
 environment:
@@ -62,14 +59,15 @@ environment:
 training:
   seed: 42
   device: "auto"
-  epochs: 160
+  epochs: 80
   batch_size: 1024
   num_workers: 0
-  learning_rate: 0.00005
+  learning_rate: 0.00002
   min_learning_rate: 0.000002
   weight_decay: 0.0001
   grad_clip: 1.0
   resume_from_checkpoint: false
+  initialize_from_checkpoint: "../catk_topk/checkpoints/best_world_model.pt"
   performance:
     allow_tf32: true
     float32_matmul_precision: "high"
@@ -98,8 +96,8 @@ training:
   model_state_closed_loop:
     enabled: true
     max_chunks: 5
-    curriculum_epochs_per_chunk: 8
-    state_consistency_weight: 0.10
+    curriculum_epochs_per_chunk: 1
+    state_consistency_weight: 0.50
 
 evaluation:
   seed: 123

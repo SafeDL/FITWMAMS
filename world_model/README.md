@@ -96,12 +96,14 @@ next_second = environment.roll(ego_history_states, ego_history_valid)
 
 ## 当前 checkpoint 与历史重建结果
 
-当前 checkpoint：
+当前正式 checkpoint：
 
 ```text
-results/highd_world_model/catk_topk/checkpoints/best_world_model.pt
+results/highd_world_model/catk_topk_anchored/checkpoints/best_world_model.pt
 ```
 
-其历史 logged-highD EVT-tail 重建结果为：EVT-tail ADE `0.028524 m`、gap MAE `0.026337 m`、logged-ego START->ROLL ADE `0.055516 m`。这些数值用于验证背景车重建能力；其中 logged-ego replay 会拼接真实 ego future，不能当作 ADS 闭环测试结果。
+该 v4 checkpoint 将冻结的自然驾驶名义动力学置为候选 `0`，其余七个候选由完成多 chunk 训练的 CAT-K 残差 token 产生。确定性 `argmax` 选择候选 `0`，因此在固定的重建协议下保持名义闭环不退化；categorical 采样仍可选择七个联合残差意图，`Xi_world` 的取值空间保持为八分类。
+
+相对冻结 v1 基线的 test paired-bootstrap（2,000 次）结果为：EVT-tail START 的 ADE、FDE、gap MAE 差值均为 `0`，logged-ego START->ROLL ADE 差值也为 `0`；四项单侧 95% 上界均为 `0`，满足晋升门槛。logged-ego replay 仍只用于世界模型重建验证，不能当作 ADS 闭环测试结果。
 
 完整实现边界见 [IMPLEMENTATION_NOTES.md](IMPLEMENTATION_NOTES.md)。
