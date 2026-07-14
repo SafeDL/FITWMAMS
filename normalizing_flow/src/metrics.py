@@ -167,6 +167,8 @@ def correlation_error(
 def physical_validity_flags(
     features: np.ndarray,
     slot_mask: np.ndarray,
+    *,
+    has_future_action_summaries: bool = True,
 ) -> tuple[np.ndarray, dict[str, int], dict[str, np.ndarray]]:
     n = int(features.shape[0])
     reason_counts: Counter[str] = Counter()
@@ -236,25 +238,26 @@ def physical_validity_flags(
                 reason_counts["bounding_box_overlap"] += 1
                 overlap_sample[i] = True
                 invalid_sample[i] = True
-            delta_vx = float(features[i, trajectory_feature_index(slot_name, "delta_vx_1s_mps")])
-            delta_vy = float(features[i, trajectory_feature_index(slot_name, "delta_vy_left_1s_mps")])
-            mean_ax = float(features[i, trajectory_feature_index(slot_name, "mean_ax_1s_mps2")])
-            min_ax = float(features[i, trajectory_feature_index(slot_name, "min_ax_1s_mps2")])
-            final_ax = float(features[i, trajectory_feature_index(slot_name, "final_ax_1s_mps2")])
-            mean_ay = float(features[i, trajectory_feature_index(slot_name, "mean_ay_left_1s_mps2")])
-            if not (
-                -8.0 <= delta_vx <= 5.0
-                and abs(delta_vy) <= 3.0
-                and -8.0 <= mean_ax <= 5.0
-                and -8.0 <= min_ax <= 5.0
-                and -8.0 <= final_ax <= 5.0
-                and abs(mean_ay) <= 3.0
-            ):
-                reason_counts["slot_action_summary_out_of_range"] += 1
-                invalid_sample[i] = True
-            if min_ax > mean_ax + 1.0e-3:
-                reason_counts["slot_min_ax_exceeds_mean_ax"] += 1
-                invalid_sample[i] = True
+            if has_future_action_summaries:
+                delta_vx = float(features[i, trajectory_feature_index(slot_name, "delta_vx_1s_mps")])
+                delta_vy = float(features[i, trajectory_feature_index(slot_name, "delta_vy_left_1s_mps")])
+                mean_ax = float(features[i, trajectory_feature_index(slot_name, "mean_ax_1s_mps2")])
+                min_ax = float(features[i, trajectory_feature_index(slot_name, "min_ax_1s_mps2")])
+                final_ax = float(features[i, trajectory_feature_index(slot_name, "final_ax_1s_mps2")])
+                mean_ay = float(features[i, trajectory_feature_index(slot_name, "mean_ay_left_1s_mps2")])
+                if not (
+                    -8.0 <= delta_vx <= 5.0
+                    and abs(delta_vy) <= 3.0
+                    and -8.0 <= mean_ax <= 5.0
+                    and -8.0 <= min_ax <= 5.0
+                    and -8.0 <= final_ax <= 5.0
+                    and abs(mean_ay) <= 3.0
+                ):
+                    reason_counts["slot_action_summary_out_of_range"] += 1
+                    invalid_sample[i] = True
+                if min_ax > mean_ax + 1.0e-3:
+                    reason_counts["slot_min_ax_exceeds_mean_ax"] += 1
+                    invalid_sample[i] = True
 
     return invalid_sample, {key: int(value) for key, value in sorted(reason_counts.items())}, {
         "overlap": overlap_sample,
@@ -266,8 +269,14 @@ def physical_validity_flags(
 def physical_validity_metrics(
     features: np.ndarray,
     slot_mask: np.ndarray,
+    *,
+    has_future_action_summaries: bool = True,
 ) -> dict[str, Any]:
-    invalid_sample, reason_counts, detail = physical_validity_flags(features, slot_mask)
+    invalid_sample, reason_counts, detail = physical_validity_flags(
+        features,
+        slot_mask,
+        has_future_action_summaries=has_future_action_summaries,
+    )
     n = int(features.shape[0])
     return {
         "num_samples": n,

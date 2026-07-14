@@ -381,6 +381,7 @@ def _draw_flow_batch(
         invalid, _reasons, _detail = physical_validity_flags(
             np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0),
             slot_mask,
+            has_future_action_summaries=bool(schema.get("trajectory_features", [])),
         )
         too_large = np.max(np.abs(x_norm), axis=1) > float(
             schema.get("sampling_max_abs_normalized", 8.0)
@@ -656,20 +657,15 @@ def to_world_model_start_condition(
     sample_id: int = 0,
     fps: float = 25.0,
     primary_slot_name: str | None = None,
+    include_future_action_summaries: bool = True,
 ) -> dict[str, Any]:
-    return {
+    out = {
         "sample_id": int(sample_id),
         "mode": "START",
         "fps": float(fps),
         "t0_only": True,
         "ego": _ego_dict(feature_row),
         "primary_slot": primary_slot_name,
-        "primary_interaction_1s_summary": _primary_action_summary(
-            feature_row,
-            slot_mask_row,
-            primary_slot_name,
-        ),
-        "traffic_action_1s_summary": _traffic_action_summaries(feature_row, slot_mask_row),
         "slots": {
             slot_name: (
                 None
@@ -681,7 +677,6 @@ def to_world_model_start_condition(
                     "rel_vy_left_mps": _slot_feature(feature_row, idx, "rel_vy_left_mps"),
                     "ax_mps2": _slot_feature(feature_row, idx, "other_ax_mps2"),
                     "ay_left_mps2": _slot_feature(feature_row, idx, "other_ay_left_mps2"),
-                    "action_1s_summary": _slot_action_summary(feature_row, idx, slot_name),
                     "length_m": DEFAULT_OTHER_LENGTH_M,
                     "width_m": DEFAULT_OTHER_WIDTH_M,
                 }
@@ -689,6 +684,21 @@ def to_world_model_start_condition(
             for idx, slot_name in enumerate(SLOT_NAMES)
         },
     }
+    if include_future_action_summaries:
+        out["primary_interaction_1s_summary"] = _primary_action_summary(
+            feature_row,
+            slot_mask_row,
+            primary_slot_name,
+        )
+        out["traffic_action_1s_summary"] = _traffic_action_summaries(feature_row, slot_mask_row)
+        for idx, slot_name in enumerate(SLOT_NAMES):
+            if out["slots"][slot_name] is not None:
+                out["slots"][slot_name]["action_1s_summary"] = _slot_action_summary(
+                    feature_row,
+                    idx,
+                    slot_name,
+                )
+    return out
 
 
 def load_checkpoint_and_dataset(

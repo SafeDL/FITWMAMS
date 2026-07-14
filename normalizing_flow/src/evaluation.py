@@ -8,7 +8,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .baselines import fit_density_baselines
 from .data import output_dir_from_config, split_indices
 from .metrics import (
     conditional_nll_by_group,
@@ -117,6 +116,10 @@ def evaluate_tail_flow(
         do_baselines = bool(run_baselines)
     baselines: dict[str, Any] = {}
     if do_baselines:
+        # Keep the clean START evaluation runnable in the minimal Flow runtime.
+        # sklearn is only needed for optional density-baseline comparisons.
+        from .baselines import fit_density_baselines
+
         baselines = fit_density_baselines(
             arrays,
             cfg=dict(config.get("baselines", {})),
@@ -172,7 +175,11 @@ def evaluate_tail_flow(
         arrays["features_normalized"][compare_idx],
         samples["features_normalized"],
     )
-    physical_metrics = physical_validity_metrics(samples["features"], samples["slot_mask"])
+    physical_metrics = physical_validity_metrics(
+        samples["features"],
+        samples["slot_mask"],
+        has_future_action_summaries=bool(schema.get("trajectory_features", [])),
+    )
     occupancy = occupancy_metrics(
         arrays["slot_mask"][compare_idx],
         samples["slot_mask"],
@@ -217,6 +224,8 @@ def evaluate_tail_flow(
     report = {
         "checkpoint": str(checkpoint),
         "dataset": schema["dataset_npz"],
+        "feature_mode": schema.get("feature_mode", "legacy_future_action_summary"),
+        "initial_observation_only": bool(schema.get("initial_observation_only", False)),
         "nll": main_nll,
         "group_nll_test": group_nll,
         "baselines": baselines,

@@ -1,0 +1,74 @@
+# rounD uses a caller-provided tracks CSV plus a vector map.  The map may be
+# JSON/NPZ, or an official Lanelet2 .osm map from the authorized rounD bundle.
+# Populate either paths.round_tracks_csv / paths.round_vector_map for one
+# recording, or dataset.recordings for one or more recordings before running
+# preparation.
+paths:
+  output_dir: "../../../results/round_world_model/semi_markov_relational"
+  sequence_cache_dir: "../../../results/round_world_model/semi_markov_relational"
+  round_tracks_csv: ""
+  round_vector_map: ""
+
+dataset:
+  adapter: "round"
+  frame_rate_hz: 25.0
+  sequence_frames: 150
+  sequence_stride_frames: 25
+  max_sequences: 0
+  recordings: []
+
+split:
+  seed: 42
+
+graph:
+  lane_width_m: 3.6
+  top_r_lanes: 3
+
+model:
+  type: "semi_markov_relational"
+  hidden_dim: 128
+  temporal_layers: 1
+  dropout: 0.10
+  num_latent_states: 12
+  max_duration_response_steps: 30
+  response_interval_s: 0.2
+  simulation_dt_s: 0.04
+  beta_latent: 0.05
+  lambda_roll: 1.0
+  position_weight: 1.0
+  velocity_weight: 0.25
+  control_weight: 0.15
+  boundary_change_threshold: 0.05
+  boundary_supervision_weight: 0.25
+  prototype_weight: 1.0
+  state_bootstrap_weight: 5.0
+  prior_roll_weight: 1.0
+  late_roll_weight: 1.0
+  prior_control_weight: 1.0
+  late_prior_control_weight: 0.0
+  reference_control_scale: 1.0
+  use_conflict_zones: true
+
+training:
+  seed: 42
+  device: "auto"
+  epochs: 80
+  stage_one_epochs: 20
+  min_teacher_forcing: 0.0
+  rollout_min_seconds: 1.0
+  rollout_max_seconds: 5.0
+  tbptt_response_steps: 5
+  batch_size: 16
+  learning_rate: 0.0002
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  checkpoint_metric: "causal_prior_rollout_FDE_m"
+
+evaluation:
+  seed: 123
+  device: "auto"
+  batch_size: 16
+  max_sequences: 0
+  required_baseline_summary: ""
+  paired_baseline_summary: ""
+  round_evaluation_summary: ""

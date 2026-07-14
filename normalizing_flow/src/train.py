@@ -12,6 +12,7 @@ import pandas as pd
 from .data import (
     build_tail_flow_dataset,
     dataset_schema_is_current,
+    feature_mode_from_config,
     load_tail_dataset,
     output_dir_from_config,
     split_indices,
@@ -389,7 +390,10 @@ def _train_tail_flow_single(
     set_seed(int(config.get("seed", 42)))
 
     dataset_cfg = dict(config.get("dataset", {}))
-    dataset_current = (output_dir / "dataset.npz").exists() and dataset_schema_is_current(output_dir)
+    dataset_current = (output_dir / "dataset.npz").exists() and dataset_schema_is_current(
+        output_dir,
+        feature_mode=feature_mode_from_config(config),
+    )
     if bool(dataset_cfg.get("rebuild", False)) or not dataset_current:
         build_tail_flow_dataset(
             config,

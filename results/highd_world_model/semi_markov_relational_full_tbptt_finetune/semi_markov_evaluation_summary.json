@@ -1,0 +1,233 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt",
+  "checkpoint_sha256": "7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253",
+  "controlled_response": {
+    "available": true,
+    "background_control_delta_norm": {
+      "accelerate": 0.09360027513323946,
+      "brake": 0.20190744955516599,
+      "lateral": 0.03110086206837674
+    },
+    "background_control_temporal_jump_norm": {
+      "accelerate": 0.011001913246854723,
+      "brake": 0.018418249805358677,
+      "lateral": 0.006855970917177066
+    },
+    "episodes": 256,
+    "latent_path_changed_episode_rate": {
+      "accelerate": 0.71484375,
+      "brake": 0.96875,
+      "lateral": 0.671875
+    },
+    "protocol": {
+      "ads_identity_not_an_input": true,
+      "counterfactual_ground_truth_available": false,
+      "deterministic_prior": true,
+      "future_ego_replaced_with": {
+        "accelerate": "+1.5 m/s^2 longitudinal",
+        "brake": "-2.0 m/s^2 longitudinal",
+        "lateral": "+0.20 m/s^2 lateral"
+      }
+    },
+    "same_physical_ego_identity_invariance_max_abs_error": 0.0
+  },
+  "duration_calibration": {
+    "available": true,
+    "brier_score": 0.05783187671422872,
+    "empirical_boundary_rate": 0.04027123940094703,
+    "expected_calibration_error": 0.07910015613520677,
+    "mean_predicted_boundary_probability": 0.1193713955361538
+  },
+  "evt_tail": {
+    "ADE_1s_m": 0.0364399473101428,
+    "ADE_2s_m": 0.058507036701843214,
+    "ADE_3s_m": 0.12768640940229314,
+    "ADE_4s_m": 0.25195604855558423,
+    "ADE_5s_m": 0.4270540322107332,
+    "ADE_m": 0.4270540322107332,
+    "FDE_1s_m": 0.050144008842681165,
+    "FDE_2s_m": 0.13755066804750798,
+    "FDE_3s_m": 0.4135112252992335,
+    "FDE_4s_m": 0.8526531515556692,
+    "FDE_5s_m": 1.42873539811766,
+    "FDE_m": 1.42873539811766,
+    "acceleration_mae_mps2": 0.16997067701059665,
+    "gap_mae_m": 0.37250613635468305,
+    "relative_vx_mae_mps": 0.28113756855103306,
+    "velocity_mae_mps": 0.3056661946707047
+  },
+  "five_second_causal_prior_rollout": {
+    "ADE_1s_m": 0.030371565838696477,
+    "ADE_2s_m": 0.051255000243807886,
+    "ADE_3s_m": 0.11430094439812104,
+    "ADE_4s_m": 0.2253324094170881,
+    "ADE_5s_m": 0.37960313620479547,
+    "ADE_m": 0.37960313620479547,
+    "FDE_1s_m": 0.04162519724689354,
+    "FDE_2s_m": 0.12558211690000737,
+    "FDE_3s_m": 0.372692918144006,
+    "FDE_4s_m": 0.7645879357686963,
+    "FDE_5s_m": 1.2838820820813515,
+    "FDE_m": 1.2838820820813515,
+    "acceleration_mae_mps2": 0.1512675712633456,
+    "gap_mae_m": 0.33046865555708704,
+    "relative_vx_mae_mps": 0.2498337518049752,
+    "velocity_mae_mps": 0.272587717351857
+  },
+  "frozen_baseline_horizon_comparison": {
+    "horizons": {
+      "2s": {
+        "baseline_ADE_m": 0.05551556358383527,
+        "baseline_FDE_m": 0.059702531431264,
+        "baseline_gap_mae_m": 0.045717653371331005,
+        "candidate_ADE_m": 0.051255000243807886,
+        "candidate_FDE_m": 0.12558211690000737,
+        "candidate_gap_mae_m": 0.34152440488283137,
+        "candidate_minus_baseline_ADE_m": -0.004260563340027383,
+        "candidate_minus_baseline_FDE_m": 0.06587958546874337
+      },
+      "3s": {
+        "baseline_ADE_m": 0.06629056826965199,
+        "baseline_FDE_m": 0.09360072406398212,
+        "baseline_gap_mae_m": 0.050811514086962495,
+        "candidate_ADE_m": 0.11430094439812104,
+        "candidate_FDE_m": 0.372692918144006,
+        "candidate_gap_mae_m": 0.34152440488283137,
+        "candidate_minus_baseline_ADE_m": 0.04801037612846905,
+        "candidate_minus_baseline_FDE_m": 0.2790921940800239
+      },
+      "4s": {
+        "baseline_ADE_m": 0.18932703230036255,
+        "baseline_FDE_m": 0.30670237447358656,
+        "baseline_gap_mae_m": 0.16141540722941913,
+        "candidate_ADE_m": 0.2253324094170881,
+        "candidate_FDE_m": 0.7645879357686963,
+        "candidate_gap_mae_m": 0.34152440488283137,
+        "candidate_minus_baseline_ADE_m": 0.03600537711672555,
+        "candidate_minus_baseline_FDE_m": 0.45788556129510977
+      },
+      "5s": {
+        "baseline_ADE_m": 0.4873987945372351,
+        "baseline_FDE_m": 0.6802041924429456,
+        "baseline_gap_mae_m": 0.4332828278749518,
+        "candidate_ADE_m": 0.37960313620479547,
+        "candidate_FDE_m": 1.2838820820813515,
+        "candidate_gap_mae_m": 0.34152440488283137,
+        "candidate_minus_baseline_ADE_m": -0.10779565833243965,
+        "candidate_minus_baseline_FDE_m": 0.6036778896384059
+      }
+    },
+    "note": "Numbers become a promotion comparison only after the complete held-out highD cache is evaluated with paired bootstrap.",
+    "paired_and_full_test": true,
+    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json"
+  },
+  "interaction_metrics": {
+    "drac_error_mps2": 1.342127142762391,
+    "gap_mae_m": 0.34152440488283137,
+    "relative_vx_mae_mps": 0.2498337518049752,
+    "risk_relaxation_rate": 0.029675421755840037,
+    "small_ttc_rate_pred": 0.08883537530074855,
+    "small_ttc_rate_target": 0.0895045723333098,
+    "ttc_error_s": 0.10546631490644447
+  },
+  "latent_path": {
+    "mean_duration_response_steps": 7.388780195647834,
+    "mean_segments_per_episode": 5.17116782292699,
+    "switches_per_episode": 4.17116782292699
+  },
+  "one_second_conditional_reconstruction": {
+    "ADE_1s_m": 0.030371565838696477,
+    "ADE_m": 0.030371565838696477,
+    "FDE_1s_m": 0.04162519724689354,
+    "FDE_m": 0.04162519724689354,
+    "acceleration_mae_mps2": 0.055675217993045784,
+    "gap_mae_m": 0.026324161599722784,
+    "relative_vx_mae_mps": 0.017649939552993026,
+    "velocity_mae_mps": 0.02541231431245709
+  },
+  "paired_frozen_baseline_long_horizon": {
+    "all_primary_error_gates_pass": false,
+    "gate_pass": false,
+    "paired_and_full_test": true,
+    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s.json",
+    "relationship_drift_improved": false,
+    "relationship_total_variation_candidate_minus_baseline": 0.002164909503443599
+  },
+  "physical_diagnostics": {
+    "acceleration_out_of_range_rate": 0.0,
+    "invalid_rate": 0.0002477700693756194,
+    "jerk_out_of_range_rate": 0.0,
+    "negative_gap_rate": 1.2420059138589282e-05,
+    "num_samples": 24216,
+    "overlap_rate": 1.2420059138589282e-05,
+    "semantic_diagnostic_available": false,
+    "semantic_error_rate": 0.0,
+    "speed_out_of_range_rate": 0.0
+  },
+  "prior_posterior_consistency": {
+    "categorical_cross_entropy": 0.8162333369255066,
+    "mean_total_variation": 0.1587241142988205
+  },
+  "promotion": {
+    "duration_calibrated_and_persistent": true,
+    "eligible": false,
+    "five_second_error_or_relation_drift_improved": false,
+    "full_highd_cache": true,
+    "one_second_not_weaker_than_frozen_baseline": true,
+    "paired_frozen_baseline": true,
+    "reason": "Five-second paired error-accumulation / relationship-drift gate failed.",
+    "round_evaluation_complete": false,
+    "status": "not_promoted"
+  },
+  "relationship_distribution": {
+    "predicted": {
+      "adjacent_lane": 0.6090504035747599,
+      "same_lane": 0.21059781222960824,
+      "unrelated": 0.18035178419563178
+    },
+    "target": {
+      "adjacent_lane": 0.606510170564438,
+      "same_lane": 0.21265234579835987,
+      "unrelated": 0.1808374836372021
+    },
+    "total_variation": 0.0025402330103219267
+  },
+  "sequence_cache": {
+    "adapter": "highd_straight_lane_v1",
+    "arrays": [
+      "sequence_id",
+      "recording_id",
+      "ego_id",
+      "timestamps",
+      "agent_ids",
+      "agent_states",
+      "agent_valid",
+      "ego_index",
+      "primary_agent_index",
+      "map_polylines",
+      "map_polyline_valid",
+      "lane_graph_edges",
+      "agent_lane_candidates",
+      "actions_highd",
+      "split_index",
+      "is_evt_tail"
+    ],
+    "bounded_development_cache": false,
+    "cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
+    "evt_tail_sequences": 2209,
+    "fps": 25.0,
+    "frames": 150,
+    "future_frames": 125,
+    "history_frames": 25,
+    "num_sequences": 161314,
+    "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll",
+    "split_summary": {
+      "test": 24216,
+      "train": 112943,
+      "val": 24155
+    },
+    "top_r_lanes": 3,
+    "uses_recording_lane_metadata": true
+  },
+  "test_sequences": 24216
+}

@@ -1,0 +1,52 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_tail_flow_clean_start/checkpoints/best_tail_conditional_maf.pt",
+  "dataset": "/home/hp/FITWMAMS/results/highd_tail_flow_clean_start/dataset.npz",
+  "training_history_csv": "/home/hp/FITWMAMS/results/highd_tail_flow_clean_start/training_history.csv",
+  "sample_weighting": {
+    "enabled": true,
+    "min": 0.749369204044342,
+    "max": 2.5,
+    "mean": 0.999693751335144,
+    "p50": 0.9413968324661255,
+    "p90": 1.4292513132095337,
+    "p99": 1.997926458120346,
+    "effective_train_sample_size": 1419.245849609375,
+    "config": {
+      "enabled": true,
+      "slot_inverse_frequency_power": 0.35,
+      "mask_pattern_inverse_frequency_power": 0.1,
+      "primary_inverse_frequency_power": 0.05,
+      "min_weight": 0.6,
+      "max_weight": 2.5,
+      "normalize_train_mean": true
+    },
+    "slot_active": {
+      "same_front": {
+        "train_active_count": 1512,
+        "mean_weight": 0.985265851020813
+      },
+      "same_rear": {
+        "train_active_count": 596,
+        "mean_weight": 1.1770703792572021
+      },
+      "left_front": {
+        "train_active_count": 340,
+        "mean_weight": 1.3605808019638062
+      },
+      "left_rear": {
+        "train_active_count": 146,
+        "mean_weight": 1.6320068836212158
+      },
+      "right_front": {
+        "train_active_count": 1399,
+        "mean_weight": 0.9533798098564148
+      },
+      "right_rear": {
+        "train_active_count": 570,
+        "mean_weight": 1.1367026567459106
+      }
+    }
+  },
+  "best_val_nll": -28.32039462002841,
+  "epochs": 80
+}

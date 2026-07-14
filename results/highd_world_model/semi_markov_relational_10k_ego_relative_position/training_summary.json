@@ -1,0 +1,44 @@
+{
+  "best_causal_prior_rollout_FDE_m": 1.6123282470562523,
+  "best_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_10k_ego_relative_position/checkpoints/best_semi_markov_relational.pt",
+  "best_validation_loss_at_selected_checkpoint": 2.7467400332291922,
+  "checkpoint_sha256": "c8b6808de298b829a06e6c8da1796b93cfda5cc54bc2cef4e452ceb35d673225",
+  "selection_metric": "causal_prior_rollout_FDE_m",
+  "sequence_manifest": {
+    "adapter": "highd_straight_lane_v1",
+    "arrays": [
+      "sequence_id",
+      "recording_id",
+      "ego_id",
+      "timestamps",
+      "agent_ids",
+      "agent_states",
+      "agent_valid",
+      "ego_index",
+      "primary_agent_index",
+      "map_polylines",
+      "map_polyline_valid",
+      "lane_graph_edges",
+      "agent_lane_candidates",
+      "actions_highd",
+      "split_index",
+      "is_evt_tail"
+    ],
+    "bounded_development_cache": true,
+    "cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
+    "evt_tail_sequences": 128,
+    "fps": 25.0,
+    "frames": 150,
+    "future_frames": 125,
+    "history_frames": 25,
+    "num_sequences": 10000,
+    "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll",
+    "split_summary": {
+      "test": 1491,
+      "train": 7026,
+      "val": 1483
+    },
+    "top_r_lanes": 3,
+    "uses_recording_lane_metadata": true
+  }
+}

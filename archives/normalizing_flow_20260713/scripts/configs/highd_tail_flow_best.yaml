@@ -1,0 +1,112 @@
+# highD EVT-tail event normalizing-flow experiment: best weighted quota
+# conditional RQ-spline MAF, including the full fine-tuning chain.
+
+seed: 42
+device: auto
+
+paths:
+  highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
+  output_dir: "../../../results/highd_tail_flow_best"
+
+split:
+  group_by: recording_ego
+  ratios: [0.70, 0.15, 0.15]
+  seed: 42
+
+model:
+  type: conditional_maf
+  transform_type: rq_spline
+  num_bins: 8
+  tail_bound: 4.0
+  num_layers: 6
+  hidden_features: 160
+  num_blocks: 2
+  dropout_probability: 0.02
+  use_residual_blocks: true
+  use_batch_norm: false
+
+training:
+  defaults:
+    batch_size: 256
+    weight_decay: 0.000005
+    grad_clip: 5.0
+    sample_weighting:
+      enabled: true
+      slot_inverse_frequency_power: 0.35
+      mask_pattern_inverse_frequency_power: 0.10
+      primary_inverse_frequency_power: 0.05
+      targeted_slot_multipliers:
+        same_rear: 1.15
+        left_front: 1.25
+        left_rear: 1.60
+        right_rear: 1.10
+      min_weight: 0.60
+      max_weight: 2.50
+      normalize_train_mean: true
+  stages:
+    - name: density_fit
+      output_dir: "../../../results/highd_tail_flow_best/stages/density_fit"
+      training:
+        max_epochs: 240
+        patience: 35
+        learning_rate: 0.0005
+        lr_patience: 6
+        lr_decay_factor: 0.5
+        min_lr: 0.000005
+    - name: likelihood_refinement
+      output_dir: "../../../results/highd_tail_flow_best/stages/likelihood_refinement"
+      resume_from_stage: density_fit
+      training:
+        max_epochs: 180
+        patience: 60
+        learning_rate: 0.000010
+        lr_patience: 10
+        lr_decay_factor: 0.5
+        min_lr: 0.000001
+    - name: final_refinement
+      output_dir: "../../../results/highd_tail_flow_best"
+      resume_from_stage: likelihood_refinement
+      training:
+        max_epochs: 260
+        patience: 100
+        learning_rate: 0.0000005
+        lr_patience: 24
+        lr_decay_factor: 0.5
+        min_lr: 0.00000025
+
+baselines:
+  enabled: true
+  seed: 42
+  gaussian:
+    ridge: 0.0001
+  gmm:
+    n_components: 8
+    reg_covar: 0.00001
+  copula:
+    ridge: 0.0001
+  realnvp:
+    enabled: true
+    model:
+      num_layers: 4
+      hidden_features: 128
+      num_blocks_per_layer: 2
+      dropout_probability: 0.02
+      batch_norm_within_layers: false
+      batch_norm_between_layers: false
+    training:
+      max_epochs: 35
+      patience: 7
+      batch_size: 256
+      learning_rate: 0.0005
+      weight_decay: 0.0
+      grad_clip: 5.0
+
+evaluation:
+  event_structure_sampling: quota
+  sampling_temperature: 1.0295
+  sampling_max_rounds: 80
+  sampling_oversample_factor: 1
+  sampling_min_draw: 1
+  reject_invalid_samples: true

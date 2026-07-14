@@ -50,7 +50,16 @@ def schema_json_path(output_dir: str | Path) -> Path:
     return Path(output_dir) / "dataset_schema.json"
 
 
-def dataset_schema_is_current(output_dir: str | Path) -> bool:
+def feature_mode_from_config(config: dict[str, Any]) -> str:
+    """Return the explicitly versioned Flow feature mode for this run."""
+    return str(dict(config.get("dataset", {})).get("feature_mode", "legacy_future_action_summary"))
+
+
+def dataset_schema_is_current(
+    output_dir: str | Path,
+    *,
+    feature_mode: str = "legacy_future_action_summary",
+) -> bool:
     schema_path = schema_json_path(output_dir)
     if not schema_path.exists():
         return False
@@ -58,10 +67,11 @@ def dataset_schema_is_current(output_dir: str | Path) -> bool:
         schema = load_json(schema_path)
     except Exception:  # noqa: BLE001 - corrupted schema should trigger rebuild.
         return False
-    feature_schema = build_feature_schema()
+    feature_schema = build_feature_schema(feature_mode)
     expected_transforms = feature_transform_kinds(feature_schema.feature_names)
     return (
         list(schema.get("feature_names", [])) == list(feature_schema.feature_names)
+        and schema.get("feature_mode") == feature_schema.feature_mode
         and list(schema.get("context_names", [])) == list(expected_context_names())
         and list(schema.get("model_feature_transforms", [])) == list(expected_transforms)
     )
@@ -270,7 +280,7 @@ def build_tail_flow_dataset(
     tail_contexts = pd.read_csv(tail_context_path)
     if tail_contexts.empty:
         raise RuntimeError(f"Tail context CSV is empty: {tail_context_path}")
-    schema = build_feature_schema()
+    schema = build_feature_schema(feature_mode_from_config(config))
     features: list[np.ndarray] = []
     valids: list[np.ndarray] = []
     slot_masks: list[np.ndarray] = []
@@ -353,6 +363,9 @@ def build_tail_flow_dataset(
         "raw_dir": str(raw_dir),
         "num_samples": int(raw_features.shape[0]),
         "feature_names": list(schema.feature_names),
+        "feature_mode": schema.feature_mode,
+        "initial_observation_only": not bool(schema.trajectory_features),
+        "future_action_summaries_included": bool(schema.trajectory_features),
         "ego_features": list(schema.ego_features),
         "slot_features": list(schema.slot_features),
         "trajectory_features": list(schema.trajectory_features),

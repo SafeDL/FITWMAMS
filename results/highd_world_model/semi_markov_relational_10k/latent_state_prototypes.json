@@ -1,0 +1,55 @@
+{
+  "cross_dataset_correspondence": {
+    "highD": "present",
+    "rounD": "requires a prepared rounD sequence cache"
+  },
+  "duration_distribution_note": "hazard posterior summaries require held-out evaluation; right-censoring is included in training.",
+  "effective_states": 12,
+  "label_permutation_warning": "Latent state numbers are not comparable across independently trained checkpoints.",
+  "lane_assignment_change": "computed by adapter at evaluation time",
+  "mean_agent_acceleration_mps2_by_state": [
+    0.07504501440338186,
+    0.17658559979820537,
+    0.1411653629206984,
+    0.1480770991329472,
+    0.1821687435699293,
+    0.20422321593330223,
+    0.10249251699021773,
+    0.20383031369627563,
+    0.08518924582082309,
+    0.09262108308592551,
+    0.11605523406062265,
+    0.0904518366126033
+  ],
+  "mean_agent_speed_mps_by_state": [
+    10.238856759804916,
+    19.375133750915996,
+    17.934185253049822,
+    19.270394987318983,
+    16.932907650078747,
+    20.517472994352694,
+    11.503747687467238,
+    15.314161845617294,
+    9.25453623909035,
+    11.517639112115505,
+    12.150045092047108,
+    10.958087154709615
+  ],
+  "mean_duration_response_steps": 8.547579812517503,
+  "primary_interaction_change": "computed by adapter at evaluation time",
+  "relation_edge_change": "computed by adapter at evaluation time",
+  "state_usage_frequency": [
+    0.04722357434329812,
+    0.09329038291830363,
+    0.017727335324091115,
+    0.029824588844334535,
+    0.06781216842865634,
+    0.07758175712709049,
+    0.12980045405451549,
+    0.13411171657725945,
+    0.07400209870180746,
+    0.11868840807249179,
+    0.13778830381100826,
+    0.07214921179714333
+  ]
+}

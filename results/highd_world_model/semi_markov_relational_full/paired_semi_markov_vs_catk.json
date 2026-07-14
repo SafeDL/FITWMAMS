@@ -1,0 +1,48 @@
+{
+  "all_primary_error_gates_pass": true,
+  "baseline": {
+    "ADE_m": 0.03334223494043915,
+    "FDE_m": 0.04764364191643147,
+    "gap_mae_m": 0.028928175980171555
+  },
+  "baseline_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
+  "baseline_checkpoint_sha256": "2971403ea2d05c39ad2abbd586c79ddb0125c905dfebf14507e26b38aa16b109",
+  "candidate": {
+    "ADE_m": 0.03194077150269231,
+    "FDE_m": 0.04378168046854453,
+    "gap_mae_m": 0.027458244825298805
+  },
+  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_10k_finetune/checkpoints/best_semi_markov_relational.pt",
+  "candidate_checkpoint_sha256": "7822ef7cbdadfcf9b4f86a2783d9c99b73273163f96f97884b374f589cb161ac",
+  "num_paired_sequences": 24216,
+  "paired_bootstrap": {
+    "ADE_m": {
+      "candidate_minus_baseline": -0.001401463437746841,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.0013664379534161783
+    },
+    "FDE_m": {
+      "candidate_minus_baseline": -0.003861961447886933,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.003728539941019405
+    },
+    "gap_mae_m": {
+      "candidate_minus_baseline": -0.0014699311548727523,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.0014359819987290765
+    }
+  },
+  "protocol": {
+    "baseline_uses_future_flow_action_summary": true,
+    "bootstrap_repetitions": 2000,
+    "criterion": "candidate_minus_baseline point estimate <= 0 and one-sided 95% bootstrap upper <= 0",
+    "horizon_seconds": 1.0,
+    "promotion_information_symmetric": false,
+    "same_sequence": true,
+    "split": "test"
+  },
+  "target_coordinate_parity_max_abs_error": 0.0
+}

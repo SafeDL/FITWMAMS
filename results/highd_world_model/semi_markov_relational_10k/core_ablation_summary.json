@@ -1,0 +1,95 @@
+{
+  "protocol": {
+    "all_variants_present": true,
+    "cache_identity": {
+      "bounded_development_cache": true,
+      "cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
+      "num_sequences": 10000,
+      "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll",
+      "split_summary": {
+        "test": 1491,
+        "train": 7026,
+        "val": 1483
+      }
+    },
+    "interpretation": "Development ablations are mechanism evidence only; they do not replace the full held-out highD evaluation.",
+    "missing_variants": [],
+    "required_variants": {
+      "b0": "B0: single-mode dynamic graph",
+      "b1": "B1: joint latent state, stepwise refresh",
+      "b2": "B2: learned duration, no immediate response",
+      "full": "Full: duration plus intent-response decomposition"
+    },
+    "same_sequence_cache_and_split": true
+  },
+  "variants": {
+    "b0": {
+      "checkpoint_sha256": "f196008a1eaef875d469c624d945b441640dd05dd3994cfbf1635e01f5408dbc",
+      "duration_calibration": {
+        "available": true,
+        "brier_score": 0.9490833892242343,
+        "empirical_boundary_rate": 0.0509166107757657,
+        "expected_calibration_error": 0.9490833892242343,
+        "mean_predicted_boundary_probability": 1.0
+      },
+      "label": "B0: single-mode dynamic graph",
+      "test_ADE_1s_m": 0.030622926984598977,
+      "test_ADE_5s_m": 0.4116240513837039,
+      "test_FDE_1s_m": 0.04073958958351585,
+      "test_FDE_5s_m": 1.4325684446948987,
+      "test_sequences": 1491,
+      "validation_causal_FDE_m": 1.374328100964156
+    },
+    "b1": {
+      "checkpoint_sha256": "52733de5c801d75fae7179bd7846c2ee0a4b94006e6bfeda630ba7346ab69646",
+      "duration_calibration": {
+        "available": true,
+        "brier_score": 0.9490833892242343,
+        "empirical_boundary_rate": 0.0509166107757657,
+        "expected_calibration_error": 0.9490833892242343,
+        "mean_predicted_boundary_probability": 1.0
+      },
+      "label": "B1: joint latent state, stepwise refresh",
+      "test_ADE_1s_m": 0.030627021197629486,
+      "test_ADE_5s_m": 0.46205017116058833,
+      "test_FDE_1s_m": 0.040816826321038495,
+      "test_FDE_5s_m": 1.662491664485803,
+      "test_sequences": 1491,
+      "validation_causal_FDE_m": 1.6204072784866723
+    },
+    "b2": {
+      "checkpoint_sha256": "b569cb2438edfdf43cd697840b921f4634f36df88362538b6662af81a3dee3d4",
+      "duration_calibration": {
+        "available": true,
+        "brier_score": 0.05840515644922652,
+        "empirical_boundary_rate": 0.0509166107757657,
+        "expected_calibration_error": 0.048173815422099475,
+        "mean_predicted_boundary_probability": 0.09909042619786516
+      },
+      "label": "B2: learned duration, no immediate response",
+      "test_ADE_1s_m": 0.030532684185468267,
+      "test_ADE_5s_m": 0.4691166222917584,
+      "test_FDE_1s_m": 0.04055016029189241,
+      "test_FDE_5s_m": 1.692880923339927,
+      "test_sequences": 1491,
+      "validation_causal_FDE_m": 1.6422585138278303
+    },
+    "full": {
+      "checkpoint_sha256": "101eaac5122fd2e5a2445a3a37b8eff208b1aa55bfee386ab92bd2cafb7b24b9",
+      "duration_calibration": {
+        "available": true,
+        "brier_score": 0.05172223602991382,
+        "empirical_boundary_rate": 0.0509166107757657,
+        "expected_calibration_error": 0.027976420733987845,
+        "mean_predicted_boundary_probability": 0.07889303150975356
+      },
+      "label": "Full: duration plus intent-response decomposition",
+      "test_ADE_1s_m": 0.0306142138910083,
+      "test_ADE_5s_m": 0.4575750049307155,
+      "test_FDE_1s_m": 0.04080117730455695,
+      "test_FDE_5s_m": 1.6432926273819684,
+      "test_sequences": 1491,
+      "validation_causal_FDE_m": 1.5984431936619496
+    }
+  }
+}

@@ -1,12 +1,81 @@
-# highD 背景交通世界模型
+# 背景交通世界模型
 
-`world_model/` 只保留一个活动实现：
+仓库保留两个彼此隔离的实现：
 
 ```text
-catk_topk
+catk_topk                 # 冻结比较基线
+semi_markov_relational    # 新的 Semi-Markov Relational Traffic World Model
 ```
 
-它是面向 ADS 规划控制测试的 CAT-K 背景交通行为模型。归一化流生成长尾初始场景；世界模型只生成背景车行为；ego 是外部状态输入，不预测 ego 动作，也不读取 ADS 身份、未来 ego 轨迹或风险标签。
+新实现采用可变参与者的动态关系交通图、场景级离散半马尔可夫潜在交互状态、离散 hazard 持续时间（含窗口末端右删失损失），以及“持续意图 + 即时响应”控制分解。它不读取 ADS 身份、ego future、EVT 标签、风险标签或 `risk_trace`。`catk_topk` 的以下说明仅适用于冻结基线，不能用于解释新模型。
+
+## 新模型入口
+
+使用具有 PyTorch 的项目环境执行：
+
+```bash
+python world_model/scripts/prepare_highd_semi_markov_relational_dataset.py
+python world_model/scripts/train_highd_semi_markov_relational.py
+python world_model/scripts/evaluate_highd_semi_markov_relational.py
+```
+
+配置位于 `world_model/scripts/configs/highd_semi_markov_relational.yaml`。准备阶段从冻结的 highD 行缓存迁移出每个自然驾驶片段一条 150 帧（1 秒历史 + 5 秒未来）的序列缓存，随后训练和评测不再把 1 秒 chunk 当作潜在状态边界。
+
+核心闭环接口为：
+
+```python
+environment.reset(initial_graph, world_randomness)
+result = environment.step(ego_state, ego_valid=True, dt=0.2)
+one_second = environment.roll(ego_history_states, ego_history_valid)
+```
+
+`roll()` 是兼容包装器，会执行五个 0.2 秒响应更新；它不接收 ego future。环境记录每次状态转移使用的外生状态/持续时间随机数、状态、持续时间及转移时刻，以支持 ADS 无关重放。`snapshot()`/`restore()` 还保存图、历史、latent/duration 与 RNG 状态，可用于 AMS 分支复制后确定性继续。
+
+### 完整 highD 复现实验状态
+
+最终已验证模型位于：
+
+```text
+results/highd_world_model/semi_markov_relational_full_tbptt_finetune/
+checkpoint SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253
+```
+
+它使用 161,314 个六秒自然驾驶片段训练，并在独立的 24,216 个 highD test
+片段上取得因果先验 5 s ADE/FDE = `0.37960 / 1.28388 m`；同一测试集的一秒
+配对 bootstrap 相对冻结 CAT-K 的 ADE、FDE、gap MAE 都更低。但完整五秒同序列
+配对显示它尚未降低 CAT-K 的误差累积或关系分布漂移，因此它不是正式替代
+checkpoint。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
+[world_model_goal_semi_markov_status.md](../doc/world_model_goal_semi_markov_status.md)。
+
+完整缓存和最终微调的命令为：
+
+```bash
+python world_model/scripts/prepare_highd_semi_markov_relational_dataset.py \
+  --config world_model/scripts/configs/highd_semi_markov_relational_full.yaml
+python world_model/scripts/train_highd_semi_markov_relational.py \
+  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml \
+  --initial-checkpoint results/highd_world_model/semi_markov_relational_full_finetune/checkpoints/best_semi_markov_relational.pt
+python world_model/scripts/evaluate_highd_semi_markov_relational.py \
+  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml
+python world_model/scripts/audit_semi_markov_prototypes.py \
+  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml
+```
+
+`highd_semi_markov_relational_full_tbptt_finetune.yaml` 将序列缓存定位到只读的完整
+highD cache，同时将试验输出隔离到自己的目录；训练随机展开 1--5 秒并每五个
+response steps 截断反向传播。rounD 实验入口为
+`prepare_round_semi_markov_relational_dataset.py`、
+`train_round_semi_markov_relational.py` 与
+`evaluate_round_semi_markov_relational.py`；联合缓存/训练入口为
+`prepare_joint_semi_markov_relational_dataset.py` 和
+`train_joint_semi_markov_relational.py`。地图参数接受 JSON/NPZ vector-map
+sidecar，或官方 rounD Lanelet2 `.osm`；后者会直接恢复中心线、拓扑和冲突区。
+真实 rounD 轨迹与地图尚不在工作区，
+因此严格的跨数据集晋级状态仍为 `not_promoted`。
+
+---
+
+## 冻结 CAT-K 基线
 
 ## 测试空间
 
@@ -73,7 +142,7 @@ python world_model/scripts/train_highd_world_model.py
 python world_model/scripts/evaluate_highd_world_model.py
 ```
 
-当前任务不应在未明确下令时启动训练或全量评测。
+这条限制仅适用于冻结 CAT-K 基线；新半马尔可夫实现使用上文独立入口和输出目录。
 
 ## 环境接口
 

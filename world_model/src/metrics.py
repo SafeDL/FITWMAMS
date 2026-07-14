@@ -132,6 +132,7 @@ def physical_diagnostics(
     ego_future_states: np.ndarray | None = None,
     actions: np.ndarray | None = None,
     dt: float = 0.04,
+    slot_names: tuple[str, ...] | None = SLOT_NAMES,
 ) -> dict[str, Any]:
     states = np.asarray(predicted_states, dtype=np.float32)
     valid = np.asarray(predicted_valid, dtype=bool)
@@ -153,21 +154,30 @@ def physical_diagnostics(
     semantic_bad = np.zeros_like(valid)
     gap_bad = np.zeros_like(valid)
     overlap_bad = np.zeros_like(valid)
-    for slot_idx, slot_name in enumerate(SLOT_NAMES):
+    for slot_idx in range(states.shape[2]):
         rel_x = states[:, :, slot_idx, 0] - ego[:, :, 0]
         rel_y = states[:, :, slot_idx, 1] - ego[:, :, 1]
-        if "front" in slot_name:
-            semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_x <= 0.0)
-        if "rear" in slot_name:
-            semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_x >= 0.0)
-        if slot_name.startswith("left"):
-            semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_y <= 0.0)
-        if slot_name.startswith("right"):
-            semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_y >= 0.0)
+        # Slot-direction semantics exist only for the frozen legacy model.
+        # A dynamic graph's participant order is deliberately arbitrary, so
+        # applying ``same_front``/``left_rear`` labels there would manufacture
+        # a semantic error rather than diagnose one.
+        if slot_names is not None and slot_idx < len(slot_names):
+            slot_name = slot_names[slot_idx]
+            if "front" in slot_name:
+                semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_x <= 0.0)
+            if "rear" in slot_name:
+                semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_x >= 0.0)
+            if slot_name.startswith("left"):
+                semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_y <= 0.0)
+            if slot_name.startswith("right"):
+                semantic_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (rel_y >= 0.0)
         longitudinal_gap = np.abs(rel_x) - 0.5 * (DEFAULT_EGO_LENGTH_M + DEFAULT_OTHER_LENGTH_M)
-        gap_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & (longitudinal_gap <= 0.0)
         lateral_overlap = np.abs(rel_y) < 0.5 * (DEFAULT_EGO_WIDTH_M + DEFAULT_OTHER_WIDTH_M)
         longitudinal_overlap = np.abs(rel_x) < 0.5 * (DEFAULT_EGO_LENGTH_M + DEFAULT_OTHER_LENGTH_M)
+        # A longitudinal projection overlap in an adjacent lane is not a
+        # negative physical gap.  Require lateral body overlap for this
+        # dataset-neutral collision/clearance diagnostic.
+        gap_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & lateral_overlap & (longitudinal_gap <= 0.0)
         overlap_bad[:, :, slot_idx] |= valid[:, :, slot_idx] & lateral_overlap & longitudinal_overlap
 
     denom = max(int(np.sum(valid)), 1)
@@ -178,6 +188,7 @@ def physical_diagnostics(
         "speed_out_of_range_rate": float(np.sum(speed_bad) / denom),
         "acceleration_out_of_range_rate": float(np.sum(accel_bad) / denom),
         "jerk_out_of_range_rate": float(np.sum(jerk_bad) / denom),
+        "semantic_diagnostic_available": bool(slot_names is not None),
         "semantic_error_rate": float(np.sum(semantic_bad) / denom),
         "negative_gap_rate": float(np.sum(gap_bad) / denom),
         "overlap_rate": float(np.sum(overlap_bad) / denom),

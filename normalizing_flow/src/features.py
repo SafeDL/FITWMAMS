@@ -52,19 +52,50 @@ class C0FeatureSchema:
     slot_features: tuple[str, ...] = SLOT_FEATURES
     trajectory_features: tuple[str, ...] = TRAJECTORY_FEATURES
     slot_names: tuple[str, ...] = SLOT_NAMES
+    feature_mode: str = "legacy_future_action_summary"
 
     @property
     def num_features(self) -> int:
         return len(self.feature_names)
 
 
-def build_feature_schema() -> C0FeatureSchema:
+def build_feature_schema(
+    feature_mode: str = "legacy_future_action_summary",
+) -> C0FeatureSchema:
+    """Build a Flow feature schema without silently changing legacy artifacts.
+
+    ``clean_start`` intentionally contains only quantities observable at the
+    initial frame.  In particular it has no one-second action summaries; the
+    Semi-Markov world model, rather than the Flow, is responsible for all
+    subsequent background-traffic behaviour.
+    """
+    mode = str(feature_mode).strip().lower()
+    aliases = {
+        "legacy": "legacy_future_action_summary",
+        "legacy_future_action_summary": "legacy_future_action_summary",
+        "future_action_summary": "legacy_future_action_summary",
+        "clean": "clean_start",
+        "clean_start": "clean_start",
+    }
+    if mode not in aliases:
+        raise ValueError(
+            "Unsupported Flow feature_mode="
+            f"{feature_mode!r}; expected 'legacy_future_action_summary' or 'clean_start'"
+        )
+    mode = aliases[mode]
+    trajectory_features = (
+        TRAJECTORY_FEATURES if mode == "legacy_future_action_summary" else ()
+    )
     names: list[str] = [*EGO_FEATURES]
     for slot_name in SLOT_NAMES:
         names.extend(f"{slot_name}_{feature}" for feature in SLOT_FEATURES)
     for slot_name in SLOT_NAMES:
-        names.extend(f"{slot_name}_{feature}" for feature in TRAJECTORY_FEATURES)
-    return C0FeatureSchema(feature_names=tuple(names))
+        names.extend(f"{slot_name}_{feature}" for feature in trajectory_features)
+    return C0FeatureSchema(
+        feature_names=tuple(names),
+        trajectory_features=tuple(trajectory_features),
+        feature_mode=mode,
+    )
 
 
 def mask_pattern_from_slot_mask(slot_mask: np.ndarray) -> np.ndarray:
@@ -306,24 +337,28 @@ def extract_c0_features_for_segment(
     )
     if primary_slot_name not in slot_rows:
         raise ValueError(f"primary slot {primary_slot_name!r} has no valid anchor row")
-    fps = float(recording.recording_meta.get("frameRate", 25.0))
-    horizon_steps = int(round(fps))
-    trajectory_offset = len(EGO_FEATURES) + len(SLOT_NAMES) * len(SLOT_FEATURES)
-    for slot_idx, slot_name in enumerate(SLOT_NAMES):
-        if not bool(slot_mask[slot_idx]):
-            continue
-        action_values = _extract_slot_action_features(
-            target_track=slot_tracks[slot_name],
-            target_anchor=slot_rows[slot_name],
-            anchor_frame=anchor_frame,
-            horizon_steps=horizon_steps,
-            lat_sign=lat_sign,
-        )
-        slot_action_start = trajectory_offset + slot_idx * len(TRAJECTORY_FEATURES)
-        for local_idx, name in enumerate(TRAJECTORY_FEATURES):
-            value = float(action_values[name])
-            feature[slot_action_start + local_idx] = value if np.isfinite(value) else 0.0
-            feature_valid[slot_action_start + local_idx] = np.isfinite(value)
+    # The clean START schema must not even inspect frames after ``anchor_frame``.
+    # This prevents a future trajectory summary from being reintroduced through
+    # a seemingly harmless data-preparation path.
+    if schema.trajectory_features:
+        fps = float(recording.recording_meta.get("frameRate", 25.0))
+        horizon_steps = int(round(fps))
+        trajectory_offset = len(EGO_FEATURES) + len(SLOT_NAMES) * len(SLOT_FEATURES)
+        for slot_idx, slot_name in enumerate(SLOT_NAMES):
+            if not bool(slot_mask[slot_idx]):
+                continue
+            action_values = _extract_slot_action_features(
+                target_track=slot_tracks[slot_name],
+                target_anchor=slot_rows[slot_name],
+                anchor_frame=anchor_frame,
+                horizon_steps=horizon_steps,
+                lat_sign=lat_sign,
+            )
+            slot_action_start = trajectory_offset + slot_idx * len(schema.trajectory_features)
+            for local_idx, name in enumerate(schema.trajectory_features):
+                value = float(action_values[name])
+                feature[slot_action_start + local_idx] = value if np.isfinite(value) else 0.0
+                feature_valid[slot_action_start + local_idx] = np.isfinite(value)
 
     metadata = {
         "segment_id": str(segment_row["segment_id"]),
