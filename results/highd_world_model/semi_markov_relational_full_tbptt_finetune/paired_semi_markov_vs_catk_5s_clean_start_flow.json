@@ -1,0 +1,79 @@
+{
+  "all_primary_error_gates_pass": true,
+  "baseline": {
+    "ADE_m": 1.0611988446940912,
+    "FDE_m": 3.2038350340133595,
+    "gap_mae_m": 0.9279016736354159
+  },
+  "baseline_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
+  "baseline_checkpoint_sha256": "2971403ea2d05c39ad2abbd586c79ddb0125c905dfebf14507e26b38aa16b109",
+  "candidate": {
+    "ADE_m": 0.3783494980918503,
+    "FDE_m": 1.2627002035607424,
+    "gap_mae_m": 0.3277964352008947
+  },
+  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt",
+  "candidate_checkpoint_sha256": "7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253",
+  "num_paired_sequences": 24216,
+  "paired_bootstrap": {
+    "ADE_m": {
+      "candidate_minus_baseline": -0.682849346602241,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.6768048767608039
+    },
+    "FDE_m": {
+      "candidate_minus_baseline": -1.9411348304526166,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -1.9221330522017916
+    },
+    "gap_mae_m": {
+      "candidate_minus_baseline": -0.6001052384345211,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.5941039218597278
+    }
+  },
+  "protocol": {
+    "baseline_uses_future_flow_action_summary": false,
+    "bootstrap_repetitions": 2000,
+    "catk_chunks": 5,
+    "criterion": "candidate_minus_baseline point estimate <= 0 and one-sided 95% bootstrap upper <= 0",
+    "horizon_seconds": 5.0,
+    "promotion_information_symmetric": true,
+    "same_sequence": true,
+    "split": "test",
+    "start_flow_action_summary_zeroed_for_diagnostic": true
+  },
+  "relationship_distribution": {
+    "baseline": {
+      "predicted": {
+        "adjacent_lane": 0.5970425444455785,
+        "same_lane": 0.20977531886821832,
+        "unrelated": 0.19318213668620318
+      },
+      "target": {
+        "adjacent_lane": 0.606510170564438,
+        "same_lane": 0.21265234579835987,
+        "unrelated": 0.1808374836372021
+      },
+      "total_variation": 0.012344653049001092
+    },
+    "candidate": {
+      "predicted": {
+        "adjacent_lane": 0.6090481371284624,
+        "same_lane": 0.21059040850503616,
+        "unrelated": 0.18036145436650144
+      },
+      "target": {
+        "adjacent_lane": 0.606510170564438,
+        "same_lane": 0.21265234579835987,
+        "unrelated": 0.1808374836372021
+      },
+      "total_variation": 0.0025379665640243715
+    },
+    "candidate_minus_baseline_total_variation": -0.00980668648497672
+  },
+  "target_coordinate_parity_max_abs_error": 0.0
+}

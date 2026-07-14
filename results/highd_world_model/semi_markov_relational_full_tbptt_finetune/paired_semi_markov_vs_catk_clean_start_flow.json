@@ -1,0 +1,51 @@
+{
+  "all_primary_error_gates_pass": true,
+  "baseline": {
+    "ADE_m": 0.04936654511223715,
+    "FDE_m": 0.1087315754748029,
+    "gap_mae_m": 0.043931461199899914
+  },
+  "baseline_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
+  "baseline_checkpoint_sha256": "2971403ea2d05c39ad2abbd586c79ddb0125c905dfebf14507e26b38aa16b109",
+  "candidate": {
+    "ADE_m": 0.031847779416002066,
+    "FDE_m": 0.04330716279625559,
+    "gap_mae_m": 0.027394386106630787
+  },
+  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt",
+  "candidate_checkpoint_sha256": "7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253",
+  "num_paired_sequences": 24216,
+  "paired_bootstrap": {
+    "ADE_m": {
+      "candidate_minus_baseline": -0.017518765696235086,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.01732079136462643
+    },
+    "FDE_m": {
+      "candidate_minus_baseline": -0.0654244126785473,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.0647719715031025
+    },
+    "gap_mae_m": {
+      "candidate_minus_baseline": -0.01653707509326912,
+      "num_pairs": 24216,
+      "passes": true,
+      "upper_95": -0.016337539055349497
+    }
+  },
+  "protocol": {
+    "baseline_uses_future_flow_action_summary": false,
+    "bootstrap_repetitions": 2000,
+    "catk_chunks": 1,
+    "criterion": "candidate_minus_baseline point estimate <= 0 and one-sided 95% bootstrap upper <= 0",
+    "horizon_seconds": 1.0,
+    "promotion_information_symmetric": true,
+    "same_sequence": true,
+    "split": "test",
+    "start_flow_action_summary_zeroed_for_diagnostic": true
+  },
+  "relationship_distribution": {},
+  "target_coordinate_parity_max_abs_error": 0.0
+}

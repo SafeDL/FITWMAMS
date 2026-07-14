@@ -136,6 +136,31 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         output = model.forward_training(self._batch(), teacher_forcing_ratio=0.0, rollout_response_steps=5)
         self.assertTrue(torch.isfinite(output["loss"]))
 
+    def test_history_displacement_feature_is_translation_invariant_and_finite(self):
+        import torch
+        from world_model.src.relational_encoder import RelationalTrafficEncoder
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
+            hidden_dim=24, num_latent_states=4, include_history_displacement=True,
+        ))
+        self.assertEqual(model.encoder.state_mlp[0].in_features, 12)
+        batch = self._batch()
+        shifted = {name: value.clone() for name, value in batch.items()}
+        shifted["agent_states"][..., :2] += torch.tensor([37.0, -11.0])
+        with torch.no_grad():
+            reference = batch["agent_states"][:, :25, :, :2] - batch["agent_states"][:, 24:25, :, :2]
+            shifted_reference = shifted["agent_states"][:, :25, :, :2] - shifted["agent_states"][:, 24:25, :, :2]
+            base = RelationalTrafficEncoder._featureize(
+                batch["agent_states"][:, :25], batch["agent_valid"][:, :25], model._ego_mask(batch)[:, None],
+                include_ego_relative_position=False, relative_history_positions=reference,
+            )
+            shifted_features = RelationalTrafficEncoder._featureize(
+                shifted["agent_states"][:, :25], shifted["agent_valid"][:, :25], model._ego_mask(shifted)[:, None],
+                include_ego_relative_position=False, relative_history_positions=shifted_reference,
+            )
+        torch.testing.assert_close(base[..., -2:], shifted_features[..., -2:], atol=1.0e-6, rtol=0.0)
+        output = model.forward_training(batch, teacher_forcing_ratio=0.0, rollout_response_steps=5)
+        self.assertTrue(torch.isfinite(output["loss"]))
+
     def test_counterfactual_response_probe_replaces_only_future_ego(self):
         import torch
         batch = self._batch()

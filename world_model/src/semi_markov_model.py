@@ -45,6 +45,7 @@ class SemiMarkovWorldModelConfig:
     tail_acceleration_weight: float = 1.0
     use_conflict_zones: bool = False
     include_ego_relative_position: bool = False
+    include_history_displacement: bool = False
     learn_duration: bool = True
     use_intent_response: bool = True
 
@@ -65,6 +66,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             hidden_dim=cfg.hidden_dim, temporal_layers=cfg.temporal_layers, dropout=cfg.dropout,
             use_conflict_zones=cfg.use_conflict_zones,
             include_ego_relative_position=cfg.include_ego_relative_position,
+            include_history_displacement=cfg.include_history_displacement,
         ))
         self.latent = SemiMarkovLatentState(SemiMarkovConfig(
             num_states=cfg.num_latent_states, hidden_dim=cfg.hidden_dim,

@@ -16,6 +16,7 @@ class RelationalEncoderConfig:
     lane_width_m: float = 3.6
     use_conflict_zones: bool = False
     include_ego_relative_position: bool = False
+    include_history_displacement: bool = False
 
 
 class RelationalTrafficEncoder(nn.Module):
@@ -35,7 +36,7 @@ class RelationalTrafficEncoder(nn.Module):
         # optional ego-relative pair feature lets the temporal encoder retain
         # its evolution across the history too, without introducing a global
         # recording coordinate or a participant-slot identity.
-        state_dim = 12 if cfg.include_ego_relative_position else 10
+        state_dim = 10 + 2 * int(cfg.include_ego_relative_position) + 2 * int(cfg.include_history_displacement)
         self.state_mlp = nn.Sequential(nn.Linear(state_dim, h), nn.SiLU(), nn.Linear(h, h))
         self.temporal = nn.GRU(h, h, num_layers=max(1, int(cfg.temporal_layers)), batch_first=True)
         self.map_mlp = nn.Sequential(nn.Linear(6, h), nn.SiLU(), nn.Linear(h, h))
@@ -63,6 +64,7 @@ class RelationalTrafficEncoder(nn.Module):
         ego_mask: torch.Tensor,
         *,
         include_ego_relative_position: bool,
+        relative_history_positions: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Create local agent features from `[x,y,vx,vy,ax,ay]`."""
         vx, vy, ax, ay = (states[..., index] for index in (2, 3, 4, 5))
@@ -82,6 +84,13 @@ class RelationalTrafficEncoder(nn.Module):
             ego_position = (states[..., :2] * ego_mask.float().unsqueeze(-1)).sum(dim=-2, keepdim=True)
             relative = states[..., :2] - ego_position
             features.extend((relative[..., 0], relative[..., 1]))
+        if relative_history_positions is not None:
+            # This is the agent's already-observed trajectory relative to its
+            # current position, not a recording coordinate or a future
+            # displacement.  It makes the beginning of a lane change visible
+            # to the temporal encoder even when velocity/acceleration samples
+            # are noisy, while remaining invariant to global translation.
+            features.extend((relative_history_positions[..., 0], relative_history_positions[..., 1]))
         return torch.stack(features, dim=-1) * valid_f.unsqueeze(-1)
 
     @staticmethod
@@ -210,16 +219,22 @@ class RelationalTrafficEncoder(nn.Module):
         always controlled through the validity masks.
         """
         b, hist, n, _ = history_states.shape
+        history_displacement = None
+        if self.cfg.include_history_displacement:
+            history_displacement = history_states[..., :2] - history_states[:, -1:, :, :2]
         history_features = self._featureize(
             history_states, history_valid, ego_mask[:, None, :],
             include_ego_relative_position=self.cfg.include_ego_relative_position,
+            relative_history_positions=history_displacement,
         )
         temporal_in = self.state_mlp(history_features).permute(0, 2, 1, 3).reshape(b * n, hist, -1)
         temporal_out, _ = self.temporal(temporal_in)
         temporal = temporal_out[:, -1].reshape(b, n, -1)
+        current_displacement = torch.zeros_like(current_states[..., :2]) if self.cfg.include_history_displacement else None
         current = self.state_mlp(self._featureize(
             current_states, current_valid, ego_mask,
             include_ego_relative_position=self.cfg.include_ego_relative_position,
+            relative_history_positions=current_displacement,
         ))
 
         map_valid_f = map_polyline_valid.float().unsqueeze(-1)

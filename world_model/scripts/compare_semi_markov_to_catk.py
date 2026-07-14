@@ -154,6 +154,7 @@ def _catk_multichunk_rollout(
     chunks: int,
     device,
     seed: int,
+    zero_start_flow_summary: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Replay CAT-K START/ROLL while retaining the initial-sequence frame.
 
@@ -170,6 +171,13 @@ def _catk_multichunk_rollout(
     batch_size = len(sequences)
     current_indices = sequences[:, 0]
     batch = numpy_batch_to_torch(source_arrays, current_indices, device)
+    if zero_start_flow_summary:
+        # The legacy START cache stores a future-trajectory action summary.
+        # Retain the frozen CAT-K weights and every other START/ROLL input,
+        # but remove precisely that non-causal feature for an auditable
+        # information-symmetric diagnostic.  This is not the formal frozen
+        # baseline and therefore writes to a distinct artifact below.
+        batch["flow_action_summary"] = torch.zeros_like(batch["flow_action_summary"])
     current_raw = np.asarray(source_arrays["current_states"][current_indices], np.float32)
     current_valid = np.asarray(source_arrays["current_valid"][current_indices], bool)
     origins = np.zeros((batch_size, 2), dtype=np.float32)
@@ -251,6 +259,7 @@ def main() -> None:
     parser.add_argument("--max-sequences", type=int, default=0, help="Bounded smoke-run only; 0 uses all held-out sequences.")
     parser.add_argument("--bootstrap-repetitions", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--zero-start-flow-summary", action="store_true", help="Diagnostic only: zero CAT-K's legacy future-action START feature.")
     args = parser.parse_args()
 
     semi_path, catk_path = Path(args.semi_config).resolve(), Path(args.catk_config).resolve()
@@ -299,6 +308,7 @@ def main() -> None:
             ego = np.asarray(semi_arrays["agent_states"][seq_idx, 25 : 25 + frames, 0], np.float32)
             catk_pred, source_target = _catk_multichunk_rollout(
                 catk, source_arrays, source_schema, old_indices, chunks=chunks, device=device, seed=int(args.seed) + start,
+                zero_start_flow_summary=bool(args.zero_start_flow_summary),
             )
             source_valid = np.concatenate(
                 [np.asarray(source_arrays["target_valid"][old_indices[:, chunk]], bool) for chunk in range(chunks)], axis=1,
@@ -339,8 +349,9 @@ def main() -> None:
             "catk_chunks": int(chunks),
             "bootstrap_repetitions": int(args.bootstrap_repetitions),
             "criterion": "candidate_minus_baseline point estimate <= 0 and one-sided 95% bootstrap upper <= 0",
-            "baseline_uses_future_flow_action_summary": bool(catk_cfg.get("model", {}).get("use_start_flow_summary", False)),
-            "promotion_information_symmetric": False,
+            "baseline_uses_future_flow_action_summary": bool(catk_cfg.get("model", {}).get("use_start_flow_summary", False)) and not bool(args.zero_start_flow_summary),
+            "start_flow_action_summary_zeroed_for_diagnostic": bool(args.zero_start_flow_summary),
+            "promotion_information_symmetric": bool(args.zero_start_flow_summary),
         },
         "candidate_checkpoint": str(semi_checkpoint),
         "candidate_checkpoint_sha256": _sha256(semi_checkpoint),
@@ -354,7 +365,11 @@ def main() -> None:
         "all_primary_error_gates_pass": bool(all(item["passes"] for item in comparisons.values())),
         "relationship_distribution": relationship_report,
     }
-    path = output_dir / ("paired_semi_markov_vs_catk.json" if chunks == 1 else f"paired_semi_markov_vs_catk_{int(args.horizon_seconds)}s.json")
+    suffix = "_clean_start_flow" if bool(args.zero_start_flow_summary) else ""
+    path = output_dir / (
+        f"paired_semi_markov_vs_catk{suffix}.json"
+        if chunks == 1 else f"paired_semi_markov_vs_catk_{int(args.horizon_seconds)}s{suffix}.json"
+    )
     save_json(report, path)
     print(path)
 

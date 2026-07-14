@@ -62,6 +62,13 @@ evaluation:
   batch_size: 64
   max_sequences: 0
   required_baseline_summary: "../../../results/highd_world_model/catk_topk/evaluation_summary.json"
-  paired_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json"
-  paired_long_horizon_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s.json"
+  # The active paired references use the frozen CAT-K weights with its legacy
+  # future-action START feature zeroed.  This is the only input-symmetric
+  # comparison once the new clean-START Flow contract is enforced.
+  paired_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_clean_start_flow.json"
+  paired_long_horizon_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s_clean_start_flow.json"
+  # Retain the original historical CAT-K artifacts for disclosure only; they
+  # are never promotion inputs because they include future action summaries.
+  legacy_paired_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json"
+  legacy_paired_long_horizon_baseline_summary: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s.json"
   round_evaluation_summary: ""

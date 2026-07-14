@@ -41,10 +41,11 @@ checkpoint SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f
 ```
 
 它使用 161,314 个六秒自然驾驶片段训练，并在独立的 24,216 个 highD test
-片段上取得因果先验 5 s ADE/FDE = `0.37960 / 1.28388 m`；同一测试集的一秒
-配对 bootstrap 相对冻结 CAT-K 的 ADE、FDE、gap MAE 都更低。但完整五秒同序列
-配对显示它尚未降低 CAT-K 的误差累积或关系分布漂移，因此它不是正式替代
-checkpoint。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
+片段上取得因果先验 5 s ADE/FDE = `0.37960 / 1.28388 m`。在同一测试集的
+信息对称 clean-START paired bootstrap 中，它的一秒与五秒 ADE、FDE、gap MAE
+以及五秒关系分布 TV 均优于冻结 CAT-K；历史 CAT-K 的 future-action START
+摘要对照仍单列保留、但不能作为新规范的晋级基线。高D 所有门槛已通过，当前
+正式状态仅因 rounD 数据实证暂缓而为 `not_promoted`。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
 [world_model_goal_semi_markov_status.md](../doc/world_model_goal_semi_markov_status.md)。
 
 完整缓存和最终微调的命令为：

@@ -245,22 +245,26 @@ def evaluate_semi_markov_world_model(
         paired_path = (config_dir / paired_path).resolve()
     paired_report = load_json(paired_path) if paired_path is not None and paired_path.exists() else {}
     current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+    paired_information_symmetric = bool(paired_report.get("protocol", {}).get("promotion_information_symmetric", False))
     paired_baseline = bool(
         paired_report.get("protocol", {}).get("same_sequence", False)
         and int(paired_report.get("num_paired_sequences", 0)) == int(len(pred))
         and paired_report.get("candidate_checkpoint_sha256") == current_hash
         and paired_report.get("all_primary_error_gates_pass", False)
+        and paired_information_symmetric
     )
     paired_long_value = evaluation.get("paired_long_horizon_baseline_summary")
     paired_long_path = Path(paired_long_value) if paired_long_value else None
     if paired_long_path is not None and not paired_long_path.is_absolute():
         paired_long_path = (config_dir / paired_long_path).resolve()
     paired_long_report = load_json(paired_long_path) if paired_long_path is not None and paired_long_path.exists() else {}
+    paired_long_information_symmetric = bool(paired_long_report.get("protocol", {}).get("promotion_information_symmetric", False))
     paired_long = bool(
         paired_long_report.get("protocol", {}).get("same_sequence", False)
         and float(paired_long_report.get("protocol", {}).get("horizon_seconds", 0.0)) >= 5.0
         and int(paired_long_report.get("num_paired_sequences", 0)) == int(len(pred))
         and paired_long_report.get("candidate_checkpoint_sha256") == current_hash
+        and paired_long_information_symmetric
     )
     long_errors = bool(paired_long_report.get("all_primary_error_gates_pass", False))
     long_relation_delta = paired_long_report.get("relationship_distribution", {}).get("candidate_minus_baseline_total_variation")
@@ -270,6 +274,21 @@ def evaluate_semi_markov_world_model(
     # summary on its own is never enough—the paired artifact must use the
     # evaluated checkpoint and every held-out sequence.
     long_horizon_gate = paired_long and (long_errors or long_relation_improved)
+    # Archived CAT-K reports may use the legacy START action summary computed
+    # from a future trajectory.  Keep those reports visible for historical
+    # reproducibility, but they cannot be promotion references under the
+    # clean-START specification.  The primary paired paths above must instead
+    # explicitly attest information symmetry.
+    legacy_paired_value = evaluation.get("legacy_paired_baseline_summary")
+    legacy_paired_path = Path(legacy_paired_value) if legacy_paired_value else None
+    if legacy_paired_path is not None and not legacy_paired_path.is_absolute():
+        legacy_paired_path = (config_dir / legacy_paired_path).resolve()
+    legacy_paired_report = load_json(legacy_paired_path) if legacy_paired_path is not None and legacy_paired_path.exists() else {}
+    legacy_paired_long_value = evaluation.get("legacy_paired_long_horizon_baseline_summary")
+    legacy_paired_long_path = Path(legacy_paired_long_value) if legacy_paired_long_value else None
+    if legacy_paired_long_path is not None and not legacy_paired_long_path.is_absolute():
+        legacy_paired_long_path = (config_dir / legacy_paired_long_path).resolve()
+    legacy_paired_long_report = load_json(legacy_paired_long_path) if legacy_paired_long_path is not None and legacy_paired_long_path.exists() else {}
     round_summary_value = evaluation.get("round_evaluation_summary")
     round_summary_path = Path(round_summary_value) if round_summary_value else None
     if round_summary_path is not None and not round_summary_path.is_absolute():
@@ -306,7 +325,7 @@ def evaluate_semi_markov_world_model(
     if not complete_highd:
         promotion_reason = "Requires complete held-out highD cache."
     elif not paired_baseline:
-        promotion_reason = "Requires paired full-highD frozen-baseline comparison."
+        promotion_reason = "Requires paired full-highD information-symmetric frozen-baseline comparison."
     elif not long_horizon_gate:
         promotion_reason = "Five-second paired error-accumulation / relationship-drift gate failed."
     elif not round_complete:
@@ -331,9 +350,20 @@ def evaluate_semi_markov_world_model(
             "paired_baseline_summary": str(paired_path) if paired_path is not None else None,
             "horizons": horizon_comparison,
         },
+        "legacy_frozen_baseline_comparison": {
+            "paired_baseline_summary": str(legacy_paired_path) if legacy_paired_path is not None else None,
+            "paired_long_horizon_baseline_summary": str(legacy_paired_long_path) if legacy_paired_long_path is not None else None,
+            "uses_future_flow_action_summary": bool(legacy_paired_report.get("protocol", {}).get("baseline_uses_future_flow_action_summary", False)),
+            "one_second_all_primary_error_gates_pass": bool(legacy_paired_report.get("all_primary_error_gates_pass", False)),
+            "five_second_all_primary_error_gates_pass": bool(legacy_paired_long_report.get("all_primary_error_gates_pass", False)),
+            "five_second_relationship_total_variation_candidate_minus_baseline": legacy_paired_long_report.get("relationship_distribution", {}).get("candidate_minus_baseline_total_variation"),
+            "promotion_eligible": False,
+            "reason": "Historical diagnostic only: legacy CAT-K START uses a future-action summary.",
+        },
         "paired_frozen_baseline_long_horizon": {
             "paired_and_full_test": complete_highd and paired_long,
             "paired_baseline_summary": str(paired_long_path) if paired_long_path is not None else None,
+            "information_symmetric": paired_long_information_symmetric,
             "all_primary_error_gates_pass": long_errors,
             "relationship_total_variation_candidate_minus_baseline": float(long_relation_delta) if long_relation_delta is not None else None,
             "relationship_drift_improved": bool(long_relation_improved),

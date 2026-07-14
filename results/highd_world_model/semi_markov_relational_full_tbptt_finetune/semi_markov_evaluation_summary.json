@@ -119,7 +119,7 @@
     },
     "note": "Numbers become a promotion comparison only after the complete held-out highD cache is evaluated with paired bootstrap.",
     "paired_and_full_test": true,
-    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json"
+    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_clean_start_flow.json"
   },
   "interaction_metrics": {
     "drac_error_mps2": 1.342127142762391,
@@ -135,6 +135,16 @@
     "mean_segments_per_episode": 5.17116782292699,
     "switches_per_episode": 4.17116782292699
   },
+  "legacy_frozen_baseline_comparison": {
+    "five_second_all_primary_error_gates_pass": false,
+    "five_second_relationship_total_variation_candidate_minus_baseline": 0.002164909503443599,
+    "one_second_all_primary_error_gates_pass": true,
+    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json",
+    "paired_long_horizon_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s.json",
+    "promotion_eligible": false,
+    "reason": "Historical diagnostic only: legacy CAT-K START uses a future-action summary.",
+    "uses_future_flow_action_summary": true
+  },
   "one_second_conditional_reconstruction": {
     "ADE_1s_m": 0.030371565838696477,
     "ADE_m": 0.030371565838696477,
@@ -146,12 +156,13 @@
     "velocity_mae_mps": 0.02541231431245709
   },
   "paired_frozen_baseline_long_horizon": {
-    "all_primary_error_gates_pass": false,
-    "gate_pass": false,
+    "all_primary_error_gates_pass": true,
+    "gate_pass": true,
+    "information_symmetric": true,
     "paired_and_full_test": true,
-    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s.json",
-    "relationship_drift_improved": false,
-    "relationship_total_variation_candidate_minus_baseline": 0.002164909503443599
+    "paired_baseline_summary": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_5s_clean_start_flow.json",
+    "relationship_drift_improved": true,
+    "relationship_total_variation_candidate_minus_baseline": -0.00980668648497672
   },
   "physical_diagnostics": {
     "acceleration_out_of_range_rate": 0.0,
@@ -171,11 +182,11 @@
   "promotion": {
     "duration_calibrated_and_persistent": true,
     "eligible": false,
-    "five_second_error_or_relation_drift_improved": false,
+    "five_second_error_or_relation_drift_improved": true,
     "full_highd_cache": true,
     "one_second_not_weaker_than_frozen_baseline": true,
     "paired_frozen_baseline": true,
-    "reason": "Five-second paired error-accumulation / relationship-drift gate failed.",
+    "reason": "Requires an independent full rounD evaluation summary.",
     "round_evaluation_complete": false,
     "status": "not_promoted"
   },

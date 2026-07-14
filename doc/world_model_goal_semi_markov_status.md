@@ -31,10 +31,14 @@
 | 长时域端点损失开发检查 | `highd_semi_markov_relational_full_long_horizon_finetune.yaml` | 10,000 train / 2,000 validation 序列、1 epoch；端点权重使固定开发 FDE 从 1.26560 m 变为 1.27191 m，未改善，故未扩大为全量候选。 |
 | 完整五秒反传开发检查 | `highd_semi_markov_relational_10k_full_bptt.yaml` | 10k 同一 split、从原 checkpoint 续训 5 epochs；测试 5 s FDE = 1.35170 m（原 10k 模型约 1.37768 m），有小幅改善但仍远高于冻结基线，未扩大。 |
 | 物理控制曲线开发检查 | `highd_semi_markov_relational_10k_control_plan_bptt.yaml` | 10k 同一 split、每个 0.2 s 区间实际积分五个 25 Hz 控制点、共 10 轮；测试 5 s FDE = 1.34856 m（无曲线 BPTT 为 1.35170 m），改善不足以扩大。 |
+| 高加速度重权检查 | `highd_semi_markov_relational_10k_tail_accel_curve.yaml` | 只用自然驾驶加速度监督、从物理曲线 checkpoint 续训；整体测试 FDE 仅为 1.34794 m，EVT-tail FDE 从 1.48239 降至 1.46031 m，但关系 TV 从 0.001933 升至 0.002032，不能作为长时域晋级候选。 |
+| 有界 jerk 控制曲线检查 | `highd_semi_markov_relational_10k_jerk_curve_bptt.yaml` | 每个 25 Hz 控制点是有界 jerk 的累积积分，10k 同一 split、10 轮；验证 FDE = 1.28654 m，但独立测试 FDE = 1.34987 m，略差于直接曲线，已拒绝。 |
+| 历史相对位移编码检查 | `highd_semi_markov_relational_10k_history_displacement.yaml` | 对每辆车加入过去一秒相对自身当前位姿的平移不变轨迹，30 轮从零训练；最佳验证 FDE = 1.59489 m、独立测试 5 s FDE = 1.63998 m，明显劣化，已拒绝。 |
 | 相对 ego 位置编码检查 | `highd_semi_markov_relational_10k_ego_relative_position.yaml` | 10k 同一 split、30 epochs；测试 5 s FDE = 1.66040 m，劣化，已拒绝。 |
 | 完整 cache BPTT 受限开发 | `highd_semi_markov_relational_full_bptt_dev.yaml` | 明确记录 20,000 train / 5,000 validation 限制；完整 held-out test 5 s FDE = 1.28102 m，较正式 checkpoint 仅低 0.00286 m，非完整训练且改善不足，不能推广。 |
 | 完整 held-out 测试 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/semi_markov_evaluation_summary.json` | 24,216 条从未参与训练或选择的测试序列，固定种子因果先验 rollout；包含受控响应诊断。 |
-| 完整配对基线比较 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json` | 同一 24,216 条序列、坐标一致性误差 0、2,000 次 bootstrap；三项 1 s 主误差门控均通过。 |
+| 历史完整配对比较 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json` | 同一 24,216 条序列、坐标一致性误差 0、2,000 次 bootstrap；旧 CAT-K START 使用未来动作摘要，仅作历史诊断。 |
+| 干净 START 完整配对比较 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_clean_start_flow.json` 与 `paired_semi_markov_vs_catk_5s_clean_start_flow.json` | 相同 24,216 条、相同冻结 CAT-K 权重/START-ROLL 坐标、将旧未来动作摘要置零；1 s 与 5 s 三项 bootstrap 门控、5 s 关系 TV 门控全部通过。 |
 | 原型审计 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/latent_state_prototypes.json` | 全部 24,155 validation 序列；状态使用率、duration histogram、按状态加权的关系边/车道/主交互对象变化率。 |
 
 最终全量 checkpoint：
@@ -72,16 +76,18 @@ SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253
 
 三项门控均通过；该历史 CAT-K 基线仍使用含未来动作摘要的旧 Flow，因此报告明确标记 `promotion_information_symmetric=false`，不把这一比较表述为信息完全对称的因果优势。
 
-完整五秒配对也已运行于相同的 24,216 条 held-out 序列（`paired_semi_markov_vs_catk_5s.json`，坐标一致性误差为 0）。它反驳了“当前模型已经在长时域替代 CAT-K”的说法：候选 / CAT-K 的累计 ADE 为 `0.37837 / 0.16348 m`，终点 FDE 为 `1.26276 / 0.66762 m`，gap MAE 为 `0.32781 / 0.13651 m`；关系分布 TV 为 `0.002541 / 0.000376`。因此候选在误差累积和关系分布漂移两项上都没有胜出。评测器已将这一同序列五秒门槛写入 promotion 判定，不能再只因 rounD 缺失而掩盖该 highD 长时域缺口。
+同一 24,216 条序列的历史五秒报告（`paired_semi_markov_vs_catk_5s.json`，坐标一致性误差为 0）仍完整保留：候选 / 旧 CAT-K 的累计 ADE 为 `0.37837 / 0.16348 m`，终点 FDE 为 `1.26276 / 0.66762 m`，gap MAE 为 `0.32781 / 0.13651 m`；关系 TV 为 `0.002541 / 0.000376`。该差异来自旧 CAT-K START 读取的 future-action Flow summary，违反本文档第 4 节的 clean-START 数据边界，因此该报告被明确标记为历史诊断，不能用于晋级也不能被删除。
+
+在信息对称的干净 START 条件下，冻结 CAT-K 的权重、其他 START/ROLL 输入、积分器、坐标和每条序列均不变，唯一变化是将旧未来动作摘要置零。完整 2,000 次 bootstrap 的一秒候选 / CAT-K ADE、FDE、gap MAE 分别为 `0.031848 / 0.049367 m`、`0.043307 / 0.108732 m`、`0.027394 / 0.043931 m`，三项差值的单侧 95% 上界均小于零。五秒累计 ADE 为 `0.378349 / 1.061199 m`，FDE 为 `1.262700 / 3.203835 m`，gap MAE 为 `0.327796 / 0.927902 m`；关系 TV 为 `0.002538 / 0.012345`。五秒三项误差门控和关系漂移门控均通过。评测器只接受 `promotion_information_symmetric=true` 的这两份报告作为 highD 晋级依据，同时在 summary 中单列上述历史非对称结果。
 
 共享 10k cache 的核心消融已经完成四种机制且使用完全相同的 7,026/1,483/1,491 train/val/test 划分（`core_ablation_summary.json`）。当前 20-epoch snapshot 的 5 s FDE 分别为 B0 `1.43257`、B1 `1.66249`、B2 `1.69288`、Full `1.64329 m`；训练轮数不足以将该 snapshot 表述为 Full 优于 B0 的收敛结论，它仅证明四个实现分支及其相同数据协议可复现。
 
 ## 验收结论
 
-当前 checkpoint 的 `promotion.status` 为 `not_promoted`。highD 全量缓存、duration calibration/persistence、冻结 CAT-K 的完整配对 bootstrap 和 1 s 不劣门控均已通过；但规范的五秒误差累积/关系漂移门槛没有通过。当前用户范围还明确暂缓 rounD 数据下载和处理；这不阻止 highD 开发，但仍保留为正式跨数据集验收缺口：
+当前 checkpoint 的 `promotion.status` 为 `not_promoted`，但原因已仅为 `Requires an independent full rounD evaluation summary.`：高D 全量缓存、信息对称冻结 CAT-K 的完整一秒/五秒 paired bootstrap、五秒关系漂移、duration calibration/persistence 和一秒不劣门控均已通过。当前用户范围还明确暂缓 rounD 数据下载和处理；这不阻止 highD 目标达成，但仍保留为正式跨数据集验收缺口：
 
 1. 工作区没有 rounD 原始轨迹与矢量地图文件。因此 rounD adapter 的 CSV/vector-map/Lanelet2-OSM I/O、150 帧可训练缓存、曲线路网、冲突区、动态参与者、highD→rounD conflict-attention 迁移和 highD+rounD 联合缓存 smoke 已通过，但尚未完成 rounD 单数据集、联合训练和迁移实证。必须提供实际数据（或其已授权路径）后才能生成独立 full-rounD summary 并解除晋级门控；门控还会验证该摘要明确来自 rounD cache，而非任意非有界摘要。
 
 核心消融可通过 `world_model/scripts/run_semi_markov_ablation.py --variant b0|b1|b2|full` 在共享缓存上运行：B0=单模式动态图，B1=联合 latent、逐 response 状态更新，B2=learned duration 但禁用即时 response，Full=完整模型。完整摘要由 `summarize_semi_markov_ablations.py` 生成，并把开发 cache 标记为非正式 full-highD 结论。
 
-已运行的回归检查：25 个 Semi-Markov `unittest`（包括 clean Flow→graph、曲线车道、highD 录制地图、step/roll 等价、完整 snapshot/restore、随机 TBPTT、rounD CSV/vector-map/Lanelet2-OSM/cache、joint-cache padding、冲突区端到端环境传递、未来背景 validity 因果隔离、冲突区迁移、响应 probe、动态图物理诊断、完整 BPTT、可选相对位置、25 Hz control-curve checkpoint 迁移/反向传播/环境积分和 modal-duration 无隐藏 uniform smoke）全部通过；2 个 clean Flow schema `pytest` 全部通过；一秒与五秒配对脚本分别在完整 24,216 条正式 run 通过坐标一致性检查；`py_compile` 与 `git diff --check` 通过。
+已运行的回归检查：28 个 Semi-Markov `unittest`（包括 clean Flow→graph、曲线车道、highD 录制地图、step/roll 等价、完整 snapshot/restore、随机 TBPTT、rounD CSV/vector-map/Lanelet2-OSM/cache、joint-cache padding、冲突区端到端环境传递、未来背景 validity 因果隔离、冲突区迁移、响应 probe、动态图物理诊断、完整 BPTT、可选相对位置、25 Hz 直接/jerk control-curve checkpoint 迁移、反向传播、环境积分和 modal-duration 无隐藏 uniform smoke，以及纯历史位移特征的平移不变性）全部通过；2 个 clean Flow schema `pytest` 全部通过；一秒与五秒配对脚本分别在完整 24,216 条正式 run 通过坐标一致性检查；`py_compile` 与 `git diff --check` 通过。
