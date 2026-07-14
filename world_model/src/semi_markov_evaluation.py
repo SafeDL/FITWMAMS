@@ -44,6 +44,19 @@ def _concat(items: list[np.ndarray]) -> np.ndarray:
     return np.concatenate(items, axis=0) if items else np.zeros((0,), np.float32)
 
 
+def _optional_report(
+    evaluation: dict[str, Any], key: str, *, config_dir: Path,
+) -> tuple[Path | None, dict[str, Any]]:
+    """Resolve an optional JSON report configured relative to this experiment."""
+    value = evaluation.get(key)
+    if not value:
+        return None, {}
+    path = Path(value)
+    if not path.is_absolute():
+        path = (config_dir / path).resolve()
+    return path, load_json(path) if path.exists() else {}
+
+
 def _relationship_distribution(states: np.ndarray, valid: np.ndarray, lane_width_m: float = 3.6) -> dict[str, float]:
     """Distribution of same/adjacent/unrelated agent relationships."""
     counts = np.zeros(3, dtype=np.float64)
@@ -212,11 +225,9 @@ def evaluate_semi_markov_world_model(
         "mean_total_variation": float(0.5 * np.abs(q - p).sum(axis=-1).mean()) if q.size else float("nan"),
         "categorical_cross_entropy": float(-(q * np.log(np.maximum(p, 1.0e-8))).sum(axis=-1).mean()) if q.size else float("nan"),
     }
-    baseline_value = evaluation.get("required_baseline_summary")
-    baseline_path = Path(baseline_value) if baseline_value else None
-    if baseline_path is not None and not baseline_path.is_absolute():
-        baseline_path = (config_dir / baseline_path).resolve()
-    baseline = load_json(baseline_path) if baseline_path is not None and baseline_path.exists() else {}
+    baseline_path, baseline = _optional_report(
+        evaluation, "required_baseline_summary", config_dir=config_dir,
+    )
     baseline_one = baseline.get("closed_loop", {}).get("test", {})
     baseline_rollout = baseline.get("model_state_reconstruction", {}).get("test", {})
     horizon_comparison: dict[str, dict[str, float]] = {}
@@ -239,11 +250,9 @@ def evaluate_semi_markov_world_model(
     # A legacy summary alone is not a paired comparison: it can have a
     # different cache, rollout protocol, or (for CAT-K) a Flow with future
     # action summaries.  Formal promotion requires an explicit paired result.
-    paired_value = evaluation.get("paired_baseline_summary")
-    paired_path = Path(paired_value) if paired_value else None
-    if paired_path is not None and not paired_path.is_absolute():
-        paired_path = (config_dir / paired_path).resolve()
-    paired_report = load_json(paired_path) if paired_path is not None and paired_path.exists() else {}
+    paired_path, paired_report = _optional_report(
+        evaluation, "paired_baseline_summary", config_dir=config_dir,
+    )
     current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     paired_information_symmetric = bool(paired_report.get("protocol", {}).get("promotion_information_symmetric", False))
     paired_baseline = bool(
@@ -253,11 +262,9 @@ def evaluate_semi_markov_world_model(
         and paired_report.get("all_primary_error_gates_pass", False)
         and paired_information_symmetric
     )
-    paired_long_value = evaluation.get("paired_long_horizon_baseline_summary")
-    paired_long_path = Path(paired_long_value) if paired_long_value else None
-    if paired_long_path is not None and not paired_long_path.is_absolute():
-        paired_long_path = (config_dir / paired_long_path).resolve()
-    paired_long_report = load_json(paired_long_path) if paired_long_path is not None and paired_long_path.exists() else {}
+    paired_long_path, paired_long_report = _optional_report(
+        evaluation, "paired_long_horizon_baseline_summary", config_dir=config_dir,
+    )
     paired_long_information_symmetric = bool(paired_long_report.get("protocol", {}).get("promotion_information_symmetric", False))
     paired_long = bool(
         paired_long_report.get("protocol", {}).get("same_sequence", False)
@@ -279,21 +286,15 @@ def evaluate_semi_markov_world_model(
     # reproducibility, but they cannot be promotion references under the
     # clean-START specification.  The primary paired paths above must instead
     # explicitly attest information symmetry.
-    legacy_paired_value = evaluation.get("legacy_paired_baseline_summary")
-    legacy_paired_path = Path(legacy_paired_value) if legacy_paired_value else None
-    if legacy_paired_path is not None and not legacy_paired_path.is_absolute():
-        legacy_paired_path = (config_dir / legacy_paired_path).resolve()
-    legacy_paired_report = load_json(legacy_paired_path) if legacy_paired_path is not None and legacy_paired_path.exists() else {}
-    legacy_paired_long_value = evaluation.get("legacy_paired_long_horizon_baseline_summary")
-    legacy_paired_long_path = Path(legacy_paired_long_value) if legacy_paired_long_value else None
-    if legacy_paired_long_path is not None and not legacy_paired_long_path.is_absolute():
-        legacy_paired_long_path = (config_dir / legacy_paired_long_path).resolve()
-    legacy_paired_long_report = load_json(legacy_paired_long_path) if legacy_paired_long_path is not None and legacy_paired_long_path.exists() else {}
-    round_summary_value = evaluation.get("round_evaluation_summary")
-    round_summary_path = Path(round_summary_value) if round_summary_value else None
-    if round_summary_path is not None and not round_summary_path.is_absolute():
-        round_summary_path = (config_dir / round_summary_path).resolve()
-    round_report = load_json(round_summary_path) if round_summary_path is not None and round_summary_path.exists() else {}
+    legacy_paired_path, legacy_paired_report = _optional_report(
+        evaluation, "legacy_paired_baseline_summary", config_dir=config_dir,
+    )
+    legacy_paired_long_path, legacy_paired_long_report = _optional_report(
+        evaluation, "legacy_paired_long_horizon_baseline_summary", config_dir=config_dir,
+    )
+    round_summary_path, round_report = _optional_report(
+        evaluation, "round_evaluation_summary", config_dir=config_dir,
+    )
     round_manifest = round_report.get("sequence_cache", {})
     round_identity = f"{round_manifest.get('source_dataset', '')} {round_manifest.get('adapter', '')}".lower()
     round_complete = (

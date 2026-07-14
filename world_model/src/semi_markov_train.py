@@ -137,17 +137,16 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     incompatible = model.load_state_dict(payload["state_dict"], strict=False)
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
-    is_conflict_key = lambda key: key.startswith(conflict_prefixes)
-    is_plan_key = lambda key: key.startswith("decoder.plan.")
-    allowed_missing = (
-        (target_conflicts and not source_conflicts and all(is_conflict_key(key) for key in missing))
-        or (target_plan_steps > 1 and source_plan_steps <= 1 and all(is_plan_key(key) for key in missing))
-        or (
-            target_conflicts and not source_conflicts and target_plan_steps > 1 and source_plan_steps <= 1
-            and all(is_conflict_key(key) or is_plan_key(key) for key in missing)
-        )
+    can_add_conflicts = target_conflicts and not source_conflicts
+    can_add_plan = target_plan_steps > 1 and source_plan_steps <= 1
+    allowed_missing = all(
+        (can_add_conflicts and key.startswith(conflict_prefixes))
+        or (can_add_plan and key.startswith("decoder.plan."))
+        for key in missing
     )
-    allowed_unexpected = source_conflicts and not target_conflicts and all(is_conflict_key(key) for key in unexpected)
+    allowed_unexpected = source_conflicts and not target_conflicts and all(
+        key.startswith(conflict_prefixes) for key in unexpected
+    )
     if (missing and not allowed_missing) or (unexpected and not allowed_unexpected):
         raise ValueError(
             "initial semi-Markov checkpoint is architecturally incompatible; "
