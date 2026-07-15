@@ -11,22 +11,6 @@ results/highd_tail_flow_best/
 
 当前最佳方法是严格长尾条件有理二次样条掩码自回归流（strict EVT-tail conditional rational-quadratic spline MAF）。它配合稀有槽位加权负对数似然（rare-slot weighted NLL）、分阶段低学习率微调（staged fine-tuning）、按 `mask_pattern` 和 `primary_slot` 联合类别精确匹配的配额采样（exact quota sampling），并在隐空间使用采样温度 `tau = 1.0295` 做轻微扩散校准。
 
-## Semi-Markov 模型的干净 START Flow
-
-冻结的 76 维 Flow 是 CAT-K 基线的一部分，含有未来一秒动作摘要，不能作为新的 Semi-Markov Relational Traffic World Model 的初始化器。新模型使用独立的 40 维 `clean_start` schema：仅含 anchor 时刻的 ego 动力学和每个存在邻车的相对位置、速度与加速度；不读取 anchor 后的任何帧，也不输出行为或动作摘要。
-
-```bash
-python normalizing_flow/scripts/prepare_highd_tail_flow_dataset.py \
-  --config normalizing_flow/scripts/configs/highd_tail_flow_clean_start.yaml
-python normalizing_flow/scripts/train_highd_tail_flow.py \
-  --config normalizing_flow/scripts/configs/highd_tail_flow_clean_start.yaml
-python normalizing_flow/scripts/evaluate_highd_tail_flow.py \
-  --config normalizing_flow/scripts/configs/highd_tail_flow_clean_start.yaml \
-  --skip-baselines --skip-figures
-```
-
-它写入 `results/highd_tail_flow_clean_start/`，其 `dataset_schema.json` 必须满足：`feature_mode=clean_start`、`initial_observation_only=true`、`future_action_summaries_included=false`，且 `trajectory_features=[]`。Flow 只决定初始物理状态；第一段潜在交互状态和持续时间由半马尔可夫世界模型根据初始图生成。
-
 ## 术语说明
 
 文中英文缩写和关键词的中文含义如下。

@@ -19,7 +19,10 @@ python world_model/scripts/train_highd_semi_markov_relational.py
 python world_model/scripts/evaluate_highd_semi_markov_relational.py
 ```
 
-配置位于 `world_model/scripts/configs/highd_semi_markov_relational.yaml`。准备阶段从冻结的 highD 行缓存迁移出每个自然驾驶片段一条 150 帧（1 秒历史 + 5 秒未来）的序列缓存，随后训练和评测不再把 1 秒 chunk 当作潜在状态边界。
+默认配置为 `world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml`。它使用冻结的 76 维 Flow，首秒以原子化 `(S0, B0)` 初始化、确定性名义计划和图关系残差控制；数据缓存仍是一条片段对应 150 帧（1 秒历史 + 5 秒未来）。
+
+每个 M1 候选还必须执行 `compare_semi_markov_to_catk.py` 的同序列 1 s 与 5 s
+bootstrap 对比；在对应的 paired CAT-K 报告生成前，M1 不具有晋级资格。
 
 核心闭环接口为：
 
@@ -31,9 +34,9 @@ one_second = environment.roll(ego_history_states, ego_history_valid)
 
 `roll()` 是兼容包装器，会执行五个 0.2 秒响应更新；它不接收 ego future。环境记录每次状态转移使用的外生状态/持续时间随机数、状态、持续时间及转移时刻，以支持 ADS 无关重放。`snapshot()`/`restore()` 还保存图、历史、latent/duration 与 RNG 状态，可用于 AMS 分支复制后确定性继续。
 
-### 完整 highD 复现实验状态
+### 保留的完整 highD 中间链路
 
-最终已验证模型位于：
+完整数据上的关键中间 checkpoint 位于：
 
 ```text
 results/highd_world_model/semi_markov_relational_full_tbptt_finetune/
@@ -45,8 +48,20 @@ checkpoint SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f
 信息对称 clean-START paired bootstrap 中，它的一秒与五秒 ADE、FDE、gap MAE
 以及五秒关系分布 TV 均优于冻结 CAT-K；历史 CAT-K 的 future-action START
 摘要对照仍单列保留、但不能作为新规范的晋级基线。高D 所有门槛已通过，当前
-正式状态仅因 rounD 数据实证暂缓而为 `not_promoted`。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
+该阶段的正式晋级状态仅因 rounD 数据实证暂缓而为 `not_promoted`。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
 [world_model_goal_semi_markov_status.md](../doc/world_model_goal_semi_markov_status.md)。
+
+### 当前行为锚定候选
+
+当前 M1 实现的诊断输出位于：
+
+```text
+results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/
+```
+
+在同协议的 128 条 highD test 诊断上，M1 的 1 s/5 s FDE 为 `0.04266 / 0.83686 m`，
+冻结 M0 为 `0.04820 / 1.37244 m`。该诊断 checkpoint 尚未通过无泄漏 validation 的严格
+M0 选择门槛，所以仅保存为 `last_semi_markov_relational.pt`，不替代冻结 CAT-K 或 M0 基线。
 
 完整缓存和最终微调的命令为：
 
@@ -62,17 +77,8 @@ python world_model/scripts/audit_semi_markov_prototypes.py \
   --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml
 ```
 
-`highd_semi_markov_relational_full_tbptt_finetune.yaml` 将序列缓存定位到只读的完整
-highD cache，同时将试验输出隔离到自己的目录；训练随机展开 1--5 秒并每五个
-response steps 截断反向传播。rounD 实验入口为
-`prepare_round_semi_markov_relational_dataset.py`、
-`train_round_semi_markov_relational.py` 与
-`evaluate_round_semi_markov_relational.py`；联合缓存/训练入口为
-`prepare_joint_semi_markov_relational_dataset.py` 和
-`train_joint_semi_markov_relational.py`。地图参数接受 JSON/NPZ vector-map
-sidecar，或官方 rounD Lanelet2 `.osm`；后者会直接恢复中心线、拓扑和冲突区。
-真实 rounD 轨迹与地图尚不在工作区，
-因此严格的跨数据集晋级状态仍为 `not_promoted`。
+`highd_semi_markov_relational_full_tbptt_finetune.yaml` 保留为冻结 M0 的最后可复现
+训练节点；当前开发仅使用 highD Flow-aligned M1，不包含 rounD 或联合训练入口。
 
 ---
 
@@ -135,15 +141,8 @@ s0 = Flow(E, Z_flow)
 world_model/scripts/configs/highd_world_model.yaml
 ```
 
-数据、训练和重建评测入口与 `normalizing_flow/` 对齐：
-
-```bash
-python world_model/scripts/prepare_highd_world_model_dataset.py
-python world_model/scripts/train_highd_world_model.py
-python world_model/scripts/evaluate_highd_world_model.py
-```
-
-这条限制仅适用于冻结 CAT-K 基线；新半马尔可夫实现使用上文独立入口和输出目录。
+CAT-K 仅作为冻结比较基线；本仓库保留其配置、checkpoint 兼容代码与
+`compare_semi_markov_to_catk.py`，不再提供其数据准备、训练或单独评测入口。
 
 ## 环境接口
 

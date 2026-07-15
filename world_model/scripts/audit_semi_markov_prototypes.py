@@ -11,10 +11,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from world_model.src.semi_markov_train import _loader, _prototypes, load_semi_markov_checkpoint
-from world_model.src.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.sequential_dataset import ensure_frozen_flow_behavior_anchor_cache, load_sequential_dataset, sequence_cache_owner_dir
 from world_model.src.utils import ensure_dir, load_yaml, save_json, select_device
 
-CONFIG = Path(__file__).resolve().parent / "configs" / "highd_semi_markov_relational.yaml"
+CONFIG = Path(__file__).resolve().parent / "configs" / "highd_behavior_anchored_semi_markov.yaml"
 
 
 def main() -> None:
@@ -32,12 +33,22 @@ def main() -> None:
         output_dir = (config_path.parent / output_dir).resolve()
     checkpoint = Path(args.checkpoint).resolve() if args.checkpoint else output_dir / "checkpoints" / "best_semi_markov_relational.pt"
     device = select_device(str(config.get("evaluation", {}).get("device", "auto")))
-    arrays, _ = load_sequential_dataset(sequence_cache_owner_dir(config, config_dir=config_path.parent))
+    cache_owner = sequence_cache_owner_dir(config, config_dir=config_path.parent)
+    arrays, manifest = load_sequential_dataset(cache_owner)
+    model = load_semi_markov_checkpoint(checkpoint, device=device)
+    if model.uses_behavior_anchor:
+        value = config.get("paths", {}).get("flow_schema")
+        if not value:
+            raise ValueError("M1 prototype audit requires paths.flow_schema")
+        schema_path = Path(value)
+        schema = FrozenLegacyFlowSchema.load(schema_path if schema_path.is_absolute() else (config_path.parent / schema_path).resolve())
+        model.set_frozen_flow_schema(schema)
+        arrays.update(ensure_frozen_flow_behavior_anchor_cache(cache_owner, arrays, manifest, schema))
     loader = _loader(
         arrays, args.split, batch_size=int(config.get("evaluation", {}).get("batch_size", 16)),
         maximum=int(args.max_sequences), shuffle=False, seed=int(config.get("evaluation", {}).get("seed", 123)),
     )
-    report = _prototypes(load_semi_markov_checkpoint(checkpoint, device=device), loader, device)
+    report = _prototypes(model, loader, device)
     report.update({"checkpoint": str(checkpoint), "split": args.split, "num_sequences": len(loader.dataset)})
     target = Path(args.output).resolve() if args.output else ensure_dir(output_dir) / "latent_state_prototypes.json"
     save_json(report, target)

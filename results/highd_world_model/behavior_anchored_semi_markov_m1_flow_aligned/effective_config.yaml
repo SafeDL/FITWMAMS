@@ -1,0 +1,72 @@
+dataset:
+  max_sequences: 0
+evaluation:
+  batch_size: 64
+  cold_start_history: true
+  device: auto
+  max_sequences: 0
+  round_evaluation_summary: ''
+  seed: 123
+graph:
+  lane_width_m: 3.6
+  top_r_lanes: 3
+  use_recording_lane_metadata: true
+model:
+  anchor_loss_weight: 1.0
+  beta_latent: 0.05
+  boundary_change_threshold: 0.05
+  boundary_supervision_weight: 0.25
+  cold_start_history: true
+  control_weight: 0.15
+  dropout: 0.1
+  hidden_dim: 128
+  lambda_roll: 1.0
+  late_prior_control_weight: 0.0
+  late_roll_weight: 0.0
+  max_duration_response_steps: 30
+  num_latent_states: 12
+  position_weight: 1.0
+  prior_control_weight: 3.0
+  prior_roll_weight: 1.0
+  prototype_weight: 1.0
+  reference_control_scale: 1.0
+  response_interval_s: 0.2
+  simulation_dt_s: 0.04
+  state_bootstrap_weight: 5.0
+  temporal_layers: 1
+  type: semi_markov_relational
+  variant: m1
+  velocity_weight: 0.25
+paths:
+  flow_checkpoint: ../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt
+  flow_schema: ../../../results/highd_tail_flow_best/dataset_schema.json
+  highd_evt_config: ../../../process_highD/scripts/configs/highd_natural_evt.yaml
+  legacy_dataset_dir: ../../../results/highd_world_model/shared_dense_start_roll
+  output_dir: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned
+  sequence_cache_dir: ../../../results/highd_world_model/semi_markov_relational_full
+split:
+  seed: 42
+training:
+  anchor_learning_rate: 2.0e-05
+  batch_size: 128
+  decoder_prior_learning_rate: 1.0e-05
+  device: auto
+  encoder_learning_rate: 5.0e-06
+  epochs: 20
+  grad_clip: 1.0
+  learning_rate: 5.0e-05
+  m0_reference_checkpoint: ../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt
+  min_teacher_forcing: 0.0
+  rollout_max_seconds: 5.0
+  rollout_min_seconds: 1.0
+  seed: 42
+  stage_one_epochs: 0
+  stages:
+  - epochs: 5
+    name: anchor_realization
+  - epochs: 10
+    name: causal_rollout
+  - epochs: 5
+    name: joint
+  tbptt_response_steps: 5
+  weight_decay: 0.0001

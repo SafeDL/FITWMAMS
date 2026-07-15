@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from .graph_schema import DynamicTrafficGraph
-from .initial_behavior_anchor import behavior_anchor_from_flow_feature
+from .legacy_flow_initializer import graph_and_anchor_from_legacy_flow
 from .semi_markov_model import SemiMarkovRelationalWorldModel
 
 
@@ -59,6 +59,10 @@ class SemiMarkovBackgroundEnvironment:
         self._duration_uniforms: list[float] = []
         self._behavior_anchor: np.ndarray | None = None
         self._behavior_anchor_valid: np.ndarray | None = None
+        self._behavior_anchor_std: np.ndarray | None = None
+        self._behavior_anchor_plan: torch.Tensor | None = None
+        self._behavior_anchor_initial: torch.Tensor | None = None
+        self._behavior_anchor_generated: list[torch.Tensor] = []
         self._behavior_anchor_active = False
         self.model_checkpoint_hash = model_checkpoint_hash or getattr(model, "checkpoint_hash", None) or "unbound_model"
         self.map_adapter_version = str(map_adapter_version)
@@ -83,6 +87,10 @@ class SemiMarkovBackgroundEnvironment:
         self._state_uniforms, self._duration_uniforms = list(randomness.state_uniforms), list(randomness.duration_uniforms)
         self._behavior_anchor = None
         self._behavior_anchor_valid = None
+        self._behavior_anchor_std = None
+        self._behavior_anchor_plan = None
+        self._behavior_anchor_initial = None
+        self._behavior_anchor_generated = []
         if behavior_anchor is not None:
             anchor = np.asarray(behavior_anchor, np.float32)
             if anchor.shape != (len(self._states) - 1, 6):
@@ -92,6 +100,14 @@ class SemiMarkovBackgroundEnvironment:
                 self._valid[1:] if behavior_anchor_valid is None else behavior_anchor_valid,
                 bool,
             ).reshape(len(self._states) - 1).copy()
+            raw = torch.as_tensor(self._behavior_anchor[None], device=self.device)
+            anchor_valid = torch.as_tensor(self._behavior_anchor_valid[None], device=self.device)
+            standardized = self.model.frozen_flow_schema.standardize(raw, anchor_valid) if self.model.frozen_flow_schema else self.model.behavior_anchor.normalize(raw)
+            self._behavior_anchor_std = standardized[0].cpu().numpy()
+            self._behavior_anchor_initial = torch.as_tensor(self._states[None], device=self.device)
+            self._behavior_anchor_plan = self.model._behavior_plan(
+                self._behavior_anchor_initial, raw, torch.as_tensor(self._valid[None], device=self.device),
+            )
         self._behavior_anchor_active = self._behavior_anchor is not None and self.model.uses_behavior_anchor
         self.trace = {
             "event_structure": deepcopy(randomness.event_structure),
@@ -115,12 +131,31 @@ class SemiMarkovBackgroundEnvironment:
         slot_mask: np.ndarray,
         world_randomness: WorldRandomness | None = None,
     ) -> dict[str, Any]:
-        """Reset from a graph plus the frozen Flow's 76-D behavior condition."""
-        anchor, anchor_valid = behavior_anchor_from_flow_feature(feature_row, slot_mask)
-        return self.reset(
-            initial_graph, world_randomness,
-            behavior_anchor=anchor, behavior_anchor_valid=anchor_valid,
+        raise RuntimeError(
+            "reset_from_flow_sample(graph, ...) is retired: use reset_from_legacy_flow "
+            "so the graph and behavior anchor are constructed atomically from one Flow row"
         )
+
+    def reset_from_legacy_flow(
+        self,
+        feature_row: np.ndarray,
+        slot_mask: np.ndarray,
+        primary_slot_index: int,
+        map_context: dict[str, Any],
+        world_randomness: WorldRandomness | None = None,
+    ) -> dict[str, Any]:
+        initialized = graph_and_anchor_from_legacy_flow(feature_row, slot_mask, primary_slot_index, map_context)
+        snapshot = self.reset(
+            initialized.graph, world_randomness,
+            behavior_anchor=initialized.behavior_anchor_raw, behavior_anchor_valid=initialized.behavior_anchor_valid,
+        )
+        self.trace.update({
+            "flow_schema_sha256": initialized.flow_schema_sha256,
+            "map_context_sha256": initialized.map_context_sha256,
+            "map_adapter_version": initialized.map_adapter_version,
+            "slot_to_agent_index": initialized.slot_to_agent_index.tolist(),
+        })
+        return snapshot
 
     def snapshot(self) -> dict[str, Any]:
         if self._states is None or self._valid is None:
@@ -162,6 +197,10 @@ class SemiMarkovBackgroundEnvironment:
         anchor_valid = snapshot.get("behavior_anchor_valid")
         self._behavior_anchor = None if anchor is None else np.asarray(anchor, np.float32).copy()
         self._behavior_anchor_valid = None if anchor_valid is None else np.asarray(anchor_valid, bool).copy()
+        self._behavior_anchor_std = None if self._behavior_anchor is None else self._behavior_anchor.copy()
+        self._behavior_anchor_plan = None
+        self._behavior_anchor_initial = torch.as_tensor(self._states[None], device=self.device)
+        self._behavior_anchor_generated = []
         self._behavior_anchor_active = bool(snapshot.get("behavior_anchor_active", False))
         self._state_uniforms = [float(value) for value in snapshot.get("state_uniforms_remaining", [])]
         self._duration_uniforms = [float(value) for value in snapshot.get("duration_uniforms_remaining", [])]
@@ -232,19 +271,9 @@ class SemiMarkovBackgroundEnvironment:
             batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
             batch.get("conflict_zone_features"), batch.get("conflict_zone_valid"),
         )
-        anchor_agents = None
-        anchor_scene = None
-        if self._behavior_anchor_active:
-            anchor_agents, anchor_scene = self.model.encode_behavior_anchor(
-                torch.as_tensor(self._behavior_anchor[None], device=self.device),
-                torch.as_tensor(self._behavior_anchor_valid[None], device=self.device),
-            )
         if self._remaining_duration <= 0:
-            latent_scene = self.model.initial_latent_scene(scene, anchor_scene) if (
-                self._latent_state is None and self.model.conditions_initial_latent
-            ) else scene
             z, duration, probabilities = self.model.latent.sample_state_and_duration(
-                latent_scene[0], self._latent_state, self._next_uniform("state"), self._next_uniform("duration"),
+                scene[0], self._latent_state, self._next_uniform("state"), self._next_uniform("duration"),
             )
             self._latent_state, self._remaining_duration, self._elapsed = z, duration, 1
             self.trace["realized_latent_states"].append(int(z))
@@ -256,21 +285,28 @@ class SemiMarkovBackgroundEnvironment:
         state_prob = torch.nn.functional.one_hot(
             torch.tensor([self._latent_state], device=self.device), num_classes=self.model.cfg.num_latent_states
         ).float()
-        decoded = self.model.decoder(
-            agents, scene, self.model.latent.state_embedding(state_prob),
-            torch.tensor([self._elapsed], device=self.device), valid & ~ego_mask,
-            self.model.dynamics.controls_from_highd_actions(current[..., 4:6], current),
-            anchor_agents if self._behavior_anchor_active else None,
-        )
-        controls = decoded["controls"]
-        integration_controls = self.model._integration_controls(decoded)
+        nominal = None
+        controls = None
+        if self._behavior_anchor_active and self._behavior_anchor_plan is not None:
+            start = int(self.trace["response_steps"]) * self.model.cfg.physics_steps_per_response
+            nominal = self._behavior_anchor_plan[:, start : start + self.model.cfg.physics_steps_per_response]
+            controls = self.model._anchor_residual_controls(
+                agents, scene, self.model.latent.state_embedding(state_prob),
+                torch.as_tensor(self._behavior_anchor_std[None], device=self.device), self._behavior_anchor_initial,
+                self._behavior_anchor_generated, nominal, int(self.trace["response_steps"]), valid & ~ego_mask,
+            )
+        if controls is None:
+            controls = self.model.decoder(
+                agents, scene, self.model.latent.state_embedding(state_prob), torch.tensor([self._elapsed], device=self.device),
+                valid & ~ego_mask, self.model.dynamics.controls_from_highd_actions(current[..., 4:6], current), None,
+            )["controls"]
         # The physical ego state is observed only at the current response time;
         # it is held during the internal 25-Hz substeps.  ``roll`` below uses a
         # causal constant-velocity extrapolation when no later ego observation exists.
         ego_future = current[:, ego_index : ego_index + 1].expand(-1, self.model.cfg.physics_steps_per_response, -1)
         ego_valid_tensor = valid[:, ego_index : ego_index + 1].expand(-1, self.model.cfg.physics_steps_per_response)
         next_state, physical = self.model._integrate_response(
-            current, integration_controls, valid, ego_future, ego_valid_tensor, ego_index=ego_index,
+            current, controls, valid, ego_future, ego_valid_tensor, ego_index=ego_index, nominal_actions=nominal,
         )
         outputs = torch.stack(physical, dim=1)[0].cpu().numpy()
         self._states = next_state[0].cpu().numpy()
@@ -278,19 +314,29 @@ class SemiMarkovBackgroundEnvironment:
         for state in outputs:
             self._history_states.append(state.copy())
             self._history_valid.append(self._valid.copy())
+            if self._behavior_anchor_active:
+                self._behavior_anchor_generated.append(torch.as_tensor(state[None], device=self.device))
         self._history_states, self._history_valid = self._history_states[-25:], self._history_valid[-25:]
         self._remaining_duration -= 1
         self.trace["response_steps"] += 1
         if self.trace["response_steps"] >= self.model.cfg.behavior_anchor_response_steps:
             self._behavior_anchor_active = False
+            # Enforce non-reachability rather than merely relying on a flag:
+            # no B0 representation can leak into later decoder calls.
+            self._behavior_anchor = None; self._behavior_anchor_valid = None
+            self._behavior_anchor_std = None; self._behavior_anchor_plan = None
+            self._behavior_anchor_initial = None; self._behavior_anchor_generated = []
         self.trace["behavior_anchor_active"] = bool(self._behavior_anchor_active)
-        highd_actions = self.model.dynamics.highd_actions(controls, current)[0].cpu().numpy()
+        response_controls = controls.mean(dim=1) if controls.ndim == 4 else controls
+        highd_actions = self.model.dynamics.highd_actions(response_controls, current)[0].cpu().numpy()
         background_indices = np.flatnonzero(np.arange(len(self._states)) != ego_index)
-        control_curve = decoded["control_plan"][0, background_indices].permute(1, 0, 2).cpu().numpy()
+        control_curve = response_controls[0, background_indices].unsqueeze(0).expand(
+            self.model.cfg.physics_steps_per_response, -1, -1,
+        ).cpu().numpy()
         return {
             "agent_states": self._states.copy(), "agent_valid": self._valid.copy(),
             "background_states": outputs[:, background_indices], "background_valid": np.repeat(self._valid[None, background_indices], len(outputs), axis=0),
-            "controls": controls[0, background_indices].cpu().numpy(), "actions_mps2": highd_actions[background_indices],
+            "controls": response_controls[0, background_indices].cpu().numpy(), "actions_mps2": highd_actions[background_indices],
             "control_curve": control_curve,
             "latent_state": int(self._latent_state), "remaining_duration": int(self._remaining_duration),
             "latent_probabilities": None if probabilities is None else probabilities.cpu().numpy(), "trace": dict(self.trace),

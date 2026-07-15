@@ -12,17 +12,13 @@
 - `merge`、`diverge`、`cross` 不再被压缩成 adjacent-lane：它们进入动态图边特征和异构注意力；highD→rounD 的可选 conflict-attention 参数是唯一允许的部分 checkpoint 迁移。
 - 因果先验 checkpoint 选择：每轮在 validation 集执行固定随机数的五秒自由 rollout，以 `causal_prior_rollout_FDE_m` 选择，而不是以后验重建损失选择。
 - 因果先验 rollout 不读取未来背景参与者的有效掩码；背景成员关系从当前生成图因果延续，只有外部已发生的 ego 有效性可在 replay 中前进。
-- Flow 使用单独的 `clean_start` schema：40 维 anchor 时刻物理状态；`dataset_schema.json` 显式记录 `initial_observation_only=true`、`future_action_summaries_included=false` 和空 `trajectory_features`。
-- `graph_from_clean_start()` 将 clean Flow 样本映射到初始动态图，并拒绝遗留的 76 维、含未来动作摘要的 Flow 向量。
+- 正式初始化使用冻结的 76 维 Flow；其首秒动作摘要只作为行为锚定模型的首秒条件，之后的滚动不再读取该摘要。
 - rounD adapter 可读取标准 `tracks.csv`、JSON/NPZ 向量地图 sidecar，或授权 rounD 包内的 Lanelet2 `.osm` 地图；OSM 路径直接恢复中心线、successor/merge/diverge/adjacent/cross 拓扑并推导冲突区。已具备 150 帧 sequence-cache、独立训练/评估、highD→rounD 迁移，以及磁盘式 highD+rounD 联合缓存入口。实际 rounD 数据尚未提供，因此这些路径目前仅完成 I/O/动态图/联合缓存 smoke，不是数据集实证。
 
 ## 可复现实验
 
 | 项目 | 位置 / 配置 | 结果 |
 | --- | --- | --- |
-| clean Flow 数据 | `results/highd_tail_flow_clean_start/` | 2,209 条 EVT-tail 初始状态；train/val/test = 1,550/330/329；40 features，0 future-action features。 |
-| clean Flow 训练 | `normalizing_flow/scripts/configs/highd_tail_flow_clean_start.yaml` | 80 epochs；best val NLL = -28.3204，test NLL = -35.5230。 |
-| clean Flow 采样 | `results/highd_tail_flow_clean_start/evaluation_summary.json` | 256 个样本；物理 invalid/overlap/negative-gap/semantic-error rate 均为 0。 |
 | highD 世界模型训练 | `world_model/scripts/configs/highd_semi_markov_relational_10k.yaml` | 10,000 条序列开发缓存，train/val/test = 7,026/1,483/1,491。 |
 | 因果先验续训 | `world_model/scripts/configs/highd_semi_markov_relational_10k_finetune.yaml` | 从 10k checkpoint 续训 20 epochs；validation FDE 从 1.3205 m 降至 1.3154 m（epoch 17）。 |
 | 完整 highD 缓存 | `results/highd_world_model/semi_markov_relational_full/sequence_cache/` | 161,314 条六秒序列；train/val/test = 112,943/24,155/24,216；非有界缓存。 |

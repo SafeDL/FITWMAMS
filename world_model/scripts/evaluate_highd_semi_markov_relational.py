@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 from world_model.src.semi_markov_evaluation import evaluate_semi_markov_world_model
 from world_model.src.utils import load_yaml, setup_logging
-CONFIG = Path(__file__).resolve().parent / "configs" / "highd_semi_markov_relational.yaml"
+CONFIG = Path(__file__).resolve().parent / "configs" / "highd_behavior_anchored_semi_markov.yaml"
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(CONFIG)); parser.add_argument("--checkpoint", default=None)

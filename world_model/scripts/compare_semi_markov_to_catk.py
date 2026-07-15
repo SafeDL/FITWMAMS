@@ -28,6 +28,7 @@ if str(ROOT) not in sys.path:
 
 from world_model.src.data import ROLL_MODE_INDEX, START_MODE_INDEX, dataset_dir_from_config, load_world_model_dataset, split_indices
 from world_model.src.evaluation import _model_actions_normalized
+from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.model import load_checkpoint as load_catk_checkpoint, numpy_batch_to_torch
 from world_model.src.rollout import (
     build_relation_features_from_current,
@@ -38,7 +39,7 @@ from world_model.src.rollout import (
 )
 from world_model.src.schema import SLOT_NAMES
 from world_model.src.semi_markov_train import FIELDS, _to_batch, load_semi_markov_checkpoint
-from world_model.src.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from world_model.src.sequential_dataset import FLOW_ANCHOR_ARRAYS, ensure_frozen_flow_behavior_anchor_cache, load_sequential_dataset, sequence_cache_owner_dir
 from world_model.src.utils import ensure_dir, load_yaml, save_json, select_device, set_seed
 
 
@@ -82,8 +83,9 @@ def _bootstrap(candidate: np.ndarray, baseline: np.ndarray, *, repetitions: int,
 def _batch(arrays: dict[str, np.ndarray], index: np.ndarray, device):
     import torch
 
-    values = tuple(torch.from_numpy(np.asarray(arrays[field][index])) for field in FIELDS)
-    return _to_batch(values, FIELDS, device)
+    names = tuple([*FIELDS, *[name for name in FLOW_ANCHOR_ARRAYS if name in arrays]])
+    values = tuple(torch.from_numpy(np.asarray(arrays[field][index])) for field in names)
+    return _to_batch(values, names, device)
 
 
 def _relationship_counts(states: np.ndarray, valid: np.ndarray, *, lane_width_m: float = 3.6) -> np.ndarray:
@@ -250,7 +252,7 @@ def _catk_multichunk_rollout(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_semi_markov_relational_full.yaml"))
+    parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml"))
     parser.add_argument("--catk-config", default=str(ROOT / "world_model/scripts/configs/highd_world_model.yaml"))
     parser.add_argument("--semi-checkpoint", required=True)
     parser.add_argument("--catk-checkpoint", default=str(ROOT / "results/highd_world_model/catk_topk/checkpoints/best_world_model.pt"))
@@ -260,6 +262,7 @@ def main() -> None:
     parser.add_argument("--bootstrap-repetitions", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--zero-start-flow-summary", action="store_true", help="Diagnostic only: zero CAT-K's legacy future-action START feature.")
+    parser.add_argument("--output-suffix", default="", help="Append a label such as _smoke; bounded runs must not overwrite formal reports.")
     args = parser.parse_args()
 
     semi_path, catk_path = Path(args.semi_config).resolve(), Path(args.catk_config).resolve()
@@ -270,7 +273,8 @@ def main() -> None:
     # deliberately reuses the immutable cache owned by the base full-data run.
     # Resolve that owner just as training and evaluation do, rather than
     # assuming arrays are colocated with the checkpoint.
-    semi_arrays, manifest = load_sequential_dataset(sequence_cache_owner_dir(semi_cfg, config_dir=semi_path.parent))
+    semi_cache_owner = sequence_cache_owner_dir(semi_cfg, config_dir=semi_path.parent)
+    semi_arrays, manifest = load_sequential_dataset(semi_cache_owner)
     if bool(manifest.get("bounded_development_cache", True)):
         raise RuntimeError("paired comparison requires the complete highD sequence cache")
     source_dir = dataset_dir_from_config(catk_cfg, catk_path.parent)
@@ -289,6 +293,16 @@ def main() -> None:
 
     semi_checkpoint, catk_checkpoint = Path(args.semi_checkpoint).resolve(), Path(args.catk_checkpoint).resolve()
     semi = load_semi_markov_checkpoint(semi_checkpoint, device=device)
+    if semi.uses_behavior_anchor:
+        flow_schema = semi_cfg.get("paths", {}).get("flow_schema")
+        if not flow_schema:
+            raise ValueError("Flow-aligned M1 comparison requires paths.flow_schema")
+        schema_path = Path(flow_schema)
+        schema = FrozenLegacyFlowSchema.load(
+            schema_path if schema_path.is_absolute() else (semi_path.parent / schema_path).resolve()
+        )
+        semi.set_frozen_flow_schema(schema)
+        semi_arrays.update(ensure_frozen_flow_behavior_anchor_cache(semi_cache_owner, semi_arrays, manifest, schema))
     catk, _ = load_catk_checkpoint(str(catk_checkpoint), device)
     import torch
 
@@ -366,9 +380,12 @@ def main() -> None:
         "relationship_distribution": relationship_report,
     }
     suffix = "_clean_start_flow" if bool(args.zero_start_flow_summary) else ""
+    extra = str(args.output_suffix)
+    if extra and not extra.startswith("_"):
+        extra = "_" + extra
     path = output_dir / (
-        f"paired_semi_markov_vs_catk{suffix}.json"
-        if chunks == 1 else f"paired_semi_markov_vs_catk_{int(args.horizon_seconds)}s{suffix}.json"
+        f"paired_semi_markov_vs_catk{suffix}{extra}.json"
+        if chunks == 1 else f"paired_semi_markov_vs_catk_{int(args.horizon_seconds)}s{suffix}{extra}.json"
     )
     save_json(report, path)
     print(path)

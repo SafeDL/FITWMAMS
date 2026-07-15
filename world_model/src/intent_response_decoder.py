@@ -13,12 +13,6 @@ class IntentResponseDecoderConfig:
     control_limit_accel_mps2: float = 8.0
     control_limit_yaw_rate_rps: float = 0.8
     reference_control_scale: float = 1.0
-    use_intent_response: bool = True
-    control_plan_steps: int = 1
-    control_plan_as_jerk: bool = False
-    simulation_dt_s: float = 0.04
-    control_jerk_limit_accel_mps3: float = 8.0
-    control_jerk_limit_yaw_accel_rps2: float = 0.5
     use_behavior_anchor: bool = False
 
 
@@ -35,20 +29,10 @@ class IntentResponseDecoder(nn.Module):
         self.anchor = None
         if cfg.use_behavior_anchor:
             self.anchor = nn.Sequential(nn.Linear(h * 2, h), nn.SiLU(), nn.Linear(h, 2))
-        self.control_plan_steps = max(1, int(cfg.control_plan_steps))
-        # Optional curve head; the absent legacy path stays parameter-identical.
-        self.plan = None
-        if self.control_plan_steps > 1:
-            self.plan = nn.Sequential(
-                nn.Linear(h * 3 + 1, h), nn.SiLU(), nn.Linear(h, self.control_plan_steps * 2),
-            )
         # Start from reference controls until data supports a correction.
         for head in (self.mode, self.response):
             nn.init.zeros_(head[-1].weight)
             nn.init.zeros_(head[-1].bias)
-        if self.plan is not None:
-            nn.init.zeros_(self.plan[-1].weight)
-            nn.init.zeros_(self.plan[-1].bias)
         if self.anchor is not None:
             nn.init.zeros_(self.anchor[-1].weight)
             nn.init.zeros_(self.anchor[-1].bias)
@@ -68,14 +52,8 @@ class IntentResponseDecoder(nn.Module):
         latent = state_context[:, None, :].expand(b, n, h)
         elapsed = elapsed_steps.float().view(b, 1, 1).expand(b, n, 1) / 30.0
         mode = self.mode(torch.cat((agent_context, latent, elapsed), dim=-1))
-        if self.cfg.use_intent_response:
-            response = self.response(torch.cat((agent_context, scene), dim=-1))
-            gate = torch.sigmoid(self.gate(torch.cat((agent_context, scene), dim=-1)))
-        else:
-            # B2 duration-aware ablation: preserve the same mode decoder and
-            # physics while removing every instantaneous response path.
-            response = torch.zeros_like(mode)
-            gate = torch.zeros((*mode.shape[:-1], 1), dtype=mode.dtype, device=mode.device)
+        response = self.response(torch.cat((agent_context, scene), dim=-1))
+        gate = torch.sigmoid(self.gate(torch.cat((agent_context, scene), dim=-1)))
         anchor_control = torch.zeros_like(mode)
         if behavior_anchor is not None:
             if self.anchor is None or behavior_anchor.shape != agent_context.shape:
@@ -92,31 +70,8 @@ class IntentResponseDecoder(nn.Module):
             float(self.cfg.reference_control_scale) * reference[..., 1] + residual[..., 1],
         ), dim=-1))
         controls = controls * agent_valid[..., None].float()
-        if self.plan is None:
-            control_plan = controls.unsqueeze(-2)
-        else:
-            plan_input = torch.cat((agent_context, scene, latent, elapsed), dim=-1)
-            raw_plan = self.plan(plan_input).view(b, n, self.control_plan_steps, 2)
-            if self.cfg.control_plan_as_jerk:
-                plan_delta = torch.stack((
-                    torch.tanh(raw_plan[..., 0]) * float(self.cfg.control_jerk_limit_accel_mps3),
-                    torch.tanh(raw_plan[..., 1]) * float(self.cfg.control_jerk_limit_yaw_accel_rps2),
-                ), dim=-1)
-                control_plan = controls.unsqueeze(-2) + torch.cumsum(
-                    plan_delta * float(self.cfg.simulation_dt_s), dim=-2,
-                )
-            else:
-                plan_delta = torch.stack((
-                    torch.tanh(raw_plan[..., 0]) * float(self.cfg.control_limit_accel_mps2),
-                    torch.tanh(raw_plan[..., 1]) * float(self.cfg.control_limit_yaw_rate_rps),
-                ), dim=-1)
-                control_plan = controls.unsqueeze(-2) + plan_delta
-            control_plan = self._bounded_controls(control_plan)
-            control_plan = control_plan * agent_valid[..., None, None].float()
-            # Existing callers use the mean; rollout integrates the full plan.
-            controls = control_plan.mean(dim=-2)
         return {
-            "controls": controls, "control_plan": control_plan,
+            "controls": controls,
             "mode_controls": mode, "response_controls": response, "response_gate": gate,
             "anchor_controls": anchor_control,
         }

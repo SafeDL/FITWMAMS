@@ -9,8 +9,9 @@ from typing import Any
 import numpy as np
 
 from .metrics import interaction_metrics, physical_diagnostics
+from .initial_behavior_anchor import FrozenLegacyFlowSchema
 from .semi_markov_train import _loader, _to_batch, load_semi_markov_checkpoint
-from .sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from .sequential_dataset import ensure_frozen_flow_behavior_anchor_cache, load_sequential_dataset, sequence_cache_owner_dir
 from .utils import load_json, save_json, select_device
 
 
@@ -184,11 +185,22 @@ def evaluate_semi_markov_world_model(
     paths = config["paths"]
     out = Path(paths["output_dir"])
     if not out.is_absolute(): out = (config_dir / out).resolve()
-    arrays, manifest = load_sequential_dataset(sequence_cache_owner_dir(config, config_dir=config_dir))
+    cache_owner = sequence_cache_owner_dir(config, config_dir=config_dir)
+    arrays, manifest = load_sequential_dataset(cache_owner)
     evaluation = config.get("evaluation", {})
     device = select_device(str(evaluation.get("device", "auto")))
     checkpoint = checkpoint or out / "checkpoints" / "best_semi_markov_relational.pt"
     model = load_semi_markov_checkpoint(checkpoint, device=device)
+    if model.uses_behavior_anchor:
+        schema_value = config.get("paths", {}).get("flow_schema")
+        if not schema_value:
+            raise ValueError("M1 evaluation requires paths.flow_schema")
+        schema_path = Path(schema_value)
+        if not schema_path.is_absolute():
+            schema_path = (config_dir / schema_path).resolve()
+        schema = FrozenLegacyFlowSchema.load(schema_path)
+        model.set_frozen_flow_schema(schema)
+        arrays.update(ensure_frozen_flow_behavior_anchor_cache(cache_owner, arrays, manifest, schema))
     cold_start = evaluation.get("cold_start_history")
     if cold_start is not None:
         model.cfg = replace(model.cfg, cold_start_history=bool(cold_start))
@@ -197,7 +209,8 @@ def evaluate_semi_markov_world_model(
     all_pred: list[np.ndarray] = []; all_target: list[np.ndarray] = []; all_mask: list[np.ndarray] = []; all_tail: list[np.ndarray] = []
     posterior_boundaries: list[np.ndarray] = []; boundary_targets: list[np.ndarray] = []
     posterior_probs: list[np.ndarray] = []; prior_probs: list[np.ndarray] = []
-    anchor_losses: list[float] = []
+    posterior_anchor_losses: list[float] = []
+    causal_anchor_losses: list[float] = []
     states: list[list[int]] = []; durations: list[list[int]] = []
     with torch.no_grad():
         for values in loader:
@@ -213,7 +226,14 @@ def evaluate_semi_markov_world_model(
             boundary_targets.append(posterior["boundary_target"][:, 1:].cpu().numpy())
             posterior_probs.append(posterior["posterior_raw_state_probs"].cpu().numpy())
             prior_probs.append(torch.softmax(posterior["prior_logits"], dim=-1).cpu().numpy())
-            anchor_losses.append(float(posterior["anchor_loss"].cpu()))
+            posterior_anchor_losses.append(float(posterior["anchor_loss"].cpu()))
+            if model.uses_behavior_anchor:
+                _raw, target_std, _agents, target_valid = model._batch_behavior_anchor(batch)
+                causal_raw = rollout["causal_prior_anchor_raw"]
+                causal_valid = rollout["causal_prior_anchor_valid"] & target_valid
+                causal_std = model.frozen_flow_schema.standardize(causal_raw, causal_valid) if model.frozen_flow_schema else model.behavior_anchor.normalize(causal_raw)
+                weight = causal_valid.float().unsqueeze(-1)
+                causal_anchor_losses.append(float((causal_std.sub(target_std).abs() * weight).sum().div(weight.sum().clamp_min(1.0)).cpu()))
     pred, target, mask, tail = _concat(all_pred), _concat(all_target), _concat(all_mask), _concat(all_tail)
     full = _metrics(pred, target, mask)
     one_second = _metrics(pred[:, :25], target[:, :25], mask[:, :25])
@@ -354,7 +374,8 @@ def evaluate_semi_markov_world_model(
             "variant": model.cfg.variant,
             "cold_start_history": bool(model.cfg.cold_start_history),
             "active_response_steps": int(model.cfg.behavior_anchor_response_steps),
-            "first_second_action_summary_l1": float(np.mean(anchor_losses)) if anchor_losses else 0.0,
+            "posterior_anchor_l1": float(np.mean(posterior_anchor_losses)) if posterior_anchor_losses else 0.0,
+            "causal_prior_anchor_l1": float(np.mean(causal_anchor_losses)) if causal_anchor_losses else 0.0,
         },
         "controlled_response": controlled_response,
         "frozen_baseline_horizon_comparison": {

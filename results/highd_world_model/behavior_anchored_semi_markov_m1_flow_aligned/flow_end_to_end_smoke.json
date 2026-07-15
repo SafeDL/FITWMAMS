@@ -1,0 +1,19 @@
+{
+  "anchor_lifecycle": "B0 tensors are cleared after response step five; later effects are physical-state only.",
+  "causal_prior_anchor_raw_l1": 0.1378336437046528,
+  "latent_state_histogram": {
+    "3": 2,
+    "6": 2,
+    "8": 2
+  },
+  "map_context_limit": "straight_lane_v1: Flow samples do not contain recorded map geometry",
+  "mean_duration_response_steps": 10.0,
+  "physical_valid_rate": 1.0,
+  "protocol": "frozen_flow_atomic_straight_lane_v1",
+  "same_seed_stability_rate": 1.0,
+  "samples": 2,
+  "seeds": [
+    123,
+    456
+  ]
+}

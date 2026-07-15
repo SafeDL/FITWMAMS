@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from .initial_behavior_anchor import FrozenLegacyFlowSchema, summarize_first_second_states
+
 from .adapters.highd_adapter import HighDGraphAdapter
 from .data import SPLIT_TO_INDEX, aligned_multichunk_indices, load_world_model_dataset
 from .utils import ensure_dir, load_json, save_json
@@ -25,6 +27,8 @@ SEQUENCE_ARRAYS = (
     "agent_lane_candidates", "actions_highd", "split_index", "is_evt_tail",
 )
 OPTIONAL_SEQUENCE_ARRAYS = ("conflict_zone_features", "conflict_zone_valid")
+FLOW_ANCHOR_ARRAYS = ("behavior_anchor_raw", "behavior_anchor_std", "behavior_anchor_valid")
+FLOW_ANCHOR_CACHE_VERSION = "frozen_flow_behavior_anchor_v1"
 
 
 def sequence_cache_dir(output_dir: str | Path) -> Path:
@@ -33,6 +37,77 @@ def sequence_cache_dir(output_dir: str | Path) -> Path:
 
 def sequence_manifest_path(output_dir: str | Path) -> Path:
     return sequence_cache_dir(output_dir) / "manifest.json"
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _flow_anchor_cache_root(output_dir: str | Path, schema: FrozenLegacyFlowSchema) -> Path:
+    """Return the immutable sidecar location for one Flow/schema pairing."""
+    source_manifest = sequence_manifest_path(output_dir)
+    if not source_manifest.exists():
+        raise FileNotFoundError(f"missing sequence-cache manifest: {source_manifest}")
+    source_hash = _sha256_bytes(source_manifest.read_bytes())
+    return sequence_cache_dir(output_dir) / "frozen_flow_behavior_anchors" / f"{schema.schema_sha256}_{source_hash}"
+
+
+def ensure_frozen_flow_behavior_anchor_cache(
+    output_dir: str | Path,
+    arrays: dict[str, np.ndarray],
+    manifest: dict[str, Any],
+    schema: FrozenLegacyFlowSchema,
+) -> dict[str, np.ndarray]:
+    """Materialize exact logged B0 once, then serve it as read-only tensors.
+
+    This deliberately caches summaries of every six-second logged sequence,
+    rather than joining the much smaller Flow-tail dataset.  A Flow-tail row
+    is suitable for Flow sampling, but is not a condition for an arbitrary
+    logged future trajectory.  The sidecar is content-addressed by both the
+    immutable sequence-cache manifest and frozen Flow schema.
+    """
+    if int(np.asarray(arrays["agent_states"]).shape[2]) != 7:
+        raise ValueError("frozen 76-D Flow anchors require ego plus exactly six ordered background slots")
+    root = _flow_anchor_cache_root(output_dir, schema)
+    metadata_path = root / "manifest.json"
+    expected = {
+        "cache_version": FLOW_ANCHOR_CACHE_VERSION,
+        "flow_schema_sha256": schema.schema_sha256,
+        "source_sequence_manifest_sha256": _sha256_bytes(sequence_manifest_path(output_dir).read_bytes()),
+        "num_sequences": int(np.asarray(arrays["agent_states"]).shape[0]),
+    }
+    if metadata_path.exists() and all((root / f"{name}.npy").exists() for name in FLOW_ANCHOR_ARRAYS):
+        stored = load_json(metadata_path)
+        if all(stored.get(key) == value for key, value in expected.items()):
+            return {name: np.load(root / f"{name}.npy", mmap_mode="r", allow_pickle=False) for name in FLOW_ANCHOR_ARRAYS}
+        raise RuntimeError(f"Flow-anchor sidecar contract mismatch at {root}; keep the immutable cache and use its matching schema")
+    if root.exists():
+        raise RuntimeError(f"partial Flow-anchor sidecar at {root}; remove only this generated sidecar before rebuilding")
+
+    ensure_dir(root)
+    count = expected["num_sequences"]
+    raw_path, std_path, valid_path = (root / f"{name}.npy" for name in FLOW_ANCHOR_ARRAYS)
+    raw_out = np.lib.format.open_memmap(raw_path, mode="w+", dtype=np.float32, shape=(count, 6, 6))
+    std_out = np.lib.format.open_memmap(std_path, mode="w+", dtype=np.float32, shape=(count, 6, 6))
+    valid_out = np.lib.format.open_memmap(valid_path, mode="w+", dtype=bool, shape=(count, 6))
+    import torch
+    chunk = 1024
+    for start in range(0, count, chunk):
+        stop = min(start + chunk, count)
+        # The source cache is memory-mapped read-only; a small one-time copy
+        # avoids handing PyTorch a non-writable view.
+        states = torch.from_numpy(np.asarray(arrays["agent_states"][start:stop, 24:50, 1:], np.float32).copy())
+        valid = torch.from_numpy(np.asarray(arrays["agent_valid"][start:stop, 24:50, 1:], bool).copy())
+        raw, anchor_valid = summarize_first_second_states(states, valid)
+        standardized = schema.standardize(raw, anchor_valid)
+        raw_out[start:stop] = raw.numpy()
+        std_out[start:stop] = standardized.numpy()
+        valid_out[start:stop] = anchor_valid.numpy()
+    raw_out.flush(); std_out.flush(); valid_out.flush()
+    expected.update({"arrays": list(FLOW_ANCHOR_ARRAYS), "summary": "exact_26_state_points", "source_cache_version": manifest.get("cache_version")})
+    save_json(expected, metadata_path)
+    logger.info("Wrote frozen Flow behavior-anchor sidecar: %s", root)
+    return {name: np.load(root / f"{name}.npy", mmap_mode="r", allow_pickle=False) for name in FLOW_ANCHOR_ARRAYS}
 
 
 def sequence_cache_owner_dir(config: dict[str, Any], *, config_dir: Path) -> Path:

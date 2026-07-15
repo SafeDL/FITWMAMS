@@ -1,10 +1,12 @@
-# The sole behavior-anchored experiment.  Set model.variant to m0, m1, or m2
-# for the predefined comparison; the shared six-second cache remains read-only.
+# The sole behavior-anchored experiment.  Use m0 for its cold-start ablation
+# or m1 for the retained candidate; the shared cache remains read-only.
 paths:
   legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_cold_start"
+  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned"
   sequence_cache_dir: "../../../results/highd_world_model/semi_markov_relational_full"
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
+  flow_checkpoint: "../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt"
+  flow_schema: "../../../results/highd_tail_flow_best/dataset_schema.json"
 
 dataset:
   max_sequences: 0
@@ -57,6 +59,14 @@ training:
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
+  m0_reference_checkpoint: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt"
+  stages:
+    - {name: "anchor_realization", epochs: 5}
+    - {name: "causal_rollout", epochs: 10}
+    - {name: "joint", epochs: 5}
+  encoder_learning_rate: 0.000005
+  decoder_prior_learning_rate: 0.00001
+  anchor_learning_rate: 0.00002
 
 evaluation:
   seed: 123
@@ -65,3 +75,7 @@ evaluation:
   max_sequences: 0
   cold_start_history: true
   round_evaluation_summary: ""
+  paired_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_clean_start_flow.json"
+  paired_long_horizon_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_5s_clean_start_flow.json"
+  legacy_paired_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk.json"
+  legacy_paired_long_horizon_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_5s.json"

@@ -120,7 +120,7 @@ results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt
 - 离散结构配额采样；
 - 既有采样温度与物理拒绝规则。
 
-`clean_start` 40 维 Flow 及其结果保留为消融和历史诊断，但不再是正式目标链路。
+`clean_start` 40 维 Flow 已随其结果和适配代码移除，不再是正式或可选链路。
 
 ### 3.3 世界模型禁止读取的信息
 

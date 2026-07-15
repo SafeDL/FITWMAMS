@@ -62,30 +62,20 @@ class C0FeatureSchema:
 def build_feature_schema(
     feature_mode: str = "legacy_future_action_summary",
 ) -> C0FeatureSchema:
-    """Build a Flow feature schema without silently changing legacy artifacts.
-
-    ``clean_start`` intentionally contains only quantities observable at the
-    initial frame.  In particular it has no one-second action summaries; the
-    Semi-Markov world model, rather than the Flow, is responsible for all
-    subsequent background-traffic behaviour.
-    """
+    """Build the frozen 76-dimensional Flow feature schema."""
     mode = str(feature_mode).strip().lower()
     aliases = {
         "legacy": "legacy_future_action_summary",
         "legacy_future_action_summary": "legacy_future_action_summary",
         "future_action_summary": "legacy_future_action_summary",
-        "clean": "clean_start",
-        "clean_start": "clean_start",
     }
     if mode not in aliases:
         raise ValueError(
             "Unsupported Flow feature_mode="
-            f"{feature_mode!r}; expected 'legacy_future_action_summary' or 'clean_start'"
+            f"{feature_mode!r}; expected 'legacy_future_action_summary'"
         )
     mode = aliases[mode]
-    trajectory_features = (
-        TRAJECTORY_FEATURES if mode == "legacy_future_action_summary" else ()
-    )
+    trajectory_features = TRAJECTORY_FEATURES
     names: list[str] = [*EGO_FEATURES]
     for slot_name in SLOT_NAMES:
         names.extend(f"{slot_name}_{feature}" for feature in SLOT_FEATURES)

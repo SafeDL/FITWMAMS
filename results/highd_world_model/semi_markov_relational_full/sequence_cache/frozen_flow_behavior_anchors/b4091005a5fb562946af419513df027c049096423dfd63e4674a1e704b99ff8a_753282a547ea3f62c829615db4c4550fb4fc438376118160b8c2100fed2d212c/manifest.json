@@ -1,0 +1,13 @@
+{
+  "arrays": [
+    "behavior_anchor_raw",
+    "behavior_anchor_std",
+    "behavior_anchor_valid"
+  ],
+  "cache_version": "frozen_flow_behavior_anchor_v1",
+  "flow_schema_sha256": "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a",
+  "num_sequences": 161314,
+  "source_cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
+  "source_sequence_manifest_sha256": "753282a547ea3f62c829615db4c4550fb4fc438376118160b8c2100fed2d212c",
+  "summary": "exact_26_state_points"
+}

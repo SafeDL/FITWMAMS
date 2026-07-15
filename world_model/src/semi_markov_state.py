@@ -77,7 +77,9 @@ class SemiMarkovLatentState(nn.Module):
         else:
             z = F.one_hot(state_logits.argmax(dim=-1), num_classes=self.cfg.num_states).to(dtype=z_soft.dtype)
         boundary_logits = self.posterior_boundary(encoded).squeeze(-1)
-        boundary = torch.sigmoid(boundary_logits)
+        boundary_soft = torch.sigmoid(boundary_logits)
+        boundary_hard = (boundary_soft >= 0.5).to(dtype=boundary_soft.dtype)
+        boundary = boundary_hard + boundary_soft - boundary_soft.detach() if self.training else boundary_hard
         # A sequence begins a new state by definition.  It has no preceding
         # duration event, so it is excluded from duration supervision below.
         boundary = torch.cat((torch.ones_like(boundary[:, :1]), boundary[:, 1:]), dim=1)
@@ -101,7 +103,6 @@ class SemiMarkovLatentState(nn.Module):
         state_target: torch.Tensor | None = None,
         *,
         force_stepwise: bool = False,
-        initial_scene: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Return posterior paths and the KL/duration/right-censor objectives."""
         q_z_soft, q_z_sample, q_boundary, boundary_logits, state_logits = self.posterior(full_scene)
@@ -113,12 +114,14 @@ class SemiMarkovLatentState(nn.Module):
         else:
             q_z = self.propagated_states(q_z_sample, q_boundary)
         previous = torch.cat((q_z[:, :1], q_z[:, :-1]), dim=1)
-        prior_scene = causal_scene
-        if initial_scene is not None:
-            if initial_scene.shape != causal_scene[:, 0].shape:
-                raise ValueError("initial_scene must be [batch, hidden_dim]")
-            prior_scene = torch.cat((initial_scene[:, None], causal_scene[:, 1:]), dim=1)
-        prior_logits = self.prior_logits(prior_scene.reshape(-1, prior_scene.shape[-1]), previous.reshape(-1, previous.shape[-1]))
+        # A segment's duration distribution is conditioned on the scene at
+        # the segment start, exactly as deployment samples it once.
+        segment_scene = [causal_scene[:, 0]]
+        for step in range(1, causal_scene.shape[1]):
+            boundary = q_boundary[:, step : step + 1]
+            segment_scene.append(boundary * causal_scene[:, step] + (1.0 - boundary) * segment_scene[-1])
+        segment_scene = torch.stack(segment_scene, dim=1)
+        prior_logits = self.prior_logits(segment_scene.reshape(-1, segment_scene.shape[-1]), previous.reshape(-1, previous.shape[-1]))
         prior_logits = prior_logits.reshape(*causal_scene.shape[:2], -1)
         log_prior = F.log_softmax(prior_logits, dim=-1)
         # The KL uses the categorical posterior probabilities rather than its
@@ -131,7 +134,7 @@ class SemiMarkovLatentState(nn.Module):
         for step in range(1, elapsed.shape[1]):
             elapsed[:, step] = (1.0 - q_boundary[:, step]) * (elapsed[:, step - 1] + 1.0) + q_boundary[:, step]
         hazard_logits = self.hazard_logits(
-            prior_scene.reshape(-1, prior_scene.shape[-1]), q_z.reshape(-1, q_z.shape[-1]), elapsed.reshape(-1)
+            segment_scene.reshape(-1, segment_scene.shape[-1]), q_z.reshape(-1, q_z.shape[-1]), elapsed.reshape(-1)
         ).reshape_as(q_boundary)
         # Transition targets exist only after the initial state and before the
         # window end.  The final observed state is right-censored.

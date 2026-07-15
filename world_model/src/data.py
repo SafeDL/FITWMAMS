@@ -1057,7 +1057,7 @@ def _missing_prepared_cache_error(out_dir: Path) -> FileNotFoundError:
     array_dir = prepared_dataset_array_dir(out_dir)
     return FileNotFoundError(
         f"Missing prepared world-model dataset cache: {array_dir}. "
-        "Run prepare_highd_world_model_dataset.py --rebuild."
+        "Restore the archived frozen CAT-K dataset before running a comparison."
     )
 
 

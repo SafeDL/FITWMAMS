@@ -2,20 +2,22 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import numpy as np
 
 from world_model.src.graph_builder import DynamicTrafficGraphBuilder
-from world_model.src.initial_behavior_anchor import behavior_anchor_from_flow_feature
+from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema, behavior_anchor_from_flow_feature, summarize_first_second_states
+from world_model.src.legacy_flow_initializer import graph_and_anchor_from_legacy_flow
 from world_model.src.adapters.round_adapter import RoundGraphAdapter
 from world_model.src.adapters.highd_adapter import HighDGraphAdapter
-from world_model.src.clean_start import CLEAN_START_FEATURE_COUNT, graph_from_clean_start
 from world_model.src.semi_markov_environment import SemiMarkovBackgroundEnvironment, WorldRandomness
 from world_model.src.semi_markov_model import SemiMarkovRelationalWorldModel, SemiMarkovWorldModelConfig
 from world_model.src.semi_markov_evaluation import _counterfactual_ego_batch
 from world_model.src.metrics import physical_diagnostics
 from world_model.src.sequential_dataset import (
     combine_sequence_caches,
+    ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     prepare_round_sequential_dataset,
     write_dynamic_sequence_cache,
@@ -24,6 +26,30 @@ from world_model.src.semi_markov_train import _load_initial_state, _loader, _pro
 
 
 class SemiMarkovRelationalTests(unittest.TestCase):
+    def test_exact_26_point_flow_summary_and_validity(self):
+        import torch
+        states = torch.zeros((1, 26, 1, 6))
+        states[0, :, 0, 2] = torch.linspace(10.0, 12.0, 26)
+        states[0, :, 0, 3] = torch.linspace(-1.0, 2.0, 26)
+        states[0, :, 0, 4] = torch.linspace(-3.0, 2.0, 26)
+        states[0, :, 0, 5] = 0.5
+        summary, valid = summarize_first_second_states(states, torch.ones((1, 26, 1), dtype=torch.bool))
+        torch.testing.assert_close(summary[0, 0], torch.tensor((2.0, 3.0, -0.5, -3.0, 2.0, 0.5)))
+        self.assertTrue(bool(valid[0, 0]))
+        partial = torch.ones((1, 26, 1), dtype=torch.bool); partial[:, 7] = False
+        summary, valid = summarize_first_second_states(states, partial)
+        self.assertFalse(bool(valid[0, 0])); torch.testing.assert_close(summary, torch.zeros_like(summary))
+
+    def test_atomic_flow_initializer_rejects_external_graph_mismatch(self):
+        from normalizing_flow.src.features import EGO_FEATURES, SLOT_NAMES, slot_feature_index
+        schema = FrozenLegacyFlowSchema.load(Path(__file__).resolve().parents[2] / "results/highd_tail_flow_best/dataset_schema.json")
+        feature = np.zeros(76, np.float32); feature[EGO_FEATURES.index("ego_vx_mps")] = 20.0
+        slot = SLOT_NAMES[0]
+        for name, value in {"rel_x_m": 20.0, "rel_y_left_m": 0.0, "rel_vx_mps": -1.0, "rel_vy_left_mps": 0.0, "other_ax_mps2": 0.0, "other_ay_left_mps2": 0.0}.items():
+            feature[slot_feature_index(slot, name)] = value
+        scene = graph_and_anchor_from_legacy_flow(feature, np.array([True, False, False, False, False, False]), 0, {"frozen_flow_schema": schema})
+        self.assertEqual(scene.primary_agent_index, 1)
+        np.testing.assert_array_equal(scene.graph.agent_valid[1:], [True, False, False, False, False, False])
     def _batch(self):
         import torch
         b, n = 2, 4
@@ -62,30 +88,23 @@ class SemiMarkovRelationalTests(unittest.TestCase):
     def test_behavior_anchor_affects_only_the_first_second(self):
         import torch
         model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, variant="m2",
+            hidden_dim=24, num_latent_states=4, variant="m1",
         ))
         raw_anchor = torch.ones((1, 3, 6), requires_grad=True)
-        agent_anchor, _scene_anchor = model.encode_behavior_anchor(
-            raw_anchor, torch.ones((1, 3), dtype=torch.bool),
+        residual = model._anchor_residual_controls(
+            torch.zeros((1, 4, 24)), torch.zeros((1, 24)), torch.zeros((1, 24)), raw_anchor,
+            torch.zeros((1, 4, 6)), [], torch.zeros((1, 5, 3, 2)), 0,
+            torch.ones((1, 4), dtype=torch.bool),
         )
-        with torch.no_grad():
-            model.decoder.anchor[-1].weight.fill_(0.1)
-        args = (
-            torch.zeros((1, 4, 24)), torch.zeros((1, 24)), torch.zeros((1, 24)),
-            torch.ones((1,)), torch.ones((1, 4), dtype=torch.bool), torch.zeros((1, 4, 2)),
-        )
-        first = model.decoder(*args, model._active_anchor(0, agent_anchor))["controls"]
-        without_anchor = model.decoder(*args)["controls"]
-        self.assertFalse(torch.allclose(first, without_anchor))
-        self.assertIsNone(model._active_anchor(5, agent_anchor))
-        sixth = model.decoder(*args, model._active_anchor(5, agent_anchor))["controls"]
-        torch.testing.assert_close(sixth, without_anchor, atol=0.0, rtol=0.0)
-        self.assertIsNone(torch.autograd.grad(sixth.sum(), raw_anchor, allow_unused=True)[0])
+        # Only the residual output layer is zero-initialized, so M1 starts as
+        # exactly the nominal plan without blocking gradients in its encoders.
+        torch.testing.assert_close(residual, torch.zeros_like(residual), atol=0.0, rtol=0.0)
+        self.assertEqual(model.cfg.behavior_anchor_response_steps, 5)
 
     def test_behavior_anchored_training_uses_only_logged_first_second(self):
         import torch
         model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, variant="m2",
+            hidden_dim=24, num_latent_states=4, variant="m1",
         ))
         batch = self._batch()
         batch["actions_highd"][:, :25, :, 0] = 0.5
@@ -159,89 +178,6 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         self.assertEqual(int(output["rollout_response_steps"].item()), 5)
         self.assertTrue(torch.isfinite(output["loss"]))
         output["loss"].backward()
-
-    def test_physics_rate_control_curve_is_supervised_and_can_extend_checkpoint(self):
-        import torch
-        baseline = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(hidden_dim=24, num_latent_states=4))
-        planned = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, control_plan_steps=5, control_plan_weight=1.0,
-            tail_acceleration_weight=3.0,
-        ))
-        transfer = _load_initial_state(planned, {"model_config": baseline.config_payload(), "state_dict": baseline.state_dict()})
-        self.assertTrue(transfer["missing"])
-        self.assertTrue(all(name.startswith("decoder.plan.") for name in transfer["missing"]))
-        batch = self._batch()
-        batch["agent_states"][:, 25:, 1, 4] = 2.0
-        output = planned.forward_training(batch, teacher_forcing_ratio=0.0, rollout_response_steps=5)
-        self.assertTrue(torch.isfinite(output["plan_control_loss"]))
-        self.assertGreaterEqual(float(output["plan_control_loss"]), 0.0)
-
-    def test_jerk_parameterized_control_curve_integrates_bounded_derivatives(self):
-        import torch
-        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, control_plan_steps=5,
-            control_plan_as_jerk=True, control_plan_weight=1.0,
-            control_jerk_limit_accel_mps3=8.0, simulation_dt_s=0.04,
-        ))
-        with torch.no_grad():
-            model.decoder.plan[-1].weight.zero_()
-            model.decoder.plan[-1].bias.copy_(torch.tensor([1.0, 0.0] * 5))
-        decoded = model.decoder(
-            torch.zeros((1, 2, 24)), torch.zeros((1, 24)), torch.zeros((1, 24)),
-            torch.ones((1,)), torch.ones((1, 2), dtype=torch.bool), torch.zeros((1, 2, 2)),
-        )
-        expected_increment = float(torch.tanh(torch.tensor(1.0)) * 8.0 * 0.04)
-        acceleration = decoded["control_plan"][0, 0, :, 0]
-        torch.testing.assert_close(
-            acceleration,
-            expected_increment * torch.arange(1, 6, dtype=acceleration.dtype),
-            atol=1.0e-6, rtol=0.0,
-        )
-        self.assertTrue(torch.isfinite(decoded["control_plan"]).all())
-
-    def test_curve_checkpoint_cannot_silently_change_control_parameterization(self):
-        direct = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, control_plan_steps=5,
-        ))
-        jerk = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, control_plan_steps=5, control_plan_as_jerk=True,
-        ))
-        with self.assertRaisesRegex(ValueError, "different control-curve"):
-            _load_initial_state(jerk, {"model_config": direct.config_payload(), "state_dict": direct.state_dict()})
-
-    def test_optional_ego_relative_position_feature_is_graph_relative_and_finite(self):
-        import torch
-        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, include_ego_relative_position=True,
-        ))
-        self.assertEqual(model.encoder.state_mlp[0].in_features, 12)
-        output = model.forward_training(self._batch(), teacher_forcing_ratio=0.0, rollout_response_steps=5)
-        self.assertTrue(torch.isfinite(output["loss"]))
-
-    def test_history_displacement_feature_is_translation_invariant_and_finite(self):
-        import torch
-        from world_model.src.relational_encoder import RelationalTrafficEncoder
-        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, include_history_displacement=True,
-        ))
-        self.assertEqual(model.encoder.state_mlp[0].in_features, 12)
-        batch = self._batch()
-        shifted = {name: value.clone() for name, value in batch.items()}
-        shifted["agent_states"][..., :2] += torch.tensor([37.0, -11.0])
-        with torch.no_grad():
-            reference = batch["agent_states"][:, :25, :, :2] - batch["agent_states"][:, 24:25, :, :2]
-            shifted_reference = shifted["agent_states"][:, :25, :, :2] - shifted["agent_states"][:, 24:25, :, :2]
-            base = RelationalTrafficEncoder._featureize(
-                batch["agent_states"][:, :25], batch["agent_valid"][:, :25], model._ego_mask(batch)[:, None],
-                include_ego_relative_position=False, relative_history_positions=reference,
-            )
-            shifted_features = RelationalTrafficEncoder._featureize(
-                shifted["agent_states"][:, :25], shifted["agent_valid"][:, :25], model._ego_mask(shifted)[:, None],
-                include_ego_relative_position=False, relative_history_positions=shifted_reference,
-            )
-        torch.testing.assert_close(base[..., -2:], shifted_features[..., -2:], atol=1.0e-6, rtol=0.0)
-        output = model.forward_training(batch, teacher_forcing_ratio=0.0, rollout_response_steps=5)
-        self.assertTrue(torch.isfinite(output["loss"]))
 
     def test_counterfactual_response_probe_replaces_only_future_ego(self):
         import torch
@@ -319,14 +255,13 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         self.assertTrue(transfer["missing"])
         self.assertTrue(all(name.startswith(("encoder.conflict_", "encoder.ac_edge.")) for name in transfer["missing"]))
 
-    def test_core_ablation_switches_disable_duration_and_response_paths(self):
+    def test_stepwise_latent_path_disables_duration_learning(self):
         import torch
         model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, learn_duration=False, use_intent_response=False,
+            hidden_dim=24, num_latent_states=4, learn_duration=False,
         ))
         output = model.forward_training(self._batch(), rollout_response_steps=5)
         self.assertTrue(torch.allclose(output["posterior_boundary_probs"], torch.ones_like(output["posterior_boundary_probs"])))
-        self.assertTrue(torch.allclose(output["response_gate"], torch.zeros_like(output["response_gate"])))
         self.assertEqual(float(output["duration_nll"]), 0.0)
         rollout = model.rollout_prior(self._batch(), deterministic=True)
         self.assertTrue(all(all(duration == 1 for duration in item) for item in rollout["latent_durations"]))
@@ -371,9 +306,7 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result["background_states"]).all())
 
     def test_environment_integrates_every_physics_rate_control_curve_point(self):
-        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
-            hidden_dim=24, num_latent_states=4, control_plan_steps=5, control_plan_weight=1.0,
-        ))
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(hidden_dim=24, num_latent_states=4))
         states = np.asarray([[0, 0, 20, 0, 0, 0], [25, 0, 19, 0, 0, 0]], np.float32)
         valid = np.ones(2, bool)
         builder = DynamicTrafficGraphBuilder()
@@ -597,6 +530,44 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         self.assertEqual(arrays["actions_highd"].shape[2], 3)
         self.assertIn("conflict_zone_features", arrays)
 
+    def test_frozen_flow_anchor_sidecar_is_reused_by_m1_batches(self):
+        """Formal M1 batches read B0 instead of reconstructing it per step."""
+        import tempfile
+        import torch
+
+        adapter = RoundGraphAdapter(top_r_lanes=2)
+        timestamp = np.arange(150, dtype=np.float32) / 25.0
+        states = np.zeros((150, 7, 6), np.float32)
+        states[..., 2] = 10.0
+        states[24:50, 1:, 2] = np.linspace(10.0, 12.0, 26, dtype=np.float32)[:, None]
+        states[24:50, 1:, 4] = np.linspace(-1.0, 1.0, 26, dtype=np.float32)[:, None]
+        lanes = np.zeros((2, 3, 6), np.float32); lanes[..., 2] = 1.0
+        sequence = adapter.adapt(
+            sequence_id="anchor", recording_id="anchor", ego_id="0", timestamps=timestamp,
+            agent_ids=np.arange(7), agent_states=states, agent_valid=np.ones((150, 7), bool), ego_index=0,
+            primary_agent_index=1, map_polylines=lanes, map_polyline_valid=np.ones((2, 3), bool),
+            lane_graph_edges=np.asarray([[0, 1, 4]], np.int64), split="train",
+        )
+        schema = FrozenLegacyFlowSchema.load(Path(__file__).resolve().parents[2] / "results/highd_tail_flow_best/dataset_schema.json")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "cache"
+            write_dynamic_sequence_cache([sequence], output_dir=root, source_dataset="highD", adapter="highd")
+            arrays, manifest = load_sequential_dataset(root)
+            cached = ensure_frozen_flow_behavior_anchor_cache(root, arrays, manifest, schema)
+            repeated = ensure_frozen_flow_behavior_anchor_cache(root, arrays, manifest, schema)
+            self.assertIsInstance(repeated["behavior_anchor_raw"], np.memmap)
+            np.testing.assert_allclose(cached["behavior_anchor_raw"][0, 0, :5], (2.0, 0.0, 0.0, -1.0, 1.0), atol=1.0e-6)
+            arrays.update(cached)
+            loader = _loader(arrays, "train", batch_size=1, maximum=0, shuffle=False, seed=1)
+            values = next(iter(loader))
+            batch = {name: value for name, value in zip(loader.field_names, values)}
+            model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(hidden_dim=24, num_latent_states=4, variant="m1"))
+            model.set_frozen_flow_schema(schema)
+            raw, standardized, _agents, valid = model._batch_behavior_anchor(batch)
+            torch.testing.assert_close(raw, batch["behavior_anchor_raw"])
+            torch.testing.assert_close(standardized, batch["behavior_anchor_std"])
+            self.assertTrue(bool(valid.all()))
+
     def test_curved_polyline_assignment_uses_nearest_geometry(self):
         import torch
         model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(hidden_dim=24, num_latent_states=4))
@@ -624,22 +595,6 @@ class SemiMarkovRelationalTests(unittest.TestCase):
             ego_global_y_m=-1.75, lateral_sign=-1.0,
         )
         self.assertAlmostEqual(float(mirrored[0, :, 1].mean()), 0.0)
-
-    def test_clean_flow_start_builds_graph_without_future_actions(self):
-        sample = np.zeros(CLEAN_START_FEATURE_COUNT, dtype=np.float32)
-        sample[:4] = (20.0, 0.0, 0.2, 0.0)
-        # same-front is the primary active participant.
-        sample[4:10] = (28.0, 0.0, -1.0, 0.0, -0.1, 0.0)
-        graph = graph_from_clean_start(sample, np.asarray([True, False, False, False, False, False]), primary_slot_index=0)
-        self.assertEqual(graph.agent_states.shape, (7, 6))
-        self.assertEqual(graph.primary_agent_index, 1)
-        self.assertTrue(graph.agent_valid[0])
-        self.assertTrue(graph.agent_valid[1])
-        self.assertFalse(graph.agent_valid[2])
-        self.assertAlmostEqual(float(graph.agent_states[1, 2]), 19.0)
-        with self.assertRaises(ValueError):
-            graph_from_clean_start(np.zeros(76, dtype=np.float32), np.ones(6, dtype=bool))
-
 
 if __name__ == "__main__":
     unittest.main()
