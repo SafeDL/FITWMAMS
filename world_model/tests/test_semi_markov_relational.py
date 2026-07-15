@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 
 from world_model.src.graph_builder import DynamicTrafficGraphBuilder
+from world_model.src.initial_behavior_anchor import behavior_anchor_from_flow_feature
 from world_model.src.adapters.round_adapter import RoundGraphAdapter
 from world_model.src.adapters.highd_adapter import HighDGraphAdapter
 from world_model.src.clean_start import CLEAN_START_FEATURE_COUNT, graph_from_clean_start
@@ -57,6 +58,87 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         output["loss"].backward()
         rollout = model.rollout_prior(batch, deterministic=True)
         self.assertEqual(tuple(rollout["predicted_states"].shape), (2, 125, 4, 6))
+
+    def test_behavior_anchor_affects_only_the_first_second(self):
+        import torch
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
+            hidden_dim=24, num_latent_states=4, variant="m2",
+        ))
+        raw_anchor = torch.ones((1, 3, 6), requires_grad=True)
+        agent_anchor, _scene_anchor = model.encode_behavior_anchor(
+            raw_anchor, torch.ones((1, 3), dtype=torch.bool),
+        )
+        with torch.no_grad():
+            model.decoder.anchor[-1].weight.fill_(0.1)
+        args = (
+            torch.zeros((1, 4, 24)), torch.zeros((1, 24)), torch.zeros((1, 24)),
+            torch.ones((1,)), torch.ones((1, 4), dtype=torch.bool), torch.zeros((1, 4, 2)),
+        )
+        first = model.decoder(*args, model._active_anchor(0, agent_anchor))["controls"]
+        without_anchor = model.decoder(*args)["controls"]
+        self.assertFalse(torch.allclose(first, without_anchor))
+        self.assertIsNone(model._active_anchor(5, agent_anchor))
+        sixth = model.decoder(*args, model._active_anchor(5, agent_anchor))["controls"]
+        torch.testing.assert_close(sixth, without_anchor, atol=0.0, rtol=0.0)
+        self.assertIsNone(torch.autograd.grad(sixth.sum(), raw_anchor, allow_unused=True)[0])
+
+    def test_behavior_anchored_training_uses_only_logged_first_second(self):
+        import torch
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
+            hidden_dim=24, num_latent_states=4, variant="m2",
+        ))
+        batch = self._batch()
+        batch["actions_highd"][:, :25, :, 0] = 0.5
+        output = model.forward_training(batch, teacher_forcing_ratio=0.0, rollout_response_steps=5)
+        self.assertTrue(torch.isfinite(output["loss"]))
+        self.assertTrue(torch.isfinite(output["anchor_loss"]))
+        output["loss"].backward()
+
+    def test_cold_start_ignores_unavailable_pre_anchor_history(self):
+        import torch
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
+            hidden_dim=24, num_latent_states=4, variant="m1", cold_start_history=True,
+        )).eval()
+        batch = self._batch()
+        changed = {name: value.clone() for name, value in batch.items()}
+        changed["agent_states"][:, :24, 1:, :2] += 50.0
+        with torch.no_grad():
+            baseline = model.rollout_prior(batch, deterministic=True)["predicted_states"]
+            repeated = model.rollout_prior(changed, deterministic=True)["predicted_states"]
+        torch.testing.assert_close(baseline, repeated, atol=1.0e-6, rtol=0.0)
+
+    def test_behavior_anchor_flow_extraction_and_environment_expiry(self):
+        from normalizing_flow.src.features import SLOT_NAMES, trajectory_feature_index
+
+        feature = np.zeros(76, np.float32)
+        for index, name in enumerate(("delta_vx_1s_mps", "delta_vy_left_1s_mps", "mean_ax_1s_mps2", "min_ax_1s_mps2", "final_ax_1s_mps2", "mean_ay_left_1s_mps2")):
+            feature[trajectory_feature_index(SLOT_NAMES[0], name)] = index + 1
+        anchor, anchor_valid = behavior_anchor_from_flow_feature(feature, np.asarray([True, False, False, False, False, False]))
+        np.testing.assert_allclose(anchor[0], np.arange(1, 7, dtype=np.float32))
+        self.assertTrue(anchor_valid[0])
+        self.assertFalse(anchor_valid[1])
+
+        model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(
+            hidden_dim=24, num_latent_states=4, variant="m1",
+        ))
+        states = np.asarray([[0, 0, 20, 0, 0, 0], [25, 0, 19, 0, 0, 0]], np.float32)
+        valid = np.ones(2, bool)
+        builder = DynamicTrafficGraphBuilder()
+        lanes, lane_valid, lane_edges = builder.straight_lane_map(states, valid)
+        graph = builder.graph_at(
+            timestamp=0.0, agent_ids=np.arange(2), states=states, valid=valid,
+            ego_index=0, primary_agent_index=1, map_polylines=lanes,
+            map_polyline_valid=lane_valid, lane_graph_edges=lane_edges,
+        )
+        environment = SemiMarkovBackgroundEnvironment(model)
+        environment.reset(graph, behavior_anchor=np.ones((1, 6), np.float32))
+        for _ in range(5):
+            environment.step(states[0])
+        snapshot = environment.snapshot()
+        self.assertFalse(snapshot["behavior_anchor_active"])
+        restored = SemiMarkovBackgroundEnvironment(model)
+        restored.restore(snapshot)
+        self.assertFalse(restored.snapshot()["behavior_anchor_active"])
 
     def test_fixed_teacher_forcing_ratio_overrides_short_continuation_schedule(self):
         scheduled = _teacher_forcing_ratio({"min_teacher_forcing": 0.0}, epoch=1, schedule_epochs=4, stage_one_epochs=0)

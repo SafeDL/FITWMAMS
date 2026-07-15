@@ -19,6 +19,7 @@ class IntentResponseDecoderConfig:
     simulation_dt_s: float = 0.04
     control_jerk_limit_accel_mps3: float = 8.0
     control_jerk_limit_yaw_accel_rps2: float = 0.5
+    use_behavior_anchor: bool = False
 
 
 class IntentResponseDecoder(nn.Module):
@@ -31,6 +32,9 @@ class IntentResponseDecoder(nn.Module):
         self.mode = nn.Sequential(nn.Linear(h * 2 + 1, h), nn.SiLU(), nn.Linear(h, 2))
         self.response = nn.Sequential(nn.Linear(h * 2, h), nn.SiLU(), nn.Linear(h, 2))
         self.gate = nn.Sequential(nn.Linear(h * 2, h), nn.SiLU(), nn.Linear(h, 1))
+        self.anchor = None
+        if cfg.use_behavior_anchor:
+            self.anchor = nn.Sequential(nn.Linear(h * 2, h), nn.SiLU(), nn.Linear(h, 2))
         self.control_plan_steps = max(1, int(cfg.control_plan_steps))
         # Optional curve head; the absent legacy path stays parameter-identical.
         self.plan = None
@@ -45,6 +49,9 @@ class IntentResponseDecoder(nn.Module):
         if self.plan is not None:
             nn.init.zeros_(self.plan[-1].weight)
             nn.init.zeros_(self.plan[-1].bias)
+        if self.anchor is not None:
+            nn.init.zeros_(self.anchor[-1].weight)
+            nn.init.zeros_(self.anchor[-1].bias)
 
     def forward(
         self,
@@ -54,6 +61,7 @@ class IntentResponseDecoder(nn.Module):
         elapsed_steps: torch.Tensor,
         agent_valid: torch.Tensor,
         reference_controls: torch.Tensor | None = None,
+        behavior_anchor: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         b, n, h = agent_context.shape
         scene = scene_context[:, None, :].expand(b, n, h)
@@ -68,7 +76,12 @@ class IntentResponseDecoder(nn.Module):
             # physics while removing every instantaneous response path.
             response = torch.zeros_like(mode)
             gate = torch.zeros((*mode.shape[:-1], 1), dtype=mode.dtype, device=mode.device)
-        residual = mode + gate * response
+        anchor_control = torch.zeros_like(mode)
+        if behavior_anchor is not None:
+            if self.anchor is None or behavior_anchor.shape != agent_context.shape:
+                raise ValueError("behavior anchor does not match the configured decoder")
+            anchor_control = self.anchor(torch.cat((agent_context, behavior_anchor), dim=-1))
+        residual = mode + gate * response + anchor_control
         residual = torch.stack((
             torch.tanh(residual[..., 0]) * float(self.cfg.control_limit_accel_mps2),
             torch.tanh(residual[..., 1]) * float(self.cfg.control_limit_yaw_rate_rps),
@@ -105,6 +118,7 @@ class IntentResponseDecoder(nn.Module):
         return {
             "controls": controls, "control_plan": control_plan,
             "mode_controls": mode, "response_controls": response, "response_gate": gate,
+            "anchor_controls": anchor_control,
         }
 
     def _bounded_controls(self, controls: torch.Tensor) -> torch.Tensor:

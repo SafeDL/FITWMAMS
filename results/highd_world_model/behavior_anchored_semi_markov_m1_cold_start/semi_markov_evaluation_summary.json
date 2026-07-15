@@ -1,0 +1,208 @@
+{
+  "behavior_anchor": {
+    "active_response_steps": 5,
+    "first_second_action_summary_l1": 0.051626177371963664,
+    "variant": "m1"
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/behavior_anchored_semi_markov_m1_cold_start/checkpoints/best_semi_markov_relational.pt",
+  "checkpoint_sha256": "469858687ab3703fc24e36c7c54b83a771b1323c240191ada9bcdf77672a1afc",
+  "controlled_response": {
+    "available": true,
+    "background_control_delta_norm": {
+      "accelerate": 0.05357038711546327,
+      "brake": 0.07970361769622183,
+      "lateral": 0.01863152569425798
+    },
+    "background_control_temporal_jump_norm": {
+      "accelerate": 0.010288344191273438,
+      "brake": 0.010141248145873603,
+      "lateral": 0.00654863186532056
+    },
+    "episodes": 256,
+    "latent_path_changed_episode_rate": {
+      "accelerate": 0.296875,
+      "brake": 0.4765625,
+      "lateral": 0.28125
+    },
+    "protocol": {
+      "ads_identity_not_an_input": true,
+      "counterfactual_ground_truth_available": false,
+      "deterministic_prior": true,
+      "future_ego_replaced_with": {
+        "accelerate": "+1.5 m/s^2 longitudinal",
+        "brake": "-2.0 m/s^2 longitudinal",
+        "lateral": "+0.20 m/s^2 lateral"
+      }
+    },
+    "same_physical_ego_identity_invariance_max_abs_error": 0.0
+  },
+  "duration_calibration": {
+    "available": true,
+    "brier_score": 0.059749411255239464,
+    "empirical_boundary_rate": 0.04027123940094703,
+    "expected_calibration_error": 0.08181628958985196,
+    "mean_predicted_boundary_probability": 0.12208752899079899
+  },
+  "evt_tail": {
+    "ADE_1s_m": 0.039830393691070456,
+    "ADE_2s_m": 0.06249430397968714,
+    "ADE_3s_m": 0.0892809166944342,
+    "ADE_4s_m": 0.14280446076843162,
+    "ADE_5s_m": 0.23932322600130154,
+    "ADE_m": 0.23932322600130154,
+    "FDE_1s_m": 0.06183379182242542,
+    "FDE_2s_m": 0.10806762922529531,
+    "FDE_3s_m": 0.19345631535967533,
+    "FDE_4s_m": 0.4350010425350147,
+    "FDE_5s_m": 0.8450418882287283,
+    "FDE_m": 0.8450418882287283,
+    "acceleration_mae_mps2": 0.13813487644873557,
+    "gap_mae_m": 0.18170226703935083,
+    "relative_vx_mae_mps": 0.16366377263120238,
+    "velocity_mae_mps": 0.19575426841640597
+  },
+  "five_second_causal_prior_rollout": {
+    "ADE_1s_m": 0.03297710941404022,
+    "ADE_2s_m": 0.05255185723649383,
+    "ADE_3s_m": 0.07700416084602216,
+    "ADE_4s_m": 0.1274588399303105,
+    "ADE_5s_m": 0.217010451374985,
+    "ADE_m": 0.217010451374985,
+    "FDE_1s_m": 0.05051086466087416,
+    "FDE_2s_m": 0.09275248758768471,
+    "FDE_3s_m": 0.17493835688052473,
+    "FDE_4s_m": 0.40593898047112453,
+    "FDE_5s_m": 0.7861498335749731,
+    "FDE_m": 0.7861498335749731,
+    "acceleration_mae_mps2": 0.12338456469898856,
+    "gap_mae_m": 0.1644739537234724,
+    "relative_vx_mae_mps": 0.14878114903503953,
+    "velocity_mae_mps": 0.1782283373141565
+  },
+  "frozen_baseline_horizon_comparison": {
+    "horizons": {},
+    "note": "Numbers become a promotion comparison only after the complete held-out highD cache is evaluated with paired bootstrap.",
+    "paired_and_full_test": false,
+    "paired_baseline_summary": null
+  },
+  "interaction_metrics": {
+    "drac_error_mps2": 1.2136791280478958,
+    "gap_mae_m": 0.16857694550811192,
+    "relative_vx_mae_mps": 0.14878114903503953,
+    "risk_relaxation_rate": 0.019014264828566,
+    "small_ttc_rate_pred": 0.08895777126815704,
+    "small_ttc_rate_target": 0.0895045723333098,
+    "ttc_error_s": 0.06575443681768384
+  },
+  "latent_path": {
+    "mean_duration_response_steps": 14.780760825145252,
+    "mean_segments_per_episode": 2.3241245457548727,
+    "switches_per_episode": 1.3241245457548727
+  },
+  "legacy_frozen_baseline_comparison": {
+    "five_second_all_primary_error_gates_pass": false,
+    "five_second_relationship_total_variation_candidate_minus_baseline": null,
+    "one_second_all_primary_error_gates_pass": false,
+    "paired_baseline_summary": null,
+    "paired_long_horizon_baseline_summary": null,
+    "promotion_eligible": false,
+    "reason": "Historical diagnostic only: legacy CAT-K START uses a future-action summary.",
+    "uses_future_flow_action_summary": false
+  },
+  "one_second_conditional_reconstruction": {
+    "ADE_1s_m": 0.03297710941404022,
+    "ADE_m": 0.03297710941404022,
+    "FDE_1s_m": 0.05051086466087416,
+    "FDE_m": 0.05051086466087416,
+    "acceleration_mae_mps2": 0.031039255349599466,
+    "gap_mae_m": 0.028743616350079423,
+    "relative_vx_mae_mps": 0.01174640423897091,
+    "velocity_mae_mps": 0.02046881596959974
+  },
+  "paired_frozen_baseline_long_horizon": {
+    "all_primary_error_gates_pass": false,
+    "gate_pass": false,
+    "information_symmetric": false,
+    "paired_and_full_test": false,
+    "paired_baseline_summary": null,
+    "relationship_drift_improved": false,
+    "relationship_total_variation_candidate_minus_baseline": null
+  },
+  "physical_diagnostics": {
+    "acceleration_out_of_range_rate": 0.0,
+    "invalid_rate": 0.0002064750578130162,
+    "jerk_out_of_range_rate": 0.0,
+    "negative_gap_rate": 1.1252361270858667e-05,
+    "num_samples": 24216,
+    "overlap_rate": 1.1252361270858667e-05,
+    "semantic_diagnostic_available": false,
+    "semantic_error_rate": 0.0,
+    "speed_out_of_range_rate": 0.0
+  },
+  "prior_posterior_consistency": {
+    "categorical_cross_entropy": 0.6915837526321411,
+    "mean_total_variation": 0.14373888075351715
+  },
+  "promotion": {
+    "duration_calibrated_and_persistent": true,
+    "eligible": false,
+    "five_second_error_or_relation_drift_improved": false,
+    "full_highd_cache": true,
+    "one_second_not_weaker_than_frozen_baseline": false,
+    "paired_frozen_baseline": false,
+    "reason": "Requires paired full-highD information-symmetric frozen-baseline comparison.",
+    "round_evaluation_complete": false,
+    "status": "not_promoted"
+  },
+  "relationship_distribution": {
+    "predicted": {
+      "adjacent_lane": 0.6093893128444573,
+      "same_lane": 0.21033777529106648,
+      "unrelated": 0.1802729118644762
+    },
+    "target": {
+      "adjacent_lane": 0.606510170564438,
+      "same_lane": 0.21265234579835987,
+      "unrelated": 0.1808374836372021
+    },
+    "total_variation": 0.0028791422800192867
+  },
+  "sequence_cache": {
+    "adapter": "highd_straight_lane_v1",
+    "arrays": [
+      "sequence_id",
+      "recording_id",
+      "ego_id",
+      "timestamps",
+      "agent_ids",
+      "agent_states",
+      "agent_valid",
+      "ego_index",
+      "primary_agent_index",
+      "map_polylines",
+      "map_polyline_valid",
+      "lane_graph_edges",
+      "agent_lane_candidates",
+      "actions_highd",
+      "split_index",
+      "is_evt_tail"
+    ],
+    "bounded_development_cache": false,
+    "cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
+    "evt_tail_sequences": 2209,
+    "fps": 25.0,
+    "frames": 150,
+    "future_frames": 125,
+    "history_frames": 25,
+    "num_sequences": 161314,
+    "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll",
+    "split_summary": {
+      "test": 24216,
+      "train": 112943,
+      "val": 24155
+    },
+    "top_r_lanes": 3,
+    "uses_recording_lane_metadata": true
+  },
+  "test_sequences": 24216
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -188,11 +189,15 @@ def evaluate_semi_markov_world_model(
     device = select_device(str(evaluation.get("device", "auto")))
     checkpoint = checkpoint or out / "checkpoints" / "best_semi_markov_relational.pt"
     model = load_semi_markov_checkpoint(checkpoint, device=device)
+    cold_start = evaluation.get("cold_start_history")
+    if cold_start is not None:
+        model.cfg = replace(model.cfg, cold_start_history=bool(cold_start))
     loader = _loader(arrays, "test", batch_size=int(evaluation.get("batch_size", 16)), maximum=int(max_sequences or evaluation.get("max_sequences", 0)), shuffle=False, seed=int(evaluation.get("seed", 123)))
     import torch
     all_pred: list[np.ndarray] = []; all_target: list[np.ndarray] = []; all_mask: list[np.ndarray] = []; all_tail: list[np.ndarray] = []
     posterior_boundaries: list[np.ndarray] = []; boundary_targets: list[np.ndarray] = []
     posterior_probs: list[np.ndarray] = []; prior_probs: list[np.ndarray] = []
+    anchor_losses: list[float] = []
     states: list[list[int]] = []; durations: list[list[int]] = []
     with torch.no_grad():
         for values in loader:
@@ -208,6 +213,7 @@ def evaluate_semi_markov_world_model(
             boundary_targets.append(posterior["boundary_target"][:, 1:].cpu().numpy())
             posterior_probs.append(posterior["posterior_raw_state_probs"].cpu().numpy())
             prior_probs.append(torch.softmax(posterior["prior_logits"], dim=-1).cpu().numpy())
+            anchor_losses.append(float(posterior["anchor_loss"].cpu()))
     pred, target, mask, tail = _concat(all_pred), _concat(all_target), _concat(all_mask), _concat(all_tail)
     full = _metrics(pred, target, mask)
     one_second = _metrics(pred[:, :25], target[:, :25], mask[:, :25])
@@ -344,6 +350,12 @@ def evaluate_semi_markov_world_model(
         "physical_diagnostics": physical, "interaction_metrics": interaction,
         "relationship_distribution": {"predicted": predicted_relations, "target": target_relations, "total_variation": relation_tv},
         "duration_calibration": duration, "prior_posterior_consistency": prior_posterior,
+        "behavior_anchor": {
+            "variant": model.cfg.variant,
+            "cold_start_history": bool(model.cfg.cold_start_history),
+            "active_response_steps": int(model.cfg.behavior_anchor_response_steps),
+            "first_second_action_summary_l1": float(np.mean(anchor_losses)) if anchor_losses else 0.0,
+        },
         "controlled_response": controlled_response,
         "frozen_baseline_horizon_comparison": {
             "paired_and_full_test": complete_highd and paired_baseline,

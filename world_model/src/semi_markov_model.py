@@ -8,6 +8,11 @@ import torch
 import torch.nn as nn
 
 from .dynamics import DynamicsConfig, KinematicTrafficDynamics
+from .initial_behavior_anchor import (
+    BEHAVIOR_ANCHOR_SECONDS,
+    BehaviorAnchorEncoder,
+    summarize_highd_actions,
+)
 from .intent_response_decoder import IntentResponseDecoder, IntentResponseDecoderConfig
 from .relational_encoder import RelationalEncoderConfig, RelationalTrafficEncoder
 from .semi_markov_state import SemiMarkovConfig, SemiMarkovLatentState
@@ -48,10 +53,17 @@ class SemiMarkovWorldModelConfig:
     include_history_displacement: bool = False
     learn_duration: bool = True
     use_intent_response: bool = True
+    variant: str = "m0"
+    anchor_loss_weight: float = 1.0
+    cold_start_history: bool = False
 
     @property
     def physics_steps_per_response(self) -> int:
         return max(1, int(round(self.response_interval_s / self.simulation_dt_s)))
+
+    @property
+    def behavior_anchor_response_steps(self) -> int:
+        return max(1, int(round(BEHAVIOR_ANCHOR_SECONDS / self.response_interval_s)))
 
 
 class SemiMarkovRelationalWorldModel(nn.Module):
@@ -62,6 +74,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     def __init__(self, cfg: SemiMarkovWorldModelConfig) -> None:
         super().__init__()
         self.cfg = cfg
+        if cfg.variant not in {"m0", "m1", "m2"}:
+            raise ValueError("model.variant must be one of 'm0', 'm1', or 'm2'")
+        if abs(cfg.behavior_anchor_response_steps * cfg.response_interval_s - BEHAVIOR_ANCHOR_SECONDS) > 1.0e-6:
+            raise ValueError("response_interval_s must divide the one-second behavior anchor exactly")
         self.encoder = RelationalTrafficEncoder(RelationalEncoderConfig(
             hidden_dim=cfg.hidden_dim, temporal_layers=cfg.temporal_layers, dropout=cfg.dropout,
             use_conflict_zones=cfg.use_conflict_zones,
@@ -75,18 +91,68 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             prototype_weight=cfg.prototype_weight,
             state_bootstrap_weight=cfg.state_bootstrap_weight,
         ))
+        self.behavior_anchor = None
+        self.initial_anchor_projection = None
+        if self.uses_behavior_anchor:
+            self.behavior_anchor = BehaviorAnchorEncoder(cfg.hidden_dim)
+        if self.conditions_initial_latent:
+            self.initial_anchor_projection = nn.Sequential(
+                nn.Linear(cfg.hidden_dim, cfg.hidden_dim), nn.SiLU(), nn.Linear(cfg.hidden_dim, cfg.hidden_dim),
+            )
+            nn.init.zeros_(self.initial_anchor_projection[-1].weight)
+            nn.init.zeros_(self.initial_anchor_projection[-1].bias)
         self.decoder = IntentResponseDecoder(IntentResponseDecoderConfig(
             hidden_dim=cfg.hidden_dim, reference_control_scale=cfg.reference_control_scale,
             use_intent_response=cfg.use_intent_response, control_plan_steps=cfg.control_plan_steps,
             control_plan_as_jerk=cfg.control_plan_as_jerk, simulation_dt_s=cfg.simulation_dt_s,
             control_jerk_limit_accel_mps3=cfg.control_jerk_limit_accel_mps3,
             control_jerk_limit_yaw_accel_rps2=cfg.control_jerk_limit_yaw_accel_rps2,
+            use_behavior_anchor=self.uses_behavior_anchor,
         ))
         self.dynamics = KinematicTrafficDynamics(DynamicsConfig())
 
     @property
     def response_steps(self) -> int:
         return 125 // self.cfg.physics_steps_per_response
+
+    @property
+    def uses_behavior_anchor(self) -> bool:
+        return self.cfg.variant in {"m1", "m2"}
+
+    @property
+    def conditions_initial_latent(self) -> bool:
+        return self.cfg.variant == "m2"
+
+    def encode_behavior_anchor(
+        self,
+        anchor: torch.Tensor,
+        valid: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.behavior_anchor is None:
+            raise RuntimeError("behavior anchor encoding is unavailable for variant m0")
+        agents, scene = self.behavior_anchor(anchor, valid)
+        ego = torch.zeros((agents.shape[0], 1, agents.shape[-1]), dtype=agents.dtype, device=agents.device)
+        return torch.cat((ego, agents), dim=1), scene
+
+    def initial_latent_scene(self, scene: torch.Tensor, anchor_scene: torch.Tensor | None) -> torch.Tensor:
+        if anchor_scene is None:
+            return scene
+        if self.initial_anchor_projection is None:
+            raise RuntimeError("initial latent conditioning is unavailable for this variant")
+        return scene + self.initial_anchor_projection(anchor_scene)
+
+    def _batch_behavior_anchor(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
+        if not self.uses_behavior_anchor:
+            return None, None, None
+        frames = self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response
+        actions = batch["actions_highd"][:, :frames]
+        valid = batch["agent_valid"][:, 25 : 25 + frames, 1:]
+        anchor = summarize_highd_actions(actions, valid)
+        agent_anchor, scene_anchor = self.encode_behavior_anchor(anchor, valid.any(dim=1))
+        return anchor, agent_anchor, scene_anchor
+
+    def _active_anchor(self, response: int, anchor: torch.Tensor | None) -> torch.Tensor | None:
+        return anchor if response < self.cfg.behavior_anchor_response_steps else None
 
     @staticmethod
     def _ego_mask(batch: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -137,14 +203,29 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         stride = self.cfg.physics_steps_per_response
         for response in range(self.response_steps):
             end = 25 + response * stride
+            history_states = states[:, end - 25 : end]
+            history_valid = valid[:, end - 25 : end]
+            if response == 0 and self.cfg.cold_start_history:
+                history_states = states[:, 24:25].expand(-1, 25, -1, -1)
+                history_valid = valid[:, 24:25].expand(-1, 25, -1)
             a, scene, _ = self.encode_step(
-                states[:, end - 25 : end], valid[:, end - 25 : end], states[:, end - 1], valid[:, end - 1], ego,
+                history_states, history_valid, states[:, end - 1], valid[:, end - 1], ego,
                 batch["map_polylines"], batch["map_polyline_valid"], batch.get("lane_graph_edges"),
                 batch.get("conflict_zone_features"), batch.get("conflict_zone_valid"),
             )
             contexts.append(scene)
             agents.append(a)
         return torch.stack(agents, dim=1), torch.stack(contexts, dim=1)
+
+    def _initial_history(
+        self, states: torch.Tensor, valid: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.cfg.cold_start_history:
+            return (
+                states[:, 24:25].expand(-1, 25, -1, -1).clone(),
+                valid[:, 24:25].expand(-1, 25, -1).clone(),
+            )
+        return states[:, :25].clone(), valid[:, :25].clone()
 
     def _elapsed_from_boundaries(self, boundaries: torch.Tensor) -> torch.Tensor:
         values = [torch.ones_like(boundaries[:, 0])]
@@ -229,8 +310,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         if not 1 <= rollout_steps <= self.response_steps:
             raise ValueError("response_steps must be within the five-second response horizon")
         truncate_every = max(0, int(tbptt_response_steps))
-        history, history_valid = states[:, :25].clone(), valid[:, :25].clone()
+        history, history_valid = self._initial_history(states, valid)
         current, current_valid = history[:, -1], history_valid[:, -1]
+        _anchor_target, anchor_agents, anchor_scene = self._batch_behavior_anchor(batch)
         state_prob = torch.zeros((b, self.cfg.num_latent_states), dtype=states.dtype, device=states.device)
         elapsed = torch.ones((b,), dtype=states.dtype, device=states.device)
         outputs: list[torch.Tensor] = []
@@ -242,7 +324,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 batch["map_polylines"], batch["map_polyline_valid"], batch.get("lane_graph_edges"),
                 batch.get("conflict_zone_features"), batch.get("conflict_zone_valid"),
             )
-            proposal = torch.softmax(self.latent.prior_logits(scene_context, state_prob), dim=-1)
+            latent_scene = self.initial_latent_scene(scene_context, anchor_scene) if response == 0 and self.conditions_initial_latent else scene_context
+            proposal = torch.softmax(self.latent.prior_logits(latent_scene, state_prob), dim=-1)
             if response == 0 or not self.cfg.learn_duration:
                 state_prob = proposal
                 elapsed = torch.ones_like(elapsed)
@@ -254,6 +337,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 agent_context, scene_context, self.latent.state_embedding(state_prob), elapsed,
                 current_valid & background_mask,
                 self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
+                self._active_anchor(response, anchor_agents),
             )
             controls_out.append(decoded["controls"][:, 1:])
             start = response * self.cfg.physics_steps_per_response
@@ -414,7 +498,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         truncate_every = max(0, int(tbptt_response_steps))
         ego_mask = self._ego_mask(batch)
         background_mask = ~ego_mask
-        teacher_agents, teacher_scene = self._teacher_contexts(batch)
+        _, teacher_scene = self._teacher_contexts(batch)
+        anchor_target, anchor_agents, anchor_scene = self._batch_behavior_anchor(batch)
         target_controls = self._target_controls(batch)
         boundary_target = self._boundary_target(batch, target_controls)
         descriptor = self._interaction_descriptor(batch, target_controls)
@@ -422,19 +507,21 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         latent_terms = self.latent.training_terms(
             teacher_scene, teacher_scene, boundary_target, descriptor, state_target,
             force_stepwise=not self.cfg.learn_duration,
+            initial_scene=self.initial_latent_scene(teacher_scene[:, 0], anchor_scene)
+            if self.conditions_initial_latent else None,
         )
         q_state = latent_terms["posterior_state_probs"]
         q_boundary = latent_terms["posterior_boundary_probs"]
         elapsed = self._elapsed_from_boundaries(q_boundary)
 
-        history = states[:, :25].clone()
-        history_valid = valid[:, :25].clone()
+        history, history_valid = self._initial_history(states, valid)
         current = history[:, -1]
         current_valid = history_valid[:, -1]
         predicted_frames: list[torch.Tensor] = []
         predicted_controls: list[torch.Tensor] = []
         predicted_control_plans: list[torch.Tensor] = []
         response_controls: list[torch.Tensor] = []
+        generated_anchor_actions: list[torch.Tensor] = []
         for response in range(rollout_steps):
             agent_context, scene_context, _ = self.encode_step(
                 history, history_valid, current, current_valid, ego_mask,
@@ -445,6 +532,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 agent_context, scene_context, self.latent.state_embedding(q_state[:, response]),
                 elapsed[:, response], current_valid & background_mask,
                 self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
+                self._active_anchor(response, anchor_agents),
             )
             controls = decoded["controls"]
             start = response * self.cfg.physics_steps_per_response
@@ -452,6 +540,14 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, 0]
             curve = self._integration_controls(decoded)
             next_current, physical_outputs = self._integrate_response(current, curve, current_valid, ego_future, ego_future_valid)
+            if response < self.cfg.behavior_anchor_response_steps and self.uses_behavior_anchor:
+                control_curve = curve
+                if control_curve.ndim == 3:
+                    control_curve = control_curve[:, None].expand(-1, self.cfg.physics_steps_per_response, -1, -1)
+                state_curve = torch.stack((current, *physical_outputs[:-1]), dim=1)
+                generated_anchor_actions.append(
+                    self.dynamics.highd_actions(control_curve, state_curve)[:, :, 1:]
+                )
             predicted_frames.extend(physical_outputs)
             predicted_controls.append(decoded["controls"][:, 1:])
             predicted_control_plans.append(decoded["control_plan"][:, 1:])
@@ -521,6 +617,14 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 b, rollout_steps, self.cfg.physics_steps_per_response, n,
             )[:, :, :, 1:].permute(0, 1, 3, 2)
             plan_control_loss = self._masked_l1(plans, plan_target, plan_valid, plan_importance)
+        anchor_loss = controls_pred.new_zeros(())
+        if len(generated_anchor_actions) == self.cfg.behavior_anchor_response_steps:
+            generated_anchor = summarize_highd_actions(
+                torch.cat(generated_anchor_actions, dim=1),
+                valid[:, 25 : 25 + self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response, 1:],
+            )
+            anchor_mask = valid[:, 25 : 25 + self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response, 1:].any(dim=1)
+            anchor_loss = self._masked_l1(generated_anchor, anchor_target, anchor_mask)
         prior_predicted, prior_controls = self._causal_prior_rollout_training(
             batch, ego_mask=ego_mask, background_mask=background_mask,
             response_steps=rollout_steps, tbptt_response_steps=truncate_every,
@@ -535,9 +639,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 + self.cfg.control_plan_weight * plan_control_loss
             )
         )
-        first_target = target[:, : self.cfg.physics_steps_per_response]
-        first_valid = target_valid[:, : self.cfg.physics_steps_per_response]
-        first_recon = self._masked_l1(predicted[:, : self.cfg.physics_steps_per_response, ..., :4], first_target[..., :4], first_valid)
+        first_step_frames = self.cfg.physics_steps_per_response
+        first_target = target[:, :first_step_frames]
+        first_valid = target_valid[:, :first_step_frames]
+        first_recon = self._masked_l1(predicted[:, :first_step_frames, ..., :4], first_target[..., :4], first_valid)
         roll = self._masked_l1(predicted[..., :4], target[..., :4], target_valid, tail_importance)
         prior_roll = self._masked_l1(prior_predicted[..., :4], target[..., :4], target_valid, tail_importance)
         endpoint_roll = self._response_endpoint_l1(predicted[..., :4], target[..., :4], target_valid, tail_importance)
@@ -548,7 +653,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             + self.cfg.prototype_weight * latent_terms["prototype_reconstruction"]
             + self.cfg.state_bootstrap_weight * latent_terms["state_bootstrap_nll"]
         )
-        total = recon + self.cfg.beta_latent * latent_loss + self.cfg.lambda_roll * (
+        total = recon + self.cfg.anchor_loss_weight * anchor_loss + self.cfg.beta_latent * latent_loss + self.cfg.lambda_roll * (
             roll + self.cfg.prior_roll_weight * prior_roll
             + self.cfg.late_roll_weight * (endpoint_roll + self.cfg.prior_roll_weight * prior_endpoint_roll)
         )
@@ -557,6 +662,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             "endpoint_roll_loss": endpoint_roll.detach(), "prior_endpoint_roll_loss": prior_endpoint_roll.detach(), "first_step_recon": first_recon.detach(),
             "position_l1": pos_loss.detach(), "velocity_l1": vel_loss.detach(), "control_l1": control_loss.detach(),
             "plan_control_loss": plan_control_loss.detach(),
+            "anchor_loss": anchor_loss.detach(),
             "prior_control_loss": prior_control_loss.detach(), "late_prior_control_loss": late_prior_control_loss.detach(),
             "latent_loss": latent_loss.detach(), "latent_kl": latent_terms["latent_kl"].detach(),
             "duration_nll": latent_terms["duration_nll"].detach(), "censor_nll": latent_terms["censor_nll"].detach(),
@@ -594,8 +700,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         b, _, n, _ = states.shape
         ego_mask = self._ego_mask(batch)
         background_mask = ~ego_mask
-        history, history_valid = states[:, :25].clone(), valid[:, :25].clone()
+        history, history_valid = self._initial_history(states, valid)
         current, current_valid = history[:, -1], history_valid[:, -1]
+        _anchor_target, anchor_agents, anchor_scene = self._batch_behavior_anchor(batch)
         generator = torch.Generator(device=states.device)
         generator.manual_seed(int(seed))
         previous = torch.zeros((b, self.cfg.num_latent_states), device=states.device)
@@ -612,7 +719,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 batch.get("conflict_zone_features"), batch.get("conflict_zone_valid"),
             )
             starts = torch.ones_like(remaining, dtype=torch.bool) if not self.cfg.learn_duration else remaining <= 0
-            logits = self.latent.prior_logits(scene, previous)
+            latent_scene = self.initial_latent_scene(scene, anchor_scene) if response == 0 and self.conditions_initial_latent else scene
+            logits = self.latent.prior_logits(latent_scene, previous)
             probabilities = torch.softmax(logits, dim=-1)
             if deterministic:
                 sampled = probabilities.argmax(dim=-1)
@@ -630,7 +738,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                     duration_probabilities: list[float] = []
                     for age in range(1, self.cfg.max_duration_response_steps + 1):
                         hazard = 1.0 if not self.cfg.learn_duration else float(torch.sigmoid(
-                            self.latent.hazard_logits(scene[item : item + 1], one, torch.tensor([age], device=states.device))
+                            self.latent.hazard_logits(latent_scene[item : item + 1], one, torch.tensor([age], device=states.device))
                         )[0].item())
                         duration_probabilities.append(survival * hazard)
                         survival *= 1.0 - hazard
@@ -646,7 +754,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                     for age in range(1, self.cfg.max_duration_response_steps + 1):
                         if not self.cfg.learn_duration:
                             break
-                        hazard = torch.sigmoid(self.latent.hazard_logits(scene[item : item + 1], one, torch.tensor([age], device=states.device)))[0]
+                        hazard = torch.sigmoid(self.latent.hazard_logits(latent_scene[item : item + 1], one, torch.tensor([age], device=states.device)))[0]
                         if rem <= float(hazard.item()):
                             duration = age
                             break
@@ -660,6 +768,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             decoded = self.decoder(
                 agents, scene, self.latent.state_embedding(previous), elapsed, current_valid & background_mask,
                 self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
+                self._active_anchor(response, anchor_agents),
             )
             controls = decoded["controls"]
             start = response * self.cfg.physics_steps_per_response

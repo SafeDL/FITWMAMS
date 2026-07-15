@@ -67,7 +67,11 @@ def _to_batch(values, names, device):
 
 
 def _cfg(config: dict[str, Any]) -> SemiMarkovWorldModelConfig:
-    source = dict(config.get("model", {}))
+    return _model_cfg(config.get("model", {}))
+
+
+def _model_cfg(source: dict[str, Any]) -> SemiMarkovWorldModelConfig:
+    """Build a model config while accepting retired checkpoint fields."""
     valid = {field: source[field] for field in SemiMarkovWorldModelConfig.__dataclass_fields__ if field in source}
     return SemiMarkovWorldModelConfig(**valid)
 
@@ -126,6 +130,8 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     target_conflicts = bool(model.cfg.use_conflict_zones)
     source_plan_steps = int(source_cfg.get("control_plan_steps", 1))
     target_plan_steps = int(model.cfg.control_plan_steps)
+    source_variant = str(source_cfg.get("variant", "m0"))
+    target_variant = str(model.cfg.variant)
     source_plan_as_jerk = bool(source_cfg.get("control_plan_as_jerk", False))
     target_plan_as_jerk = bool(model.cfg.control_plan_as_jerk)
     if source_plan_steps > 1 and target_plan_steps > 1 and source_plan_as_jerk != target_plan_as_jerk:
@@ -139,9 +145,13 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
     can_add_conflicts = target_conflicts and not source_conflicts
     can_add_plan = target_plan_steps > 1 and source_plan_steps <= 1
+    can_add_behavior_decoder = target_variant in {"m1", "m2"} and source_variant == "m0"
+    can_add_initial_anchor = target_variant == "m2" and source_variant != "m2"
     allowed_missing = all(
         (can_add_conflicts and key.startswith(conflict_prefixes))
         or (can_add_plan and key.startswith("decoder.plan."))
+        or (can_add_behavior_decoder and key.startswith(("behavior_anchor.", "decoder.anchor.")))
+        or (can_add_initial_anchor and key.startswith("initial_anchor_projection."))
         for key in missing
     )
     allowed_unexpected = source_conflicts and not target_conflicts and all(
@@ -201,7 +211,7 @@ def _mean_metrics(model, loader, device, *, teacher_forcing: float) -> dict[str,
     with torch.no_grad():
         for values in loader:
             result = model.forward_training(_to_batch(values, loader.field_names, device), teacher_forcing_ratio=teacher_forcing)
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss", "plan_control_loss"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "anchor_loss", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss", "plan_control_loss"):
                 total[key] = total.get(key, 0.0) + float(result[key].detach().cpu())
             count += 1
     return {key: value / max(count, 1) for key, value in total.items()}
@@ -432,7 +442,7 @@ def train_semi_markov_world_model(
             result["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
                 totals[key] = totals.get(key, 0.0) + float(result[key].detach().cpu())
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
@@ -488,7 +498,7 @@ def load_semi_markov_checkpoint(path: str | Path, *, device: str | Any = "cpu") 
     payload = torch.load(checkpoint_path, map_location=device, weights_only=False)
     if payload.get("model_type") != SemiMarkovRelationalWorldModel.model_type:
         raise ValueError(f"Not a semi_markov_relational checkpoint: {path}")
-    model = SemiMarkovRelationalWorldModel(SemiMarkovWorldModelConfig(**payload["model_config"]))
+    model = SemiMarkovRelationalWorldModel(_model_cfg(payload["model_config"]))
     model.load_state_dict(payload["state_dict"])
     # Environments created from a loaded checkpoint can include this immutable
     # identity in every replay trace without relying on a caller convention.
