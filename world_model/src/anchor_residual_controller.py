@@ -26,7 +26,7 @@ class AnchorResidualController(nn.Module):
         scene_context: torch.Tensor,
         latent_context: torch.Tensor,
         remaining_anchor_std: torch.Tensor,
-        nominal_controls: torch.Tensor,
+        start_controls: torch.Tensor,
         seconds_remaining: float,
         valid: torch.Tensor,
     ) -> torch.Tensor:
@@ -37,9 +37,9 @@ class AnchorResidualController(nn.Module):
         # Ego does not own a Flow slot; give it a zero condition and mask it.
         anchor = torch.zeros((b, n, 6), dtype=agent_context.dtype, device=agent_context.device)
         anchor[:, 1:] = remaining_anchor_std
-        nominal = nominal_controls.mean(dim=1)
+        start = start_controls.mean(dim=1)
         time = torch.full((b, n, 1), float(max(seconds_remaining, 0.0)), dtype=agent_context.dtype, device=agent_context.device)
-        output = self.network(torch.cat((agent_context, scene, latent, anchor, nominal, time), dim=-1))
+        output = self.network(torch.cat((agent_context, scene, latent, anchor, start, time), dim=-1))
         output = output.reshape(b, n, self.physics_steps, 2).permute(0, 2, 1, 3)
         bounded = torch.stack((
             torch.tanh(output[..., 0]) * self.residual_accel_limit,

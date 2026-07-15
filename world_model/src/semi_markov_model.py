@@ -11,11 +11,10 @@ from .anchor_residual_controller import AnchorResidualController
 from .dynamics import DynamicsConfig, KinematicTrafficDynamics
 from .initial_behavior_anchor import (
     BEHAVIOR_ANCHOR_SECONDS,
-    BehaviorAnchorEncoder,
     FrozenLegacyFlowSchema,
     summarize_first_second_states,
 )
-from .first_second_nominal_planner import FirstSecondNominalPlanner
+from .start_mode import StartModeControl
 from .intent_response_decoder import IntentResponseDecoder, IntentResponseDecoderConfig
 from .relational_encoder import RelationalEncoderConfig, RelationalTrafficEncoder
 from .semi_markov_state import SemiMarkovConfig, SemiMarkovLatentState
@@ -82,21 +81,14 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             prototype_weight=cfg.prototype_weight,
             state_bootstrap_weight=cfg.state_bootstrap_weight,
         ))
-        self.behavior_anchor = None
-        self.behavior_plan = None
-        self.anchor_remaining = None
+        self.start_mode = None
         self.anchor_residual = None
         self.frozen_flow_schema: FrozenLegacyFlowSchema | None = None
         if self.uses_behavior_anchor:
-            self.behavior_anchor = BehaviorAnchorEncoder(cfg.hidden_dim)
-            self.behavior_plan = FirstSecondNominalPlanner(physics_steps=cfg.behavior_anchor_response_steps * cfg.physics_steps_per_response)
-            self.anchor_remaining = nn.Sequential(nn.Linear(7, cfg.hidden_dim), nn.SiLU(), nn.Linear(cfg.hidden_dim, cfg.hidden_dim))
-            nn.init.zeros_(self.anchor_remaining[-1].weight)
-            nn.init.zeros_(self.anchor_remaining[-1].bias)
+            self.start_mode = StartModeControl(physics_steps=cfg.behavior_anchor_response_steps * cfg.physics_steps_per_response)
             self.anchor_residual = AnchorResidualController(cfg.hidden_dim, cfg.physics_steps_per_response)
         self.decoder = IntentResponseDecoder(IntentResponseDecoderConfig(
             hidden_dim=cfg.hidden_dim, reference_control_scale=cfg.reference_control_scale,
-            use_behavior_anchor=self.uses_behavior_anchor,
         ))
         self.dynamics = KinematicTrafficDynamics(DynamicsConfig())
 
@@ -108,27 +100,12 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     def uses_behavior_anchor(self) -> bool:
         return self.cfg.variant == "m1"
 
-    def encode_behavior_anchor(
-        self,
-        anchor: torch.Tensor,
-        valid: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        if self.behavior_anchor is None:
-            raise RuntimeError("behavior anchor encoding is unavailable for variant m0")
-        agents, scene = self.behavior_anchor(anchor, valid)
-        ego = torch.zeros((agents.shape[0], 1, agents.shape[-1]), dtype=agents.dtype, device=agents.device)
-        return torch.cat((ego, agents), dim=1), scene
-
-    def set_behavior_anchor_normalization(self, mean: torch.Tensor, std: torch.Tensor) -> None:
-        if self.behavior_anchor is not None:
-            self.behavior_anchor.set_normalization(mean, std)
-
     def set_frozen_flow_schema(self, schema: FrozenLegacyFlowSchema) -> None:
         self.frozen_flow_schema = schema
 
-    def _batch_behavior_anchor(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
+    def _batch_behavior_anchor(self, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor | None]:
         if not self.uses_behavior_anchor:
-            return None, None, None, None
+            return None, None, None
         cached = {name: batch.get(name) for name in ("behavior_anchor_raw", "behavior_anchor_std", "behavior_anchor_valid")}
         if all(value is not None for value in cached.values()):
             anchor_raw, anchor_std, anchor_valid = cached["behavior_anchor_raw"], cached["behavior_anchor_std"], cached["behavior_anchor_valid"].bool()
@@ -143,38 +120,13 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             frames = self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response
             valid = batch["agent_valid"][:, 24 : 25 + frames, 1:]
             anchor_raw, anchor_valid = summarize_first_second_states(batch["agent_states"][:, 24 : 25 + frames, 1:], valid)
-            anchor_std = self.behavior_anchor.normalize(anchor_raw)
-        agent_anchor, _ = self.encode_behavior_anchor(anchor_std, anchor_valid)
-        return anchor_raw, anchor_std, agent_anchor, anchor_valid
+            anchor_std = anchor_raw
+        return anchor_raw, anchor_std, anchor_valid
 
-    def _behavior_plan(self, initial_states: torch.Tensor, anchor_raw: torch.Tensor | None, valid: torch.Tensor) -> torch.Tensor | None:
-        if anchor_raw is None or self.behavior_plan is None:
+    def _start_mode_controls(self, initial_states: torch.Tensor, anchor_raw: torch.Tensor | None, valid: torch.Tensor) -> torch.Tensor | None:
+        if anchor_raw is None or self.start_mode is None:
             return None
-        return self.behavior_plan(initial_states, anchor_raw, valid[:, 1:])
-
-    def _behavior_condition(
-        self,
-        anchor_std: torch.Tensor | None,
-        anchor_agents: torch.Tensor | None,
-        initial_states: torch.Tensor,
-        generated_states: list[torch.Tensor],
-        response: int,
-    ) -> torch.Tensor | None:
-        if anchor_std is None or anchor_agents is None or self.anchor_remaining is None:
-            return None
-        prefix = torch.stack((initial_states, *generated_states), dim=1) if generated_states else initial_states[:, None]
-        achieved = torch.zeros_like(anchor_std)
-        achieved[..., :2] = prefix[:, -1, 1:, 2:4] - initial_states[:, 1:, 2:4]
-        achieved[..., 2] = prefix[:, :, 1:, 4].mean(dim=1)
-        achieved[..., 3] = prefix[:, :, 1:, 4].amin(dim=1)
-        achieved[..., 4] = prefix[:, -1, 1:, 4]
-        achieved[..., 5] = prefix[:, :, 1:, 5].mean(dim=1)
-        remaining = anchor_std - achieved
-        seconds_remaining = 1.0 - float(response) * self.cfg.response_interval_s
-        features = torch.cat((remaining, torch.full_like(remaining[..., :1], max(seconds_remaining, 0.0))), dim=-1)
-        correction = self.anchor_remaining(features)
-        ego = torch.zeros((correction.shape[0], 1, correction.shape[-1]), dtype=correction.dtype, device=correction.device)
-        return anchor_agents + torch.cat((ego, correction), dim=1)
+        return self.start_mode(initial_states, anchor_raw, valid[:, 1:])
 
     def _remaining_anchor(
         self, anchor_std: torch.Tensor | None, initial_states: torch.Tensor, generated_states: list[torch.Tensor],
@@ -193,17 +145,17 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     def _anchor_residual_controls(
         self, agent_context: torch.Tensor, scene_context: torch.Tensor, latent_context: torch.Tensor,
         anchor_std: torch.Tensor | None, initial_states: torch.Tensor, generated_states: list[torch.Tensor],
-        nominal_actions: torch.Tensor | None, response: int, valid: torch.Tensor,
+        start_actions: torch.Tensor | None, response: int, valid: torch.Tensor,
     ) -> torch.Tensor | None:
-        if self.anchor_residual is None or nominal_actions is None:
+        if self.anchor_residual is None or start_actions is None:
             return None
         remaining = self._remaining_anchor(anchor_std, initial_states, generated_states)
         if remaining is None:
             return None
-        nominal = torch.zeros((valid.shape[0], nominal_actions.shape[1], valid.shape[1], 2), dtype=nominal_actions.dtype, device=nominal_actions.device)
-        nominal[:, :, 1:] = nominal_actions
+        start_controls = torch.zeros((valid.shape[0], start_actions.shape[1], valid.shape[1], 2), dtype=start_actions.dtype, device=start_actions.device)
+        start_controls[:, :, 1:] = start_actions
         return self.anchor_residual(
-            agent_context, scene_context, latent_context, remaining, nominal,
+            agent_context, scene_context, latent_context, remaining, start_controls,
             1.0 - response * self.cfg.response_interval_s, valid,
         )
 
@@ -294,7 +246,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         ego_future: torch.Tensor,
         ego_valid: torch.Tensor,
         ego_index: int = 0,
-        nominal_actions: torch.Tensor | None = None,
+        start_actions: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         """Integrate a response residual plus an optional 25 Hz anchor plan."""
         outputs: list[torch.Tensor] = []
@@ -303,17 +255,17 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         ego_mask[:, int(ego_index)] = True
         for physical in range(self.cfg.physics_steps_per_response):
             step_controls = controls[:, physical] if controls.ndim == 4 else controls
-            if nominal_actions is not None:
-                if nominal_actions.shape[1] != self.cfg.physics_steps_per_response:
-                    raise ValueError("nominal behavior plan must span one response interval")
+            if start_actions is not None:
+                if start_actions.shape[1] != self.cfg.physics_steps_per_response:
+                    raise ValueError("START controls must span one response interval")
                 # B0 contains only background slots; the ego is replayed as
                 # an external observation and deliberately receives no plan.
-                nominal_highd = torch.zeros_like(current[..., :2])
+                start_highd = torch.zeros_like(current[..., :2])
                 background = torch.ones(current.shape[1], dtype=torch.bool, device=current.device)
                 background[int(ego_index)] = False
-                nominal_highd[:, background] = nominal_actions[:, physical]
-                nominal = self.dynamics.controls_from_highd_actions(nominal_highd, current)
-                step_controls = step_controls + nominal
+                start_highd[:, background] = start_actions[:, physical]
+                start_controls = self.dynamics.controls_from_highd_actions(start_highd, current)
+                step_controls = step_controls + start_controls
             next_state = self.dynamics.step(current, step_controls, valid, self.cfg.simulation_dt_s)
             next_state = torch.where(ego_mask[..., None], ego_future[:, physical, None, :], next_state)
             next_valid = torch.where(ego_mask, ego_valid[:, physical, None], valid)
@@ -330,7 +282,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         states = batch["agent_states"][:, 24 : 24 + self.response_steps * self.cfg.physics_steps_per_response : self.cfg.physics_steps_per_response, 1:]
         return self.dynamics.controls_from_highd_actions(actions, states)
 
-    def _causal_prior_rollout_training(
+    def _roll_mode_training(
         self,
         batch: dict[str, torch.Tensor],
         *,
@@ -339,9 +291,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         response_steps: int | None = None,
         tbptt_response_steps: int = 0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Differentiable free rollout under the causal latent prior.
+        """Differentiable ROLL-mode generation used by the environment.
 
-        This is the deployment path used by the environment, except that
+        The training path differs only in that
         categorical state/duration draws are represented by their differentiable
         expectation.  It belongs to the single closed-loop ``L_roll`` loss and
         prevents a posterior-only decoder from looking good in training while
@@ -355,8 +307,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         truncate_every = max(0, int(tbptt_response_steps))
         history, history_valid = self._initial_history(states, valid)
         current, current_valid = history[:, -1], history_valid[:, -1]
-        anchor_raw, anchor_std, anchor_agents, _anchor_valid = self._batch_behavior_anchor(batch)
-        anchor_plan = self._behavior_plan(states[:, 24], anchor_raw, valid[:, 24])
+        anchor_raw, anchor_std, _anchor_valid = self._batch_behavior_anchor(batch)
+        start_mode = self._start_mode_controls(states[:, 24], anchor_raw, valid[:, 24])
         state_prob = torch.zeros((b, self.cfg.num_latent_states), dtype=states.dtype, device=states.device)
         elapsed = torch.zeros((b,), dtype=states.dtype, device=states.device)
         remaining = torch.zeros((b,), dtype=torch.long, device=states.device)
@@ -387,16 +339,16 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             elapsed = torch.where(starts, torch.ones_like(elapsed), elapsed + 1.0)
             start = response * self.cfg.physics_steps_per_response
             active_anchor = response < self.cfg.behavior_anchor_response_steps
-            nominal_slice = anchor_plan[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and anchor_plan is not None else None
+            start_slice = start_mode[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and start_mode is not None else None
             controls = self._anchor_residual_controls(
                 agent_context, scene_context, self.latent.state_embedding(state_prob), anchor_std, states[:, 24], outputs,
-                nominal_slice, response, current_valid & background_mask,
+                start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
             if controls is None:
                 decoded = self.decoder(
                     agent_context, scene_context, self.latent.state_embedding(state_prob), elapsed,
                     current_valid & background_mask,
-                    self.dynamics.controls_from_highd_actions(current[..., 4:6], current), None,
+                    self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
                 )
                 controls = decoded["controls"]
             controls_out.append((controls.mean(dim=1) if controls.ndim == 4 else controls)[:, 1:])
@@ -404,11 +356,11 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             current, physical = self._integrate_response(
                 current, controls, current_valid, ego_future, ego_future_valid, ego_index=ego_index,
-                nominal_actions=nominal_slice,
+                start_actions=start_slice,
             )
             outputs.extend(physical)
-            # The deployed causal path cannot inspect a future background
-            # membership mask.  Preserve generated background membership from
+            # ROLL cannot inspect a future background membership mask. Preserve
+            # generated background membership from
             # the current graph; only the externally observed ego validity is
             # allowed to advance from the logged replay stream.  (A sequence
             # cache has no highD entries after the initial history, but does
@@ -542,8 +494,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         ego_mask = self._ego_mask(batch)
         background_mask = ~ego_mask
         _, teacher_scene = self._teacher_contexts(batch)
-        anchor_raw, anchor_std, anchor_agents, anchor_valid = self._batch_behavior_anchor(batch)
-        anchor_plan = self._behavior_plan(states[:, 24], anchor_raw, valid[:, 24])
+        anchor_raw, anchor_std, anchor_valid = self._batch_behavior_anchor(batch)
+        start_mode = self._start_mode_controls(states[:, 24], anchor_raw, valid[:, 24])
         target_controls = self._target_controls(batch)
         boundary_target = self._boundary_target(batch, target_controls)
         descriptor = self._interaction_descriptor(batch, target_controls)
@@ -570,15 +522,15 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             )
             active_anchor = response < self.cfg.behavior_anchor_response_steps
             start = response * self.cfg.physics_steps_per_response
-            nominal_slice = anchor_plan[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and anchor_plan is not None else None
+            start_slice = start_mode[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and start_mode is not None else None
             controls = self._anchor_residual_controls(
                 agent_context, scene_context, self.latent.state_embedding(q_state[:, response]), anchor_std, states[:, 24], predicted_frames,
-                nominal_slice, response, current_valid & background_mask,
+                start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
             if controls is None:
                 decoded = self.decoder(
                     agent_context, scene_context, self.latent.state_embedding(q_state[:, response]), elapsed[:, response],
-                    current_valid & background_mask, self.dynamics.controls_from_highd_actions(current[..., 4:6], current), None,
+                    current_valid & background_mask, self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
                 )
                 controls = decoded["controls"]
                 response_gate = decoded["response_gate"]
@@ -588,7 +540,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, 0]
             next_current, physical_outputs = self._integrate_response(
                 current, controls, current_valid, ego_future, ego_future_valid,
-                nominal_actions=nominal_slice,
+                start_actions=start_slice,
             )
             predicted_frames.extend(physical_outputs)
             predicted_controls.append((controls.mean(dim=1) if controls.ndim == 4 else controls)[:, 1:])
@@ -649,10 +601,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 valid[:, 24 : 25 + anchor_frames, 1:],
             )
             anchor_mask = generated_valid & anchor_valid
-            normalized_generated = self.frozen_flow_schema.standardize(generated_anchor, anchor_mask) if self.frozen_flow_schema else self.behavior_anchor.normalize(generated_anchor)
+            normalized_generated = self.frozen_flow_schema.standardize(generated_anchor, anchor_mask) if self.frozen_flow_schema else generated_anchor
             normalized_target = anchor_std
             anchor_loss = self._masked_l1(normalized_generated, normalized_target, anchor_mask)
-        prior_predicted, prior_controls = self._causal_prior_rollout_training(
+        prior_predicted, prior_controls = self._roll_mode_training(
             batch, ego_mask=ego_mask, background_mask=background_mask,
             response_steps=rollout_steps, tbptt_response_steps=truncate_every,
         )
@@ -706,7 +658,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         }
 
     @torch.no_grad()
-    def rollout_prior(
+    def rollout_roll_mode(
         self,
         batch: dict[str, torch.Tensor],
         *,
@@ -714,9 +666,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         deterministic: bool = True,
         deterministic_duration: bool = False,
     ) -> dict[str, torch.Tensor | list[list[int]]]:
-        """Five-second causal-prior rollout for logged-ego reconstruction.
+        """Five-second ROLL-mode generation for logged-ego reconstruction.
 
-        The posterior is never consulted here.  At each response update the
+        The posterior is never consulted here. At each response update the
         model only sees generated background history and the ego state already
         observed at that update; the subsequent logged ego segment is used
         solely as the physical replay input for the next time interval.
@@ -727,8 +679,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         background_mask = ~ego_mask
         history, history_valid = self._initial_history(states, valid)
         current, current_valid = history[:, -1], history_valid[:, -1]
-        anchor_raw, anchor_std, anchor_agents, _anchor_valid = self._batch_behavior_anchor(batch)
-        anchor_plan = self._behavior_plan(states[:, 24], anchor_raw, valid[:, 24])
+        anchor_raw, anchor_std, _anchor_valid = self._batch_behavior_anchor(batch)
+        start_mode = self._start_mode_controls(states[:, 24], anchor_raw, valid[:, 24])
         generator = torch.Generator(device=states.device)
         generator.manual_seed(int(seed))
         previous = torch.zeros((b, self.cfg.num_latent_states), device=states.device)
@@ -792,15 +744,15 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             elapsed = torch.where(starts, elapsed, elapsed + 1)
             start = response * self.cfg.physics_steps_per_response
             active_anchor = response < self.cfg.behavior_anchor_response_steps
-            nominal_slice = anchor_plan[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and anchor_plan is not None else None
+            start_slice = start_mode[:, start : start + self.cfg.physics_steps_per_response] if active_anchor and start_mode is not None else None
             controls = self._anchor_residual_controls(
                 agents, scene, self.latent.state_embedding(previous), anchor_std, states[:, 24], predicted,
-                nominal_slice, response, current_valid & background_mask,
+                start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
             if controls is None:
                 decoded = self.decoder(
                     agents, scene, self.latent.state_embedding(previous), elapsed, current_valid & background_mask,
-                    self.dynamics.controls_from_highd_actions(current[..., 4:6], current), None,
+                    self.dynamics.controls_from_highd_actions(current[..., 4:6], current),
                 )
                 controls = decoded["controls"]
             ego_index = int(batch["ego_index"][0].item())
@@ -808,12 +760,12 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             current, physical = self._integrate_response(
                 current, controls, current_valid, ego_future, ego_future_valid, ego_index=ego_index,
-                nominal_actions=nominal_slice,
+                start_actions=start_slice,
             )
             predicted.extend(physical)
             controls_out.append(controls.mean(dim=1) if controls.ndim == 4 else controls)
-            # Keep the generated background agent set causal.  Logged future
-            # validity is a target/evaluation mask, never a rollout input;
+            # Generated background membership does not use logged future
+            # validity, which remains a target/evaluation mask;
             # ego validity is the sole externally supplied state signal.
             observed_ego_valid = valid[:, 25 + start + self.cfg.physics_steps_per_response - 1]
             current_valid = torch.where(ego_mask, observed_ego_valid, current_valid)
@@ -824,15 +776,15 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         predicted_tensor = torch.stack(predicted, dim=1)
         first_second_states = torch.cat((states[:, 24:25], predicted_tensor[:, :25]), dim=1)
         first_second_valid = torch.cat((valid[:, 24:25], target_valid[:, :25]), dim=1)
-        causal_anchor_raw, causal_anchor_valid = summarize_first_second_states(
+        roll_anchor_raw, roll_anchor_valid = summarize_first_second_states(
             first_second_states[:, :, 1:], first_second_valid[:, :, 1:]
         )
         return {
             "predicted_states": predicted_tensor, "target_states": states[:, 25:150],
             "target_valid": target_valid, "controls": torch.stack(controls_out, dim=1),
             "latent_states": latent_states, "latent_durations": latent_durations,
-            "first_second_states": first_second_states, "causal_prior_anchor_raw": causal_anchor_raw,
-            "causal_prior_anchor_valid": causal_anchor_valid,
+            "first_second_states": first_second_states, "roll_mode_anchor_raw": roll_anchor_raw,
+            "roll_mode_anchor_valid": roll_anchor_valid,
         }
 
     def config_payload(self) -> dict[str, Any]:

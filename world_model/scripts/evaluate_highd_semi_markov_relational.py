@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate causal-prior highD semi-Markov rollouts."""
+"""Evaluate highD START/ROLL semi-Markov rollouts."""
 from __future__ import annotations
 import argparse
 import sys

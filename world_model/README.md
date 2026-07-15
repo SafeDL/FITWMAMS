@@ -19,7 +19,7 @@ python world_model/scripts/train_highd_semi_markov_relational.py
 python world_model/scripts/evaluate_highd_semi_markov_relational.py
 ```
 
-默认配置为 `world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml`。它使用冻结的 76 维 Flow，首秒以原子化 `(S0, B0)` 初始化、确定性名义计划和图关系残差控制；数据缓存仍是一条片段对应 150 帧（1 秒历史 + 5 秒未来）。
+默认配置为 `world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml`。它使用冻结的 76 维 Flow：后 36 维摘要在 START 模式生成首秒基础控制，并由当前图关系作有界修正；之后切换到 ROLL 模式。训练直接读取每条 150 帧序列的已缓存摘要（1 秒历史 + 5 秒未来），Flow 端到端生成才将一条 76 维样本直接解包为 START 场景。
 
 每个 M1 候选还必须执行 `compare_semi_markov_to_catk.py` 的同序列 1 s 与 5 s
 bootstrap 对比；在对应的 paired CAT-K 报告生成前，M1 不具有晋级资格。
@@ -44,7 +44,7 @@ checkpoint SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f
 ```
 
 它使用 161,314 个六秒自然驾驶片段训练，并在独立的 24,216 个 highD test
-片段上取得因果先验 5 s ADE/FDE = `0.37960 / 1.28388 m`。在同一测试集的
+片段上取得 ROLL 模式 5 s ADE/FDE = `0.37960 / 1.28388 m`。在同一测试集的
 信息对称 clean-START paired bootstrap 中，它的一秒与五秒 ADE、FDE、gap MAE
 以及五秒关系分布 TV 均优于冻结 CAT-K；历史 CAT-K 的 future-action START
 摘要对照仍单列保留、但不能作为新规范的晋级基线。高D 所有门槛已通过，当前
@@ -67,7 +67,7 @@ M0 选择门槛，所以仅保存为 `last_semi_markov_relational.pt`，不替�
 
 ```bash
 python world_model/scripts/prepare_highd_semi_markov_relational_dataset.py \
-  --config world_model/scripts/configs/highd_semi_markov_relational_full.yaml
+  --config world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml
 python world_model/scripts/train_highd_semi_markov_relational.py \
   --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml \
   --initial-checkpoint results/highd_world_model/semi_markov_relational_full_finetune/checkpoints/best_semi_markov_relational.pt

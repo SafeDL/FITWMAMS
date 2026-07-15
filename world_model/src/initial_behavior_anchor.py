@@ -11,8 +11,10 @@ import torch
 import torch.nn as nn
 
 from normalizing_flow.src.features import (
+    EGO_FEATURES,
     SLOT_NAMES,
     TRAJECTORY_FEATURES,
+    slot_feature_index,
     trajectory_feature_index,
 )
 
@@ -34,6 +36,7 @@ class FrozenLegacyFlowSchema:
     normalization_std: np.ndarray
     anchor_feature_indices: np.ndarray
     schema_sha256: str
+    source_path: Path
 
     @classmethod
     def load(cls, path: str | Path) -> "FrozenLegacyFlowSchema":
@@ -56,7 +59,7 @@ class FrozenLegacyFlowSchema:
             raise ValueError("frozen Flow slot or trajectory feature order differs from the legacy contract")
         if not np.isfinite(mean).all() or not np.isfinite(std).all() or np.any(std <= 0.0):
             raise ValueError("frozen Flow normalization is invalid")
-        return cls(names, slots, trajectory, transforms, mean, std, expected_indices, hashlib.sha256(raw).hexdigest())
+        return cls(names, slots, trajectory, transforms, mean, std, expected_indices, hashlib.sha256(raw).hexdigest(), source)
 
     def verify_checkpoint(self, checkpoint: str | Path, expected_sha256: str | None = None) -> str:
         digest = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
@@ -102,6 +105,40 @@ def behavior_anchor_from_flow_feature(
                 for name in FLOW_ACTION_SUMMARY_FEATURES
             ]
     return anchor, valid
+
+
+def start_state_from_flow_feature(feature_row: np.ndarray, slot_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Directly unpack one raw Flow row for the M1 START mode.
+
+    Training never calls this adapter: it reads the logged sequence cache.
+    It exists solely for Flow end-to-end generation, where the sampled 76-D
+    row already contains both the start scene and the six first-second
+    summaries.  Keeping this conversion as a small value function avoids a
+    separate "atomic initializer" object and its redundant lifecycle.
+    """
+    feature = np.asarray(feature_row, np.float32).reshape(-1)
+    valid_slots = np.asarray(slot_mask, bool).reshape(-1)
+    if feature.shape != (76,) or valid_slots.shape != (len(SLOT_NAMES),):
+        raise ValueError("Flow START requires one raw 76-D row and one six-slot mask")
+    if not np.isfinite(feature).all():
+        raise ValueError("Flow START feature row contains a non-finite value")
+    states = np.zeros((1 + len(SLOT_NAMES), 6), np.float32)
+    valid = np.zeros((1 + len(SLOT_NAMES),), bool)
+    ego = {name: feature[EGO_FEATURES.index(name)] for name in EGO_FEATURES}
+    states[0] = (0.0, 0.0, ego["ego_vx_mps"], ego["ego_vy_left_mps"], ego["ego_ax_mps2"], ego["ego_ay_left_mps2"])
+    valid[0] = True
+    for index, slot in enumerate(SLOT_NAMES):
+        if not valid_slots[index]:
+            continue
+        states[index + 1] = (
+            feature[slot_feature_index(slot, "rel_x_m")], feature[slot_feature_index(slot, "rel_y_left_m")],
+            ego["ego_vx_mps"] + feature[slot_feature_index(slot, "rel_vx_mps")],
+            ego["ego_vy_left_mps"] + feature[slot_feature_index(slot, "rel_vy_left_mps")],
+            feature[slot_feature_index(slot, "other_ax_mps2")], feature[slot_feature_index(slot, "other_ay_left_mps2")],
+        )
+        valid[index + 1] = True
+    anchor, anchor_valid = behavior_anchor_from_flow_feature(feature, valid_slots)
+    return states, valid, anchor, anchor_valid
 
 
 def summarize_first_second_states(states_26: torch.Tensor, valid_26: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -204,44 +241,3 @@ class BehaviorAnchorControlPlan(nn.Module):
         actions[..., 0] = actions[..., 0].clamp(-8.0, 4.0)
         actions[..., 1] = actions[..., 1].clamp(-4.0, 4.0)
         return actions * valid[:, None, :, None].to(dtype=actions.dtype)
-
-
-class BehaviorAnchorEncoder(nn.Module):
-    """Mask-aware per-vehicle and scene-level encoding of a behavior anchor."""
-
-    def __init__(self, hidden_dim: int) -> None:
-        super().__init__()
-        self.register_buffer("mean", torch.zeros((len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES))))
-        self.register_buffer("std", torch.ones((len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES))))
-        self.per_agent = nn.Sequential(
-            nn.Linear(len(FLOW_ACTION_SUMMARY_FEATURES), hidden_dim),
-            nn.SiLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
-
-    def set_normalization(self, mean: torch.Tensor, std: torch.Tensor) -> None:
-        if mean.shape == (len(FLOW_ACTION_SUMMARY_FEATURES),):
-            mean = mean.expand_as(self.mean)
-        if std.shape == (len(FLOW_ACTION_SUMMARY_FEATURES),):
-            std = std.expand_as(self.std)
-        if mean.shape != self.mean.shape or std.shape != self.std.shape:
-            raise ValueError("behavior-anchor statistics must be [six slots, six summaries]")
-        self.mean.copy_(mean.to(device=self.mean.device, dtype=self.mean.dtype))
-        self.std.copy_(std.to(device=self.std.device, dtype=self.std.dtype).clamp_min(1.0e-3))
-
-    def normalize(self, anchor: torch.Tensor) -> torch.Tensor:
-        if anchor.shape[-1] != len(FLOW_ACTION_SUMMARY_FEATURES) or anchor.shape[-2] > len(SLOT_NAMES):
-            raise ValueError("behavior-anchor shape is incompatible with the fixed Flow slots")
-        return (anchor - self.mean[: anchor.shape[-2]]) / self.std[: anchor.shape[-2]]
-
-    def forward(self, anchor: torch.Tensor, valid: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        if anchor.ndim != 3 or anchor.shape[-1] != len(FLOW_ACTION_SUMMARY_FEATURES):
-            raise ValueError("behavior anchor must be [batch, agents, 6]")
-        if valid.shape != anchor.shape[:-1]:
-            raise ValueError("behavior anchor validity must align with anchors")
-        # Callers pass frozen-Flow model coordinates.  Keeping normalization
-        # outside this module prevents silently applying the min-ax transform
-        # twice and makes the raw/std boundary explicit.
-        agents = self.per_agent(anchor) * valid[..., None].to(dtype=anchor.dtype)
-        scene = agents.sum(dim=1) / valid.sum(dim=1, keepdim=True).clamp_min(1).to(dtype=anchor.dtype)
-        return agents, scene

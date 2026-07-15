@@ -1,4 +1,4 @@
-"""Causal-prior evaluation for the semi-Markov relational world model."""
+"""START/ROLL evaluation for the semi-Markov relational world model."""
 from __future__ import annotations
 
 import hashlib
@@ -97,7 +97,7 @@ def _duration_calibration(probabilities: np.ndarray, targets: np.ndarray) -> dic
 
 
 def _counterfactual_ego_batch(batch: dict[str, Any], *, kind: str):
-    """Replace only future observed ego physics for a causal response probe."""
+    """Replace the externally observed ego physics for a ROLL response probe."""
     import torch
 
     result = dict(batch)
@@ -125,7 +125,7 @@ def _counterfactual_ego_batch(batch: dict[str, Any], *, kind: str):
 
 
 def _controlled_response_metrics(model, loader, device, *, seed: int) -> dict[str, Any]:
-    """Causal sensitivity diagnostics, not a claimed counterfactual truth test."""
+    """Response-sensitivity diagnostics, not a counterfactual truth test."""
     import torch
 
     identity_max_error = 0.0
@@ -139,15 +139,15 @@ def _controlled_response_metrics(model, loader, device, *, seed: int) -> dict[st
         offset = 0
         for values in loader:
             batch = _to_batch(values, loader.field_names, device)
-            baseline = model.rollout_prior(batch, seed=int(seed) + offset, deterministic=True)
-            repeated = model.rollout_prior(batch, seed=int(seed) + offset, deterministic=True)
+            baseline = model.rollout_roll_mode(batch, seed=int(seed) + offset, deterministic=True)
+            repeated = model.rollout_roll_mode(batch, seed=int(seed) + offset, deterministic=True)
             identity_max_error = max(
                 identity_max_error,
                 float((baseline["predicted_states"] - repeated["predicted_states"]).abs().max().cpu()),
             )
             control_valid = batch["agent_valid"][:, 24:149:5, 1:]
             for name in delta_sum:
-                changed = model.rollout_prior(
+                changed = model.rollout_roll_mode(
                     _counterfactual_ego_batch(batch, kind=name), seed=int(seed) + offset, deterministic=True,
                 )
                 delta = torch.linalg.vector_norm(changed["controls"][:, :, 1:] - baseline["controls"][:, :, 1:], dim=-1)
@@ -210,12 +210,12 @@ def evaluate_semi_markov_world_model(
     posterior_boundaries: list[np.ndarray] = []; boundary_targets: list[np.ndarray] = []
     posterior_probs: list[np.ndarray] = []; prior_probs: list[np.ndarray] = []
     posterior_anchor_losses: list[float] = []
-    causal_anchor_losses: list[float] = []
+    roll_anchor_losses: list[float] = []
     states: list[list[int]] = []; durations: list[list[int]] = []
     with torch.no_grad():
         for values in loader:
             batch = _to_batch(values, loader.field_names, device)
-            rollout = model.rollout_prior(batch, seed=int(evaluation.get("seed", 123)) + len(states), deterministic=True)
+            rollout = model.rollout_roll_mode(batch, seed=int(evaluation.get("seed", 123)) + len(states), deterministic=True)
             all_pred.append(rollout["predicted_states"].cpu().numpy())
             all_target.append(rollout["target_states"].cpu().numpy())
             all_mask.append(rollout["target_valid"].cpu().numpy())
@@ -228,12 +228,12 @@ def evaluate_semi_markov_world_model(
             prior_probs.append(torch.softmax(posterior["prior_logits"], dim=-1).cpu().numpy())
             posterior_anchor_losses.append(float(posterior["anchor_loss"].cpu()))
             if model.uses_behavior_anchor:
-                _raw, target_std, _agents, target_valid = model._batch_behavior_anchor(batch)
-                causal_raw = rollout["causal_prior_anchor_raw"]
-                causal_valid = rollout["causal_prior_anchor_valid"] & target_valid
-                causal_std = model.frozen_flow_schema.standardize(causal_raw, causal_valid) if model.frozen_flow_schema else model.behavior_anchor.normalize(causal_raw)
-                weight = causal_valid.float().unsqueeze(-1)
-                causal_anchor_losses.append(float((causal_std.sub(target_std).abs() * weight).sum().div(weight.sum().clamp_min(1.0)).cpu()))
+                _raw, target_std, target_valid = model._batch_behavior_anchor(batch)
+                roll_raw = rollout["roll_mode_anchor_raw"]
+                roll_valid = rollout["roll_mode_anchor_valid"] & target_valid
+                roll_std = model.frozen_flow_schema.standardize(roll_raw, roll_valid) if model.frozen_flow_schema else roll_raw
+                weight = roll_valid.float().unsqueeze(-1)
+                roll_anchor_losses.append(float((roll_std.sub(target_std).abs() * weight).sum().div(weight.sum().clamp_min(1.0)).cpu()))
     pred, target, mask, tail = _concat(all_pred), _concat(all_target), _concat(all_mask), _concat(all_tail)
     full = _metrics(pred, target, mask)
     one_second = _metrics(pred[:, :25], target[:, :25], mask[:, :25])
@@ -302,7 +302,7 @@ def evaluate_semi_markov_world_model(
     long_errors = bool(paired_long_report.get("all_primary_error_gates_pass", False))
     long_relation_delta = paired_long_report.get("relationship_distribution", {}).get("candidate_minus_baseline_total_variation")
     long_relation_improved = long_relation_delta is not None and np.isfinite(float(long_relation_delta)) and float(long_relation_delta) < 0.0
-    # Requirement 18(2): the causal five-second rollout must reduce either
+    # The five-second ROLL rollout must reduce either
     # accumulated paired error or relation-distribution drift.  A legacy
     # summary on its own is never enough—the paired artifact must use the
     # evaluated checkpoint and every held-out sequence.
@@ -366,7 +366,7 @@ def evaluate_semi_markov_world_model(
     report = {
         "checkpoint": str(checkpoint), "checkpoint_sha256": current_hash,
         "sequence_cache": manifest, "test_sequences": int(len(pred)), "one_second_conditional_reconstruction": one_second,
-        "five_second_causal_prior_rollout": full, "evt_tail": tail_metrics,
+        "five_second_roll_mode": full, "evt_tail": tail_metrics,
         "physical_diagnostics": physical, "interaction_metrics": interaction,
         "relationship_distribution": {"predicted": predicted_relations, "target": target_relations, "total_variation": relation_tv},
         "duration_calibration": duration, "prior_posterior_consistency": prior_posterior,
@@ -375,7 +375,7 @@ def evaluate_semi_markov_world_model(
             "cold_start_history": bool(model.cfg.cold_start_history),
             "active_response_steps": int(model.cfg.behavior_anchor_response_steps),
             "posterior_anchor_l1": float(np.mean(posterior_anchor_losses)) if posterior_anchor_losses else 0.0,
-            "causal_prior_anchor_l1": float(np.mean(causal_anchor_losses)) if causal_anchor_losses else 0.0,
+            "roll_mode_anchor_l1": float(np.mean(roll_anchor_losses)) if roll_anchor_losses else 0.0,
         },
         "controlled_response": controlled_response,
         "frozen_baseline_horizon_comparison": {

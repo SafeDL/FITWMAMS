@@ -62,7 +62,7 @@ training:
   m0_reference_checkpoint: "../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt"
   stages:
     - {name: "anchor_realization", epochs: 5}
-    - {name: "causal_rollout", epochs: 10}
+    - {name: "roll", epochs: 10}
     - {name: "joint", epochs: 5}
   encoder_learning_rate: 0.000005
   decoder_prior_learning_rate: 0.00001

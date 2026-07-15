@@ -464,7 +464,7 @@ h_{i,t}'
 
 ### 7.2 先验与训练后验
 
-因果先验只读取过去和当前：
+ROLL 模式先验只读取过去和当前：
 
 \[
 p_\theta(z_n,d_n\mid C_{t_n},z_{n-1}).
@@ -476,7 +476,7 @@ p_\theta(z_n,d_n\mid C_{t_n},z_{n-1}).
 q_\varphi(z_n,d_n\mid \mathcal G_{1:T}).
 \]
 
-训练时由后验帮助识别潜在交互阶段，推理时只使用先验。
+训练时由后验帮助识别潜在交互阶段，ROLL 模式只使用先验；这表示不读取未来背景状态，不构成因果效应识别。
 
 ### 7.3 持续时间分布
 
@@ -1037,7 +1037,7 @@ world_model/scripts/configs/round_semi_markov_relational.yaml
 
 ### 阶段 B：Semi-Markov Latent Interaction State
 
-1. 实现训练后验和因果先验；
+1. 实现训练后验和 ROLL 模式先验；
 2. 实现持续时间 hazard 与右删失损失；
 3. 实现意图—响应分解解码器；
 4. 使用六秒序列训练；

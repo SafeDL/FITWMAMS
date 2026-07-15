@@ -1,4 +1,4 @@
-# Full-data causal-prior fine-tuning.  The complete cache remains immutable;
+# Full-data ROLL-mode fine-tuning. The complete cache remains immutable;
 # checkpoint selection includes the initial model as a candidate.
 paths:
   legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
@@ -51,7 +51,7 @@ training:
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
-  checkpoint_metric: "causal_prior_rollout_FDE_m"
+  checkpoint_metric: "roll_mode_FDE_m"
 
 evaluation:
   seed: 123

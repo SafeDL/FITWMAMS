@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from .initial_behavior_anchor import FrozenLegacyFlowSchema, summarize_first_second_states
+from .initial_behavior_anchor import FrozenLegacyFlowSchema, behavior_anchor_from_flow_feature, summarize_first_second_states
 
 from .adapters.highd_adapter import HighDGraphAdapter
 from .data import SPLIT_TO_INDEX, aligned_multichunk_indices, load_world_model_dataset
@@ -52,6 +52,36 @@ def _flow_anchor_cache_root(output_dir: str | Path, schema: FrozenLegacyFlowSche
     return sequence_cache_dir(output_dir) / "frozen_flow_behavior_anchors" / f"{schema.schema_sha256}_{source_hash}"
 
 
+def _validate_flow_tail_alignment(
+    arrays: dict[str, np.ndarray], schema: FrozenLegacyFlowSchema, raw: np.ndarray, valid: np.ndarray,
+) -> dict[str, float | int]:
+    """Assert that every overlapping Flow-tail row has the exact cached B0."""
+    dataset = schema.source_path.parent / "dataset.npz"
+    if not dataset.exists():
+        raise FileNotFoundError(f"frozen Flow dataset required for anchor alignment is missing: {dataset}")
+    with np.load(dataset, allow_pickle=False) as flow:
+        flow_ids = np.asarray(flow["segment_id"]).astype(str)
+        cache_index = {str(value): index for index, value in enumerate(np.asarray(arrays["sequence_id"]).astype(str))}
+        matched = np.asarray([cache_index.get(value, -1) for value in flow_ids], np.int64)
+        take = np.flatnonzero(matched >= 0)
+        if not len(take):
+            return {"matched_flow_tail_sequences": 0, "flow_tail_max_abs_error": 0.0}
+        expected = np.stack([
+            behavior_anchor_from_flow_feature(feature, mask)[0]
+            for feature, mask in zip(np.asarray(flow["features"])[take], np.asarray(flow["slot_mask"])[take])
+        ])
+        expected_valid = np.asarray(flow["slot_mask"])[take].astype(bool)
+    observed = np.asarray(raw[matched[take]], np.float32)
+    observed_valid = np.asarray(valid[matched[take]], bool)
+    if not np.array_equal(observed_valid, expected_valid):
+        raise ValueError("cached 26-state Flow-anchor validity differs from frozen Flow slot_mask")
+    difference = np.abs(observed - expected) * expected_valid[..., None]
+    maximum = float(difference.max(initial=0.0))
+    if maximum > 5.0e-5:
+        raise ValueError(f"cached 26-state behavior anchor differs from frozen Flow features (max_abs_error={maximum:.3g})")
+    return {"matched_flow_tail_sequences": int(len(take)), "flow_tail_max_abs_error": maximum}
+
+
 def ensure_frozen_flow_behavior_anchor_cache(
     output_dir: str | Path,
     arrays: dict[str, np.ndarray],
@@ -79,7 +109,12 @@ def ensure_frozen_flow_behavior_anchor_cache(
     if metadata_path.exists() and all((root / f"{name}.npy").exists() for name in FLOW_ANCHOR_ARRAYS):
         stored = load_json(metadata_path)
         if all(stored.get(key) == value for key, value in expected.items()):
-            return {name: np.load(root / f"{name}.npy", mmap_mode="r", allow_pickle=False) for name in FLOW_ANCHOR_ARRAYS}
+            cached = {name: np.load(root / f"{name}.npy", mmap_mode="r", allow_pickle=False) for name in FLOW_ANCHOR_ARRAYS}
+            alignment = _validate_flow_tail_alignment(arrays, schema, cached["behavior_anchor_raw"], cached["behavior_anchor_valid"])
+            if any(stored.get(key) != value for key, value in alignment.items()):
+                stored.update(alignment)
+                save_json(stored, metadata_path)
+            return cached
         raise RuntimeError(f"Flow-anchor sidecar contract mismatch at {root}; keep the immutable cache and use its matching schema")
     if root.exists():
         raise RuntimeError(f"partial Flow-anchor sidecar at {root}; remove only this generated sidecar before rebuilding")
@@ -104,7 +139,10 @@ def ensure_frozen_flow_behavior_anchor_cache(
         std_out[start:stop] = standardized.numpy()
         valid_out[start:stop] = anchor_valid.numpy()
     raw_out.flush(); std_out.flush(); valid_out.flush()
-    expected.update({"arrays": list(FLOW_ANCHOR_ARRAYS), "summary": "exact_26_state_points", "source_cache_version": manifest.get("cache_version")})
+    expected.update({
+        "arrays": list(FLOW_ANCHOR_ARRAYS), "summary": "exact_26_state_points", "source_cache_version": manifest.get("cache_version"),
+        **_validate_flow_tail_alignment(arrays, schema, raw_out, valid_out),
+    })
     save_json(expected, metadata_path)
     logger.info("Wrote frozen Flow behavior-anchor sidecar: %s", root)
     return {name: np.load(root / f"{name}.npy", mmap_mode="r", allow_pickle=False) for name in FLOW_ANCHOR_ARRAYS}

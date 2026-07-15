@@ -21,7 +21,7 @@ class SemiMarkovConfig:
 
 
 class SemiMarkovLatentState(nn.Module):
-    """Causal prior, full-sequence posterior, and discrete hazard duration.
+    """ROLL prior, full-sequence posterior, and discrete hazard duration.
 
     Durations are measured in response-update steps.  The terminal response
     state is treated as right-censored: its objective contains survival
@@ -96,7 +96,7 @@ class SemiMarkovLatentState(nn.Module):
 
     def training_terms(
         self,
-        causal_scene: torch.Tensor,
+        roll_scene: torch.Tensor,
         full_scene: torch.Tensor,
         boundary_target: torch.Tensor | None = None,
         interaction_descriptor: torch.Tensor | None = None,
@@ -116,13 +116,13 @@ class SemiMarkovLatentState(nn.Module):
         previous = torch.cat((q_z[:, :1], q_z[:, :-1]), dim=1)
         # A segment's duration distribution is conditioned on the scene at
         # the segment start, exactly as deployment samples it once.
-        segment_scene = [causal_scene[:, 0]]
-        for step in range(1, causal_scene.shape[1]):
+        segment_scene = [roll_scene[:, 0]]
+        for step in range(1, roll_scene.shape[1]):
             boundary = q_boundary[:, step : step + 1]
-            segment_scene.append(boundary * causal_scene[:, step] + (1.0 - boundary) * segment_scene[-1])
+            segment_scene.append(boundary * roll_scene[:, step] + (1.0 - boundary) * segment_scene[-1])
         segment_scene = torch.stack(segment_scene, dim=1)
         prior_logits = self.prior_logits(segment_scene.reshape(-1, segment_scene.shape[-1]), previous.reshape(-1, previous.shape[-1]))
-        prior_logits = prior_logits.reshape(*causal_scene.shape[:2], -1)
+        prior_logits = prior_logits.reshape(*roll_scene.shape[:2], -1)
         log_prior = F.log_softmax(prior_logits, dim=-1)
         # The KL uses the categorical posterior probabilities rather than its
         # straight-through sample so it remains a genuine prior/posterior term.

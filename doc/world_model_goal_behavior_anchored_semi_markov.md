@@ -459,7 +459,7 @@ compatibility roll(): five 0.2 s steps = 1.0 s
 
 这保证 Flow 采样的第一秒行为条件被真正实现，而不是被模型忽略。
 
-### 7.3 后续闭环滚动
+### 7.3 后续 ROLL 模式
 
 \[
 \mathcal L_{\mathrm{roll}}
@@ -487,10 +487,14 @@ compatibility roll(): five 0.2 s steps = 1.0 s
 
 ```python
 flow_sample = sample_tail_c0(...)
-initial_graph, behavior_anchor = graph_and_anchor_from_legacy_flow(flow_sample)
+states, valid, behavior_anchor, anchor_valid = start_state_from_flow_feature(
+    flow_sample.features, flow_sample.slot_mask,
+)
+initial_graph = graph_builder.graph_at(..., states=states, valid=valid)
 environment.reset(
     initial_graph,
     behavior_anchor=behavior_anchor,
+    behavior_anchor_valid=anchor_valid,
     world_randomness=world_randomness,
 )
 ```

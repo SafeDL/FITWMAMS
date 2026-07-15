@@ -10,8 +10,8 @@
 - 训练时后验仍读取完整六秒序列；闭环生成部分按每 batch 随机 1--5 秒展开，并每 5 个 response steps 做 TBPTT。评测始终使用完整五秒。
 - 环境 snapshot/restore 保存图、25 帧历史、latent state、剩余 duration、RNG 状态、未消费 uniforms 和完整 trace，可在新环境实例中确定性继续，供 AMS 分支复制使用。
 - `merge`、`diverge`、`cross` 不再被压缩成 adjacent-lane：它们进入动态图边特征和异构注意力；highD→rounD 的可选 conflict-attention 参数是唯一允许的部分 checkpoint 迁移。
-- 因果先验 checkpoint 选择：每轮在 validation 集执行固定随机数的五秒自由 rollout，以 `causal_prior_rollout_FDE_m` 选择，而不是以后验重建损失选择。
-- 因果先验 rollout 不读取未来背景参与者的有效掩码；背景成员关系从当前生成图因果延续，只有外部已发生的 ego 有效性可在 replay 中前进。
+- ROLL 模式 checkpoint 选择：每轮在 validation 集执行固定随机数的五秒自由 rollout，以 `roll_mode_FDE_m` 选择，而不是以后验重建损失选择。
+- ROLL 模式不读取未来背景参与者的有效掩码；背景成员关系从当前生成图延续，只有外部已发生的 ego 有效性可在 replay 中前进。这是时间顺序的无未来背景泄漏约束，不是因果效应识别。
 - 正式初始化使用冻结的 76 维 Flow；其首秒动作摘要只作为行为锚定模型的首秒条件，之后的滚动不再读取该摘要。
 - rounD adapter 可读取标准 `tracks.csv`、JSON/NPZ 向量地图 sidecar，或授权 rounD 包内的 Lanelet2 `.osm` 地图；OSM 路径直接恢复中心线、successor/merge/diverge/adjacent/cross 拓扑并推导冲突区。已具备 150 帧 sequence-cache、独立训练/评估、highD→rounD 迁移，以及磁盘式 highD+rounD 联合缓存入口。实际 rounD 数据尚未提供，因此这些路径目前仅完成 I/O/动态图/联合缓存 smoke，不是数据集实证。
 
@@ -20,9 +20,9 @@
 | 项目 | 位置 / 配置 | 结果 |
 | --- | --- | --- |
 | highD 世界模型训练 | `world_model/scripts/configs/highd_semi_markov_relational_10k.yaml` | 10,000 条序列开发缓存，train/val/test = 7,026/1,483/1,491。 |
-| 因果先验续训 | `world_model/scripts/configs/highd_semi_markov_relational_10k_finetune.yaml` | 从 10k checkpoint 续训 20 epochs；validation FDE 从 1.3205 m 降至 1.3154 m（epoch 17）。 |
+| ROLL 模式续训 | `world_model/scripts/configs/highd_semi_markov_relational_10k_finetune.yaml` | 从 10k checkpoint 续训 20 epochs；validation FDE 从 1.3205 m 降至 1.3154 m（epoch 17）。 |
 | 完整 highD 缓存 | `results/highd_world_model/semi_markov_relational_full/sequence_cache/` | 161,314 条六秒序列；train/val/test = 112,943/24,155/24,216；非有界缓存。 |
-| 全量因果微调 | `world_model/scripts/configs/highd_semi_markov_relational_full_finetune.yaml` | 以 10k 续训模型为起点训练 3 epochs；验证因果 5 s FDE 从 1.3240 m 降至 1.2687 m（best=epoch 3）。 |
+| 全量 ROLL 微调 | `world_model/scripts/configs/highd_semi_markov_relational_full_finetune.yaml` | 以 10k 续训模型为起点训练 3 epochs；验证 ROLL 5 s FDE 从 1.3240 m 降至 1.2687 m（best=epoch 3）。 |
 | 全量随机展开/TBPTT 续训 | `world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml` | 3 epochs；平均 14.57--14.94 个 0.2 s response steps/batch，TBPTT=5。后三轮验证 FDE 未优于起始模型，竞争式选择保留起始参数。 |
 | 长时域端点损失开发检查 | `highd_semi_markov_relational_full_long_horizon_finetune.yaml` | 10,000 train / 2,000 validation 序列、1 epoch；端点权重使固定开发 FDE 从 1.26560 m 变为 1.27191 m，未改善，故未扩大为全量候选。 |
 | 完整五秒反传开发检查 | `highd_semi_markov_relational_10k_full_bptt.yaml` | 10k 同一 split、从原 checkpoint 续训 5 epochs；测试 5 s FDE = 1.35170 m（原 10k 模型约 1.37768 m），有小幅改善但仍远高于冻结基线，未扩大。 |
@@ -32,7 +32,7 @@
 | 历史相对位移编码检查 | `highd_semi_markov_relational_10k_history_displacement.yaml` | 对每辆车加入过去一秒相对自身当前位姿的平移不变轨迹，30 轮从零训练；最佳验证 FDE = 1.59489 m、独立测试 5 s FDE = 1.63998 m，明显劣化，已拒绝。 |
 | 相对 ego 位置编码检查 | `highd_semi_markov_relational_10k_ego_relative_position.yaml` | 10k 同一 split、30 epochs；测试 5 s FDE = 1.66040 m，劣化，已拒绝。 |
 | 完整 cache BPTT 受限开发 | `highd_semi_markov_relational_full_bptt_dev.yaml` | 明确记录 20,000 train / 5,000 validation 限制；完整 held-out test 5 s FDE = 1.28102 m，较正式 checkpoint 仅低 0.00286 m，非完整训练且改善不足，不能推广。 |
-| 完整 held-out 测试 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/semi_markov_evaluation_summary.json` | 24,216 条从未参与训练或选择的测试序列，固定种子因果先验 rollout；包含受控响应诊断。 |
+| 完整 held-out 测试 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/semi_markov_evaluation_summary.json` | 24,216 条从未参与训练或选择的测试序列，固定种子 ROLL 模式 rollout；包含受控响应诊断。 |
 | 历史完整配对比较 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk.json` | 同一 24,216 条序列、坐标一致性误差 0、2,000 次 bootstrap；旧 CAT-K START 使用未来动作摘要，仅作历史诊断。 |
 | 干净 START 完整配对比较 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/paired_semi_markov_vs_catk_clean_start_flow.json` 与 `paired_semi_markov_vs_catk_5s_clean_start_flow.json` | 相同 24,216 条、相同冻结 CAT-K 权重/START-ROLL 坐标、将旧未来动作摘要置零；1 s 与 5 s 三项 bootstrap 门控、5 s 关系 TV 门控全部通过。 |
 | 原型审计 | `results/highd_world_model/semi_markov_relational_full_tbptt_finetune/latent_state_prototypes.json` | 全部 24,155 validation 序列；状态使用率、duration histogram、按状态加权的关系边/车道/主交互对象变化率。 |
@@ -44,7 +44,7 @@ results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints
 SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253
 ```
 
-在完整的 24,216 条 held-out test 序列上，因果先验自由 rollout 为：
+在完整的 24,216 条 held-out test 序列上，ROLL 模式自由 rollout 为：
 
 | 指标 | 结果 |
 | --- | ---: | ---: |

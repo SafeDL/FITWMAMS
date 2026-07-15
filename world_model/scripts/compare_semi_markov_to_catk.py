@@ -176,7 +176,7 @@ def _catk_multichunk_rollout(
     if zero_start_flow_summary:
         # The legacy START cache stores a future-trajectory action summary.
         # Retain the frozen CAT-K weights and every other START/ROLL input,
-        # but remove precisely that non-causal feature for an auditable
+        # but remove precisely that future-only feature for an auditable
         # information-symmetric diagnostic.  This is not the formal frozen
         # baseline and therefore writes to a distinct artifact below.
         batch["flow_action_summary"] = torch.zeros_like(batch["flow_action_summary"])
@@ -314,7 +314,7 @@ def main() -> None:
         for start in range(0, len(sequence_index), int(args.batch_size)):
             stop = min(start + int(args.batch_size), len(sequence_index))
             seq_idx, old_indices = sequence_index[start:stop], source_sequences[start:stop]
-            rollout = semi.rollout_prior(_batch(semi_arrays, seq_idx, device), seed=int(args.seed) + start, deterministic=True)
+            rollout = semi.rollout_roll_mode(_batch(semi_arrays, seq_idx, device), seed=int(args.seed) + start, deterministic=True)
             frames = chunks * horizon_steps
             semi_pred = rollout["predicted_states"][:, :frames, 1:].cpu().numpy()
             target = np.asarray(semi_arrays["agent_states"][seq_idx, 25 : 25 + frames, 1:], np.float32)

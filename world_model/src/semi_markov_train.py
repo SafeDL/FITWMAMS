@@ -136,14 +136,17 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     target_conflicts = bool(model.cfg.use_conflict_zones)
     source_variant = str(source_cfg.get("variant", "m0"))
     target_variant = str(model.cfg.variant)
-    incompatible = model.load_state_dict(payload["state_dict"], strict=False)
+    state_dict = {key: value for key, value in payload["state_dict"].items() if not key.startswith(("behavior_anchor.", "anchor_remaining.", "decoder.anchor."))}
+    for key in [key for key in state_dict if key.startswith("behavior_plan.")]:
+        state_dict[f"start_mode.{key.removeprefix('behavior_plan.')}"] = state_dict.pop(key)
+    incompatible = model.load_state_dict(state_dict, strict=False)
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
     can_add_conflicts = target_conflicts and not source_conflicts
-    can_add_behavior_decoder = target_variant == "m1"
+    can_add_start_residual = target_variant == "m1"
     allowed_missing = all(
         (can_add_conflicts and key.startswith(conflict_prefixes))
-        or (can_add_behavior_decoder and key.startswith(("behavior_anchor.", "behavior_plan.", "anchor_remaining.", "anchor_residual.", "decoder.anchor.")))
+        or (can_add_start_residual and key.startswith(("start_mode.", "anchor_residual.")))
         for key in missing
     )
     allowed_unexpected = source_conflicts and not target_conflicts and all(
@@ -209,11 +212,11 @@ def _mean_metrics(model, loader, device, *, teacher_forcing: float) -> dict[str,
     return {key: value / max(count, 1) for key, value in total.items()}
 
 
-def _causal_prior_rollout_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
-    """Validation metrics on the exact causal path used in deployment.
+def _roll_mode_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
+    """Validation metrics on the background-only ROLL path used in deployment.
 
     Posterior reconstruction and differentiable soft state expectations are
-    useful optimization signals, but neither is the sampled-duration causal
+    useful optimization signals, but neither is the sampled-duration ROLL
     rollout exposed by ``SemiMarkovBackgroundEnvironment``.  Checkpoints are
     therefore selected by this fixed-seed validation rollout, not by a
     posterior-mixed training loss that can improve while free rollouts drift.
@@ -231,7 +234,7 @@ def _causal_prior_rollout_metrics(model, loader, device, *, seed: int) -> dict[s
     with torch.no_grad():
         offset = 0
         for values in loader:
-            rollout = model.rollout_prior(
+            rollout = model.rollout_roll_mode(
                 _to_batch(values, loader.field_names, device), seed=int(seed) + offset, deterministic=True,
             )
             predicted = rollout["predicted_states"]
@@ -251,10 +254,10 @@ def _causal_prior_rollout_metrics(model, loader, device, *, seed: int) -> dict[s
             gap_count += int(bg_valid.sum().cpu())
             offset += int(predicted.shape[0])
     return {
-        "causal_prior_rollout_ADE_m": total_distance / max(total_valid, 1),
-        "causal_prior_rollout_FDE_m": terminal_distance / max(terminal_valid, 1),
-        "causal_prior_1s_FDE_m": first_terminal_distance / max(first_terminal_valid, 1),
-        "causal_prior_1s_gap_MAE_m": gap_error / max(gap_count, 1),
+        "roll_mode_ADE_m": total_distance / max(total_valid, 1),
+        "roll_mode_FDE_m": terminal_distance / max(terminal_valid, 1),
+        "roll_mode_1s_FDE_m": first_terminal_distance / max(first_terminal_valid, 1),
+        "roll_mode_1s_gap_MAE_m": gap_error / max(gap_count, 1),
     }
 
 
@@ -382,8 +385,8 @@ def _stage_schedule(training: dict[str, Any], fallback_epochs: int) -> list[dict
 def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torch):
     """Freeze by public subsystem and use the requested low-LR groups."""
     allowed = {
-        "anchor": ("behavior_anchor", "anchor_remaining", "anchor_residual"),
-        "causal": ("behavior_anchor", "anchor_remaining", "anchor_residual", "decoder", "latent"),
+        "anchor": ("anchor_residual",),
+        "roll": ("anchor_residual", "decoder", "latent"),
         "joint": tuple(),
     }.get(stage, tuple())
     for name, parameter in model.named_parameters():
@@ -391,7 +394,7 @@ def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torc
     groups = []
     for label, prefixes, default_lr in (
         ("encoder", ("encoder",), 5.0e-6),
-        ("anchor", ("behavior_anchor", "anchor_remaining", "anchor_residual"), 2.0e-5),
+        ("anchor", ("anchor_residual",), 2.0e-5),
         ("decoder_prior", ("decoder", "latent"), 1.0e-5),
     ):
         values = [p for name, p in model.named_parameters() if p.requires_grad and any(name.startswith(prefix) for prefix in prefixes)]
@@ -468,7 +471,7 @@ def train_semi_markov_world_model(
         reference_model = load_semi_markov_checkpoint(_resolved_path(str(m0_path), config_dir), device=device)
         if reference_model.cfg.variant != "m0":
             raise ValueError("m0_reference_checkpoint must contain an M0 model")
-        m0_reference = _causal_prior_rollout_metrics(reference_model, val_loader, device, seed=seed + 10_000)
+        m0_reference = _roll_mode_metrics(reference_model, val_loader, device, seed=seed + 10_000)
     requested_epochs = int(epochs if epochs is not None else training.get("epochs", 80))
     stages = _stage_schedule(training, requested_epochs)
     schedule_epochs = requested_epochs if epochs is not None or not training.get("stages") else sum(int(stage["epochs"]) for stage in stages)
@@ -499,30 +502,30 @@ def train_semi_markov_world_model(
     stage_gate_passed = True
     # A continuation must compete with its starting model.  Otherwise the
     # first optimizer update becomes the "best" checkpoint even when it
-    # degrades causal free-running performance.
+    # degrades free-running ROLL performance.
     initial_selection: dict[str, float] | None = None
     if initial_payload is not None:
         initial_validation = _mean_metrics(model, val_loader, device, teacher_forcing=0.0)
-        initial_selection = _causal_prior_rollout_metrics(model, val_loader, device, seed=seed + 10_000)
-        best = float(initial_selection["causal_prior_rollout_FDE_m"])
+        initial_selection = _roll_mode_metrics(model, val_loader, device, seed=seed + 10_000)
+        best = float(initial_selection["roll_mode_FDE_m"])
         best_validation_loss = float(initial_validation["loss"])
         if not math.isfinite(best) or not math.isfinite(best_validation_loss):
             raise FloatingPointError("initial checkpoint has non-finite validation metrics")
         initial_eligible = m0_reference is None or (
-            initial_selection["causal_prior_1s_FDE_m"] <= m0_reference["causal_prior_1s_FDE_m"]
-            and initial_selection["causal_prior_1s_gap_MAE_m"] <= m0_reference["causal_prior_1s_gap_MAE_m"]
+            initial_selection["roll_mode_1s_FDE_m"] <= m0_reference["roll_mode_1s_FDE_m"]
+            and initial_selection["roll_mode_1s_gap_MAE_m"] <= m0_reference["roll_mode_1s_gap_MAE_m"]
         )
         if initial_eligible:
             torch.save({
                 "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
-                "epoch": 0, "validation": initial_validation, "causal_prior_validation": initial_selection,
+                "epoch": 0, "validation": initial_validation, "roll_mode_validation": initial_selection,
                 "sequence_manifest": manifest, "adapter_version": manifest.get("adapter", "unknown"), "dynamics_version": model.dynamics.version,
                 "training_protocol": training_protocol, "selection_origin": "initial_checkpoint",
             }, best_path)
             save_json(_prototypes(model, val_loader, device), output_dir / "latent_state_prototypes.json")
         else:
             best = float("inf")
-        logger.info("initial causal-prior validation FDE=%.5f", best)
+        logger.info("initial ROLL validation FDE=%.5f", best)
     for epoch in range(1, schedule_epochs + 1):
         remaining_epochs = epoch
         stage_spec = stages[-1]
@@ -531,7 +534,7 @@ def train_semi_markov_world_model(
                 stage_spec = item; break
             remaining_epochs -= int(item["epochs"])
         stage_name = str(stage_spec.get("name", "joint")).replace("_realization", "").replace("_rollout", "")
-        stage_name = {"A": "anchor", "B": "causal", "C": "joint", "anchor": "anchor", "causal": "causal", "joint": "joint"}.get(stage_name, stage_name)
+        stage_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(stage_name, stage_name)
         if stage_name == "joint" and not stage_gate_passed:
             logger.warning("skipping stage C because the strict M0 first-second gate did not pass in stages A/B")
             break
@@ -559,34 +562,34 @@ def train_semi_markov_world_model(
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
         val_metrics = _mean_metrics(model, val_loader, device, teacher_forcing=0.0)
-        rollout_metrics = _causal_prior_rollout_metrics(model, val_loader, device, seed=seed + 10_000)
+        rollout_metrics = _roll_mode_metrics(model, val_loader, device, seed=seed + 10_000)
         row = {
             "epoch": epoch, "stage": active_stage, "teacher_forcing": teacher, **train_metrics,
             **{f"val_{k}": v for k, v in val_metrics.items()}, **{f"val_{k}": v for k, v in rollout_metrics.items()},
         }
         records.append(row)
         logger.info(
-            "epoch=%d train_loss=%.5f val_loss=%.5f val_roll=%.5f val_causal_fde=%.5f teacher=%.2f",
-            epoch, row["train_loss"], row["val_loss"], row["val_roll_loss"], row["val_causal_prior_rollout_FDE_m"], teacher,
+            "epoch=%d train_loss=%.5f val_loss=%.5f val_roll=%.5f roll_mode_fde=%.5f teacher=%.2f",
+            epoch, row["train_loss"], row["val_loss"], row["val_roll_loss"], row["val_roll_mode_FDE_m"], teacher,
         )
         if not math.isfinite(val_metrics["loss"]):
             raise FloatingPointError("non-finite validation loss; no checkpoint was written")
-        selection_score = rollout_metrics["causal_prior_rollout_FDE_m"]
+        selection_score = rollout_metrics["roll_mode_FDE_m"]
         if not math.isfinite(selection_score):
-            raise FloatingPointError("non-finite causal-prior validation FDE; no checkpoint was written")
+            raise FloatingPointError("non-finite ROLL validation FDE; no checkpoint was written")
         eligible = m0_reference is None or (
-            rollout_metrics["causal_prior_1s_FDE_m"] <= m0_reference["causal_prior_1s_FDE_m"]
-            and rollout_metrics["causal_prior_1s_gap_MAE_m"] <= m0_reference["causal_prior_1s_gap_MAE_m"]
+            rollout_metrics["roll_mode_1s_FDE_m"] <= m0_reference["roll_mode_1s_FDE_m"]
+            and rollout_metrics["roll_mode_1s_gap_MAE_m"] <= m0_reference["roll_mode_1s_gap_MAE_m"]
         )
         row["m0_1s_gate_pass"] = float(eligible)
-        if active_stage in {"anchor", "causal"}:
+        if active_stage in {"anchor", "roll"}:
             stage_gate_passed = stage_gate_passed and eligible
         if eligible and selection_score < best:
             best = selection_score
             best_validation_loss = val_metrics["loss"]
             payload = {
                 "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
-                "epoch": epoch, "validation": val_metrics, "causal_prior_validation": rollout_metrics, "sequence_manifest": manifest,
+                "epoch": epoch, "validation": val_metrics, "roll_mode_validation": rollout_metrics, "sequence_manifest": manifest,
                 "adapter_version": manifest.get("adapter", "unknown"), "dynamics_version": model.dynamics.version,
                 "training_protocol": training_protocol,
             }
@@ -595,7 +598,7 @@ def train_semi_markov_world_model(
             save_json(prototype, output_dir / "latent_state_prototypes.json")
         torch.save({
             "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
-            "epoch": epoch, "validation": val_metrics, "causal_prior_validation": rollout_metrics,
+            "epoch": epoch, "validation": val_metrics, "roll_mode_validation": rollout_metrics,
             "sequence_manifest": manifest, "adapter_version": manifest.get("adapter", "unknown"),
             "dynamics_version": model.dynamics.version, "training_protocol": training_protocol,
             "selection_eligible": bool(eligible),
@@ -609,14 +612,14 @@ def train_semi_markov_world_model(
         "checkpoint_sha256": _checkpoint_hash(best_path) if best_path.exists() else None,
         "last_checkpoint": str(last_path), "last_checkpoint_sha256": _checkpoint_hash(last_path),
         "selection_qualified": bool(best_path.exists()),
-        "selection_metric": "causal_prior_rollout_FDE_m", "best_causal_prior_rollout_FDE_m": best,
+        "selection_metric": "roll_mode_FDE_m", "best_roll_mode_FDE_m": best,
         "best_validation_loss_at_selected_checkpoint": best_validation_loss, "sequence_manifest": manifest,
         "m0_cold_start_reference": m0_reference,
         **reproducibility,
     }
     if initial_checkpoint is not None:
         report["initial_checkpoint"] = str(Path(initial_checkpoint).resolve())
-        report["initial_causal_prior_rollout"] = initial_selection
+        report["initial_roll_mode"] = initial_selection
     save_json(report, output_dir / "training_summary.json")
     return report
 
@@ -628,8 +631,11 @@ def load_semi_markov_checkpoint(path: str | Path, *, device: str | Any = "cpu") 
     if payload.get("model_type") != SemiMarkovRelationalWorldModel.model_type:
         raise ValueError(f"Not a semi_markov_relational checkpoint: {path}")
     model = SemiMarkovRelationalWorldModel(_model_cfg(payload["model_config"]))
-    incompatible = model.load_state_dict(payload["state_dict"], strict=False)
-    permitted = ("behavior_plan.", "anchor_remaining.", "anchor_residual.", "behavior_anchor.mean", "behavior_anchor.std")
+    state_dict = {key: value for key, value in payload["state_dict"].items() if not key.startswith(("behavior_anchor.", "anchor_remaining.", "decoder.anchor."))}
+    for key in [key for key in state_dict if key.startswith("behavior_plan.")]:
+        state_dict[f"start_mode.{key.removeprefix('behavior_plan.')}"] = state_dict.pop(key)
+    incompatible = model.load_state_dict(state_dict, strict=False)
+    permitted = ("start_mode.", "anchor_residual.")
     if incompatible.unexpected_keys or any(not key.startswith(permitted) for key in incompatible.missing_keys):
         raise ValueError(f"checkpoint is incompatible with the current semi-Markov model: {incompatible}")
     # Environments created from a loaded checkpoint can include this immutable
