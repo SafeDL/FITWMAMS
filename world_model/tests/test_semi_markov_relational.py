@@ -16,6 +16,7 @@ from world_model.src.initial_behavior_anchor import (
 )
 from world_model.src.semi_markov_environment import SemiMarkovBackgroundEnvironment, WorldRandomness
 from world_model.src.semi_markov_model import SemiMarkovRelationalWorldModel, SemiMarkovWorldModelConfig
+from world_model.src.semi_markov_state import SemiMarkovConfig, SemiMarkovLatentState
 from world_model.src.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
@@ -104,6 +105,43 @@ class SemiMarkovRelationalTests(unittest.TestCase):
         # begins as the deterministic START controls.
         torch.testing.assert_close(residual, torch.zeros_like(residual), atol=0.0, rtol=0.0)
         self.assertEqual(model.cfg.behavior_anchor_response_steps, 5)
+
+    def test_start_feedback_uses_frozen_flow_coordinates(self):
+        """START feedback must never subtract physical values from B0_std."""
+        import torch
+
+        schema = FrozenLegacyFlowSchema.load(
+            Path(__file__).resolve().parents[2] / "results/highd_tail_flow_best/dataset_schema.json"
+        )
+        model = SemiMarkovRelationalWorldModel(
+            SemiMarkovWorldModelConfig(hidden_dim=24, num_latent_states=4, variant="m1")
+        )
+        model.set_frozen_flow_schema(schema)
+        initial = torch.zeros((1, 7, 6)); initial[:, :, 2] = 20.0; initial[:, :, 4] = -1.0
+        generated = initial.clone(); generated[:, :, 2] += 0.4; generated[:, :, 4] = -0.5
+        raw = torch.tensor([[[0.4, 0.0, -0.75, -1.0, -0.5, 0.0]] * 6])
+        expected = schema.standardize(raw, torch.ones((1, 6), dtype=torch.bool))
+        actual = model._realized_prefix_anchor(initial, [generated], torch.ones((1, 7), dtype=torch.bool))
+        torch.testing.assert_close(actual, expected)
+
+    def test_duration_hazard_stays_at_the_completed_phase_start(self):
+        """A phase ending at t must not use t's new scene/state as input."""
+        import torch
+
+        latent = SemiMarkovLatentState(SemiMarkovConfig(hidden_dim=2, num_states=2))
+        one_hot = torch.tensor([[[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]]])
+        boundaries = torch.tensor([[1.0, 0.0, 1.0, 0.0]])
+        latent.posterior = lambda _scene: (one_hot, one_hot, boundaries, torch.zeros((1, 4)), torch.zeros((1, 4, 2)))
+        calls: list[tuple[float, float]] = []
+
+        def recorded_hazard(scene, _state, age):
+            calls.extend(zip(scene[:, 0].tolist(), age.tolist()))
+            return scene[:, 0] * 0.0
+
+        latent.hazard_logits = recorded_hazard
+        scene = torch.tensor([[[10.0, 0.0], [11.0, 0.0], [12.0, 0.0], [13.0, 0.0]]])
+        latent.training_terms(scene, scene)
+        self.assertEqual(calls, [(10.0, 1.0), (10.0, 2.0), (12.0, 1.0), (12.0, 2.0)])
 
     def test_behavior_anchored_training_uses_only_logged_first_second(self):
         import torch

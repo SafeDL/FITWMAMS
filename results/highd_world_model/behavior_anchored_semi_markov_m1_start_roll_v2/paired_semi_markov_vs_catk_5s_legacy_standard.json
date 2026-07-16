@@ -1,78 +1,79 @@
 {
   "all_primary_error_gates_pass": false,
   "baseline": {
-    "ADE_m": 0.16347541926152137,
-    "FDE_m": 0.6676208192067913,
-    "gap_mae_m": 0.13651192936214895
+    "ADE_m": 0.16350118416031606,
+    "FDE_m": 0.6677281154648969,
+    "gap_mae_m": 0.13653817843169386
   },
   "baseline_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
   "baseline_checkpoint_sha256": "2971403ea2d05c39ad2abbd586c79ddb0125c905dfebf14507e26b38aa16b109",
   "candidate": {
-    "ADE_m": 0.3783722898302633,
-    "FDE_m": 1.262763596396703,
-    "gap_mae_m": 0.3278139995381955
+    "ADE_m": 0.1908803351601624,
+    "FDE_m": 0.7513545946130644,
+    "gap_mae_m": 0.1540419041547998
   },
-  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt",
-  "candidate_checkpoint_sha256": "7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253",
+  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/checkpoints/best_semi_markov_relational.pt",
+  "candidate_checkpoint_sha256": "707fa23c911dda5a309306345c056dd7b72975f1c45c4fe4b0d0c545c67e2d20",
   "num_paired_sequences": 24216,
   "paired_bootstrap": {
     "ADE_m": {
-      "candidate_minus_baseline": 0.21489687056874188,
+      "candidate_minus_baseline": 0.02737915099984634,
       "num_pairs": 24216,
       "passes": false,
-      "upper_95": 0.21710637026586144
+      "upper_95": 0.028119760852945177
     },
     "FDE_m": {
-      "candidate_minus_baseline": 0.5951427771899116,
+      "candidate_minus_baseline": 0.08362647914816751,
       "num_pairs": 24216,
       "passes": false,
-      "upper_95": 0.6031302336851001
+      "upper_95": 0.08711418294397102
     },
     "gap_mae_m": {
-      "candidate_minus_baseline": 0.19130207017604653,
+      "candidate_minus_baseline": 0.017503725723105927,
       "num_pairs": 24216,
       "passes": false,
-      "upper_95": 0.19355579866565625
+      "upper_95": 0.018209414717526712
     }
   },
   "protocol": {
     "baseline_uses_future_flow_action_summary": true,
-    "bootstrap_repetitions": 1000,
+    "bootstrap_repetitions": 2000,
     "catk_chunks": 5,
     "criterion": "candidate_minus_baseline point estimate <= 0 and one-sided 95% bootstrap upper <= 0",
     "horizon_seconds": 5.0,
     "promotion_information_symmetric": false,
     "same_sequence": true,
-    "split": "test"
+    "split": "test",
+    "start_flow_action_summary_zeroed_for_diagnostic": false
   },
   "relationship_distribution": {
     "baseline": {
       "predicted": {
-        "adjacent_lane": 0.6068296639441861,
-        "same_lane": 0.21227604016475252,
-        "unrelated": 0.1808942958910613
+        "adjacent_lane": 0.6068304949744953,
+        "same_lane": 0.212275586875493,
+        "unrelated": 0.1808939181500117
       },
       "target": {
         "adjacent_lane": 0.606510170564438,
         "same_lane": 0.21265234579835987,
         "unrelated": 0.1808374836372021
       },
-      "total_variation": 0.0003763056336073406
+      "total_variation": 0.00037675892286687107
     },
     "candidate": {
       "predicted": {
-        "adjacent_lane": 0.609051385701489,
-        "same_lane": 0.2105835336179335,
-        "unrelated": 0.18036508068057755
+        "adjacent_lane": 0.6081708713148811,
+        "same_lane": 0.21124276729768812,
+        "unrelated": 0.18058636138743078
       },
       "target": {
         "adjacent_lane": 0.606510170564438,
         "same_lane": 0.21265234579835987,
         "unrelated": 0.1808374836372021
       },
-      "total_variation": 0.0025412151370509395
+      "total_variation": 0.0016607007504430837
     },
-    "candidate_minus_baseline_total_variation": 0.002164909503443599
+    "candidate_minus_baseline_total_variation": 0.0012839418275762127
   },
   "target_coordinate_parity_max_abs_error": 0.0
 }

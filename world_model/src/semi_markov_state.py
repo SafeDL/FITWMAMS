@@ -113,7 +113,10 @@ class SemiMarkovLatentState(nn.Module):
             q_z = q_z_sample
         else:
             q_z = self.propagated_states(q_z_sample, q_boundary)
-        previous = torch.cat((q_z[:, :1], q_z[:, :-1]), dim=1)
+        # Deployment begins without a predecessor state.  Using q_z[:, 0]
+        # here leaked the posterior's first state into the prior and made the
+        # training transition different from the one sampled in ROLL.
+        previous = torch.cat((torch.zeros_like(q_z[:, :1]), q_z[:, :-1]), dim=1)
         # A segment's duration distribution is conditioned on the scene at
         # the segment start, exactly as deployment samples it once.
         segment_scene = [roll_scene[:, 0]]
@@ -128,21 +131,33 @@ class SemiMarkovLatentState(nn.Module):
         # straight-through sample so it remains a genuine prior/posterior term.
         kl = (q_z_soft * (q_z_soft.clamp_min(1.0e-8).log() - log_prior)).sum(dim=-1).mean()
 
-        elapsed = torch.ones_like(q_boundary)
-        # Expected elapsed state age.  At a boundary it resets to one response
-        # interval; otherwise it increments smoothly.
-        for step in range(1, elapsed.shape[1]):
-            elapsed[:, step] = (1.0 - q_boundary[:, step]) * (elapsed[:, step - 1] + 1.0) + q_boundary[:, step]
-        hazard_logits = self.hazard_logits(
-            segment_scene.reshape(-1, segment_scene.shape[-1]), q_z.reshape(-1, q_z.shape[-1]), elapsed.reshape(-1)
-        ).reshape_as(q_boundary)
-        # Transition targets exist only after the initial state and before the
-        # window end.  The final observed state is right-censored.
+        # A duration hazard belongs to the *currently active segment*, not to
+        # the segment that begins at a boundary.  Keep its scene/state fixed
+        # from the segment start until that boundary is observed.  In forward
+        # mode q_boundary is hard-ST, so this recurrence is a discrete phase
+        # path while gradients can still train its posterior estimator.
+        start_scene, start_state = roll_scene[:, 0], q_z[:, 0]
+        age = torch.zeros_like(q_boundary[:, 0])
+        hazard_by_transition = [torch.zeros_like(q_boundary[:, 0])]
+        for step in range(1, q_boundary.shape[1]):
+            age = age + 1.0
+            hazard_by_transition.append(self.hazard_logits(start_scene, start_state, age))
+            boundary = q_boundary[:, step : step + 1]
+            start_scene = boundary * roll_scene[:, step] + (1.0 - boundary) * start_scene
+            start_state = boundary * q_z[:, step] + (1.0 - boundary) * start_state
+            age = (1.0 - boundary.squeeze(-1)) * age
+        hazard_logits = torch.stack(hazard_by_transition, dim=1)
+        # A boundary at response t completes the phase which started earlier;
+        # the corresponding logit above is therefore evaluated at that old
+        # phase's start context and age.  The last active phase is right
+        # censored: it contributes survival through the observed window but
+        # never a fabricated end transition.
         if q_boundary.shape[1] > 1 and not force_stepwise:
             duration_nll = F.binary_cross_entropy_with_logits(
-                hazard_logits[:, 1:-1], q_boundary[:, 1:-1], reduction="mean"
-            ) if q_boundary.shape[1] > 2 else hazard_logits.new_zeros(())
-            censor = -F.logsigmoid(-hazard_logits[:, -1]).mean()
+                hazard_logits[:, 1:], q_boundary[:, 1:], reduction="mean"
+            )
+            censor_logits = self.hazard_logits(start_scene, start_state, age + 1.0)
+            censor = -F.logsigmoid(-censor_logits).mean()
         else:
             duration_nll, censor = hazard_logits.new_zeros(()), hazard_logits.new_zeros(())
         if boundary_target is None or q_boundary.shape[1] <= 1 or force_stepwise:
@@ -187,7 +202,11 @@ class SemiMarkovLatentState(nn.Module):
             "duration_nll": duration_nll,
             "censor_nll": censor,
             "posterior_boundary_nll": posterior_boundary_nll,
-            "boundary_target_rate": boundary_target[:, 1:].float().mean() if boundary_target.shape[1] > 1 else hazard_logits.new_zeros(()),
+            "boundary_target_rate": (
+                boundary_target[:, 1:].float().mean()
+                if boundary_target is not None and boundary_target.shape[1] > 1
+                else hazard_logits.new_zeros(())
+            ),
             "prototype_reconstruction": prototype_reconstruction,
             "state_bootstrap_nll": state_bootstrap_nll,
             "switch_rate": switches,

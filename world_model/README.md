@@ -22,7 +22,7 @@ python world_model/scripts/evaluate_highd_semi_markov_relational.py
 默认配置为 `world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml`。它使用冻结的 76 维 Flow：后 36 维摘要在 START 模式生成首秒基础控制，并由当前图关系作有界修正；之后切换到 ROLL 模式。训练直接读取每条 150 帧序列的已缓存摘要（1 秒历史 + 5 秒未来），Flow 端到端生成才将一条 76 维样本直接解包为 START 场景。
 
 每个 M1 候选还必须执行 `compare_semi_markov_to_catk.py` 的同序列 1 s 与 5 s
-bootstrap 对比；在对应的 paired CAT-K 报告生成前，M1 不具有晋级资格。
+bootstrap 对比。报告会明确标记冻结 CAT-K 在 START 阶段使用真实未来的一秒摘要。
 
 核心闭环接口为：
 
@@ -34,51 +34,35 @@ one_second = environment.roll(ego_history_states, ego_history_valid)
 
 `roll()` 是兼容包装器，会执行五个 0.2 秒响应更新；它不接收 ego future。环境记录每次状态转移使用的外生状态/持续时间随机数、状态、持续时间及转移时刻，以支持 ADS 无关重放。`snapshot()`/`restore()` 还保存图、历史、latent/duration 与 RNG 状态，可用于 AMS 分支复制后确定性继续。
 
-### 保留的完整 highD 中间链路
+### 冻结 M0 对照
 
-完整数据上的关键中间 checkpoint 位于：
-
-```text
-results/highd_world_model/semi_markov_relational_full_tbptt_finetune/
-checkpoint SHA-256: 7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253
-```
-
-它使用 161,314 个六秒自然驾驶片段训练，并在独立的 24,216 个 highD test
-片段上取得 ROLL 模式 5 s ADE/FDE = `0.37960 / 1.28388 m`。在同一测试集的
-信息对称 clean-START paired bootstrap 中，它的一秒与五秒 ADE、FDE、gap MAE
-以及五秒关系分布 TV 均优于冻结 CAT-K；历史 CAT-K 的 future-action START
-摘要对照仍单列保留、但不能作为新规范的晋级基线。高D 所有门槛已通过，当前
-该阶段的正式晋级状态仅因 rounD 数据实证暂缓而为 `not_promoted`。完整指标、哈希、五秒门槛、协议限制与暂缓的 rounD 工作在
-[world_model_goal_semi_markov_status.md](../doc/world_model_goal_semi_markov_status.md)。
+冻结 M0 checkpoint 位于
+`results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/`。
+它只作为当前 M1 的 cold-start 对照加载；不保留其早期训练配置、实验报告或重训入口。
 
 ### 当前行为锚定候选
 
 当前 M1 实现的诊断输出位于：
 
 ```text
-results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/
+results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/
 ```
 
-在同协议的 128 条 highD test 诊断上，M1 的 1 s/5 s FDE 为 `0.04266 / 0.83686 m`，
-冻结 M0 为 `0.04820 / 1.37244 m`。该诊断 checkpoint 尚未通过无泄漏 validation 的严格
-M0 选择门槛，所以仅保存为 `last_semi_markov_relational.pt`，不替代冻结 CAT-K 或 M0 基线。
+在完整的 24,216 条 highD test 上，当前受保护 M1 checkpoint 的 1 s/5 s FDE 为
+`0.04162 / 0.77001 m`；同协议冻结 M0 为 `0.04659 / 1.34516 m`。标准 CAT-K
+仅在 START 使用真实未来的一秒摘要，ROLL 阶段将该输入置零；它的五秒结果更强
+应归因于首秒条件和后续 ROLL 模型本身，而不是每秒重新读取未来摘要。
 
-完整缓存和最终微调的命令为：
+完整缓存、训练与评测的命令为：
 
 ```bash
 python world_model/scripts/prepare_highd_semi_markov_relational_dataset.py \
   --config world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml
 python world_model/scripts/train_highd_semi_markov_relational.py \
-  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml \
-  --initial-checkpoint results/highd_world_model/semi_markov_relational_full_finetune/checkpoints/best_semi_markov_relational.pt
+  --config world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml
 python world_model/scripts/evaluate_highd_semi_markov_relational.py \
-  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml
-python world_model/scripts/audit_semi_markov_prototypes.py \
-  --config world_model/scripts/configs/highd_semi_markov_relational_full_tbptt_finetune.yaml
+  --config world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml
 ```
-
-`highd_semi_markov_relational_full_tbptt_finetune.yaml` 保留为冻结 M0 的最后可复现
-训练节点；当前开发仅使用 highD Flow-aligned M1，不包含 rounD 或联合训练入口。
 
 ---
 

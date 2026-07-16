@@ -2,11 +2,16 @@
 # or m1 for the retained candidate; the shared cache remains read-only.
 paths:
   legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned"
+  # V2 is a clean retraining after START feedback and segment-duration
+  # alignment.  The previous flow-aligned directory remains read-only
+  # historical evidence and is never mixed with this run.
+  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2"
   sequence_cache_dir: "../../../results/highd_world_model/semi_markov_relational_full"
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
   flow_checkpoint: "../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt"
   flow_schema: "../../../results/highd_tail_flow_best/dataset_schema.json"
+  flow_checkpoint_sha256: "206dbb371c80a46232f5f9dd92a98810b1c8644d1002989fc895d82ca4f45a68"
+  flow_schema_sha256: "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a"
 
 dataset:
   max_sequences: 0
@@ -23,6 +28,9 @@ model:
   type: "semi_markov_relational"
   variant: "m1"
   anchor_loss_weight: 1.0
+  # Stage A must optimize the deployed first-second path directly; the
+  # horizon-average ROLL loss alone underweights its endpoint.
+  start_roll_weight: 4.0
   cold_start_history: true
   hidden_dim: 128
   temporal_layers: 1
@@ -55,7 +63,11 @@ training:
   rollout_min_seconds: 1.0
   rollout_max_seconds: 5.0
   tbptt_response_steps: 5
-  batch_size: 128
+  # The full cache is memory mapped and this model occupies little GPU memory;
+  # 512 keeps the training full-data while avoiding needless Python-batch
+  # overhead on the available 24 GB GPU.
+  batch_size: 512
+  num_data_workers: 4
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
@@ -66,7 +78,7 @@ training:
     - {name: "joint", epochs: 5}
   encoder_learning_rate: 0.000005
   decoder_prior_learning_rate: 0.00001
-  anchor_learning_rate: 0.00002
+  anchor_learning_rate: 0.00005
 
 evaluation:
   seed: 123
@@ -74,8 +86,11 @@ evaluation:
   batch_size: 64
   max_sequences: 0
   cold_start_history: true
+  # The retained frozen M0 report is the explicit first-second gate.  CAT-K
+  # remains a separate paired comparison, not a substitute for this ablation.
+  required_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m0_flow_aligned_reference/semi_markov_evaluation_summary.json"
   round_evaluation_summary: ""
-  paired_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_clean_start_flow.json"
-  paired_long_horizon_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_5s_clean_start_flow.json"
-  legacy_paired_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk.json"
-  legacy_paired_long_horizon_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/paired_semi_markov_vs_catk_5s.json"
+  # Preserve only the released CAT-K interface, which uses its future-action
+  # START summary.  Its information advantage is reported explicitly.
+  legacy_paired_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/paired_semi_markov_vs_catk_legacy_standard.json"
+  legacy_paired_long_horizon_baseline_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/paired_semi_markov_vs_catk_5s_legacy_standard.json"

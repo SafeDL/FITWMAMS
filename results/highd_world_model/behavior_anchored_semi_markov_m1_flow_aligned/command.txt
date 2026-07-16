@@ -1,1 +1,0 @@
-world_model/scripts/train_highd_semi_markov_relational.py --config world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml --epochs 10 --max-train-sequences 4096 --max-val-sequences 1024 --initial-checkpoint results/highd_world_model/behavior_anchored_semi_markov_m1_flow_aligned/checkpoints/last_semi_markov_relational.pt --log-level INFO

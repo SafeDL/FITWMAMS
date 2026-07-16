@@ -1,38 +1,38 @@
 {
   "all_primary_error_gates_pass": true,
   "baseline": {
-    "ADE_m": 0.03334223447149123,
-    "FDE_m": 0.04764364124771512,
-    "gap_mae_m": 0.02892817568279376
+    "ADE_m": 0.03334206131088659,
+    "FDE_m": 0.047642705106092614,
+    "gap_mae_m": 0.028927863450711508
   },
   "baseline_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/catk_topk/checkpoints/best_world_model.pt",
   "baseline_checkpoint_sha256": "2971403ea2d05c39ad2abbd586c79ddb0125c905dfebf14507e26b38aa16b109",
   "candidate": {
-    "ADE_m": 0.031848031412909296,
-    "FDE_m": 0.04330819233567525,
-    "gap_mae_m": 0.027394716823729636
+    "ADE_m": 0.031564267784531766,
+    "FDE_m": 0.043115139384008024,
+    "gap_mae_m": 0.02683419200669466
   },
-  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt",
-  "candidate_checkpoint_sha256": "7cf3733fcb142ef31c1a997f6cbb5164e6ead800e5e98afbdca2de55fa0f7253",
+  "candidate_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/checkpoints/best_semi_markov_relational.pt",
+  "candidate_checkpoint_sha256": "707fa23c911dda5a309306345c056dd7b72975f1c45c4fe4b0d0c545c67e2d20",
   "num_paired_sequences": 24216,
   "paired_bootstrap": {
     "ADE_m": {
-      "candidate_minus_baseline": -0.001494203058581945,
+      "candidate_minus_baseline": -0.0017777935263548223,
       "num_pairs": 24216,
       "passes": true,
-      "upper_95": -0.0014591973080025286
+      "upper_95": -0.0017085373304359238
     },
     "FDE_m": {
-      "candidate_minus_baseline": -0.004335448912039874,
+      "candidate_minus_baseline": -0.004527565722084595,
       "num_pairs": 24216,
       "passes": true,
-      "upper_95": -0.004201695405921046
+      "upper_95": -0.004411066450480007
     },
     "gap_mae_m": {
-      "candidate_minus_baseline": -0.0015334588590641223,
+      "candidate_minus_baseline": -0.0020936714440168507,
       "num_pairs": 24216,
       "passes": true,
-      "upper_95": -0.0014994024491416125
+      "upper_95": -0.0020271932926404076
     }
   },
   "protocol": {
@@ -43,7 +43,8 @@
     "horizon_seconds": 1.0,
     "promotion_information_symmetric": false,
     "same_sequence": true,
-    "split": "test"
+    "split": "test",
+    "start_flow_action_summary_zeroed_for_diagnostic": false
   },
   "relationship_distribution": {},
   "target_coordinate_parity_max_abs_error": 0.0

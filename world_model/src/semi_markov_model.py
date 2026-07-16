@@ -47,6 +47,7 @@ class SemiMarkovWorldModelConfig:
     learn_duration: bool = True
     variant: str = "m0"
     anchor_loss_weight: float = 1.0
+    start_roll_weight: float = 1.0
     cold_start_history: bool = False
 
     @property
@@ -128,19 +129,34 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             return None
         return self.start_mode(initial_states, anchor_raw, valid[:, 1:])
 
-    def _remaining_anchor(
-        self, anchor_std: torch.Tensor | None, initial_states: torch.Tensor, generated_states: list[torch.Tensor],
-    ) -> torch.Tensor | None:
-        if anchor_std is None:
-            return None
+    def _realized_prefix_anchor(
+        self,
+        initial_states: torch.Tensor,
+        generated_states: list[torch.Tensor],
+        valid: torch.Tensor,
+    ) -> torch.Tensor:
+        """Summarize a generated START prefix in Flow model coordinates.
+
+        A prefix is intentionally not a completed one-second anchor.  It is
+        nevertheless represented by the same six physical quantities, then
+        passed through the *frozen* Flow transform before the controller sees
+        it.  This prevents the former invalid subtraction of normalized B0
+        from metres/seconds squared.  The formal completion metric still uses
+        :func:`summarize_first_second_states` on all 26 points.
+        """
         prefix = torch.stack((initial_states, *generated_states), dim=1) if generated_states else initial_states[:, None]
-        achieved = torch.zeros_like(anchor_std)
-        achieved[..., :2] = prefix[:, -1, 1:, 2:4] - initial_states[:, 1:, 2:4]
-        achieved[..., 2] = prefix[:, :, 1:, 4].mean(dim=1)
-        achieved[..., 3] = prefix[:, :, 1:, 4].amin(dim=1)
-        achieved[..., 4] = prefix[:, -1, 1:, 4]
-        achieved[..., 5] = prefix[:, :, 1:, 5].mean(dim=1)
-        return anchor_std - achieved
+        realized_raw = torch.stack((
+            prefix[:, -1, 1:, 2] - initial_states[:, 1:, 2],
+            prefix[:, -1, 1:, 3] - initial_states[:, 1:, 3],
+            prefix[:, :, 1:, 4].mean(dim=1),
+            prefix[:, :, 1:, 4].amin(dim=1),
+            prefix[:, -1, 1:, 4],
+            prefix[:, :, 1:, 5].mean(dim=1),
+        ), dim=-1)
+        background_valid = valid[:, 1:]
+        if self.frozen_flow_schema is not None:
+            return self.frozen_flow_schema.standardize(realized_raw, background_valid)
+        return realized_raw * background_valid[..., None].to(dtype=realized_raw.dtype)
 
     def _anchor_residual_controls(
         self, agent_context: torch.Tensor, scene_context: torch.Tensor, latent_context: torch.Tensor,
@@ -149,13 +165,14 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     ) -> torch.Tensor | None:
         if self.anchor_residual is None or start_actions is None:
             return None
-        remaining = self._remaining_anchor(anchor_std, initial_states, generated_states)
-        if remaining is None:
+        if anchor_std is None:
             return None
+        realized = self._realized_prefix_anchor(initial_states, generated_states, valid)
+        remaining = anchor_std - realized
         start_controls = torch.zeros((valid.shape[0], start_actions.shape[1], valid.shape[1], 2), dtype=start_actions.dtype, device=start_actions.device)
         start_controls[:, :, 1:] = start_actions
         return self.anchor_residual(
-            agent_context, scene_context, latent_context, remaining, start_controls,
+            agent_context, scene_context, latent_context, anchor_std, realized, remaining, start_controls,
             1.0 - response * self.cfg.response_interval_s, valid,
         )
 
@@ -293,11 +310,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Differentiable ROLL-mode generation used by the environment.
 
-        The training path differs only in that
-        categorical state/duration draws are represented by their differentiable
-        expectation.  It belongs to the single closed-loop ``L_roll`` loss and
-        prevents a posterior-only decoder from looking good in training while
-        drifting at inference.
+        The forward path uses hard discrete prior states and stage durations,
+        matching ROLL.  The state one-hot uses a straight-through estimator so
+        the same closed-loop ``L_roll`` can still train the prior without
+        reverting to a soft mixture of behavioural states.
         """
         states, valid = batch["agent_states"], batch["agent_valid"]
         b = states.shape[0]
@@ -326,16 +342,34 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             hard = torch.nn.functional.one_hot(proposal.argmax(dim=-1), self.cfg.num_latent_states).to(dtype=proposal.dtype)
             sampled = hard + proposal - proposal.detach()
             state_prob = torch.where(starts[:, None], sampled, state_prob)
-            for item in torch.nonzero(starts, as_tuple=False).flatten().tolist():
-                duration = 1
-                if self.cfg.learn_duration:
-                    one = hard[item : item + 1]
-                    duration = self.cfg.max_duration_response_steps
-                    for age in range(1, self.cfg.max_duration_response_steps + 1):
-                        hazard = torch.sigmoid(self.latent.hazard_logits(scene_context[item : item + 1], one, torch.tensor([age], device=states.device)))
-                        if float(hazard.item()) >= 0.5:
-                            duration = age; break
-                remaining[item] = duration
+            # Draw one external uniform at each newly started phase and invert
+            # the same discrete hazard distribution as ``rollout_roll_mode``.
+            # The forward path is consequently a genuine hard semi-Markov
+            # sample, rather than the old (and different) ``hazard >= 0.5``
+            # rule.  Durations remain supervised by their complete-phase NLL;
+            # they do not need a fictitious gradient through the draw.
+            if self.cfg.learn_duration:
+                duration = torch.full_like(remaining, self.cfg.max_duration_response_steps)
+                unresolved = starts.clone()
+                # Validation losses should be repeatable.  Training samples
+                # the same exogenous duration variable that the world uses.
+                uniform = torch.rand((b,), dtype=states.dtype, device=states.device) if self.training else torch.full_like(
+                    elapsed, 0.5, dtype=states.dtype,
+                )
+                for age in range(1, self.cfg.max_duration_response_steps + 1):
+                    age_tensor = torch.full_like(remaining, age)
+                    hazard = torch.sigmoid(self.latent.hazard_logits(scene_context, hard, age_tensor))
+                    chosen = unresolved & (uniform <= hazard)
+                    duration = torch.where(chosen, torch.full_like(duration, age), duration)
+                    uniform = torch.where(
+                        unresolved,
+                        (uniform - hazard) / (1.0 - hazard).clamp_min(1.0e-8),
+                        uniform,
+                    )
+                    unresolved = unresolved & ~chosen
+            else:
+                duration = torch.ones_like(remaining)
+            remaining = torch.where(starts, duration, remaining)
             elapsed = torch.where(starts, torch.ones_like(elapsed), elapsed + 1.0)
             start = response * self.cfg.physics_steps_per_response
             active_anchor = response < self.cfg.behavior_anchor_response_steps
@@ -610,6 +644,24 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         )
         prior_control_loss = self._masked_l1(prior_controls, rollout_target_controls, control_mask)
         late_prior_control_loss = self._late_response_l1(prior_controls, rollout_target_controls, control_mask)
+        start_prior_roll = controls_pred.new_zeros(())
+        start_prior_endpoint = controls_pred.new_zeros(())
+        start_prior_control = controls_pred.new_zeros(())
+        if self.uses_behavior_anchor:
+            start_frames = min(
+                rollout_frames,
+                self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response,
+            )
+            start_responses = max(1, start_frames // self.cfg.physics_steps_per_response)
+            start_prior_roll = self._masked_l1(
+                prior_predicted[:, :start_frames, ..., :4], target[:, :start_frames, ..., :4], target_valid[:, :start_frames],
+            )
+            start_prior_endpoint = self._masked_l1(
+                prior_predicted[:, start_frames - 1, ..., :4], target[:, start_frames - 1, ..., :4], target_valid[:, start_frames - 1],
+            )
+            start_prior_control = self._masked_l1(
+                prior_controls[:, :start_responses], rollout_target_controls[:, :start_responses], control_mask[:, :start_responses],
+            )
         recon = (
             self.cfg.position_weight * pos_loss + self.cfg.velocity_weight * vel_loss
             + self.cfg.control_weight * (
@@ -634,6 +686,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         total = recon + self.cfg.anchor_loss_weight * anchor_loss + self.cfg.beta_latent * latent_loss + self.cfg.lambda_roll * (
             roll + self.cfg.prior_roll_weight * prior_roll
             + self.cfg.late_roll_weight * (endpoint_roll + self.cfg.prior_roll_weight * prior_endpoint_roll)
+        ) + self.cfg.start_roll_weight * (
+            start_prior_roll + start_prior_endpoint + self.cfg.control_weight * start_prior_control
         )
         return {
             "loss": total, "recon_loss": recon.detach(), "roll_loss": roll.detach(), "prior_roll_loss": prior_roll.detach(),
@@ -641,6 +695,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             "position_l1": pos_loss.detach(), "velocity_l1": vel_loss.detach(), "control_l1": control_loss.detach(),
             "anchor_loss": anchor_loss.detach(),
             "prior_control_loss": prior_control_loss.detach(), "late_prior_control_loss": late_prior_control_loss.detach(),
+            "start_prior_roll_loss": start_prior_roll.detach(), "start_prior_endpoint_loss": start_prior_endpoint.detach(),
+            "start_prior_control_loss": start_prior_control.detach(),
             "latent_loss": latent_loss.detach(), "latent_kl": latent_terms["latent_kl"].detach(),
             "duration_nll": latent_terms["duration_nll"].detach(), "censor_nll": latent_terms["censor_nll"].detach(),
             "posterior_boundary_nll": latent_terms["posterior_boundary_nll"].detach(),

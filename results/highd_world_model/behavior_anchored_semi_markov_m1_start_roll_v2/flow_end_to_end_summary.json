@@ -1,23 +1,26 @@
 {
   "anchor_lifecycle": "B0 tensors are cleared after response step five; later effects are physical-state only.",
-  "causal_prior_anchor_raw_l1": 0.1733009102754295,
   "cross_seed_exact_match_rate": 0.0,
   "latent_state_histogram": {
-    "1": 1,
-    "2": 4,
-    "3": 13,
-    "4": 2,
-    "5": 11,
-    "6": 7,
-    "7": 2,
-    "8": 17
+    "1": 12,
+    "10": 9,
+    "11": 10,
+    "2": 75,
+    "3": 173,
+    "4": 109,
+    "5": 172,
+    "6": 124,
+    "7": 54,
+    "8": 189,
+    "9": 13
   },
   "map_context_limit": "straight_lane_v1: Flow samples do not contain recorded map geometry",
-  "mean_duration_response_steps": 7.824561403508772,
+  "mean_duration_response_steps": 8.721276595744682,
   "physical_valid_rate": 1.0,
-  "protocol": "frozen_flow_atomic_straight_lane_v1",
+  "protocol": "frozen_flow_start_mode_straight_lane_v1",
+  "roll_mode_anchor_raw_l1": 0.19306570978369564,
   "same_seed_stability_rate": 1.0,
-  "samples": 16,
+  "samples": 256,
   "seeds": [
     123,
     456

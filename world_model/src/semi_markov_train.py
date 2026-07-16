@@ -44,7 +44,10 @@ def _indices(arrays: dict[str, np.ndarray], split: str, maximum: int, seed: int)
     return index[: int(maximum)] if maximum > 0 else index
 
 
-def _loader(arrays: dict[str, np.ndarray], split: str, *, batch_size: int, maximum: int, shuffle: bool, seed: int):
+def _loader(
+    arrays: dict[str, np.ndarray], split: str, *, batch_size: int, maximum: int, shuffle: bool, seed: int,
+    num_workers: int = 0,
+):
     torch, DataLoader, Dataset = _torch()
     indices = _indices(arrays, split, maximum, seed)
     if not len(indices):
@@ -63,7 +66,10 @@ def _loader(arrays: dict[str, np.ndarray], split: str, *, batch_size: int, maxim
                 result.append(torch.from_numpy(value.copy()))
             return tuple(result)
 
-    loader = DataLoader(SequenceDataset(), batch_size=int(batch_size), shuffle=bool(shuffle), num_workers=0, drop_last=False)
+    loader = DataLoader(
+        SequenceDataset(), batch_size=int(batch_size), shuffle=bool(shuffle),
+        num_workers=max(0, int(num_workers)), persistent_workers=bool(num_workers), drop_last=False,
+    )
     loader.field_names = field_names
     return loader
 
@@ -136,9 +142,18 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     target_conflicts = bool(model.cfg.use_conflict_zones)
     source_variant = str(source_cfg.get("variant", "m0"))
     target_variant = str(model.cfg.variant)
-    state_dict = {key: value for key, value in payload["state_dict"].items() if not key.startswith(("behavior_anchor.", "anchor_remaining.", "decoder.anchor."))}
-    for key in [key for key in state_dict if key.startswith("behavior_plan.")]:
-        state_dict[f"start_mode.{key.removeprefix('behavior_plan.')}"] = state_dict.pop(key)
+    state_dict = dict(payload["state_dict"])
+    # The START residual input was expanded from a single, unit-mixed delta to
+    # target/prefix/delta in frozen Flow coordinates.  Its input projection is
+    # deliberately reinitialised; the zero output layer preserves the
+    # deterministic START path while the corrected feedback learns anew.
+    expected = model.state_dict()
+    for key in list(state_dict):
+        if key in expected and tuple(state_dict[key].shape) != tuple(expected[key].shape):
+            if key.startswith("anchor_residual."):
+                state_dict.pop(key)
+            else:
+                raise ValueError(f"initial checkpoint tensor shape differs for {key}")
     incompatible = model.load_state_dict(state_dict, strict=False)
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
@@ -206,7 +221,7 @@ def _mean_metrics(model, loader, device, *, teacher_forcing: float) -> dict[str,
     with torch.no_grad():
         for values in loader:
             result = model.forward_training(_to_batch(values, loader.field_names, device), teacher_forcing_ratio=teacher_forcing)
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "anchor_loss", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "anchor_loss", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss"):
                 total[key] = total.get(key, 0.0) + float(result[key].detach().cpu())
             count += 1
     return {key: value / max(count, 1) for key, value in total.items()}
@@ -461,8 +476,15 @@ def train_semi_markov_world_model(
         # needless source of drift before the checkpoint is loaded.
         centroids = _fit_descriptor_centroids(arrays, num_states=model.cfg.num_latent_states, seed=seed)
         model.latent.set_descriptor_centroids(torch.from_numpy(centroids).to(device))
-    train_loader = _loader(arrays, "train", batch_size=int(training.get("batch_size", 16)), maximum=max_train_sequences, shuffle=True, seed=seed)
-    val_loader = _loader(arrays, "val", batch_size=int(training.get("batch_size", 16)), maximum=max_val_sequences, shuffle=False, seed=seed)
+    loader_workers = int(training.get("num_data_workers", 0))
+    train_loader = _loader(
+        arrays, "train", batch_size=int(training.get("batch_size", 16)), maximum=max_train_sequences,
+        shuffle=True, seed=seed, num_workers=loader_workers,
+    )
+    val_loader = _loader(
+        arrays, "val", batch_size=int(training.get("batch_size", 16)), maximum=max_val_sequences,
+        shuffle=False, seed=seed, num_workers=loader_workers,
+    )
     m0_reference: dict[str, float] | None = None
     m0_path = training.get("m0_reference_checkpoint")
     if model.uses_behavior_anchor:
@@ -499,7 +521,12 @@ def train_semi_markov_world_model(
     records: list[dict[str, float]] = []
     optimizer = None
     active_stage = ""
-    stage_gate_passed = True
+    # A stage qualifies when at least one of its checkpoints satisfies the
+    # first-second M0 constraint.  Requiring *every* exploratory epoch to
+    # satisfy it made an early, expected warm-up miss permanently veto stage
+    # C even after later checkpoints had recovered.
+    stage_gate_passed = False
+    stage_qualified = {"anchor": False, "roll": False}
     # A continuation must compete with its starting model.  Otherwise the
     # first optimizer update becomes the "best" checkpoint even when it
     # degrades free-running ROLL performance.
@@ -535,6 +562,8 @@ def train_semi_markov_world_model(
             remaining_epochs -= int(item["epochs"])
         stage_name = str(stage_spec.get("name", "joint")).replace("_realization", "").replace("_rollout", "")
         stage_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(stage_name, stage_name)
+        if stage_name == "joint":
+            stage_gate_passed = stage_qualified["anchor"] and stage_qualified["roll"]
         if stage_name == "joint" and not stage_gate_passed:
             logger.warning("skipping stage C because the strict M0 first-second gate did not pass in stages A/B")
             break
@@ -549,7 +578,15 @@ def train_semi_markov_world_model(
         batches = 0
         for values in train_loader:
             optimizer.zero_grad(set_to_none=True)
-            rollout_steps = _sample_training_rollout_steps(model, training)
+            # Stage A is deliberately a first-second realization problem.
+            # Longer free rollouts belong to Stage B; including them here
+            # diluted the START loss and spent most of its compute after B0
+            # had already been handed off.
+            rollout_steps = (
+                model.cfg.behavior_anchor_response_steps
+                if active_stage == "anchor"
+                else _sample_training_rollout_steps(model, training)
+            )
             result = model.forward_training(
                 _to_batch(values, train_loader.field_names, device), teacher_forcing_ratio=teacher,
                 rollout_response_steps=rollout_steps, tbptt_response_steps=tbptt_response_steps,
@@ -557,7 +594,7 @@ def train_semi_markov_world_model(
             result["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
                 totals[key] = totals.get(key, 0.0) + float(result[key].detach().cpu())
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
@@ -582,8 +619,9 @@ def train_semi_markov_world_model(
             and rollout_metrics["roll_mode_1s_gap_MAE_m"] <= m0_reference["roll_mode_1s_gap_MAE_m"]
         )
         row["m0_1s_gate_pass"] = float(eligible)
-        if active_stage in {"anchor", "roll"}:
-            stage_gate_passed = stage_gate_passed and eligible
+        if active_stage in stage_qualified:
+            stage_qualified[active_stage] = stage_qualified[active_stage] or eligible
+        row["stage_gate_passed_so_far"] = float(stage_qualified["anchor"] and stage_qualified["roll"])
         if eligible and selection_score < best:
             best = selection_score
             best_validation_loss = val_metrics["loss"]
@@ -631,9 +669,14 @@ def load_semi_markov_checkpoint(path: str | Path, *, device: str | Any = "cpu") 
     if payload.get("model_type") != SemiMarkovRelationalWorldModel.model_type:
         raise ValueError(f"Not a semi_markov_relational checkpoint: {path}")
     model = SemiMarkovRelationalWorldModel(_model_cfg(payload["model_config"]))
-    state_dict = {key: value for key, value in payload["state_dict"].items() if not key.startswith(("behavior_anchor.", "anchor_remaining.", "decoder.anchor."))}
-    for key in [key for key in state_dict if key.startswith("behavior_plan.")]:
-        state_dict[f"start_mode.{key.removeprefix('behavior_plan.')}"] = state_dict.pop(key)
+    state_dict = dict(payload["state_dict"])
+    expected = model.state_dict()
+    for key in list(state_dict):
+        if key in expected and tuple(state_dict[key].shape) != tuple(expected[key].shape):
+            if key.startswith("anchor_residual."):
+                state_dict.pop(key)
+            else:
+                raise ValueError(f"checkpoint tensor shape differs for {key}")
     incompatible = model.load_state_dict(state_dict, strict=False)
     permitted = ("start_mode.", "anchor_residual.")
     if incompatible.unexpected_keys or any(not key.startswith(permitted) for key in incompatible.missing_keys):

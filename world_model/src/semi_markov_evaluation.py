@@ -254,7 +254,10 @@ def evaluate_semi_markov_world_model(
     baseline_path, baseline = _optional_report(
         evaluation, "required_baseline_summary", config_dir=config_dir,
     )
-    baseline_one = baseline.get("closed_loop", {}).get("test", {})
+    # The retained M0 report uses the same explicit one-second conditional
+    # reconstruction block as M1.  Older baseline reports instead stored this
+    # under ``closed_loop.test``; support both without weakening the gate.
+    baseline_one = baseline.get("one_second_conditional_reconstruction", baseline.get("closed_loop", {}).get("test", {}))
     baseline_rollout = baseline.get("model_state_reconstruction", {}).get("test", {})
     horizon_comparison: dict[str, dict[str, float]] = {}
     for seconds in range(2, 6):
