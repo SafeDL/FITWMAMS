@@ -1,15 +1,24 @@
-# 世界模型目标
+# CAT-TopK 冻结说明（历史）
+
+训练gpu环境在系统的:
+conda activate tread
 
 ## 当前结论
 
-`world_model/` 的唯一活动模型名为 `catk_topk`。正式模型与冻结基线分别为：
+本文只记录冻结的 `catk_topk` 实现与其历史重建证据，不定义当前世界模型的活动
+路线或基线集合。当前只保留两个可比较的方法：冻结 **CAT-TopK** 与当前
+**BARS-M1**；后者是后续 BARS 尝试的唯一内部 incumbent。总口径见
+[`world_model/README.md`](../world_model/README.md) 与 `doc/new_world_goal.md`。
+
+CAT-TopK 的冻结比较 checkpoint 为：
 
 ```text
 results/highd_world_model/catk_topk/checkpoints/best_world_model.pt
-results/highd_world_model/catk_topk_baseline/checkpoints/best_world_model.pt
 ```
 
-正式模型为 CAT-K。候选 `0` 来自可训练名义解码器的内部 MAP 动作，候选 `1--7` 为可采样的联合残差意图；外层以 `nominal_logit_margin` 保证候选 `0` 是外层 argmax。新训练从随机初始化开始，不读取外部初始化 checkpoint 或基线权重。保留的历史 checkpoint 在其产生协议下，EVT-tail START 的 ADE、FDE、gap MAE，以及 logged-ego START->ROLL ADE 相对冻结基线的差值和单侧 95% 上界均为 `0`。
+CAT-TopK 的候选 `0` 来自可训练名义解码器的内部 MAP 动作，候选 `1--7` 为可采样的
+联合残差意图；外层以 `nominal_logit_margin` 保证候选 `0` 是外层 argmax。新训练从
+随机初始化开始，不读取外部初始化 checkpoint 或基线权重。
 
 该结论只覆盖确定性 `argmax` 重建路径。候选 `1--7` 的多样性、概率校准和 ADS 下游价值仍需在 categorical 采样协议下单独验证，不能将名义锚点的零差值表述为残差候选已经优于基线。
 
@@ -49,18 +58,17 @@ Xi_world   = (xi_0, ..., xi_J-1), xi_j in {0, ..., 7}
 
 ## 从零复现
 
-- 数据构造完成后，`train_highd_world_model.py` 直接根据唯一活动配置构造 `CATKTopKWorldModel`；不存在版本选择字段、外部初始化 checkpoint 或基线权重依赖。`resume_from_checkpoint` 仅用于续训同一输出目录的 `latest_world_model.pt`，不参与从零复现。
+- 本节只适用于 CAT-TopK 的历史重训：数据构造完成后，`train_highd_world_model.py` 直接构造 `CATKTopKWorldModel`；不存在版本选择字段、外部初始化 checkpoint 或基线权重依赖。`resume_from_checkpoint` 仅用于续训同一输出目录的 `latest_world_model.pt`，不参与从零复现。
 - 名义解码器通过直通 MAP 选择接收混合损失和多 chunk 状态一致性损失的梯度，因此随机初始化时也会与残差分支共同收敛。
-- 保留的 checkpoint 与评测 JSON 是历史性能证据。未来从零训练得到的新 checkpoint 必须重新执行固定 paired-bootstrap，并满足“不弱于冻结基线”的验收条件。
+- 保留的 checkpoint 与评测 JSON 是历史性能证据。若重训 CAT-TopK，必须重新执行固定 paired-bootstrap；这不是 BARS 系列的晋升规则。
 
 ## 验收与保留结果
 
-- 任何后续模型都必须在固定的数据缓存、划分、候选数、温度、随机种子和积分器下与冻结基线配对比较。
-- EVT-tail ADE、FDE、gap MAE 和 logged-ego START->ROLL ADE 的点估计及单侧 95% bootstrap 上界均不得高于冻结基线。
+- CAT-TopK 的冻结 checkpoint 仅作为 BARS 的跨架构比较对象；CAT-TopK 不再保留第二个历史副本。
 - 必须同时报告 2--5 chunk 模型状态重建、候选熵、有效候选数、成对轨迹距离、mixture NLL 与概率--责任差异。
 - logged-ego replay 仅是背景交通重建评测，不能作为 ADS 闭环测试结果。
 
-`results/highd_world_model/` 只保留当前 CAT-K 正式产物、冻结基线和共享缓存；中间候选、重复配置和 TensorBoard 日志已删除。活动配置仅为：
+`results/highd_world_model/` 中 CAT-TopK 的冻结配置为：
 
 ```text
 world_model/scripts/configs/highd_world_model.yaml

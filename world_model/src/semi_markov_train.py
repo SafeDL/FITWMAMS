@@ -132,16 +132,20 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     """Load a compatible continuation or highD→rounD transfer checkpoint.
 
     The only sanctioned partial loads add/remove the optional conflict
-    attention block or the zero-initialized behavior anchor.
-    Hidden sizes, latent vocabulary and every core dynamic parameter remain
-    strict, so an accidental architecture mismatch cannot be disguised as
-    transfer learning.
+    attention block or add the zero-initialized M2 temporal plan heads to a
+    frozen M1 checkpoint. Hidden sizes, latent vocabulary and every shared
+    BARS parameter remain strict, so an accidental architecture mismatch
+    cannot be disguised as transfer learning.
     """
     source_cfg = dict(payload.get("model_config", {}))
     source_conflicts = bool(source_cfg.get("use_conflict_zones", False))
     target_conflicts = bool(model.cfg.use_conflict_zones)
-    source_variant = str(source_cfg.get("variant", "m0"))
+    source_variant = str(source_cfg.get("variant", "m1"))
     target_variant = str(model.cfg.variant)
+    if source_variant not in {"m1", "m2"}:
+        raise ValueError("initial checkpoint must be a retained BARS checkpoint")
+    if target_variant == "m1" and source_variant != "m1":
+        raise ValueError("BARS-M1 cannot load a newer planned-model checkpoint")
     state_dict = dict(payload["state_dict"])
     # The START residual input was expanded from a single, unit-mixed delta to
     # target/prefix/delta in frozen Flow coordinates.  Its input projection is
@@ -158,10 +162,11 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
     can_add_conflicts = target_conflicts and not source_conflicts
-    can_add_start_residual = target_variant == "m1"
+    plan_prefixes = ("decoder.plan_time.", "decoder.intent_time.", "decoder.cross_vehicle.", "decoder.local_time.")
+    can_add_plan = target_variant == "m2" and source_variant == "m1"
     allowed_missing = all(
         (can_add_conflicts and key.startswith(conflict_prefixes))
-        or (can_add_start_residual and key.startswith(("start_mode.", "anchor_residual.")))
+        or (can_add_plan and key.startswith(plan_prefixes))
         for key in missing
     )
     allowed_unexpected = source_conflicts and not target_conflicts and all(
@@ -221,7 +226,7 @@ def _mean_metrics(model, loader, device, *, teacher_forcing: float) -> dict[str,
     with torch.no_grad():
         for values in loader:
             result = model.forward_training(_to_batch(values, loader.field_names, device), teacher_forcing_ratio=teacher_forcing)
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "anchor_loss", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "first_step_recon", "anchor_loss", "latent_loss", "latent_kl", "duration_nll", "censor_nll", "posterior_boundary_nll", "prototype_reconstruction", "state_bootstrap_nll", "switch_rate", "boundary_target_rate", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss"):
                 total[key] = total.get(key, 0.0) + float(result[key].detach().cpu())
             count += 1
     return {key: value / max(count, 1) for key, value in total.items()}
@@ -244,6 +249,8 @@ def _roll_mode_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
     terminal_valid = 0
     first_terminal_distance = 0.0
     first_terminal_valid = 0
+    first_distance = 0.0
+    first_valid = 0
     gap_error = 0.0
     gap_count = 0
     with torch.no_grad():
@@ -262,6 +269,8 @@ def _roll_mode_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
             terminal_valid += int(valid[:, -1].sum().cpu())
             first_terminal_distance += float((distance[:, 24] * valid[:, 24].float()).sum().cpu())
             first_terminal_valid += int(valid[:, 24].sum().cpu())
+            first_distance += float((distance[:, :25] * valid[:, :25].float()).sum().cpu())
+            first_valid += int(valid[:, :25].sum().cpu())
             pred_gap = torch.linalg.vector_norm(predicted[:, :25, 1:, :2] - predicted[:, :25, :1, :2], dim=-1)
             target_gap = torch.linalg.vector_norm(target[:, :25, 1:, :2] - target[:, :25, :1, :2], dim=-1)
             bg_valid = valid[:, :25, 1:]
@@ -271,9 +280,18 @@ def _roll_mode_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
     return {
         "roll_mode_ADE_m": total_distance / max(total_valid, 1),
         "roll_mode_FDE_m": terminal_distance / max(terminal_valid, 1),
+        "roll_mode_1s_ADE_m": first_distance / max(first_valid, 1),
         "roll_mode_1s_FDE_m": first_terminal_distance / max(first_terminal_valid, 1),
         "roll_mode_1s_gap_MAE_m": gap_error / max(gap_count, 1),
     }
+
+
+def _not_weaker_than_incumbent(candidate: dict[str, float], incumbent: dict[str, float], *, atol_m: float = 1.0e-6) -> bool:
+    """Compare identical rollouts without rejecting harmless FP roundoff."""
+    return all(
+        float(candidate[key]) <= float(incumbent[key]) + float(atol_m)
+        for key in ("roll_mode_1s_ADE_m", "roll_mode_1s_FDE_m", "roll_mode_1s_gap_MAE_m", "roll_mode_FDE_m")
+    )
 
 
 def _prototypes(model, loader, device) -> dict[str, Any]:
@@ -399,23 +417,41 @@ def _stage_schedule(training: dict[str, Any], fallback_epochs: int) -> list[dict
 
 def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torch):
     """Freeze by public subsystem and use the requested low-LR groups."""
-    allowed = {
-        "anchor": ("anchor_residual",),
-        "roll": ("anchor_residual", "decoder", "latent"),
-        "joint": tuple(),
-    }.get(stage, tuple())
+    if model.uses_control_plan:
+        plan_heads = (
+            "decoder.plan_time", "decoder.intent_time", "decoder.cross_vehicle", "decoder.local_time",
+        )
+        execution_heads = plan_heads
+        # Preserve the transferred M1 executed-control heads through stages
+        # A/B.  The new plan heads first learn forecasts and overlap; only
+        # joint fine-tuning may alter the incumbent decoder/encoder path.
+        allowed = {
+            "anchor": plan_heads,
+            "roll": execution_heads if bool(training.get("m2_freeze_latent_in_roll", False)) else (*execution_heads, "latent"),
+            "joint": ("decoder",) if bool(training.get("m2_decoder_only_joint", False)) else tuple(),
+        }.get(stage, tuple())
+    else:
+        allowed = {
+            "anchor": ("anchor_residual", "decoder"),
+            "roll": ("anchor_residual", "decoder", "latent"),
+            "joint": tuple(),
+        }.get(stage, tuple())
     for name, parameter in model.named_parameters():
         parameter.requires_grad = not allowed or any(name.startswith(prefix) for prefix in allowed)
     groups = []
+    covered: set[int] = set()
     for label, prefixes, default_lr in (
         ("encoder", ("encoder",), 5.0e-6),
         ("anchor", ("anchor_residual",), 2.0e-5),
         ("decoder_prior", ("decoder", "latent"), 1.0e-5),
     ):
-        values = [p for name, p in model.named_parameters() if p.requires_grad and any(name.startswith(prefix) for prefix in prefixes)]
+        values = [
+            p for name, p in model.named_parameters()
+            if p.requires_grad and id(p) not in covered and any(name.startswith(prefix) for prefix in prefixes)
+        ]
         if values:
             groups.append({"params": values, "lr": float(training.get(f"{label}_learning_rate", default_lr))})
-    covered = {id(p) for group in groups for p in group["params"]}
+            covered.update(id(p) for p in values)
     extra = [p for p in model.parameters() if p.requires_grad and id(p) not in covered]
     if extra:
         groups.append({"params": extra, "lr": float(training.get("learning_rate", 5.0e-5))})
@@ -434,6 +470,7 @@ def train_semi_markov_world_model(
     max_train_sequences: int = 0,
     max_val_sequences: int = 0,
     initial_checkpoint: str | Path | None = None,
+    stage_offset: int = 0,
 ) -> dict[str, Any]:
     paths = config["paths"]
     output_dir = Path(paths["output_dir"])
@@ -485,18 +522,25 @@ def train_semi_markov_world_model(
         arrays, "val", batch_size=int(training.get("batch_size", 16)), maximum=max_val_sequences,
         shuffle=False, seed=seed, num_workers=loader_workers,
     )
-    m0_reference: dict[str, float] | None = None
-    m0_path = training.get("m0_reference_checkpoint")
-    if model.uses_behavior_anchor:
-        if not m0_path:
-            raise ValueError("M1 training requires training.m0_reference_checkpoint for strict checkpoint selection")
-        reference_model = load_semi_markov_checkpoint(_resolved_path(str(m0_path), config_dir), device=device)
-        if reference_model.cfg.variant != "m0":
-            raise ValueError("m0_reference_checkpoint must contain an M0 model")
-        m0_reference = _roll_mode_metrics(reference_model, val_loader, device, seed=seed + 10_000)
+    incumbent_reference: dict[str, float] | None = None
+    incumbent_path = training.get("incumbent_reference_checkpoint")
+    if model.uses_behavior_anchor and model.cfg.variant != "m1":
+        if not incumbent_path:
+            raise ValueError("BARS-M2+ training requires training.incumbent_reference_checkpoint for strict checkpoint selection")
+        reference_model = load_semi_markov_checkpoint(_resolved_path(str(incumbent_path), config_dir), device=device)
+        if reference_model.cfg.variant != "m1":
+            raise ValueError("incumbent_reference_checkpoint must contain the behavior-anchored BARS-M1 model")
+        incumbent_reference = _roll_mode_metrics(reference_model, val_loader, device, seed=seed + 10_000)
     requested_epochs = int(epochs if epochs is not None else training.get("epochs", 80))
+    stage_offset = int(stage_offset)
+    if requested_epochs <= 0 or stage_offset < 0:
+        raise ValueError("epochs must be positive and stage offset cannot be negative")
     stages = _stage_schedule(training, requested_epochs)
-    schedule_epochs = requested_epochs if epochs is not None or not training.get("stages") else sum(int(stage["epochs"]) for stage in stages)
+    schedule_epochs = sum(int(stage["epochs"]) for stage in stages) if training.get("stages") else requested_epochs
+    if stage_offset and initial_checkpoint is None:
+        raise ValueError("a non-zero stage offset requires --initial-checkpoint")
+    if stage_offset + requested_epochs > schedule_epochs:
+        raise ValueError("requested continuation exceeds the configured stage schedule")
     stage_one = int(training.get("stage_one_epochs", max(1, schedule_epochs // 3)))
     grad_clip = float(training.get("grad_clip", 1.0))
     tbptt_response_steps = max(0, int(training.get("tbptt_response_steps", 5)))
@@ -509,6 +553,8 @@ def train_semi_markov_world_model(
         # continuation cannot later be mistaken for a full-cache training run.
         "max_train_sequences": int(max_train_sequences),
         "max_validation_sequences": int(max_val_sequences),
+        "stage_offset": stage_offset,
+        "run_epochs": requested_epochs,
     }
     if training.get("fixed_teacher_forcing_ratio") is not None:
         training_protocol["fixed_teacher_forcing_ratio"] = float(training["fixed_teacher_forcing_ratio"])
@@ -522,11 +568,18 @@ def train_semi_markov_world_model(
     optimizer = None
     active_stage = ""
     # A stage qualifies when at least one of its checkpoints satisfies the
-    # first-second M0 constraint.  Requiring *every* exploratory epoch to
+    # first-second BARS-M1 constraint.  Requiring *every* exploratory epoch to
     # satisfy it made an early, expected warm-up miss permanently veto stage
     # C even after later checkpoints had recovered.
     stage_gate_passed = False
     stage_qualified = {"anchor": False, "roll": False}
+    elapsed_stage_epochs = 0
+    for item in stages:
+        elapsed_stage_epochs += int(item["epochs"])
+        completed_name = str(item.get("name", "joint")).replace("_realization", "").replace("_rollout", "")
+        completed_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(completed_name, completed_name)
+        if elapsed_stage_epochs <= stage_offset and completed_name in stage_qualified:
+            stage_qualified[completed_name] = True
     # A continuation must compete with its starting model.  Otherwise the
     # first optimizer update becomes the "best" checkpoint even when it
     # degrades free-running ROLL performance.
@@ -535,13 +588,12 @@ def train_semi_markov_world_model(
         initial_validation = _mean_metrics(model, val_loader, device, teacher_forcing=0.0)
         initial_selection = _roll_mode_metrics(model, val_loader, device, seed=seed + 10_000)
         best = float(initial_selection["roll_mode_FDE_m"])
+        if incumbent_reference is not None:
+            best = min(best, float(incumbent_reference["roll_mode_FDE_m"]))
         best_validation_loss = float(initial_validation["loss"])
         if not math.isfinite(best) or not math.isfinite(best_validation_loss):
             raise FloatingPointError("initial checkpoint has non-finite validation metrics")
-        initial_eligible = m0_reference is None or (
-            initial_selection["roll_mode_1s_FDE_m"] <= m0_reference["roll_mode_1s_FDE_m"]
-            and initial_selection["roll_mode_1s_gap_MAE_m"] <= m0_reference["roll_mode_1s_gap_MAE_m"]
-        )
+        initial_eligible = incumbent_reference is None or _not_weaker_than_incumbent(initial_selection, incumbent_reference)
         if initial_eligible:
             torch.save({
                 "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
@@ -553,7 +605,8 @@ def train_semi_markov_world_model(
         else:
             best = float("inf")
         logger.info("initial ROLL validation FDE=%.5f", best)
-    for epoch in range(1, schedule_epochs + 1):
+    for local_epoch in range(1, requested_epochs + 1):
+        epoch = stage_offset + local_epoch
         remaining_epochs = epoch
         stage_spec = stages[-1]
         for item in stages:
@@ -565,7 +618,7 @@ def train_semi_markov_world_model(
         if stage_name == "joint":
             stage_gate_passed = stage_qualified["anchor"] and stage_qualified["roll"]
         if stage_name == "joint" and not stage_gate_passed:
-            logger.warning("skipping stage C because the strict M0 first-second gate did not pass in stages A/B")
+            logger.warning("skipping stage C because the strict BARS-M1 first-second gate did not pass in stages A/B")
             break
         if stage_name != active_stage:
             optimizer = _configure_stage_optimizer(model, stage_name, training, torch)
@@ -594,7 +647,7 @@ def train_semi_markov_world_model(
             result["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
                 totals[key] = totals.get(key, 0.0) + float(result[key].detach().cpu())
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
@@ -614,11 +667,8 @@ def train_semi_markov_world_model(
         selection_score = rollout_metrics["roll_mode_FDE_m"]
         if not math.isfinite(selection_score):
             raise FloatingPointError("non-finite ROLL validation FDE; no checkpoint was written")
-        eligible = m0_reference is None or (
-            rollout_metrics["roll_mode_1s_FDE_m"] <= m0_reference["roll_mode_1s_FDE_m"]
-            and rollout_metrics["roll_mode_1s_gap_MAE_m"] <= m0_reference["roll_mode_1s_gap_MAE_m"]
-        )
-        row["m0_1s_gate_pass"] = float(eligible)
+        eligible = incumbent_reference is None or _not_weaker_than_incumbent(rollout_metrics, incumbent_reference)
+        row["bars_m1_1s_gate_pass"] = float(eligible)
         if active_stage in stage_qualified:
             stage_qualified[active_stage] = stage_qualified[active_stage] or eligible
         row["stage_gate_passed_so_far"] = float(stage_qualified["anchor"] and stage_qualified["roll"])
@@ -642,9 +692,19 @@ def train_semi_markov_world_model(
             "selection_eligible": bool(eligible),
         }, last_path)
     if records:
+        prior_records: list[dict[str, str]] = []
+        if stage_offset and history_path.exists():
+            with history_path.open(newline="", encoding="utf-8") as handle:
+                prior_records = list(csv.DictReader(handle))
+        combined_records: list[dict[str, Any]] = [*prior_records, *records]
+        fieldnames: list[str] = []
+        for row in combined_records:
+            for key in row:
+                if key not in fieldnames:
+                    fieldnames.append(key)
         with history_path.open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=list(records[0]))
-            writer.writeheader(); writer.writerows(records)
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader(); writer.writerows(combined_records)
     report = {
         "best_checkpoint": str(best_path) if best_path.exists() else None,
         "checkpoint_sha256": _checkpoint_hash(best_path) if best_path.exists() else None,
@@ -652,7 +712,7 @@ def train_semi_markov_world_model(
         "selection_qualified": bool(best_path.exists()),
         "selection_metric": "roll_mode_FDE_m", "best_roll_mode_FDE_m": best,
         "best_validation_loss_at_selected_checkpoint": best_validation_loss, "sequence_manifest": manifest,
-        "m0_cold_start_reference": m0_reference,
+        "bars_m1_incumbent_reference": incumbent_reference,
         **reproducibility,
     }
     if initial_checkpoint is not None:

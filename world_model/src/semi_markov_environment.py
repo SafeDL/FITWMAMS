@@ -63,6 +63,11 @@ class SemiMarkovBackgroundEnvironment:
         self._behavior_anchor_initial: torch.Tensor | None = None
         self._behavior_anchor_generated: list[torch.Tensor] = []
         self._behavior_anchor_active = False
+        self._previous_control_plan: np.ndarray | None = None
+        self._previous_plan_valid: np.ndarray | None = None
+        self._previous_relation_summary: np.ndarray | None = None
+        self._previous_intent_state: int | None = None
+        self._plan_response_index = 0
         self.model_checkpoint_hash = model_checkpoint_hash or getattr(model, "checkpoint_hash", None) or "unbound_model"
         self.map_adapter_version = str(map_adapter_version)
         self.trace: dict[str, Any] = {}
@@ -90,6 +95,11 @@ class SemiMarkovBackgroundEnvironment:
         self._start_mode_controls = None
         self._behavior_anchor_initial = None
         self._behavior_anchor_generated = []
+        self._previous_control_plan = None
+        self._previous_plan_valid = None
+        self._previous_relation_summary = None
+        self._previous_intent_state = None
+        self._plan_response_index = 0
         if behavior_anchor is not None:
             anchor = np.asarray(behavior_anchor, np.float32)
             if anchor.shape != (len(self._states) - 1, 6):
@@ -120,6 +130,13 @@ class SemiMarkovBackgroundEnvironment:
             "initial_behavior_anchor": None if self._behavior_anchor is None else self._behavior_anchor.tolist(),
             "initial_behavior_anchor_valid": None if self._behavior_anchor_valid is None else self._behavior_anchor_valid.tolist(),
             "behavior_anchor_active": bool(self._behavior_anchor_active),
+            "previous_control_plan": None if self._previous_control_plan is None else self._previous_control_plan.copy(),
+            "previous_plan_valid": None if self._previous_plan_valid is None else self._previous_plan_valid.copy(),
+            "previous_relation_summary": None if self._previous_relation_summary is None else self._previous_relation_summary.copy(),
+            "previous_intent_state": self._previous_intent_state,
+            "plan_response_index": int(self._plan_response_index),
+            "behavior_anchor_initial": None if self._behavior_anchor_initial is None else self._behavior_anchor_initial.cpu().numpy().copy(),
+            "behavior_anchor_generated": [item.cpu().numpy().copy() for item in self._behavior_anchor_generated],
         }
         return self.snapshot()
 
@@ -139,6 +156,13 @@ class SemiMarkovBackgroundEnvironment:
             "behavior_anchor": None if self._behavior_anchor is None else self._behavior_anchor.copy(),
             "behavior_anchor_valid": None if self._behavior_anchor_valid is None else self._behavior_anchor_valid.copy(),
             "behavior_anchor_active": bool(self._behavior_anchor_active),
+            "behavior_anchor_initial": None if self._behavior_anchor_initial is None else self._behavior_anchor_initial.cpu().numpy().copy(),
+            "behavior_anchor_generated": [item.cpu().numpy().copy() for item in self._behavior_anchor_generated],
+            "previous_control_plan": None if self._previous_control_plan is None else self._previous_control_plan.copy(),
+            "previous_plan_valid": None if self._previous_plan_valid is None else self._previous_plan_valid.copy(),
+            "previous_relation_summary": None if self._previous_relation_summary is None else self._previous_relation_summary.copy(),
+            "previous_intent_state": self._previous_intent_state,
+            "plan_response_index": int(self._plan_response_index),
             "rng_state": None if self._rng is None else deepcopy(self._rng.bit_generator.state),
             "state_uniforms_remaining": list(self._state_uniforms),
             "duration_uniforms_remaining": list(self._duration_uniforms),
@@ -170,10 +194,31 @@ class SemiMarkovBackgroundEnvironment:
             valid_anchor = torch.as_tensor(self._behavior_anchor_valid[None], device=self.device)
             standardized = self.model.frozen_flow_schema.standardize(raw, valid_anchor) if self.model.frozen_flow_schema else raw
             self._behavior_anchor_std = standardized[0].cpu().numpy()
-        self._start_mode_controls = None
-        self._behavior_anchor_initial = torch.as_tensor(self._states[None], device=self.device)
-        self._behavior_anchor_generated = []
+        initial = snapshot.get("behavior_anchor_initial")
+        self._behavior_anchor_initial = torch.as_tensor(
+            self._states[None] if initial is None else np.asarray(initial, np.float32), device=self.device,
+        )
+        self._behavior_anchor_generated = [
+            torch.as_tensor(np.asarray(item, np.float32), device=self.device)
+            for item in snapshot.get("behavior_anchor_generated", [])
+        ]
         self._behavior_anchor_active = bool(snapshot.get("behavior_anchor_active", False))
+        if self._behavior_anchor_active and self._behavior_anchor is not None:
+            initial_valid = torch.zeros((1, len(self._states)), dtype=torch.bool, device=self.device)
+            initial_valid[:, 0] = True
+            initial_valid[:, 1:] = torch.as_tensor(self._behavior_anchor_valid[None], device=self.device)
+            raw = torch.as_tensor(self._behavior_anchor[None], device=self.device)
+            self._start_mode_controls = self.model._start_mode_controls(self._behavior_anchor_initial, raw, initial_valid)
+        else:
+            self._start_mode_controls = None
+        previous_plan = snapshot.get("previous_control_plan")
+        previous_valid = snapshot.get("previous_plan_valid")
+        previous_relation = snapshot.get("previous_relation_summary")
+        self._previous_control_plan = None if previous_plan is None else np.asarray(previous_plan, np.float32).copy()
+        self._previous_plan_valid = None if previous_valid is None else np.asarray(previous_valid, bool).copy()
+        self._previous_relation_summary = None if previous_relation is None else np.asarray(previous_relation, np.float32).copy()
+        self._previous_intent_state = snapshot.get("previous_intent_state")
+        self._plan_response_index = int(snapshot.get("plan_response_index", self.trace.get("response_steps", 0)))
         self._state_uniforms = [float(value) for value in snapshot.get("state_uniforms_remaining", [])]
         self._duration_uniforms = [float(value) for value in snapshot.get("duration_uniforms_remaining", [])]
         rng_state = snapshot.get("rng_state")
@@ -258,20 +303,66 @@ class SemiMarkovBackgroundEnvironment:
             torch.tensor([self._latent_state], device=self.device), num_classes=self.model.cfg.num_latent_states
         ).float()
         start_actions = None
-        controls = None
+        anchor_residual = None
         if self._behavior_anchor_active and self._start_mode_controls is not None:
             start = int(self.trace["response_steps"]) * self.model.cfg.physics_steps_per_response
             start_actions = self._start_mode_controls[:, start : start + self.model.cfg.physics_steps_per_response]
-            controls = self.model._anchor_residual_controls(
+            anchor_residual = self.model._anchor_residual_controls(
                 agents, scene, self.model.latent.state_embedding(state_prob),
                 torch.as_tensor(self._behavior_anchor_std[None], device=self.device), self._behavior_anchor_initial,
                 self._behavior_anchor_generated, start_actions, int(self.trace["response_steps"]), valid & ~ego_mask,
             )
-        if controls is None:
-            controls = self.model.decoder(
-                agents, scene, self.model.latent.state_embedding(state_prob), torch.tensor([self._elapsed], device=self.device),
-                valid & ~ego_mask, self.model.dynamics.controls_from_highd_actions(current[..., 4:6], current),
-            )["controls"]
+        decoded = self.model._decode_response(
+            agents, scene, self.model.latent.state_embedding(state_prob), torch.tensor([self._elapsed], device=self.device),
+            valid & ~ego_mask, current, anchor_residual=anchor_residual,
+        )
+        controls = decoded["controls"]
+        b0_plan = self.model._b0_nominal_plan(current, start_actions, ego_index=ego_index)
+        control_plan = decoded["control_plan"]
+        forecast_control_plan = decoded["forecast_control_plan"]
+        if b0_plan is not None:
+            control_plan = self.model.decoder._bounded_controls(control_plan + b0_plan)
+            forecast_control_plan = self.model.decoder._bounded_controls(forecast_control_plan + b0_plan)
+        if self._plan_response_index > self.model.cfg.effective_plan_carry_start_response_steps:
+            controls, control_plan = self.model._carry_clean_plan_prefix(
+                controls, control_plan,
+                None if self._previous_control_plan is None else torch.as_tensor(
+                    self._previous_control_plan[None], dtype=controls.dtype, device=controls.device,
+                ),
+            )
+        relation_summary = scene[0].detach().cpu().numpy()
+        overlap_diagnostics: dict[str, float | int | bool] = {
+            "available": False, "response_index": int(self._plan_response_index),
+        }
+        if self.model.uses_control_plan and self._previous_control_plan is not None and self._previous_relation_summary is not None:
+            overlap = min(
+                self._previous_control_plan.shape[0] - self.model.cfg.plan_execute_frames,
+                forecast_control_plan.shape[1] - self.model.cfg.plan_execute_frames,
+            )
+            if overlap > 0:
+                current_plan = forecast_control_plan[0].detach().cpu().numpy()
+                valid_background = np.asarray(self._valid[1:], bool)
+                if self._previous_plan_valid is not None:
+                    valid_background &= np.asarray(self._previous_plan_valid[1:], bool)
+                difference = np.abs(
+                    self._previous_control_plan[self.model.cfg.plan_execute_frames : self.model.cfg.plan_execute_frames + overlap, 1:]
+                    - current_plan[:overlap, 1:]
+                )
+                mask = valid_background[None, :, None]
+                relation_change = float(np.linalg.norm(relation_summary - self._previous_relation_summary))
+                intent_changed = self._previous_intent_state is not None and int(self._previous_intent_state) != int(self._latent_state)
+                weight = float(np.exp(-relation_change / max(float(self.model.cfg.overlap_relation_scale), 1.0e-6)))
+                if intent_changed:
+                    weight *= 0.5
+                overlap_diagnostics = {
+                    "available": True,
+                    "response_index": int(self._plan_response_index),
+                    "frames": int(overlap),
+                    "l1": float((difference * mask).sum() / max(float(mask.sum()) * 2.0 * overlap, 1.0)),
+                    "weight": weight,
+                    "relation_change": relation_change,
+                    "intent_changed": bool(intent_changed),
+                }
         # The physical ego state is observed only at the current response time;
         # it is held during the internal 25-Hz substeps.  ``roll`` below uses a
         # Constant-velocity extrapolation when no later ego observation exists.
@@ -299,17 +390,32 @@ class SemiMarkovBackgroundEnvironment:
             self._behavior_anchor_std = None; self._start_mode_controls = None
             self._behavior_anchor_initial = None; self._behavior_anchor_generated = []
         self.trace["behavior_anchor_active"] = bool(self._behavior_anchor_active)
-        response_controls = controls.mean(dim=1) if controls.ndim == 4 else controls
+        response_controls = control_plan[:, : self.model.cfg.physics_steps_per_response].mean(dim=1) if self.model.uses_control_plan else (controls.mean(dim=1) if controls.ndim == 4 else controls)
         highd_actions = self.model.dynamics.highd_actions(response_controls, current)[0].cpu().numpy()
         background_indices = np.flatnonzero(np.arange(len(self._states)) != ego_index)
-        control_curve = response_controls[0, background_indices].unsqueeze(0).expand(
+        applied_controls = control_plan[:, : self.model.cfg.physics_steps_per_response]
+        control_curve = applied_controls[0, :, background_indices].cpu().numpy() if self.model.uses_control_plan else response_controls[0, background_indices].unsqueeze(0).expand(
             self.model.cfg.physics_steps_per_response, -1, -1,
         ).cpu().numpy()
+        if self.model.uses_control_plan:
+            self._previous_control_plan = forecast_control_plan[0].detach().cpu().numpy()
+            self._previous_plan_valid = self._valid.copy()
+            self._previous_relation_summary = relation_summary.copy()
+            self._previous_intent_state = int(self._latent_state)
+            self._plan_response_index += 1
         return {
             "agent_states": self._states.copy(), "agent_valid": self._valid.copy(),
             "background_states": outputs[:, background_indices], "background_valid": np.repeat(self._valid[None, background_indices], len(outputs), axis=0),
             "controls": response_controls[0, background_indices].cpu().numpy(), "actions_mps2": highd_actions[background_indices],
             "control_curve": control_curve,
+            "control_plan": control_plan[0, :, background_indices].cpu().numpy(),
+            "forecast_control_plan": forecast_control_plan[0, :, background_indices].cpu().numpy(),
+            "applied_controls": applied_controls[0, :, background_indices].cpu().numpy(),
+            "intent_plan": decoded["intent_plan"][0, :, background_indices].cpu().numpy(),
+            "local_residual_plan": decoded["local_residual_plan"][0, :, background_indices].cpu().numpy(),
+            "b0_nominal_plan": np.zeros_like(control_plan[0, :, background_indices].cpu().numpy()) if b0_plan is None else b0_plan[0, :, background_indices].cpu().numpy(),
+            "predicted_plan_states": self.model._predict_plan_states(current, control_plan, valid, ego_index=ego_index)[0, :, background_indices].cpu().numpy(),
+            "overlap_diagnostics": overlap_diagnostics,
             "latent_state": int(self._latent_state), "remaining_duration": int(self._remaining_duration),
             "latent_probabilities": None if probabilities is None else probabilities.cpu().numpy(), "trace": dict(self.trace),
         }

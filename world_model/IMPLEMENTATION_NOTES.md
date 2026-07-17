@@ -1,81 +1,51 @@
 # 实现说明
 
-## 活动模型
+本文描述当前保留代码的运行语义，不记录已清理候选、历史训练过程或废弃指标。
 
-唯一活动实现为 `catk_topk`，配置位于：
+## BARS 主实现
 
-```text
-world_model/scripts/configs/highd_world_model.yaml
-```
-
-它使用共享 START/ROLL Transformer 编码器和 CAT-K `K=8` 联合背景车动作头。`NominalCATKDecoder` 先生成内部候选并取其 MAP 动作，作为外层候选 `0`；候选 `1--7` 是场景级 token 控制的联合残差行为。外层将候选 `0` 的 logit 固定为其余候选最大 logit 加 `nominal_logit_margin`，因此 argmax 复现名义分支，categorical 仍可采样全部八个索引。新训练从随机初始化开始，不读取外部初始化路径或基线权重；`resume_from_checkpoint` 只允许续训同一输出目录的 `latest_world_model.pt`。它们都只读取既有 START/ROLL 状态张量，不引入 ADS、ego future 或新的 latent。中间候选、一次性合成工具和重复配置已删除；正式配对比较脚本保留用于复核历史结果与冻结基线。
-
-## 环境随机变量
-
-世界模型测试空间写为：
+`world_model/src/semi_markov_model.py` 定义 BARS 模型，训练、评测和运行时入口分别位于：
 
 ```text
-Omega_test = E x Z_flow x Xi_world
+src/semi_markov_train.py
+src/semi_markov_evaluation.py
+src/semi_markov_environment.py
 ```
 
-`E=(slot_mask, primary_slot)` 与 `Z_flow` 属于归一化流初始场景采样。`Xi_world` 是 CAT-K 在每个一秒 chunk 选择的候选索引。`CATKTopKWorldModel.sample_actions_with_xi()` 显式返回：
+模型输入是 ego 与背景车的动态关系图。状态张量按 `[x, y, vx, vy, ax, ay]` 表示；关系特征由当前 ego、背景状态和 primary slot 确定性计算，包括相对位置、速度、gap、TTC 和 DRAC。关系特征不是额外随机变量。
 
-- `actions`：被选候选的背景车动作；
-- `candidate_index`：本 chunk 的 `Xi_world`；
-- `candidate_probabilities`：当前状态下的候选概率。
+BARS 的潜在变量是场景级离散交互状态及其离散持续时间。每次潜在状态开始时，`WorldRandomness` 可提供一个状态 uniform 和一个持续时间 uniform；未提供的部分由 `seed` 补足。运行环境会记录实际使用的随机数、潜在状态、持续时间和切换时刻，因此同一快照可以在另一分支继续回放。
 
-环境默认按 categorical 分布采样候选，不添加连续动作噪声。若需要确定性环境，应在构造 `WorldSamplingConfig` 时将 `candidate_selection` 设为 `argmax`；此时 `Xi_world` 退化为确定值。调用 `start(candidate_index=...)` 或 `roll(..., candidate_index=...)` 时，显式索引优先于采样设置；完整复现实例应存储该索引序列，而不是只存储随机种子。
+### START 与 ROLL
 
-## 正式环境接口
+- **START**：BARS-M1 使用冻结 Flow 的行为锚定生成首秒基础控制，并以当前关系图作有界响应修正。
+- **ROLL**：只接收已发生的 ego 历史、环境内部背景状态和关系图；不接收 ego future。
+- **BARS-M2 v5**：复用 M1 的短程执行路径；计划分支在前三秒后以受限方式延续控制计划。
 
-`CATKBackgroundEnvironment` 位于 `world_model/src/environment.py`。
+模型使用固定六个背景槽位：`same_front`、`same_rear`、`left_front`、`left_rear`、`right_front`、`right_rear`。当前实现不在 rollout 中做槽位重分配、车辆新增或主动消失。坐标中 `x` 为道路纵向、`y` 向左为正；默认车辆几何为长 4.8 m、宽 1.9 m，默认车道宽 3.6 m。
 
-1. `reset_from_flow_sample()` 接收完整 Flow 场景样本：连续 76 维特征、slot mask、primary slot。
-2. `start()` 根据该初始样本生成第一秒背景车动作，不接收 ego future。
-3. `roll()` 只接收已经发生的 ego 历史状态 `[25, 6]` 与有效掩码 `[25]`，重算关系特征后生成下一秒背景车动作。
+## 数据与冻结依赖
 
-环境只建模背景车。ego 当前/历史状态是外部边界条件，不是 ADS 模型输入。接口没有 ADS 对象、ego future、风险轨迹或 EVT 标签参数。
+highD 顺序缓存由 `src/sequential_dataset.py` 管理，是世界模型训练的既有输入。BARS 的完整缓存路径由配置的 `paths.sequence_cache_dir` 指定，CAT 配对缓存由 `paths.legacy_dataset_dir` 指定；它们由上游数据流程准备，不在本目录重复构建。
 
-## 关系特征
+行为锚定依赖冻结的 76 维 Flow checkpoint 与 schema。训练和评测会验证配置中的 SHA-256，并在顺序缓存旁维护与 schema 绑定的行为锚定缓存。不要修改该缓存或替换 Flow 工件而不同时更新配置和完整评测证据。
 
-关系特征是固定函数：
+## 训练与结果工件
 
-```text
-relation(t) = g(ego(t), background(t), primary_slot)
-```
+`train_bars_m2_v5.py` 在目标输出目录写入 effective config、命令、git revision、训练历史、checkpoint 和评测摘要。它先从零训练 M1，再以该 M1 为 M2 的唯一初始化和严格门控参照。
 
-它包含相对位置、gap、相对速度、closing speed、截断 TTC、截断 DRAC、primary-slot 标志和 slot 有效标志。START 由 Flow 初始物理状态计算，ROLL 由当前外部 ego 与世界模型背景状态重新计算。它是模型输入的确定性重参数化，不是测试空间变量，也不由 Flow 单独采样。
+`process_highD/`、`normalizing_flow/` 与既有 BARS 顺序缓存共同提供世界模型训练输入；世界模型复现不重复它们。`scripts/train_bars_m2_v5.py` 直接读取 M1/M2 两份设计配置，覆盖输出路径后将 M1、M2 和评测串成隔离流程。它只允许 M2 从该次运行的 M1 初始化。新训练必须使用新的输出目录，不能覆盖冻结结果目录。
 
-数据构造、重建评测和正式环境调用 `world_model.src.rollout.build_relation_features_from_current()`。多 chunk 训练使用等价的 Torch 实现以保持状态转移可微；两者均采用相同的固定车辆几何、截断阈值和特征顺序。
+模型选择只保留两个外部比较对象：BARS-M1 与 CAT-TopK。`test_bars_m2_v5_against_m1.py` 在相同 BARS 缓存行、划分和随机种子下报告候选相对 M1 的 1--5 秒及 EVT-tail 指标；`test_bars_m2_v5_against_cat.py` 以同序列方式报告候选相对 CAT-TopK 的 1 秒或 5 秒指标。两者的正式运行都使用完整 test split 与 bootstrap。
 
-## 固定环境约定
+## 冻结 CAT-TopK 兼容层
 
-当前环境的六个背景车辆槽位在 `c0` 固定为 `same_front`、`same_rear`、`left_front`、`left_rear`、`right_front`、`right_rear`。`slot_mask` 定义初始有效性，`primary_slot` 定义主要交互槽位。环境 rollout 不进行槽位重分配，也没有车辆新增或主动消失机制；这是当前 `catk_topk` 的建模边界。
+CAT-TopK 不是当前的训练目标。保留 `src/model.py`、`src/data.py`、`src/evaluation.py` 和 `src/environment.py`，是为了加载其冻结 checkpoint、执行 BARS 配对比较，以及在需要时提供其背景交通环境。
 
-状态为 `[x_m, y_left_m, vx_mps, vy_left_mps, ax_mps2, ay_left_mps2]`。START 使用初始 ego 原点，ROLL 输入输出保持同一持续局部坐标系，内部只在编码时重心化至当前 ego。固定物理常数为车辆长 4.8 m、宽 1.9 m、车道宽 3.6 m；固定采样频率为 25 Hz，历史与每个输出 chunk 均为 25 帧（1 秒）。
+`CATKBackgroundEnvironment` 的初始化输入是完整 Flow 场景样本、slot mask 与 primary slot；`start()` 不接收 ego future，`roll()` 只接收已发生的 ego 历史。其候选索引 `Xi_world` 是显式离散世界随机性。默认按 categorical 分布采样，也可用 `WorldSamplingConfig(candidate_selection="argmax")` 固定为确定性选择。复现单个 episode 时，应保存实际候选索引序列或相同随机种子。
 
-## 样本数来源
+CAT 的配置 `scripts/configs/highd_world_model.yaml` 故意只包含配对所需的缓存路径和 START 摘要标记：模型架构与训练状态由冻结 checkpoint 提供。它不能用于重新训练 CAT-TopK。
 
-`process_highD/` 生成 161,314 个 6 秒自然驾驶片段及其 EVT 标记；它不生成 339 万个片段。世界模型构造器对每个片段生成 1 个 START 样本与 20 个 ROLL 样本，ROLL 时刻为 1.0--4.8 秒、步长 0.2 秒。因此训练缓存总数为 3,387,594。
+## 评测解释
 
-所有数据构造均通过 `process_highD.src.preprocess.prepare_recording()` 读取 highD。该函数集中执行读取、方向统一、异常标记和 25 Hz 重采样，EVT、归一化流、世界模型和真实片段回放不再各自维护重复预处理流程。
-
-## logged-ego 重建评测
-
-`world_model/src/evaluation.py` 中的 START->ROLL replay 保留用于 highD 重建验证。它在进入 ROLL 时使用 logged ground-truth ego future，因此只能说明背景车在真实 ego 条件下的重建误差，不能作为 ADS 测试环境接口或 ADS 闭环结果。
-
-保留 checkpoint 的晋升比较采用 test paired bootstrap（2,000 次）。候选相对冻结基线的 EVT-tail START ADE、FDE、gap MAE，以及 logged-ego START->ROLL ADE 的点差和单侧 95% 上界均为 `0`。该结果是历史证据；从零训练得到的新 checkpoint 必须重新通过相同门槛。冻结基线位于：
-
-```text
-results/highd_world_model/catk_topk_baseline/checkpoints/best_world_model.pt
-```
-
-当前 checkpoint 的历史重建指标：
-
-| 指标 | 数值 |
-|---|---:|
-| EVT-tail ADE | 0.028524 m |
-| EVT-tail gap MAE | 0.026337 m |
-| logged-ego START->ROLL ADE | 0.055516 m |
-
-`high_risk_persistence` 已删除，因为它是与 canonical `risk_trace` 不一致的 TTC/DRAC 阈值代理指标。`gap`、`TTC` 和 `DRAC` 的重建误差仍可作为交通交互重建诊断，但不构成未来 ADS 风险结论。
+highD replay 是背景交通重建评测，不是 ADS 闭环安全结论。CAT-TopK 在 START 使用首秒 Flow 动作摘要，而 BARS 的 ROLL 没有该未来摘要；因此跨架构报告必须保留该信息条件说明，不能将两者解释为严格同信息下的闭环安全比较。

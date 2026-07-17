@@ -212,6 +212,12 @@ def evaluate_semi_markov_world_model(
     posterior_anchor_losses: list[float] = []
     roll_anchor_losses: list[float] = []
     states: list[list[int]] = []; durations: list[list[int]] = []
+    plan_error_sum = 0.0; plan_error_count = 0
+    execute_error_sum = 0.0; execute_error_count = 0
+    plan_state_position_sum = 0.0; plan_state_velocity_sum = 0.0; plan_state_count = 0
+    joint_plan_position_sum = 0.0; joint_plan_velocity_sum = 0.0; joint_plan_count = 0
+    overlap_sum = 0.0; overlap_count = 0
+    local_sum = 0.0; local_count = 0
     with torch.no_grad():
         for values in loader:
             batch = _to_batch(values, loader.field_names, device)
@@ -227,6 +233,66 @@ def evaluate_semi_markov_world_model(
             posterior_probs.append(posterior["posterior_raw_state_probs"].cpu().numpy())
             prior_probs.append(torch.softmax(posterior["prior_logits"], dim=-1).cpu().numpy())
             posterior_anchor_losses.append(float(posterior["anchor_loss"].cpu()))
+            applied_plan = rollout.get("control_plan")
+            plan = rollout.get("forecast_control_plan", applied_plan)
+            if isinstance(plan, torch.Tensor) and plan.numel() and isinstance(applied_plan, torch.Tensor):
+                target_controls = model._target_controls(batch)
+                control_valid = batch["agent_valid"][:, 24 : 24 + model.response_steps * model.cfg.physics_steps_per_response : model.cfg.physics_steps_per_response, 1:]
+                targets, plan_valid = [], []
+                for response in range(model.response_steps):
+                    item_target, item_valid = model._plan_target(target_controls, control_valid, response)
+                    targets.append(item_target); plan_valid.append(item_valid)
+                target_plan = torch.stack(targets, dim=1)
+                valid_plan = torch.stack(plan_valid, dim=1)
+                error = (plan - target_plan).abs() * valid_plan[..., None].float()
+                plan_error_sum += float(error.sum().cpu())
+                plan_error_count += int(valid_plan.sum().cpu()) * 2
+                execute = min(int(model.cfg.plan_execute_frames), int(plan.shape[2]))
+                execute_error = (
+                    (applied_plan[:, :, :execute] - target_plan[:, :, :execute]).abs()
+                    * valid_plan[:, :, :execute, :, None].float()
+                )
+                execute_error_sum += float(execute_error.sum().cpu())
+                execute_error_count += int(valid_plan[:, :, :execute].sum().cpu()) * 2
+                local = rollout["local_residual_plan"]
+                local_sum += float((local.abs() * valid_plan[..., None].float()).sum().cpu())
+                local_count += int(valid_plan.sum().cpu()) * 2
+                forecast_states = rollout.get("forecast_plan_states")
+                if isinstance(forecast_states, torch.Tensor) and forecast_states.numel():
+                    state_targets, state_valid = [], []
+                    for response in range(model.response_steps):
+                        item_target, item_valid = model._plan_state_target(
+                            batch["agent_states"], batch["agent_valid"], response,
+                        )
+                        state_targets.append(item_target); state_valid.append(item_valid)
+                    target_states = torch.stack(state_targets, dim=1)
+                    valid_states = torch.stack(state_valid, dim=1)
+                    state_error = (forecast_states[..., :4] - target_states[..., :4]).abs()
+                    weight = valid_states[..., None].float()
+                    plan_state_position_sum += float((state_error[..., :2] * weight).sum().cpu())
+                    plan_state_velocity_sum += float((state_error[..., 2:4] * weight).sum().cpu())
+                    plan_state_count += int(valid_states.sum().cpu()) * 2
+                    agents = int(forecast_states.shape[-2])
+                    if agents > 1:
+                        pair_valid = valid_states[..., :, None] & valid_states[..., None, :]
+                        upper = torch.triu(
+                            torch.ones((agents, agents), dtype=torch.bool, device=device), diagonal=1,
+                        )
+                        pair_valid = pair_valid & upper
+                        relative_error = (
+                            (forecast_states[..., :, None, :4] - forecast_states[..., None, :, :4])
+                            - (target_states[..., :, None, :4] - target_states[..., None, :, :4])
+                        ).abs()
+                        pair_weight = pair_valid[..., None].float()
+                        joint_plan_position_sum += float((relative_error[..., :2] * pair_weight).sum().cpu())
+                        joint_plan_velocity_sum += float((relative_error[..., 2:4] * pair_weight).sum().cpu())
+                        joint_plan_count += int(pair_valid.sum().cpu()) * 2
+                overlap = min(int(plan.shape[2]) - execute, int(plan.shape[2]) - execute)
+                if overlap > 0 and plan.shape[1] > 1:
+                    pair_valid = valid_plan[:, 1:, :overlap] & valid_plan[:, :-1, execute : execute + overlap]
+                    discontinuity = (plan[:, 1:, :overlap] - plan[:, :-1, execute : execute + overlap]).abs()
+                    overlap_sum += float((discontinuity * pair_valid[..., None].float()).sum().cpu())
+                    overlap_count += int(pair_valid.sum().cpu()) * 2
             if model.uses_behavior_anchor:
                 _raw, target_std, target_valid = model._batch_behavior_anchor(batch)
                 roll_raw = rollout["roll_mode_anchor_raw"]
@@ -251,28 +317,52 @@ def evaluate_semi_markov_world_model(
         "mean_total_variation": float(0.5 * np.abs(q - p).sum(axis=-1).mean()) if q.size else float("nan"),
         "categorical_cross_entropy": float(-(q * np.log(np.maximum(p, 1.0e-8))).sum(axis=-1).mean()) if q.size else float("nan"),
     }
-    baseline_path, baseline = _optional_report(
-        evaluation, "required_baseline_summary", config_dir=config_dir,
+    plan_diagnostics = {
+        "available": bool(plan_error_count),
+        "full_plan_control_l1": plan_error_sum / max(plan_error_count, 1),
+        "execution_prefix_control_l1": execute_error_sum / max(execute_error_count, 1),
+        "full_plan_state_position_l1": plan_state_position_sum / max(plan_state_count, 1),
+        "full_plan_state_velocity_l1": plan_state_velocity_sum / max(plan_state_count, 1),
+        "full_plan_pairwise_position_l1": joint_plan_position_sum / max(joint_plan_count, 1),
+        "full_plan_pairwise_velocity_l1": joint_plan_velocity_sum / max(joint_plan_count, 1),
+        "overlap_plan_l1": overlap_sum / max(overlap_count, 1),
+        "local_residual_mean_abs": local_sum / max(local_count, 1),
+    }
+    current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+    incumbent_path, incumbent = _optional_report(
+        evaluation, "incumbent_reference_summary", config_dir=config_dir,
     )
-    # The retained M0 report uses the same explicit one-second conditional
-    # reconstruction block as M1.  Older baseline reports instead stored this
-    # under ``closed_loop.test``; support both without weakening the gate.
-    baseline_one = baseline.get("one_second_conditional_reconstruction", baseline.get("closed_loop", {}).get("test", {}))
-    baseline_rollout = baseline.get("model_state_reconstruction", {}).get("test", {})
+    # The incumbent must be a distinct frozen checkpoint.  The BARS-M1
+    # configuration deliberately points at its own archived summary so later
+    # candidate configurations can inherit one path; do not manufacture a
+    # self-comparison when evaluating the incumbent itself.
+    incumbent_is_distinct = bool(incumbent) and incumbent.get("checkpoint_sha256") != current_hash
+    if not incumbent_is_distinct:
+        incumbent = {}
+    # BARS-M1 is the only internal incumbent.  Older summaries stored the
+    # equivalent values under ``closed_loop.test``; retain that read fallback.
+    incumbent_one = incumbent.get("one_second_conditional_reconstruction", incumbent.get("closed_loop", {}).get("test", {}))
+    incumbent_rollout = incumbent.get("five_second_roll_mode", incumbent.get("model_state_reconstruction", {}).get("test", {}))
     horizon_comparison: dict[str, dict[str, float]] = {}
     for seconds in range(2, 6):
-        reference = baseline_rollout.get(f"{seconds}_chunks", {})
+        reference = incumbent_rollout.get(f"{seconds}_chunks", {})
+        if not reference and f"ADE_{seconds}s_m" in incumbent_rollout:
+            reference = {
+                "ADE_m": incumbent_rollout[f"ADE_{seconds}s_m"],
+                "FDE_m": incumbent_rollout[f"FDE_{seconds}s_m"],
+                "gap_mae_m": incumbent_rollout.get("gap_mae_m", float("nan")),
+            }
         if not reference or f"ADE_{seconds}s_m" not in full:
             continue
         horizon_comparison[f"{seconds}s"] = {
             "candidate_ADE_m": float(full[f"ADE_{seconds}s_m"]),
-            "baseline_ADE_m": float(reference.get("ADE_m", float("nan"))),
-            "candidate_minus_baseline_ADE_m": float(full[f"ADE_{seconds}s_m"] - reference.get("ADE_m", np.nan)),
+            "incumbent_ADE_m": float(reference.get("ADE_m", float("nan"))),
+            "candidate_minus_incumbent_ADE_m": float(full[f"ADE_{seconds}s_m"] - reference.get("ADE_m", np.nan)),
             "candidate_FDE_m": float(full[f"FDE_{seconds}s_m"]),
-            "baseline_FDE_m": float(reference.get("FDE_m", float("nan"))),
-            "candidate_minus_baseline_FDE_m": float(full[f"FDE_{seconds}s_m"] - reference.get("FDE_m", np.nan)),
+            "incumbent_FDE_m": float(reference.get("FDE_m", float("nan"))),
+            "candidate_minus_incumbent_FDE_m": float(full[f"FDE_{seconds}s_m"] - reference.get("FDE_m", np.nan)),
             "candidate_gap_mae_m": float(interaction["gap_mae_m"]),
-            "baseline_gap_mae_m": float(reference.get("gap_mae_m", float("nan"))),
+            "incumbent_gap_mae_m": float(reference.get("gap_mae_m", float("nan"))),
         }
     cache_identity = f"{manifest.get('source_dataset', '')} {manifest.get('adapter', '')}".lower()
     complete_highd = not bool(manifest.get("bounded_development_cache", True)) and "highd" in cache_identity
@@ -282,7 +372,6 @@ def evaluate_semi_markov_world_model(
     paired_path, paired_report = _optional_report(
         evaluation, "paired_baseline_summary", config_dir=config_dir,
     )
-    current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     paired_information_symmetric = bool(paired_report.get("protocol", {}).get("promotion_information_symmetric", False))
     paired_baseline = bool(
         paired_report.get("protocol", {}).get("same_sequence", False)
@@ -349,8 +438,9 @@ def evaluate_semi_markov_world_model(
     controlled_response = _controlled_response_metrics(
         model, response_loader, device, seed=int(evaluation.get("seed", 123)) + 70_000,
     )
-    summary_baseline_gate = bool(baseline_one) and all(one_second[key] <= float(baseline_one.get(key, np.inf)) for key in ("ADE_m", "FDE_m", "gap_mae_m"))
-    baseline_gate = paired_baseline and summary_baseline_gate
+    incumbent_same_test = int(incumbent.get("test_sequences", 0)) == int(len(pred))
+    summary_incumbent_gate = incumbent_same_test and bool(incumbent_one) and all(one_second[key] <= float(incumbent_one.get(key, np.inf)) for key in ("ADE_m", "FDE_m", "gap_mae_m"))
+    baseline_gate = paired_baseline and summary_incumbent_gate
     promotion_ready = complete_highd and paired_baseline and long_horizon_gate and round_complete and duration_gate and baseline_gate
     if not complete_highd:
         promotion_reason = "Requires complete held-out highD cache."
@@ -373,6 +463,7 @@ def evaluate_semi_markov_world_model(
         "physical_diagnostics": physical, "interaction_metrics": interaction,
         "relationship_distribution": {"predicted": predicted_relations, "target": target_relations, "total_variation": relation_tv},
         "duration_calibration": duration, "prior_posterior_consistency": prior_posterior,
+        "control_plan_diagnostics": plan_diagnostics,
         "behavior_anchor": {
             "variant": model.cfg.variant,
             "cold_start_history": bool(model.cfg.cold_start_history),
@@ -381,10 +472,12 @@ def evaluate_semi_markov_world_model(
             "roll_mode_anchor_l1": float(np.mean(roll_anchor_losses)) if roll_anchor_losses else 0.0,
         },
         "controlled_response": controlled_response,
-        "frozen_baseline_horizon_comparison": {
+        "bars_m1_incumbent_horizon_comparison": {
+            "distinct_from_candidate": incumbent_is_distinct,
+            "same_test_sequences": incumbent_same_test,
             "paired_and_full_test": complete_highd and paired_baseline,
             "note": "Numbers become a promotion comparison only after the complete held-out highD cache is evaluated with paired bootstrap.",
-            "paired_baseline_summary": str(paired_path) if paired_path is not None else None,
+            "incumbent_reference_summary": str(incumbent_path) if incumbent_path is not None else None,
             "horizons": horizon_comparison,
         },
         "legacy_frozen_baseline_comparison": {

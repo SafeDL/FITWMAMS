@@ -4,9 +4,8 @@ evaluation:
   batch_size: 64
   cold_start_history: true
   device: auto
+  incumbent_reference_summary: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/semi_markov_evaluation_summary.json
   max_sequences: 0
-  legacy_paired_baseline_summary: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/paired_semi_markov_vs_catk_legacy_standard.json
-  legacy_paired_long_horizon_baseline_summary: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/paired_semi_markov_vs_catk_5s_legacy_standard.json
   round_evaluation_summary: ''
   seed: 123
 graph:
@@ -25,8 +24,18 @@ model:
   lambda_roll: 1.0
   late_prior_control_weight: 0.0
   late_roll_weight: 0.0
+  local_residual_weight: 0.01
   max_duration_response_steps: 30
   num_latent_states: 12
+  overlap_loss_weight: 0.1
+  overlap_relation_scale: 1.0
+  plan_carry_mix: 0.2
+  plan_carry_start_response_steps: 14
+  plan_execute_frames: 5
+  plan_horizon_frames: 25
+  plan_loss_weight: 0.2
+  plan_smoothness_weight: 0.01
+  plan_state_loss_weight: 0.5
   position_weight: 1.0
   prior_control_weight: 3.0
   prior_roll_weight: 1.0
@@ -38,7 +47,7 @@ model:
   state_bootstrap_weight: 5.0
   temporal_layers: 1
   type: semi_markov_relational
-  variant: m1
+  variant: m2
   velocity_weight: 0.25
 paths:
   flow_checkpoint: ../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt
@@ -47,28 +56,28 @@ paths:
   flow_schema_sha256: b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a
   highd_evt_config: ../../../process_highD/scripts/configs/highd_natural_evt.yaml
   legacy_dataset_dir: ../../../results/highd_world_model/shared_dense_start_roll
-  output_dir: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2
+  output_dir: ../../../results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5
   sequence_cache_dir: ../../../results/highd_world_model/semi_markov_relational_full
 split:
   seed: 42
 training:
-  anchor_learning_rate: 5.0e-05
-  batch_size: 512
+  batch_size: 128
   decoder_prior_learning_rate: 1.0e-05
   device: auto
   encoder_learning_rate: 5.0e-06
-  epochs: 20
+  epochs: 3
+  fixed_teacher_forcing_ratio: 0.0
   grad_clip: 1.0
+  incumbent_reference_checkpoint: ../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/checkpoints/best_semi_markov_relational.pt
   learning_rate: 5.0e-05
-  m0_reference_checkpoint: ../../../results/highd_world_model/semi_markov_relational_full_tbptt_finetune/checkpoints/best_semi_markov_relational.pt
-  min_teacher_forcing: 0.0
+  m2_freeze_latent_in_roll: true
   num_data_workers: 4
   rollout_max_seconds: 5.0
-  rollout_min_seconds: 1.0
+  rollout_min_seconds: 3.0
   seed: 42
   stage_one_epochs: 0
   stages:
-  - epochs: 10
+  - epochs: 3
     name: roll
   tbptt_response_steps: 5
   weight_decay: 0.0001

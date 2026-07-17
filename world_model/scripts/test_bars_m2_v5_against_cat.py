@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paired Semi-Markov / frozen CAT-K comparisons on aligned highD segments.
+"""Test BARS-M2 v5 against the frozen CAT-TopK baseline on aligned highD segments.
 
 The script aligns samples by immutable highD sequence id, then evaluates the
 frozen CAT-K interface as released.  Each artifact explicitly records CAT-K's
@@ -292,6 +292,7 @@ def main() -> None:
 
     semi_rows: list[dict[str, np.ndarray]] = []
     catk_rows: list[dict[str, np.ndarray]] = []
+    tail_rows: list[np.ndarray] = []
     parity_max_error = 0.0
     relation_counts = {"candidate": np.zeros(3, np.float64), "baseline": np.zeros(3, np.float64), "target": np.zeros(3, np.float64)}
     with torch.no_grad():
@@ -315,12 +316,14 @@ def main() -> None:
                 parity_max_error = max(parity_max_error, float(np.abs(target - source_target)[common].max()))
             semi_rows.append(_metrics(semi_pred, target, valid, ego))
             catk_rows.append(_metrics(catk_pred, target, valid, ego))
+            tail_rows.append(np.asarray(semi_arrays["is_evt_tail"][seq_idx], bool))
             if chunks > 1:
                 relation_counts["candidate"] += _relationship_counts(semi_pred, valid)
                 relation_counts["baseline"] += _relationship_counts(catk_pred, valid)
                 relation_counts["target"] += _relationship_counts(target, valid)
     candidate = {key: np.concatenate([row[key] for row in semi_rows]) for key in semi_rows[0]}
     baseline = {key: np.concatenate([row[key] for row in catk_rows]) for key in catk_rows[0]}
+    tail = np.concatenate(tail_rows)
     comparisons = {
         key: _bootstrap(candidate[key], baseline[key], repetitions=args.bootstrap_repetitions, seed=int(args.seed) + offset)
         for offset, key in enumerate(("ADE_m", "FDE_m", "gap_mae_m"))
@@ -358,6 +361,15 @@ def main() -> None:
         "baseline": {key: float(np.mean(value)) for key, value in baseline.items()},
         "paired_bootstrap": comparisons,
         "all_primary_error_gates_pass": bool(all(item["passes"] for item in comparisons.values())),
+        "evt_tail": {
+            "num_paired_sequences": int(tail.sum()),
+            "candidate": {key: float(np.mean(value[tail])) for key, value in candidate.items()} if tail.any() else {},
+            "baseline": {key: float(np.mean(value[tail])) for key, value in baseline.items()} if tail.any() else {},
+            "paired_bootstrap": {
+                key: _bootstrap(candidate[key][tail], baseline[key][tail], repetitions=args.bootstrap_repetitions, seed=int(args.seed) + 100 + offset)
+                for offset, key in enumerate(("ADE_m", "FDE_m", "gap_mae_m"))
+            } if tail.any() else {},
+        },
         "relationship_distribution": relationship_report,
     }
     extra = str(args.output_suffix)

@@ -8,11 +8,6 @@ from typing import Any
 
 import numpy as np
 
-from .baselines import (
-    constant_acceleration_actions,
-    constant_velocity_actions,
-    idm_like_same_lane_actions,
-)
 from .data import (
     aligned_multichunk_indices,
     checkpoint_path,
@@ -309,42 +304,6 @@ def _predict_indices(
         if np.isfinite(result.get("ADE_m", float("nan"))) and np.isfinite(result.get("minADE_m", float("nan"))):
             ade = max(float(result["ADE_m"]), 1.0e-12)
             result["minADE_improvement_ratio"] = float((float(result["ADE_m"]) - float(result["minADE_m"])) / ade)
-    baseline_metrics: dict[str, Any] = {}
-    for baseline_name, baseline_actions in {
-        "constant_velocity": constant_velocity_actions(
-            arrays["current_states"][idx],
-            int(schema["horizon_steps"]),
-        ),
-        "constant_acceleration": constant_acceleration_actions(
-            arrays["current_states"][idx],
-            int(schema["horizon_steps"]),
-        ),
-        "idm_like_same_lane": idm_like_same_lane_actions(
-            arrays["current_states"][idx],
-            arrays["current_valid"][idx],
-            int(schema["horizon_steps"]),
-        ),
-    }.items():
-        baseline_states_arr, _baseline_valid = integrate_background_actions_batch(
-            arrays["current_states"][idx],
-            arrays["current_valid"][idx],
-            baseline_actions,
-            dt=dt,
-        )
-        metrics = {}
-        metrics.update(action_error_metrics(baseline_actions, target_actions, target_valid))
-        metrics.update(trajectory_error_metrics(baseline_states_arr, target_states, target_valid))
-        metrics.update(
-            physical_diagnostics(
-                baseline_states_arr,
-                target_valid,
-                ego_future_states=arrays["ego_future_states"][idx],
-                actions=baseline_actions,
-                dt=dt,
-            )
-        )
-        baseline_metrics[baseline_name] = metrics
-    result["baselines"] = baseline_metrics
     return result
 
 

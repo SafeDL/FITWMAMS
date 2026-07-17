@@ -1,0 +1,1 @@
+world_model/scripts/train_highd_semi_markov_relational.py --config world_model/scripts/configs/highd_bars_m2_plan_state_trial.yaml --initial-checkpoint results/highd_world_model/behavior_anchored_semi_markov_m2_plan_carry_3s_v4/checkpoints/best_semi_markov_relational.pt

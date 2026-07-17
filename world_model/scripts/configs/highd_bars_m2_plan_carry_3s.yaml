@@ -1,11 +1,9 @@
-# BARS-M1 is the retained behavior-anchored incumbent; the shared cache
-# remains read-only.
+# BARS-M2 core continuation: preserve M1 through 3 s, supervise the existing
+# 1 s temporal plan in physical state space, then execute a bounded clean
+# continuation from that plan.  This is one M2 plan head, not a new baseline.
 paths:
   legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  # V2 is a clean retraining after START feedback and segment-duration
-  # alignment.  The previous flow-aligned directory remains read-only
-  # historical evidence and is never mixed with this run.
-  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2"
+  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5"
   sequence_cache_dir: "../../../results/highd_world_model/semi_markov_relational_full"
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
   flow_checkpoint: "../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt"
@@ -26,10 +24,8 @@ graph:
 
 model:
   type: "semi_markov_relational"
-  variant: "m1"
+  variant: "m2"
   anchor_loss_weight: 1.0
-  # Stage A must optimize the deployed first-second path directly; the
-  # horizon-average ROLL loss alone underweights its endpoint.
   start_roll_weight: 4.0
   cold_start_history: true
   hidden_dim: 128
@@ -53,31 +49,37 @@ model:
   prior_control_weight: 3.0
   late_prior_control_weight: 0.0
   reference_control_scale: 1.0
+  plan_horizon_frames: 25
+  plan_execute_frames: 5
+  plan_loss_weight: 0.20
+  plan_state_loss_weight: 0.50
+  overlap_loss_weight: 0.10
+  overlap_relation_scale: 1.0
+  local_residual_weight: 0.01
+  plan_smoothness_weight: 0.01
+  plan_carry_mix: 0.20
+  plan_carry_start_response_steps: 14
 
 training:
   seed: 42
   device: "auto"
-  epochs: 20
+  epochs: 3
   stage_one_epochs: 0
-  min_teacher_forcing: 0.0
-  rollout_min_seconds: 1.0
+  fixed_teacher_forcing_ratio: 0.0
+  rollout_min_seconds: 3.0
   rollout_max_seconds: 5.0
   tbptt_response_steps: 5
-  # The full cache is memory mapped and this model occupies little GPU memory;
-  # 512 keeps the training full-data while avoiding needless Python-batch
-  # overhead on the available 24 GB GPU.
-  batch_size: 512
+  batch_size: 128
   num_data_workers: 4
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
+  incumbent_reference_checkpoint: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/checkpoints/best_semi_markov_relational.pt"
+  m2_freeze_latent_in_roll: true
   stages:
-    - {name: "anchor_realization", epochs: 5}
-    - {name: "roll", epochs: 10}
-    - {name: "joint", epochs: 5}
+    - {name: "roll", epochs: 3}
   encoder_learning_rate: 0.000005
   decoder_prior_learning_rate: 0.00001
-  anchor_learning_rate: 0.00005
 
 evaluation:
   seed: 123
@@ -85,3 +87,4 @@ evaluation:
   batch_size: 64
   max_sequences: 0
   cold_start_history: true
+  incumbent_reference_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/semi_markov_evaluation_summary.json"
