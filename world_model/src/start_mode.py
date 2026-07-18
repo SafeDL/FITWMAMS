@@ -1,4 +1,4 @@
-"""Deterministic control realization used only by M1 START mode."""
+"""Deterministic control realization used by the behavior-anchored START mode."""
 from __future__ import annotations
 
 import torch

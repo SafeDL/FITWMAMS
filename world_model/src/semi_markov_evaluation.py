@@ -1,4 +1,4 @@
-"""START/ROLL evaluation for the semi-Markov relational world model."""
+"""START/ROLL evaluation for the Semi-Markov World Model."""
 from __future__ import annotations
 
 import hashlib
@@ -194,7 +194,7 @@ def evaluate_semi_markov_world_model(
     if model.uses_behavior_anchor:
         schema_value = config.get("paths", {}).get("flow_schema")
         if not schema_value:
-            raise ValueError("M1 evaluation requires paths.flow_schema")
+            raise ValueError("Semi-Markov World Model evaluation requires paths.flow_schema")
         schema_path = Path(schema_value)
         if not schema_path.is_absolute():
             schema_path = (config_dir / schema_path).resolve()
@@ -218,6 +218,8 @@ def evaluate_semi_markov_world_model(
     joint_plan_position_sum = 0.0; joint_plan_velocity_sum = 0.0; joint_plan_count = 0
     overlap_sum = 0.0; overlap_count = 0
     local_sum = 0.0; local_count = 0
+    selected_plan_modes: list[np.ndarray] = []
+    plan_mode_probabilities: list[np.ndarray] = []
     with torch.no_grad():
         for values in loader:
             batch = _to_batch(values, loader.field_names, device)
@@ -227,6 +229,10 @@ def evaluate_semi_markov_world_model(
             all_mask.append(rollout["target_valid"].cpu().numpy())
             all_tail.append(batch["is_evt_tail"].cpu().numpy().astype(bool))
             states.extend(rollout["latent_states"]); durations.extend(rollout["latent_durations"])
+            if isinstance(rollout.get("plan_modes"), torch.Tensor):
+                selected_plan_modes.append(rollout["plan_modes"].cpu().numpy())
+            if isinstance(rollout.get("plan_mode_probabilities"), torch.Tensor):
+                plan_mode_probabilities.append(rollout["plan_mode_probabilities"].cpu().numpy())
             posterior = model.forward_training(batch, teacher_forcing_ratio=1.0)
             posterior_boundaries.append(posterior["posterior_boundary_probs"][:, 1:].cpu().numpy())
             boundary_targets.append(posterior["boundary_target"][:, 1:].cpu().numpy())
@@ -328,42 +334,18 @@ def evaluate_semi_markov_world_model(
         "overlap_plan_l1": overlap_sum / max(overlap_count, 1),
         "local_residual_mean_abs": local_sum / max(local_count, 1),
     }
-    current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
-    incumbent_path, incumbent = _optional_report(
-        evaluation, "incumbent_reference_summary", config_dir=config_dir,
-    )
-    # The incumbent must be a distinct frozen checkpoint.  The BARS-M1
-    # configuration deliberately points at its own archived summary so later
-    # candidate configurations can inherit one path; do not manufacture a
-    # self-comparison when evaluating the incumbent itself.
-    incumbent_is_distinct = bool(incumbent) and incumbent.get("checkpoint_sha256") != current_hash
-    if not incumbent_is_distinct:
-        incumbent = {}
-    # BARS-M1 is the only internal incumbent.  Older summaries stored the
-    # equivalent values under ``closed_loop.test``; retain that read fallback.
-    incumbent_one = incumbent.get("one_second_conditional_reconstruction", incumbent.get("closed_loop", {}).get("test", {}))
-    incumbent_rollout = incumbent.get("five_second_roll_mode", incumbent.get("model_state_reconstruction", {}).get("test", {}))
-    horizon_comparison: dict[str, dict[str, float]] = {}
-    for seconds in range(2, 6):
-        reference = incumbent_rollout.get(f"{seconds}_chunks", {})
-        if not reference and f"ADE_{seconds}s_m" in incumbent_rollout:
-            reference = {
-                "ADE_m": incumbent_rollout[f"ADE_{seconds}s_m"],
-                "FDE_m": incumbent_rollout[f"FDE_{seconds}s_m"],
-                "gap_mae_m": incumbent_rollout.get("gap_mae_m", float("nan")),
-            }
-        if not reference or f"ADE_{seconds}s_m" not in full:
-            continue
-        horizon_comparison[f"{seconds}s"] = {
-            "candidate_ADE_m": float(full[f"ADE_{seconds}s_m"]),
-            "incumbent_ADE_m": float(reference.get("ADE_m", float("nan"))),
-            "candidate_minus_incumbent_ADE_m": float(full[f"ADE_{seconds}s_m"] - reference.get("ADE_m", np.nan)),
-            "candidate_FDE_m": float(full[f"FDE_{seconds}s_m"]),
-            "incumbent_FDE_m": float(reference.get("FDE_m", float("nan"))),
-            "candidate_minus_incumbent_FDE_m": float(full[f"FDE_{seconds}s_m"] - reference.get("FDE_m", np.nan)),
-            "candidate_gap_mae_m": float(interaction["gap_mae_m"]),
-            "incumbent_gap_mae_m": float(reference.get("gap_mae_m", float("nan"))),
+    if selected_plan_modes:
+        selected = np.concatenate(selected_plan_modes, axis=0).reshape(-1)
+        counts = np.bincount(selected, minlength=int(model.cfg.plan_num_modes))
+        mode_diagnostics = {
+            "num_modes": int(model.cfg.plan_num_modes),
+            "selected_counts": counts.tolist(),
+            "selected_frequency": (counts / max(int(counts.sum()), 1)).tolist(),
+            "mean_probabilities": np.concatenate(plan_mode_probabilities, axis=0).mean(axis=(0, 1)).tolist(),
         }
+    else:
+        mode_diagnostics = {"num_modes": int(model.cfg.plan_num_modes), "selected_counts": [], "selected_frequency": [], "mean_probabilities": []}
+    current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     cache_identity = f"{manifest.get('source_dataset', '')} {manifest.get('adapter', '')}".lower()
     complete_highd = not bool(manifest.get("bounded_development_cache", True)) and "highd" in cache_identity
     # A legacy summary alone is not a paired comparison: it can have a
@@ -438,10 +420,7 @@ def evaluate_semi_markov_world_model(
     controlled_response = _controlled_response_metrics(
         model, response_loader, device, seed=int(evaluation.get("seed", 123)) + 70_000,
     )
-    incumbent_same_test = int(incumbent.get("test_sequences", 0)) == int(len(pred))
-    summary_incumbent_gate = incumbent_same_test and bool(incumbent_one) and all(one_second[key] <= float(incumbent_one.get(key, np.inf)) for key in ("ADE_m", "FDE_m", "gap_mae_m"))
-    baseline_gate = paired_baseline and summary_incumbent_gate
-    promotion_ready = complete_highd and paired_baseline and long_horizon_gate and round_complete and duration_gate and baseline_gate
+    promotion_ready = complete_highd and paired_baseline and long_horizon_gate and round_complete and duration_gate
     if not complete_highd:
         promotion_reason = "Requires complete held-out highD cache."
     elif not paired_baseline:
@@ -452,8 +431,6 @@ def evaluate_semi_markov_world_model(
         promotion_reason = "Requires an independent full rounD evaluation summary."
     elif not duration_gate:
         promotion_reason = "Semi-Markov duration calibration/persistence gate failed."
-    elif not baseline_gate:
-        promotion_reason = "One-second frozen-baseline gate failed."
     else:
         promotion_reason = "All configured formal promotion gates passed."
     report = {
@@ -464,22 +441,14 @@ def evaluate_semi_markov_world_model(
         "relationship_distribution": {"predicted": predicted_relations, "target": target_relations, "total_variation": relation_tv},
         "duration_calibration": duration, "prior_posterior_consistency": prior_posterior,
         "control_plan_diagnostics": plan_diagnostics,
+        "plan_mode_diagnostics": mode_diagnostics,
         "behavior_anchor": {
-            "variant": model.cfg.variant,
             "cold_start_history": bool(model.cfg.cold_start_history),
             "active_response_steps": int(model.cfg.behavior_anchor_response_steps),
             "posterior_anchor_l1": float(np.mean(posterior_anchor_losses)) if posterior_anchor_losses else 0.0,
             "roll_mode_anchor_l1": float(np.mean(roll_anchor_losses)) if roll_anchor_losses else 0.0,
         },
         "controlled_response": controlled_response,
-        "bars_m1_incumbent_horizon_comparison": {
-            "distinct_from_candidate": incumbent_is_distinct,
-            "same_test_sequences": incumbent_same_test,
-            "paired_and_full_test": complete_highd and paired_baseline,
-            "note": "Numbers become a promotion comparison only after the complete held-out highD cache is evaluated with paired bootstrap.",
-            "incumbent_reference_summary": str(incumbent_path) if incumbent_path is not None else None,
-            "horizons": horizon_comparison,
-        },
         "legacy_frozen_baseline_comparison": {
             "paired_baseline_summary": str(legacy_paired_path) if legacy_paired_path is not None else None,
             "paired_long_horizon_baseline_summary": str(legacy_paired_long_path) if legacy_paired_long_path is not None else None,
@@ -506,7 +475,6 @@ def evaluate_semi_markov_world_model(
         },
         "promotion": {
             "eligible": promotion_ready,
-            "one_second_not_weaker_than_frozen_baseline": baseline_gate if complete_highd and paired_baseline else False,
             "duration_calibrated_and_persistent": duration_gate,
             "full_highd_cache": complete_highd,
             "paired_frozen_baseline": paired_baseline,

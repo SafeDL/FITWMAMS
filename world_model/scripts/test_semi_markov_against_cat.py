@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test BARS-M2 v5 against the frozen CAT-TopK baseline on aligned highD segments.
+"""Test the Semi-Markov World Model against frozen CAT-TopK on aligned highD segments.
 
 The script aligns samples by immutable highD sequence id, then evaluates the
 frozen CAT-K interface as released.  Each artifact explicitly records CAT-K's
@@ -237,8 +237,8 @@ def _catk_multichunk_rollout(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_behavior_anchored_semi_markov.yaml"))
-    parser.add_argument("--catk-config", default=str(ROOT / "world_model/scripts/configs/highd_world_model.yaml"))
+    parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_semi_markov_world_model.yaml"))
+    parser.add_argument("--catk-config", default=str(ROOT / "world_model/scripts/configs/highd_cat_topk_world_model.yaml"))
     parser.add_argument("--semi-checkpoint", required=True)
     parser.add_argument("--catk-checkpoint", default=str(ROOT / "results/highd_world_model/catk_topk/checkpoints/best_world_model.pt"))
     parser.add_argument("--batch-size", type=int, default=32)
@@ -280,7 +280,7 @@ def main() -> None:
     if semi.uses_behavior_anchor:
         flow_schema = semi_cfg.get("paths", {}).get("flow_schema")
         if not flow_schema:
-            raise ValueError("Flow-aligned M1 comparison requires paths.flow_schema")
+            raise ValueError("Semi-Markov comparison requires paths.flow_schema")
         schema_path = Path(flow_schema)
         schema = FrozenLegacyFlowSchema.load(
             schema_path if schema_path.is_absolute() else (semi_path.parent / schema_path).resolve()

@@ -1,0 +1,28 @@
+# CAT-TopK reference configuration. The frozen best checkpoint is retained for
+# evaluation; training scripts always materialize a separate output directory.
+paths:
+  dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
+  output_dir: "../../../results/highd_world_model/catk_topk"
+
+model:
+  type: "catk_topk"
+  hidden_dim: 128
+  history_layers: 2
+  interaction_layers: 2
+  num_heads: 4
+  dropout: 0.1
+  use_start_flow_summary: true
+  use_relation_features: true
+  num_candidates: 8
+  responsibility_temperature: 1.0
+  energy_weight: 0.01
+  diversity_weight: 0.15
+  diversity_margin_normalized: 0.15
+  smoothness_weight: 0.01
+  map_action_weight: 0.1
+  probability_entropy_weight: 0.05
+  min_probability_entropy: 1.5
+  jerk_control_points: 5
+  max_jerk_longitudinal_mps3: 8.0
+  max_jerk_lateral_mps3: 5.0
+  nominal_logit_margin: 0.05

@@ -15,14 +15,19 @@ class IntentResponseDecoderConfig:
     reference_control_scale: float = 1.0
     plan_horizon_frames: int = 1
     execute_frames: int = 5
+    plan_num_modes: int = 1
+    jerk_control_points: int = 5
+    jerk_limit_longitudinal_mps3: float = 3.0
+    jerk_limit_yaw_accel_rps2: float = 0.35
+    simulation_dt_s: float = 0.04
 
 
 class IntentResponseDecoder(nn.Module):
     """Decode persistent intent plus local response controls.
 
-    ``plan_horizon_frames=1`` preserves the BARS-M1 interface exactly.  The
-    M2 path keeps those trained heads and adds zero-initialized temporal terms,
-    so its initial one-second plan is the M1 control repeated over the horizon.
+    ``plan_horizon_frames=1`` exposes a single control. The temporal path adds
+    zero-initialized terms, so its initial one-second plan repeats that base
+    control over the horizon.
     """
 
     def __init__(self, cfg: IntentResponseDecoderConfig) -> None:
@@ -34,10 +39,13 @@ class IntentResponseDecoder(nn.Module):
         self.gate = nn.Sequential(nn.Linear(h * 2, h), nn.SiLU(), nn.Linear(h, 1))
         self.plan_horizon_frames = int(cfg.plan_horizon_frames)
         self.execute_frames = min(int(cfg.execute_frames), self.plan_horizon_frames)
+        self.plan_num_modes = int(cfg.plan_num_modes)
         if self.plan_horizon_frames < 1:
             raise ValueError("plan_horizon_frames must be positive")
         if self.execute_frames < 1:
             raise ValueError("execute_frames must be positive")
+        if self.plan_num_modes < 1:
+            raise ValueError("plan_num_modes must be positive")
         if self.plan_horizon_frames > 1:
             self.plan_time = nn.Embedding(self.plan_horizon_frames, h)
             # A scene-level intent is shared across agents at each planned
@@ -48,18 +56,37 @@ class IntentResponseDecoder(nn.Module):
             # expansion, rather than a separate per-vehicle latent variable.
             self.cross_vehicle = nn.Sequential(nn.Linear(h, h), nn.SiLU(), nn.Linear(h, h))
             self.local_time = nn.Sequential(nn.Linear(h * 3, h), nn.SiLU(), nn.Linear(h, 2))
+        if self.plan_num_modes > 1:
+            # Candidate zero is the untouched nominal plan.  Remaining
+            # candidates share one scene-level mode but retain vehicle-local
+            # residuals through this per-agent jerk head.
+            self.plan_mode_embedding = nn.Embedding(self.plan_num_modes - 1, h)
+            self.plan_mode_jerk = nn.Sequential(
+                nn.Linear(h * 4, h), nn.SiLU(),
+                nn.Linear(h, int(cfg.jerk_control_points) * 2),
+            )
+            self.previous_plan_projection = nn.Linear(2, h)
+            self.plan_mode_logits = nn.Sequential(nn.Linear(h * 3, h), nn.SiLU(), nn.Linear(h, self.plan_num_modes))
+            self.plan_mode_transition = nn.Embedding(self.plan_num_modes, self.plan_num_modes)
         # Start from reference controls until data supports a correction.
         for head in (self.mode, self.response):
             nn.init.zeros_(head[-1].weight)
             nn.init.zeros_(head[-1].bias)
         if self.plan_horizon_frames > 1:
-            # With transferred M1 mode/response/gate weights these two heads
-            # produce exactly zero, so the plan begins as the M1 response
-            # repeated for one second.  This makes the first M2 stage a
-            # controlled temporal extension rather than a decoder restart.
+            # These heads initially produce zero, so the plan begins as the
+            # base response repeated for one second.
             for head in (self.intent_time, self.local_time):
                 nn.init.zeros_(head[-1].weight)
                 nn.init.zeros_(head[-1].bias)
+        if self.plan_num_modes > 1:
+            # All residual candidates exactly collapse to candidate zero at
+            # initialization; only the learned probability distribution is
+            # free to distinguish their future implementations.
+            nn.init.zeros_(self.plan_mode_jerk[-1].weight)
+            nn.init.zeros_(self.plan_mode_jerk[-1].bias)
+            nn.init.zeros_(self.plan_mode_logits[-1].weight)
+            nn.init.zeros_(self.plan_mode_logits[-1].bias)
+            nn.init.zeros_(self.plan_mode_transition.weight)
 
     def forward(
         self,
@@ -71,6 +98,9 @@ class IntentResponseDecoder(nn.Module):
         reference_controls: torch.Tensor | None = None,
         *,
         suppress_residual: bool = False,
+        previous_plan: torch.Tensor | None = None,
+        previous_mode: torch.Tensor | None = None,
+        mode_uniform: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         b, n, h = agent_context.shape
         scene = scene_context[:, None, :].expand(b, n, h)
@@ -90,6 +120,12 @@ class IntentResponseDecoder(nn.Module):
                 "mode_controls": mode, "response_controls": response, "response_gate": gate,
                 "control_plan": controls[:, None], "forecast_control_plan": controls[:, None], "applied_controls": controls[:, None],
                 "intent_plan": residual[:, None], "local_residual_plan": torch.zeros_like(residual[:, None]),
+                "candidate_control_plans": controls[:, None, None],
+                "candidate_forecast_control_plans": controls[:, None, None],
+                "candidate_probabilities": torch.ones((b, 1), dtype=controls.dtype, device=controls.device),
+                "candidate_logits": torch.zeros((b, 1), dtype=controls.dtype, device=controls.device),
+                "selected_plan_mode": torch.zeros((b,), dtype=torch.long, device=controls.device),
+                "candidate_jerk_controls": controls.new_zeros((b, 1, 1, 1, n, 2)),
             }
 
         time_index = torch.arange(self.plan_horizon_frames, device=agent_context.device)
@@ -101,7 +137,7 @@ class IntentResponseDecoder(nn.Module):
         intent_offset = self.intent_time(torch.cat((scene_time, latent_time, time), dim=-1))
         local_offset = self.local_time(torch.cat((agent_time, joint, time), dim=-1))
         # Replanning executes only the first 0.2 s.  Temporal offsets are
-        # forecasts only, leaving the transferred M1 execution prefix intact.
+        # forecasts only, leaving the executed control prefix intact.
         forecast = (time_index >= self.execute_frames).view(1, self.plan_horizon_frames, 1, 1)
         temporal_mix = forecast.to(dtype=intent_offset.dtype)
         forecast_intent_raw = mode[:, None] + intent_offset
@@ -147,6 +183,15 @@ class IntentResponseDecoder(nn.Module):
         )
         control_plan = control_plan * agent_valid[:, None, :, None].float()
         forecast_control_plan = forecast_control_plan * agent_valid[:, None, :, None].float()
+        candidate_plan, candidate_forecast, probabilities, logits, selected, jerks = self._candidate_plans(
+            control_plan, forecast_control_plan, agent_context, scene_context, state_context,
+            agent_valid, previous_plan=previous_plan, previous_mode=previous_mode, mode_uniform=mode_uniform,
+        )
+        selected_index = selected[:, None, None, None, None].expand(
+            -1, 1, self.plan_horizon_frames, n, 2,
+        )
+        control_plan = candidate_plan.gather(1, selected_index).squeeze(1)
+        forecast_control_plan = candidate_forecast.gather(1, selected_index).squeeze(1)
         applied = control_plan[:, : self.execute_frames]
         return {
             "controls": applied,
@@ -158,7 +203,79 @@ class IntentResponseDecoder(nn.Module):
             "mode_controls": mode,
             "response_controls": response,
             "response_gate": gate,
+            "candidate_control_plans": candidate_plan,
+            "candidate_forecast_control_plans": candidate_forecast,
+            "candidate_probabilities": probabilities,
+            "candidate_logits": logits,
+            "selected_plan_mode": selected,
+            "candidate_jerk_controls": jerks,
         }
+
+    def _candidate_plans(
+        self,
+        nominal_plan: torch.Tensor,
+        nominal_forecast: torch.Tensor,
+        agent_context: torch.Tensor,
+        scene_context: torch.Tensor,
+        state_context: torch.Tensor,
+        agent_valid: torch.Tensor,
+        *,
+        previous_plan: torch.Tensor | None,
+        previous_mode: torch.Tensor | None,
+        mode_uniform: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Build scene-joint, smooth short-horizon plan hypotheses.
+
+        Candidate zero is a byte-for-byte copy of the nominal plan. Every
+        other candidate is generated from five bounded jerk control points and
+        is kept zero on the executable 0.2-second prefix.
+        """
+        b, frames, n, _ = nominal_plan.shape
+        if self.plan_num_modes == 1:
+            one = torch.ones((b, 1), dtype=nominal_plan.dtype, device=nominal_plan.device)
+            zero = torch.zeros((b, 1), dtype=nominal_plan.dtype, device=nominal_plan.device)
+            selected = torch.zeros((b,), dtype=torch.long, device=nominal_plan.device)
+            jerks = nominal_plan.new_zeros((b, 1, int(self.cfg.jerk_control_points), n, 2))
+            return nominal_plan[:, None], nominal_forecast[:, None], one, zero, selected, jerks
+        h = agent_context.shape[-1]
+        alternatives = self.plan_num_modes - 1
+        mode_ids = torch.arange(alternatives, device=nominal_plan.device)
+        mode = self.plan_mode_embedding(mode_ids).view(1, alternatives, 1, h).expand(b, -1, n, -1)
+        agent = agent_context[:, None].expand(-1, alternatives, -1, -1)
+        scene = scene_context[:, None, None].expand(-1, alternatives, n, -1)
+        latent = state_context[:, None, None].expand(-1, alternatives, n, -1)
+        points = int(self.cfg.jerk_control_points)
+        raw_jerk = self.plan_mode_jerk(torch.cat((agent, scene, latent, mode), dim=-1))
+        raw_jerk = raw_jerk.view(b, alternatives, n, points, 2).permute(0, 1, 3, 2, 4)
+        limits = raw_jerk.new_tensor((float(self.cfg.jerk_limit_longitudinal_mps3), float(self.cfg.jerk_limit_yaw_accel_rps2)))
+        jerks = torch.tanh(raw_jerk) * limits
+        expanded = torch.nn.functional.interpolate(
+            jerks.permute(0, 1, 3, 4, 2).reshape(b * alternatives * n, 2, points),
+            size=frames, mode="linear", align_corners=True,
+        ).reshape(b, alternatives, n, 2, frames).permute(0, 1, 4, 2, 3)
+        residual = torch.cumsum(expanded, dim=2) * float(self.cfg.simulation_dt_s)
+        residual = residual.clone()
+        residual[:, :, : self.execute_frames] = 0.0
+        residual = residual * agent_valid[:, None, None, :, None].float()
+        candidates = nominal_plan[:, None].expand(-1, self.plan_num_modes, -1, -1, -1).clone()
+        forecasts = nominal_forecast[:, None].expand(-1, self.plan_num_modes, -1, -1, -1).clone()
+        candidates[:, 1:] = self._bounded_controls(candidates[:, 1:] + residual)
+        forecasts[:, 1:] = self._bounded_controls(forecasts[:, 1:] + residual)
+        if previous_plan is None:
+            prior_plan = torch.zeros((b, 2), dtype=nominal_plan.dtype, device=nominal_plan.device)
+        else:
+            prior_plan = previous_plan[:, self.execute_frames :, 1:].mean(dim=(1, 2))
+        plan_context = self.previous_plan_projection(prior_plan)
+        logits = self.plan_mode_logits(torch.cat((scene_context, state_context, plan_context), dim=-1))
+        if previous_mode is not None:
+            logits = logits + self.plan_mode_transition(previous_mode.long().clamp(0, self.plan_num_modes - 1))
+        probabilities = torch.softmax(logits, dim=-1)
+        if mode_uniform is None:
+            selected = probabilities.argmax(dim=-1)
+        else:
+            uniform = mode_uniform.to(dtype=probabilities.dtype).clamp(0.0, 1.0 - torch.finfo(probabilities.dtype).eps)
+            selected = (probabilities.cumsum(dim=-1) < uniform[:, None]).sum(dim=-1)
+        return candidates, forecasts, probabilities, logits, selected.long(), jerks
 
     def _squash_residual(self, residual: torch.Tensor) -> torch.Tensor:
         return torch.stack((

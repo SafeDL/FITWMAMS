@@ -1,8 +1,0 @@
-# CAT-TopK is frozen: its checkpoint contains architecture and training state.
-# The paired BARS comparison needs only the immutable START/ROLL cache and the
-# explicit disclosure that CAT receives its first-second Flow action summary.
-paths:
-  dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-
-model:
-  use_start_flow_summary: true

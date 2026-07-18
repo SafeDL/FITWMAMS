@@ -108,7 +108,7 @@ def behavior_anchor_from_flow_feature(
 
 
 def start_state_from_flow_feature(feature_row: np.ndarray, slot_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Directly unpack one raw Flow row for the M1 START mode.
+    """Directly unpack one raw Flow row for the behavior-anchored START mode.
 
     Training never calls this adapter: it reads the logged sequence cache.
     It exists solely for Flow end-to-end generation, where the sampled 76-D

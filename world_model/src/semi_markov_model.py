@@ -1,4 +1,4 @@
-"""Semi-Markov Relational Traffic World Model."""
+"""Semi-Markov World Model."""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -45,7 +45,6 @@ class SemiMarkovWorldModelConfig:
     reference_control_scale: float = 1.0
     use_conflict_zones: bool = False
     learn_duration: bool = True
-    variant: str = "m1"
     anchor_loss_weight: float = 1.0
     start_roll_weight: float = 1.0
     cold_start_history: bool = False
@@ -53,11 +52,11 @@ class SemiMarkovWorldModelConfig:
     plan_execute_frames: int = 5
     plan_loss_weight: float = 0.0
     # State supervision is applied only to the predicted, unexecuted plan
-    # trajectory.  Zero keeps older BARS/M2 checkpoints behaviorally exact.
+    # trajectory.  Zero keeps older checkpoints behaviorally exact.
     plan_state_loss_weight: float = 0.0
     # Joint supervision compares relative physical states across background
     # vehicles in one predicted plan.  It is training-only and defaults to an
-    # exact no-op for transferred M1 and existing M2 checkpoints.
+    # exact no-op for existing checkpoints.
     joint_plan_loss_weight: float = 0.0
     joint_plan_min_separation_m: float = 2.0
     overlap_loss_weight: float = 0.0
@@ -65,10 +64,23 @@ class SemiMarkovWorldModelConfig:
     local_residual_weight: float = 0.0
     plan_smoothness_weight: float = 0.0
     plan_carry_mix: float = 0.0
-    # Zero preserves the original post-anchor start.  A positive value delays
-    # receding-horizon carry until that (zero-based) response index, which is
-    # useful when the short horizon is deliberately kept bit-for-bit M1.
+    # Zero starts carry immediately after the behavior-anchor prefix. A
+    # positive value delays it until that (zero-based) response index.
     plan_carry_start_response_steps: int = 0
+    # A scene-level short-horizon implementation mode is distinct from the
+    # persistent semi-Markov interaction state.  ``1`` preserves the frozen
+    # baseline architecture and checkpoint compatibility exactly.
+    plan_num_modes: int = 1
+    plan_jerk_control_points: int = 5
+    plan_jerk_limit_longitudinal_mps3: float = 3.0
+    plan_jerk_limit_yaw_accel_rps2: float = 0.35
+    plan_mixture_temperature: float = 0.25
+    plan_mode_mixture_weight: float = 1.0
+    plan_mode_switch_weight: float = 0.05
+    plan_mode_diversity_weight: float = 0.02
+    plan_mode_diversity_margin: float = 0.02
+    plan_mode_calibration_weight: float = 0.05
+    plan_mode_relation_weight: float = 0.10
 
     @property
     def physics_steps_per_response(self) -> int:
@@ -91,8 +103,6 @@ class SemiMarkovRelationalWorldModel(nn.Module):
     def __init__(self, cfg: SemiMarkovWorldModelConfig) -> None:
         super().__init__()
         self.cfg = cfg
-        if cfg.variant not in {"m1", "m2"}:
-            raise ValueError("model.variant must be 'm1' or the planned BARS-M2")
         if not 0.0 <= float(cfg.plan_carry_mix) <= 1.0:
             raise ValueError("plan_carry_mix must be in [0, 1]")
         if float(cfg.plan_state_loss_weight) < 0.0:
@@ -103,6 +113,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             raise ValueError("joint_plan_min_separation_m must be non-negative")
         if int(cfg.plan_carry_start_response_steps) < 0:
             raise ValueError("plan_carry_start_response_steps must be non-negative")
+        if int(cfg.plan_num_modes) < 1:
+            raise ValueError("plan_num_modes must be positive")
+        if int(cfg.plan_jerk_control_points) < 2:
+            raise ValueError("plan_jerk_control_points must be at least two")
         if abs(cfg.behavior_anchor_response_steps * cfg.response_interval_s - BEHAVIOR_ANCHOR_SECONDS) > 1.0e-6:
             raise ValueError("response_interval_s must divide the one-second behavior anchor exactly")
         self.encoder = RelationalTrafficEncoder(RelationalEncoderConfig(
@@ -126,6 +140,11 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             hidden_dim=cfg.hidden_dim, reference_control_scale=cfg.reference_control_scale,
             plan_horizon_frames=cfg.plan_horizon_frames,
             execute_frames=cfg.plan_execute_frames,
+            plan_num_modes=cfg.plan_num_modes,
+            jerk_control_points=cfg.plan_jerk_control_points,
+            jerk_limit_longitudinal_mps3=cfg.plan_jerk_limit_longitudinal_mps3,
+            jerk_limit_yaw_accel_rps2=cfg.plan_jerk_limit_yaw_accel_rps2,
+            simulation_dt_s=cfg.simulation_dt_s,
         ))
         self.dynamics = KinematicTrafficDynamics(DynamicsConfig())
 
@@ -139,7 +158,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
 
     @property
     def uses_control_plan(self) -> bool:
-        return self.cfg.variant == "m2" and self.cfg.plan_horizon_frames > 1
+        return self.cfg.plan_horizon_frames > 1
 
     def set_frozen_flow_schema(self, schema: FrozenLegacyFlowSchema) -> None:
         self.frozen_flow_schema = schema
@@ -154,10 +173,10 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 raise ValueError("cached frozen Flow behavior anchors have incompatible shapes")
         else:
             # Unit-level graph tests intentionally do not own a persistent
-            # highD cache.  Formal M1 training/evaluation always provides the
+            # highD cache. Formal training/evaluation always provides the
             # sidecar so it never recomputes logged B0 in a batch.
             if self.frozen_flow_schema is not None:
-                raise RuntimeError("M1 with a frozen Flow schema requires cached behavior_anchor_raw/std/valid tensors")
+                raise RuntimeError("the frozen Flow schema requires cached behavior_anchor_raw/std/valid tensors")
             frames = self.cfg.behavior_anchor_response_steps * self.cfg.physics_steps_per_response
             valid = batch["agent_valid"][:, 24 : 25 + frames, 1:]
             anchor_raw, anchor_valid = summarize_first_second_states(batch["agent_states"][:, 24 : 25 + frames, 1:], valid)
@@ -341,25 +360,11 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         current: torch.Tensor,
         *,
         anchor_residual: torch.Tensor | None = None,
+        previous_plan: torch.Tensor | None = None,
+        previous_mode: torch.Tensor | None = None,
+        mode_uniform: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
-        """Decode one response interval and, for M2, its full one-second plan.
-
-        M1 keeps its audited START residual path unchanged.  M2 uses that
-        residual as a zero-correction reference during START, then uses the
-        transferred M1 decoder as the zero-initialized temporal plan base.
-        """
-        if anchor_residual is not None and not self.uses_control_plan:
-            mask = valid[:, None, :, None] if anchor_residual.ndim == 4 else valid[..., None]
-            controls = anchor_residual * mask.float()
-            return {
-                "controls": controls,
-                "control_plan": controls[:, None],
-                "forecast_control_plan": controls[:, None],
-                "applied_controls": controls[:, None],
-                "intent_plan": torch.zeros_like(controls[:, None]),
-                "local_residual_plan": torch.zeros_like(controls[:, None]),
-                "response_gate": torch.zeros((*controls.shape[:2], 1), dtype=controls.dtype, device=controls.device),
-            }
+        """Decode one response interval and its one-second control plan."""
         reference = anchor_residual
         suppress_residual = anchor_residual is not None
         if reference is None:
@@ -367,6 +372,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         return self.decoder(
             agent_context, scene_context, state_context, elapsed_steps, valid, reference,
             suppress_residual=suppress_residual,
+            previous_plan=previous_plan, previous_mode=previous_mode, mode_uniform=mode_uniform,
         )
 
     def _carry_clean_plan_prefix(
@@ -378,9 +384,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         """Blend a post-anchor plan continuation into the next executed prefix.
 
         The caller supplies ``previous_forecast_plan`` only after the one-second
-        behavior-anchor window has ended.  A zero mix is an exact no-op, so M1
-        transfer and normal M2 evaluation remain unchanged unless a separately
-        selected candidate explicitly enables this receding-horizon path.
+        behavior-anchor window has ended. A zero mix is an exact no-op.
         """
         mix = float(self.cfg.plan_carry_mix)
         if not self.uses_control_plan or mix == 0.0 or previous_forecast_plan is None:
@@ -583,6 +587,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         remaining = torch.zeros((b,), dtype=torch.long, device=states.device)
         outputs: list[torch.Tensor] = []
         controls_out: list[torch.Tensor] = []
+        previous_plan: torch.Tensor | None = None
+        previous_plan_mode: torch.Tensor | None = None
         ego_index = int(batch["ego_index"][0].item())
         for response in range(rollout_steps):
             agent_context, scene_context, _ = self.encode_step(
@@ -631,11 +637,16 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 agent_context, scene_context, self.latent.state_embedding(state_prob), anchor_std, states[:, 24], outputs,
                 start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
+            mode_uniform = torch.rand((b,), dtype=states.dtype, device=states.device) \
+                if self.training and self.cfg.plan_num_modes > 1 else None
             decoded = self._decode_response(
                 agent_context, scene_context, self.latent.state_embedding(state_prob), elapsed,
                 current_valid & background_mask, current, anchor_residual=anchor_residual,
+                previous_plan=previous_plan, previous_mode=previous_plan_mode, mode_uniform=mode_uniform,
             )
             controls = decoded["controls"]
+            previous_plan = decoded["forecast_control_plan"]
+            previous_plan_mode = decoded["selected_plan_mode"]
             controls_out.append((controls.mean(dim=1) if controls.ndim == 4 else controls)[:, 1:])
             ego_future = states[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
@@ -722,6 +733,73 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         weight = mask.float() if importance is None else mask.float() * importance.to(dtype=pred.dtype)
         weight = weight.unsqueeze(-1)
         return (torch.abs(pred - target) * weight).sum() / weight.sum().clamp_min(1.0)
+
+    @staticmethod
+    def _per_mode_l1(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """L1 for ``[batch, modes, ...]`` plans without mixing modes."""
+        weight = mask[:, None].to(dtype=pred.dtype).unsqueeze(-1)
+        error = (pred - target[:, None]).abs() * weight
+        denominator = weight.sum(dim=tuple(range(2, weight.ndim))).clamp_min(1.0) * int(pred.shape[-1])
+        return error.sum(dim=tuple(range(2, error.ndim))) / denominator
+
+    def _multihypothesis_energy(
+        self,
+        candidate_plans: torch.Tensor,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        plan_target: torch.Tensor,
+        plan_valid: torch.Tensor,
+        state_target: torch.Tensor,
+        state_valid: torch.Tensor,
+        previous_plan: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Physical candidate energy used by mixture training and soft Viterbi.
+
+        It combines controls, one-second states, relative traffic geometry and
+        the remaining prefix of the previously selected plan.  Candidates are
+        scene-joint: no per-vehicle candidate assignment is introduced here.
+        """
+        b, modes, frames, n, _ = candidate_plans.shape
+        control = self._per_mode_l1(candidate_plans[:, :, :, 1:], plan_target, plan_valid)
+        flat_plan = candidate_plans.reshape(b * modes, frames, n, 2)
+        flat_current = current[:, None].expand(-1, modes, -1, -1).reshape(b * modes, n, -1)
+        flat_valid = current_valid[:, None].expand(-1, modes, -1).reshape(b * modes, n)
+        predicted = self._predict_plan_states(flat_current, flat_plan, flat_valid).reshape(b, modes, frames, n, -1)
+        state = self._per_mode_l1(predicted[:, :, :, 1:, :4], state_target[..., :4], state_valid)
+        predicted_relative = predicted[:, :, :, 1:, :4] - predicted[:, :, :, :1, :4]
+        target_relative = state_target[..., :4] - current[:, None, :1, :4]
+        relation = self._per_mode_l1(predicted_relative, target_relative, state_valid)
+        overlap = control.new_zeros((b, modes))
+        if previous_plan is not None:
+            count = min(previous_plan.shape[1] - self.cfg.plan_execute_frames, frames - self.cfg.plan_execute_frames)
+            if count > 0:
+                overlap = self._per_mode_l1(
+                    candidate_plans[:, :, :count, 1:],
+                    previous_plan[:, self.cfg.plan_execute_frames : self.cfg.plan_execute_frames + count, 1:],
+                    plan_valid[:, :count],
+                )
+        energy = state + control + float(self.cfg.plan_mode_relation_weight) * relation + float(self.cfg.overlap_loss_weight) * overlap
+        return energy, predicted, overlap
+
+    def _soft_viterbi_mode_loss(
+        self, energies: list[torch.Tensor], probabilities: list[torch.Tensor], intent_states: list[torch.Tensor],
+    ) -> torch.Tensor:
+        """Soft dynamic program over 3--5 seconds of candidate modes."""
+        if not energies:
+            return next(self.parameters()).new_zeros(())
+        temperature = max(float(self.cfg.plan_mixture_temperature), 1.0e-4)
+        cost = energies[0] - temperature * probabilities[0].clamp_min(1.0e-8).log()
+        modes = cost.shape[-1]
+        eye = torch.eye(modes, dtype=torch.bool, device=cost.device)
+        for index in range(1, len(energies)):
+            switch = float(self.cfg.plan_mode_switch_weight) * (~eye).to(dtype=cost.dtype)
+            # Intent transitions reset the fast implementation mode rather
+            # than charging continuity through a new long-lived interaction.
+            intent_change = 1.0 - (intent_states[index] * intent_states[index - 1]).sum(dim=-1).clamp(0.0, 1.0)
+            transition = cost[:, :, None] + switch[None] * (1.0 - intent_change[:, None, None])
+            cost = energies[index] - temperature * probabilities[index].clamp_min(1.0e-8).log() \
+                - temperature * torch.logsumexp(-transition / temperature, dim=1)
+        return (-temperature * torch.logsumexp(-cost / temperature, dim=-1)).mean()
 
     def _response_endpoint_l1(
         self,
@@ -812,11 +890,17 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         overlap_losses: list[torch.Tensor] = []
         residual_losses: list[torch.Tensor] = []
         smoothness_losses: list[torch.Tensor] = []
+        mode_energies: list[torch.Tensor] = []
+        mode_probabilities: list[torch.Tensor] = []
+        mode_intent_states: list[torch.Tensor] = []
+        mode_diversity_losses: list[torch.Tensor] = []
+        mode_calibration_losses: list[torch.Tensor] = []
         previous_plan: torch.Tensor | None = None
         previous_scene: torch.Tensor | None = None
         previous_valid: torch.Tensor | None = None
         previous_state: torch.Tensor | None = None
         previous_clean_forecast: torch.Tensor | None = None
+        previous_plan_mode: torch.Tensor | None = None
         for response in range(rollout_steps):
             agent_context, scene_context, _ = self.encode_step(
                 history, history_valid, current, current_valid, ego_mask,
@@ -830,18 +914,23 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 agent_context, scene_context, self.latent.state_embedding(q_state[:, response]), anchor_std, states[:, 24], predicted_frames,
                 start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
+            mode_uniform = torch.rand((b,), dtype=states.dtype, device=states.device) \
+                if self.training and self.cfg.plan_num_modes > 1 else None
             decoded = self._decode_response(
                 agent_context, scene_context, self.latent.state_embedding(q_state[:, response]), elapsed[:, response],
                 current_valid & background_mask, current, anchor_residual=anchor_residual,
+                previous_plan=previous_plan, previous_mode=previous_plan_mode, mode_uniform=mode_uniform,
             )
             controls = decoded["controls"]
             response_gate = decoded["response_gate"]
             b0_plan = self._b0_nominal_plan(current, start_slice)
             audit_plan = decoded["control_plan"]
             forecast_audit_plan = decoded["forecast_control_plan"]
+            candidate_forecast = decoded["candidate_forecast_control_plans"]
             if b0_plan is not None:
                 audit_plan = self.decoder._bounded_controls(audit_plan + b0_plan)
                 forecast_audit_plan = self.decoder._bounded_controls(forecast_audit_plan + b0_plan)
+                candidate_forecast = self.decoder._bounded_controls(candidate_forecast + b0_plan[:, None])
             if response > self.cfg.effective_plan_carry_start_response_steps:
                 controls, audit_plan = self._carry_clean_plan_prefix(
                     controls, audit_plan, previous_clean_forecast,
@@ -849,6 +938,32 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             if self.uses_control_plan:
                 plan_target, plan_valid = self._plan_target(target_controls, response_control_valid, response)
                 plan_losses.append(self._masked_l1(forecast_audit_plan[:, :, 1:], plan_target, plan_valid))
+                if self.cfg.plan_num_modes > 1:
+                    mode_state_target, mode_state_valid = self._plan_state_target(states, valid, response)
+                    energy, _candidate_states, _candidate_overlap = self._multihypothesis_energy(
+                        candidate_forecast, current, current_valid, plan_target, plan_valid,
+                        mode_state_target, mode_state_valid, previous_plan,
+                    )
+                    probabilities = decoded["candidate_probabilities"]
+                    temperature = max(float(self.cfg.plan_mixture_temperature), 1.0e-4)
+                    responsibilities = torch.softmax(-energy.detach() / temperature, dim=-1)
+                    mode_energies.append(energy)
+                    mode_probabilities.append(probabilities)
+                    mode_intent_states.append(q_state[:, response])
+                    mode_calibration_losses.append(
+                        -(responsibilities * probabilities.clamp_min(1.0e-8).log()).sum(dim=-1).mean()
+                    )
+                    future = candidate_forecast[:, :, self.cfg.plan_execute_frames :, 1:]
+                    if future.shape[2] and future.shape[1] > 1:
+                        pairs = []
+                        for left in range(future.shape[1]):
+                            for right in range(left + 1, future.shape[1]):
+                                pairs.append((future[:, left] - future[:, right]).abs().mean(dim=(1, 2, 3)))
+                        if pairs:
+                            separation = torch.stack(pairs, dim=-1).mean(dim=-1)
+                            mode_diversity_losses.append(
+                                torch.relu(float(self.cfg.plan_mode_diversity_margin) - separation).mean()
+                            )
                 if float(self.cfg.plan_state_loss_weight) != 0.0 or float(self.cfg.joint_plan_loss_weight) != 0.0:
                     all_plan_states = self._predict_plan_states(current, forecast_audit_plan, current_valid)
                     plan_state_target, plan_state_valid = self._plan_state_target(states, valid, response)
@@ -898,6 +1013,7 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 previous_clean_forecast = (
                     forecast_audit_plan if response >= self.cfg.behavior_anchor_response_steps else None
                 )
+                previous_plan_mode = decoded["selected_plan_mode"]
                 control_plans.append(audit_plan[:, :, 1:])
                 forecast_control_plans.append(forecast_audit_plan[:, :, 1:])
                 intent_plans.append(decoded["intent_plan"][:, :, 1:])
@@ -1025,6 +1141,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         overlap_loss = torch.stack(overlap_losses).mean() if overlap_losses else controls_pred.new_zeros(())
         residual_loss = torch.stack(residual_losses).mean() if residual_losses else controls_pred.new_zeros(())
         smoothness_loss = torch.stack(smoothness_losses).mean() if smoothness_losses else controls_pred.new_zeros(())
+        mixture_loss = self._soft_viterbi_mode_loss(mode_energies, mode_probabilities, mode_intent_states)
+        diversity_loss = torch.stack(mode_diversity_losses).mean() if mode_diversity_losses else controls_pred.new_zeros(())
+        calibration_loss = torch.stack(mode_calibration_losses).mean() if mode_calibration_losses else controls_pred.new_zeros(())
         total = recon + self.cfg.anchor_loss_weight * anchor_loss + self.cfg.beta_latent * latent_loss + self.cfg.lambda_roll * (
             roll + self.cfg.prior_roll_weight * prior_roll
             + self.cfg.late_roll_weight * (endpoint_roll + self.cfg.prior_roll_weight * prior_endpoint_roll)
@@ -1033,6 +1152,9 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         ) + self.cfg.plan_loss_weight * plan_loss + self.cfg.overlap_loss_weight * overlap_loss \
             + self.cfg.plan_state_loss_weight * plan_state_loss + self.cfg.local_residual_weight * residual_loss \
             + self.cfg.plan_smoothness_weight * smoothness_loss + self.cfg.joint_plan_loss_weight * joint_plan_loss
+        total = total + float(self.cfg.plan_mode_mixture_weight) * mixture_loss \
+            + float(self.cfg.plan_mode_diversity_weight) * diversity_loss \
+            + float(self.cfg.plan_mode_calibration_weight) * calibration_loss
         return {
             "loss": total, "recon_loss": recon.detach(), "roll_loss": roll.detach(), "prior_roll_loss": prior_roll.detach(),
             "endpoint_roll_loss": endpoint_roll.detach(), "prior_endpoint_roll_loss": prior_endpoint_roll.detach(), "first_step_recon": first_recon.detach(),
@@ -1043,6 +1165,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             "start_prior_control_loss": start_prior_control.detach(),
             "plan_loss": plan_loss.detach(), "plan_state_loss": plan_state_loss.detach(), "joint_plan_loss": joint_plan_loss.detach(), "overlap_loss": overlap_loss.detach(),
             "local_residual_loss": residual_loss.detach(), "plan_smoothness_loss": smoothness_loss.detach(),
+            "plan_mode_mixture_loss": mixture_loss.detach(), "plan_mode_diversity_loss": diversity_loss.detach(),
+            "plan_mode_calibration_loss": calibration_loss.detach(),
             "latent_loss": latent_loss.detach(), "latent_kl": latent_terms["latent_kl"].detach(),
             "duration_nll": latent_terms["duration_nll"].detach(), "censor_nll": latent_terms["censor_nll"].detach(),
             "posterior_boundary_nll": latent_terms["posterior_boundary_nll"].detach(),
@@ -1105,7 +1229,11 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         b0_plans: list[torch.Tensor] = []
         planned_states: list[torch.Tensor] = []
         forecast_planned_states: list[torch.Tensor] = []
+        plan_modes: list[torch.Tensor] = []
+        plan_mode_probabilities: list[torch.Tensor] = []
         previous_clean_forecast: torch.Tensor | None = None
+        previous_plan: torch.Tensor | None = None
+        previous_plan_mode: torch.Tensor | None = None
         for response in range(self.response_steps):
             agents, scene, _ = self.encode_step(
                 history, history_valid, current, current_valid, ego_mask,
@@ -1165,11 +1293,16 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 agents, scene, self.latent.state_embedding(previous), anchor_std, states[:, 24], predicted,
                 start_slice, response, current_valid & background_mask,
             ) if active_anchor else None
+            mode_uniform = torch.rand((b,), generator=generator, dtype=states.dtype, device=states.device) \
+                if not deterministic and self.cfg.plan_num_modes > 1 else None
             decoded = self._decode_response(
                 agents, scene, self.latent.state_embedding(previous), elapsed,
                 current_valid & background_mask, current, anchor_residual=anchor_residual,
+                previous_plan=previous_plan, previous_mode=previous_plan_mode, mode_uniform=mode_uniform,
             )
             controls = decoded["controls"]
+            plan_modes.append(decoded["selected_plan_mode"])
+            plan_mode_probabilities.append(decoded["candidate_probabilities"])
             ego_index = int(batch["ego_index"][0].item())
             b0_plan = self._b0_nominal_plan(current, start_slice, ego_index=ego_index)
             audit_plan = decoded["control_plan"]
@@ -1196,6 +1329,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 previous_clean_forecast = (
                     forecast_audit_plan if response >= self.cfg.behavior_anchor_response_steps else None
                 )
+                previous_plan = forecast_audit_plan
+                previous_plan_mode = decoded["selected_plan_mode"]
             ego_future = states[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             current, physical = self._integrate_response(
@@ -1232,6 +1367,8 @@ class SemiMarkovRelationalWorldModel(nn.Module):
             "b0_nominal_plan": torch.stack(b0_plans, dim=1) if b0_plans else predicted_tensor.new_zeros((b, 0, 0, 0, 2)),
             "predicted_plan_states": torch.stack(planned_states, dim=1) if planned_states else predicted_tensor.new_zeros((b, 0, 0, 0, 6)),
             "forecast_plan_states": torch.stack(forecast_planned_states, dim=1) if forecast_planned_states else predicted_tensor.new_zeros((b, 0, 0, 0, 6)),
+            "plan_modes": torch.stack(plan_modes, dim=1) if plan_modes else torch.zeros((b, 0), dtype=torch.long, device=states.device),
+            "plan_mode_probabilities": torch.stack(plan_mode_probabilities, dim=1) if plan_mode_probabilities else predicted_tensor.new_zeros((b, 0, 1)),
         }
 
     def config_payload(self) -> dict[str, Any]:

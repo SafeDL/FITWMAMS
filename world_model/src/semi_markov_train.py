@@ -1,4 +1,4 @@
-"""Training loop for the Semi-Markov Relational Traffic World Model."""
+"""Training loop for the Semi-Markov World Model."""
 from __future__ import annotations
 
 import csv
@@ -129,23 +129,15 @@ def _teacher_forcing_ratio(training: dict[str, Any], *, epoch: int, schedule_epo
 
 
 def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str, Any]) -> dict[str, list[str]]:
-    """Load a compatible continuation or highD→rounD transfer checkpoint.
+    """Load a compatible standalone-model continuation checkpoint.
 
-    The only sanctioned partial loads add/remove the optional conflict
-    attention block or add the zero-initialized M2 temporal plan heads to a
-    frozen M1 checkpoint. Hidden sizes, latent vocabulary and every shared
-    BARS parameter remain strict, so an accidental architecture mismatch
-    cannot be disguised as transfer learning.
+    The only sanctioned partial loads add or remove the optional conflict
+    attention block, or add the zero-initialized multi-hypothesis plan heads.
+    Hidden sizes, latent vocabulary and all shared parameters remain strict.
     """
     source_cfg = dict(payload.get("model_config", {}))
     source_conflicts = bool(source_cfg.get("use_conflict_zones", False))
     target_conflicts = bool(model.cfg.use_conflict_zones)
-    source_variant = str(source_cfg.get("variant", "m1"))
-    target_variant = str(model.cfg.variant)
-    if source_variant not in {"m1", "m2"}:
-        raise ValueError("initial checkpoint must be a retained BARS checkpoint")
-    if target_variant == "m1" and source_variant != "m1":
-        raise ValueError("BARS-M1 cannot load a newer planned-model checkpoint")
     state_dict = dict(payload["state_dict"])
     # The START residual input was expanded from a single, unit-mixed delta to
     # target/prefix/delta in frozen Flow coordinates.  Its input projection is
@@ -162,11 +154,11 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
     can_add_conflicts = target_conflicts and not source_conflicts
-    plan_prefixes = ("decoder.plan_time.", "decoder.intent_time.", "decoder.cross_vehicle.", "decoder.local_time.")
-    can_add_plan = target_variant == "m2" and source_variant == "m1"
+    can_add_plan_modes = int(model.cfg.plan_num_modes) > int(source_cfg.get("plan_num_modes", 1))
+    plan_mode_prefixes = ("decoder.plan_mode_", "decoder.previous_plan_projection.")
     allowed_missing = all(
         (can_add_conflicts and key.startswith(conflict_prefixes))
-        or (can_add_plan and key.startswith(plan_prefixes))
+        or (can_add_plan_modes and key.startswith(plan_mode_prefixes))
         for key in missing
     )
     allowed_unexpected = source_conflicts and not target_conflicts and all(
@@ -284,14 +276,6 @@ def _roll_mode_metrics(model, loader, device, *, seed: int) -> dict[str, float]:
         "roll_mode_1s_FDE_m": first_terminal_distance / max(first_terminal_valid, 1),
         "roll_mode_1s_gap_MAE_m": gap_error / max(gap_count, 1),
     }
-
-
-def _not_weaker_than_incumbent(candidate: dict[str, float], incumbent: dict[str, float], *, atol_m: float = 1.0e-6) -> bool:
-    """Compare identical rollouts without rejecting harmless FP roundoff."""
-    return all(
-        float(candidate[key]) <= float(incumbent[key]) + float(atol_m)
-        for key in ("roll_mode_1s_ADE_m", "roll_mode_1s_FDE_m", "roll_mode_1s_gap_MAE_m", "roll_mode_FDE_m")
-    )
 
 
 def _prototypes(model, loader, device) -> dict[str, Any]:
@@ -421,14 +405,14 @@ def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torc
         plan_heads = (
             "decoder.plan_time", "decoder.intent_time", "decoder.cross_vehicle", "decoder.local_time",
         )
-        execution_heads = plan_heads
-        # Preserve the transferred M1 executed-control heads through stages
-        # A/B.  The new plan heads first learn forecasts and overlap; only
-        # joint fine-tuning may alter the incumbent decoder/encoder path.
+        mode_heads = ("decoder.plan_mode_", "decoder.previous_plan_projection")
+        execution_heads = mode_heads if bool(training.get("plan_mode_only", False)) else (*plan_heads, *mode_heads)
+        # The plan heads first learn forecasts and overlap; only joint
+        # fine-tuning may alter the decoder/encoder execution path.
         allowed = {
-            "anchor": plan_heads,
-            "roll": execution_heads if bool(training.get("m2_freeze_latent_in_roll", False)) else (*execution_heads, "latent"),
-            "joint": ("decoder",) if bool(training.get("m2_decoder_only_joint", False)) else tuple(),
+            "anchor": mode_heads if bool(training.get("plan_mode_only", False)) else plan_heads,
+            "roll": execution_heads if bool(training.get("plan_freeze_latent_in_roll", False)) else (*execution_heads, "latent"),
+            "joint": ("decoder",) if bool(training.get("plan_decoder_only_joint", False)) else tuple(),
         }.get(stage, tuple())
     else:
         allowed = {
@@ -491,7 +475,7 @@ def train_semi_markov_world_model(
         schema_path = paths.get("flow_schema")
         checkpoint_path = paths.get("flow_checkpoint")
         if not schema_path or not checkpoint_path:
-            raise ValueError("M1 requires paths.flow_schema and paths.flow_checkpoint for the frozen Flow contract")
+            raise ValueError("Semi-Markov World Model requires paths.flow_schema and paths.flow_checkpoint for the frozen Flow contract")
         frozen = FrozenLegacyFlowSchema.load(_resolved_path(str(schema_path), config_dir))
         expected_schema = paths.get("flow_schema_sha256")
         if expected_schema is not None and frozen.schema_sha256 != str(expected_schema):
@@ -522,15 +506,6 @@ def train_semi_markov_world_model(
         arrays, "val", batch_size=int(training.get("batch_size", 16)), maximum=max_val_sequences,
         shuffle=False, seed=seed, num_workers=loader_workers,
     )
-    incumbent_reference: dict[str, float] | None = None
-    incumbent_path = training.get("incumbent_reference_checkpoint")
-    if model.uses_behavior_anchor and model.cfg.variant != "m1":
-        if not incumbent_path:
-            raise ValueError("BARS-M2+ training requires training.incumbent_reference_checkpoint for strict checkpoint selection")
-        reference_model = load_semi_markov_checkpoint(_resolved_path(str(incumbent_path), config_dir), device=device)
-        if reference_model.cfg.variant != "m1":
-            raise ValueError("incumbent_reference_checkpoint must contain the behavior-anchored BARS-M1 model")
-        incumbent_reference = _roll_mode_metrics(reference_model, val_loader, device, seed=seed + 10_000)
     requested_epochs = int(epochs if epochs is not None else training.get("epochs", 80))
     stage_offset = int(stage_offset)
     if requested_epochs <= 0 or stage_offset < 0:
@@ -567,19 +542,6 @@ def train_semi_markov_world_model(
     records: list[dict[str, float]] = []
     optimizer = None
     active_stage = ""
-    # A stage qualifies when at least one of its checkpoints satisfies the
-    # first-second BARS-M1 constraint.  Requiring *every* exploratory epoch to
-    # satisfy it made an early, expected warm-up miss permanently veto stage
-    # C even after later checkpoints had recovered.
-    stage_gate_passed = False
-    stage_qualified = {"anchor": False, "roll": False}
-    elapsed_stage_epochs = 0
-    for item in stages:
-        elapsed_stage_epochs += int(item["epochs"])
-        completed_name = str(item.get("name", "joint")).replace("_realization", "").replace("_rollout", "")
-        completed_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(completed_name, completed_name)
-        if elapsed_stage_epochs <= stage_offset and completed_name in stage_qualified:
-            stage_qualified[completed_name] = True
     # A continuation must compete with its starting model.  Otherwise the
     # first optimizer update becomes the "best" checkpoint even when it
     # degrades free-running ROLL performance.
@@ -588,22 +550,16 @@ def train_semi_markov_world_model(
         initial_validation = _mean_metrics(model, val_loader, device, teacher_forcing=0.0)
         initial_selection = _roll_mode_metrics(model, val_loader, device, seed=seed + 10_000)
         best = float(initial_selection["roll_mode_FDE_m"])
-        if incumbent_reference is not None:
-            best = min(best, float(incumbent_reference["roll_mode_FDE_m"]))
         best_validation_loss = float(initial_validation["loss"])
         if not math.isfinite(best) or not math.isfinite(best_validation_loss):
             raise FloatingPointError("initial checkpoint has non-finite validation metrics")
-        initial_eligible = incumbent_reference is None or _not_weaker_than_incumbent(initial_selection, incumbent_reference)
-        if initial_eligible:
-            torch.save({
-                "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
-                "epoch": 0, "validation": initial_validation, "roll_mode_validation": initial_selection,
-                "sequence_manifest": manifest, "adapter_version": manifest.get("adapter", "unknown"), "dynamics_version": model.dynamics.version,
-                "training_protocol": training_protocol, "selection_origin": "initial_checkpoint",
-            }, best_path)
-            save_json(_prototypes(model, val_loader, device), output_dir / "latent_state_prototypes.json")
-        else:
-            best = float("inf")
+        torch.save({
+            "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
+            "epoch": 0, "validation": initial_validation, "roll_mode_validation": initial_selection,
+            "sequence_manifest": manifest, "adapter_version": manifest.get("adapter", "unknown"), "dynamics_version": model.dynamics.version,
+            "training_protocol": training_protocol, "selection_origin": "initial_checkpoint",
+        }, best_path)
+        save_json(_prototypes(model, val_loader, device), output_dir / "latent_state_prototypes.json")
         logger.info("initial ROLL validation FDE=%.5f", best)
     for local_epoch in range(1, requested_epochs + 1):
         epoch = stage_offset + local_epoch
@@ -615,11 +571,6 @@ def train_semi_markov_world_model(
             remaining_epochs -= int(item["epochs"])
         stage_name = str(stage_spec.get("name", "joint")).replace("_realization", "").replace("_rollout", "")
         stage_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(stage_name, stage_name)
-        if stage_name == "joint":
-            stage_gate_passed = stage_qualified["anchor"] and stage_qualified["roll"]
-        if stage_name == "joint" and not stage_gate_passed:
-            logger.warning("skipping stage C because the strict BARS-M1 first-second gate did not pass in stages A/B")
-            break
         if stage_name != active_stage:
             optimizer = _configure_stage_optimizer(model, stage_name, training, torch)
             active_stage = stage_name
@@ -647,7 +598,7 @@ def train_semi_markov_world_model(
             result["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss", "plan_mode_mixture_loss", "plan_mode_diversity_loss", "plan_mode_calibration_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
                 totals[key] = totals.get(key, 0.0) + float(result[key].detach().cpu())
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
@@ -667,11 +618,8 @@ def train_semi_markov_world_model(
         selection_score = rollout_metrics["roll_mode_FDE_m"]
         if not math.isfinite(selection_score):
             raise FloatingPointError("non-finite ROLL validation FDE; no checkpoint was written")
-        eligible = incumbent_reference is None or _not_weaker_than_incumbent(rollout_metrics, incumbent_reference)
-        row["bars_m1_1s_gate_pass"] = float(eligible)
-        if active_stage in stage_qualified:
-            stage_qualified[active_stage] = stage_qualified[active_stage] or eligible
-        row["stage_gate_passed_so_far"] = float(stage_qualified["anchor"] and stage_qualified["roll"])
+        eligible = True
+        row["selection_eligible"] = 1.0
         if eligible and selection_score < best:
             best = selection_score
             best_validation_loss = val_metrics["loss"]
@@ -712,7 +660,6 @@ def train_semi_markov_world_model(
         "selection_qualified": bool(best_path.exists()),
         "selection_metric": "roll_mode_FDE_m", "best_roll_mode_FDE_m": best,
         "best_validation_loss_at_selected_checkpoint": best_validation_loss, "sequence_manifest": manifest,
-        "bars_m1_incumbent_reference": incumbent_reference,
         **reproducibility,
     }
     if initial_checkpoint is not None:

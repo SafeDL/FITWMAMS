@@ -1,6 +1,5 @@
-# BARS-M2 core continuation: preserve M1 through 3 s, supervise the existing
-# 1 s temporal plan in physical state space, then execute a bounded clean
-# continuation from that plan.  This is one M2 plan head, not a new baseline.
+# Semi-Markov World Model: supervise a one-second temporal plan in physical
+# state space, then execute a bounded receding-horizon continuation.
 paths:
   legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
   output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5"
@@ -24,7 +23,6 @@ graph:
 
 model:
   type: "semi_markov_relational"
-  variant: "m2"
   anchor_loss_weight: 1.0
   start_roll_weight: 4.0
   cold_start_history: true
@@ -74,8 +72,7 @@ training:
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
-  incumbent_reference_checkpoint: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/checkpoints/best_semi_markov_relational.pt"
-  m2_freeze_latent_in_roll: true
+  plan_freeze_latent_in_roll: true
   stages:
     - {name: "roll", epochs: 3}
   encoder_learning_rate: 0.000005
@@ -87,4 +84,3 @@ evaluation:
   batch_size: 64
   max_sequences: 0
   cold_start_history: true
-  incumbent_reference_summary: "../../../results/highd_world_model/behavior_anchored_semi_markov_m1_start_roll_v2/semi_markov_evaluation_summary.json"
