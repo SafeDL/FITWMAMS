@@ -1,6 +1,6 @@
 # 背景交通世界模型
 
-本目录保留当前最佳的 **Semi-Markov World Model**（半马尔可夫世界模型）和冻结的 CAT-TopK 兼容层。Semi-Markov World Model 以动态交通关系图表示场景，以场景级离散半马尔可夫状态表示交互意图，并以持续意图、行为锚定和时域控制计划生成背景车控制。
+本目录保留当前最佳的 **Semi-Markov World Model**（半马尔可夫世界模型）和冻结的 CAT-TopK 兼容层。Semi-Markov World Model 面向固定 highD 自然驾驶片段：以动态交通关系图表示场景，以场景级离散半马尔可夫状态表示交互意图，并以持续意图、行为锚定和时域控制计划生成短时闭环背景车控制。
 
 | 对象 | 状态 | 用途 |
 | --- | --- | --- |
@@ -11,6 +11,7 @@
 
 - 不读取 ADS 身份、ADS 网络特征、ego future、风险标签或 `risk_trace`。
 - 背景车使用六个固定槽位；当前 rollout 不做车辆新增、消失或槽位重分配。
+- 当前训练和测试范围是固定 highD 自然驾驶数据的未来 0--5 秒闭环片段；不包含跨数据集支持。
 - Semi-Markov World Model 的 START 首秒使用冻结 Flow 的行为锚定；ROLL 只使用已发生的 ego 历史和模型状态。
 - CAT-TopK 的 START 使用冻结的首秒 Flow 动作摘要；这与 Semi-Markov World Model 的信息条件不同，所有 CAT 对比报告都会标记该事实。
 
@@ -22,38 +23,36 @@
 python world_model/scripts/train_semi_markov_world_model.py
 ```
 
-默认配置为 `scripts/configs/highd_semi_markov_world_model.yaml`，输出写至 `results/highd_world_model/semi_markov_world_model_reproduction/`。可用 `--config`、`--output-dir` 覆盖，或用 `--stages validate train evaluate` 分阶段执行。该流程不读取历史 Semi-Markov checkpoint；冻结 Flow 与顺序缓存是明确的上游训练输入。
-
-## 实验性多候选计划
-
-`scripts/configs/highd_semi_markov_multihypothesis.yaml` 提供四个**场景级**候选计划的实验配置：候选 0 始终是原有名义计划，候选 1--3 仅以五个有界 jerk 控制点生成联合残差。候选概率依赖场景、半马尔可夫意图状态和上一个剩余计划；运行时随机数、选中模式和概率均会写入环境 trace，并由快照恢复。
-
-该实验从冻结基线初始化时使用 `--initial-checkpoint`。目前三组验证训练及独立测试子集均没有超过基线，因而它是可复现实验代码，不是当前最佳 checkpoint。筛选记录见 [baselines/multihypothesis_v1_experiment_log.md](baselines/multihypothesis_v1_experiment_log.md)，基线恢复清单见 [baselines/semi_markov_v5_baseline.yaml](baselines/semi_markov_v5_baseline.yaml)。
+默认配置为 `scripts/configs/highd_semi_markov_world_model.yaml`，输出写至 `results/highd_world_model/semi_markov_world_model/`。可用 `--config`、`--output-dir` 覆盖，或用 `--stages validate train evaluate` 分阶段执行。该流程不读取历史 Semi-Markov checkpoint；冻结 Flow 与顺序缓存是明确的上游训练输入。
 
 ## 冻结工件与评测
 
-当前最佳 Semi-Markov World Model 的训练与测试结果保留在：
+历史 checkpoint、训练记录和测试报告已清理；重新训练的 Semi-Markov World Model 默认写入：
 
 ```text
-results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5/
+results/highd_world_model/semi_markov_world_model/
 ```
 
-其 checkpoint 位于 `checkpoints/best_semi_markov_relational.pt`。CAT-TopK 的当前最佳训练和测试结果、checkpoint 及其源代码保持不变，位于：
+CAT-TopK 的训练 checkpoint、训练记录、测试摘要和损失图统一保存在 `results/highd_world_model/cat_topk_world_model/`；Semi-Markov 对应工件统一保存在 `results/highd_world_model/semi_markov_world_model/`。CAT-TopK 的源代码、训练脚本和配置保留在：
 
 ```text
-results/highd_world_model/catk_topk/
 world_model/src/{model,data,evaluation,environment,train}.py
 world_model/scripts/configs/highd_cat_topk_world_model.yaml
 ```
 
-不要把冻结结果目录作为新训练输出目录。
-
-## 与 CAT-TopK 的配对比较
+## 单模型测试与 CAT-TopK 配对比较
 
 ```bash
-python world_model/scripts/test_semi_markov_against_cat.py \
+python world_model/scripts/test_semi_markov.py
+python world_model/scripts/test_cat_topk.py
+```
+
+最终横向比较使用配对脚本：
+
+```bash
+python world_model/scripts/compare_semi_markov_cat_topk.py \
   --semi-config world_model/scripts/configs/highd_semi_markov_world_model.yaml \
-  --semi-checkpoint results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5/checkpoints/best_semi_markov_relational.pt \
+  --semi-checkpoint results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt \
   --horizon-seconds 1
 ```
 
@@ -61,11 +60,12 @@ python world_model/scripts/test_semi_markov_against_cat.py \
 
 ## CAT-TopK 训练与测试
 
-CAT-TopK 的训练与单模型测试入口保留如下；两者默认写入新的输出目录，不会覆盖冻结的 `catk_topk/` 结果：
+CAT-TopK 的训练与单模型测试入口保留如下；训练默认输出到 `results/highd_world_model/cat_topk_world_model/`：
 
 ```bash
 python world_model/scripts/train_cat_topk.py
 python world_model/scripts/test_cat_topk.py
+python world_model/scripts/test_semi_markov.py
 ```
 
 `scripts/configs/highd_cat_topk_world_model.yaml` 固化当前最佳 CAT-TopK checkpoint 的模型结构与数据缓存路径。若要从头训练，使用新的 `--output-dir`；若要评测现有最优 checkpoint，可直接运行测试脚本。
@@ -82,7 +82,7 @@ snapshot = environment.snapshot()
 environment.restore(snapshot)
 ```
 
-`step()` 是 0.2 秒响应更新；`roll()` 是连续五次响应更新的兼容包装。`snapshot()` 与 `restore()` 保存图、背景状态、历史、潜在状态、持续时间、计划状态和随机数状态（包括候选模式 uniform），以支持分支后确定性继续。
+`step()` 是 0.2 秒响应更新；`roll()` 是连续五次响应更新的兼容包装。`snapshot()` 与 `restore()` 保存图、背景状态、历史、潜在状态、持续时间、计划状态和随机数状态，以支持分支后确定性继续。
 
 ## CAT-TopK 冻结接口
 

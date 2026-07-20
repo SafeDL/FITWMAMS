@@ -240,7 +240,7 @@ def main() -> None:
     parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_semi_markov_world_model.yaml"))
     parser.add_argument("--catk-config", default=str(ROOT / "world_model/scripts/configs/highd_cat_topk_world_model.yaml"))
     parser.add_argument("--semi-checkpoint", required=True)
-    parser.add_argument("--catk-checkpoint", default=str(ROOT / "results/highd_world_model/catk_topk/checkpoints/best_world_model.pt"))
+    parser.add_argument("--catk-checkpoint", default=str(ROOT / "results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt"))
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--horizon-seconds", type=int, choices=(1, 5), default=1)
     parser.add_argument("--max-sequences", type=int, default=0, help="Bounded smoke-run only; 0 uses all held-out sequences.")

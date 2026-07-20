@@ -1,0 +1,40 @@
+{
+  "best_epoch": 16,
+  "best_val_loss": 0.18993294043168923,
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt",
+  "dataset_cache": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache/dataset_cache_arrays",
+  "dataset_cache_uses_relation_features": true,
+  "dataset_dir": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache",
+  "dataset_format": "prepared_npy_dir_v2",
+  "device": "cuda",
+  "diagnostic_validation_interval": 5,
+  "epochs": 30,
+  "epochs_completed": 30,
+  "latest_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/latest_world_model.pt",
+  "model_state_closed_loop": {
+    "curriculum_epochs_per_chunk": 8,
+    "enabled": true,
+    "max_chunks": 5
+  },
+  "no_improvement_min_delta": 0.0,
+  "no_improvement_patience": 0,
+  "num_train_samples": 112943,
+  "num_val_samples": 507255,
+  "patience_best_val_loss": 0.18993294043168923,
+  "performance": {
+    "allow_tf32": false,
+    "float32_matmul_precision": "highest",
+    "fused_adamw": false,
+    "mixed_precision": "off",
+    "mixed_precision_enabled": false,
+    "torch_compile": false,
+    "torch_compile_requested": false
+  },
+  "resumed_from_checkpoint": false,
+  "start_epoch": 0,
+  "stopped_early": false,
+  "tensorboard_available": true,
+  "tensorboard_log_dir": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/tensorboard",
+  "training_history": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/training_history.csv",
+  "use_start_flow_summary": true
+}

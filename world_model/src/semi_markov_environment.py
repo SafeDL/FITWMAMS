@@ -19,7 +19,6 @@ class WorldRandomness:
     seed: int = 123
     state_uniforms: list[float] = field(default_factory=list)
     duration_uniforms: list[float] = field(default_factory=list)
-    plan_mode_uniforms: list[float] = field(default_factory=list)
     # These audit fields are deliberately exogenous metadata.  They neither
     # affect the learned transition nor identify an ADS implementation.
     event_structure: Any | None = None
@@ -31,9 +30,8 @@ class WorldRandomness:
 class SemiMarkovBackgroundEnvironment:
     """Environment with response-scale ``step`` and one-second wrappers.
 
-    State, duration and short-plan-mode uniforms are all exogenous. The logged
-    trace is sufficient to replay the same latent and plan-mode path under
-    another ADS.
+    State and duration uniforms are exogenous. The logged trace is sufficient
+    to replay the same latent path under another ADS.
     """
 
     def __init__(
@@ -57,7 +55,6 @@ class SemiMarkovBackgroundEnvironment:
         self._rng: np.random.Generator | None = None
         self._state_uniforms: list[float] = []
         self._duration_uniforms: list[float] = []
-        self._plan_mode_uniforms: list[float] = []
         self._behavior_anchor: np.ndarray | None = None
         self._behavior_anchor_valid: np.ndarray | None = None
         self._behavior_anchor_std: np.ndarray | None = None
@@ -69,7 +66,6 @@ class SemiMarkovBackgroundEnvironment:
         self._previous_plan_valid: np.ndarray | None = None
         self._previous_relation_summary: np.ndarray | None = None
         self._previous_intent_state: int | None = None
-        self._previous_plan_mode: int | None = None
         self._plan_response_index = 0
         self.model_checkpoint_hash = model_checkpoint_hash or getattr(model, "checkpoint_hash", None) or "unbound_model"
         self.map_adapter_version = str(map_adapter_version)
@@ -92,7 +88,6 @@ class SemiMarkovBackgroundEnvironment:
         self._latent_state, self._remaining_duration, self._elapsed = None, 0, 0
         self._rng = np.random.default_rng(int(randomness.seed))
         self._state_uniforms, self._duration_uniforms = list(randomness.state_uniforms), list(randomness.duration_uniforms)
-        self._plan_mode_uniforms = list(randomness.plan_mode_uniforms)
         self._behavior_anchor = None
         self._behavior_anchor_valid = None
         self._behavior_anchor_std = None
@@ -103,7 +98,6 @@ class SemiMarkovBackgroundEnvironment:
         self._previous_plan_valid = None
         self._previous_relation_summary = None
         self._previous_intent_state = None
-        self._previous_plan_mode = None
         self._plan_response_index = 0
         if behavior_anchor is not None:
             anchor = np.asarray(behavior_anchor, np.float32)
@@ -128,7 +122,6 @@ class SemiMarkovBackgroundEnvironment:
             "z_flow_or_flow_base_sample": deepcopy(randomness.flow_base_sample),
             "initial_physical_state": self._states.tolist(),
             "world_random_seed": int(randomness.seed), "uniform_state_random_numbers": [], "uniform_duration_random_numbers": [],
-            "plan_mode_uniforms": [], "realized_plan_modes": [], "candidate_probabilities": [],
             "realized_latent_states": [], "realized_durations": [], "latent_transition_times": [],
             "response_update_period": float(self.model.cfg.response_interval_s), "dynamics_version": self.model.dynamics.version,
             "model_checkpoint_hash": str(randomness.model_checkpoint_hash or self.model_checkpoint_hash),
@@ -140,7 +133,6 @@ class SemiMarkovBackgroundEnvironment:
             "previous_plan_valid": None if self._previous_plan_valid is None else self._previous_plan_valid.copy(),
             "previous_relation_summary": None if self._previous_relation_summary is None else self._previous_relation_summary.copy(),
             "previous_intent_state": self._previous_intent_state,
-            "previous_plan_mode": self._previous_plan_mode,
             "plan_response_index": int(self._plan_response_index),
             "behavior_anchor_initial": None if self._behavior_anchor_initial is None else self._behavior_anchor_initial.cpu().numpy().copy(),
             "behavior_anchor_generated": [item.cpu().numpy().copy() for item in self._behavior_anchor_generated],
@@ -173,7 +165,6 @@ class SemiMarkovBackgroundEnvironment:
             "rng_state": None if self._rng is None else deepcopy(self._rng.bit_generator.state),
             "state_uniforms_remaining": list(self._state_uniforms),
             "duration_uniforms_remaining": list(self._duration_uniforms),
-            "plan_mode_uniforms_remaining": list(self._plan_mode_uniforms),
             "trace": deepcopy(self.trace),
         }
 
@@ -226,11 +217,9 @@ class SemiMarkovBackgroundEnvironment:
         self._previous_plan_valid = None if previous_valid is None else np.asarray(previous_valid, bool).copy()
         self._previous_relation_summary = None if previous_relation is None else np.asarray(previous_relation, np.float32).copy()
         self._previous_intent_state = snapshot.get("previous_intent_state")
-        self._previous_plan_mode = snapshot.get("previous_plan_mode")
         self._plan_response_index = int(snapshot.get("plan_response_index", self.trace.get("response_steps", 0)))
         self._state_uniforms = [float(value) for value in snapshot.get("state_uniforms_remaining", [])]
         self._duration_uniforms = [float(value) for value in snapshot.get("duration_uniforms_remaining", [])]
-        self._plan_mode_uniforms = [float(value) for value in snapshot.get("plan_mode_uniforms_remaining", [])]
         rng_state = snapshot.get("rng_state")
         self._rng = None
         if rng_state is not None:
@@ -241,7 +230,6 @@ class SemiMarkovBackgroundEnvironment:
         values = {
             "state": self._state_uniforms,
             "duration": self._duration_uniforms,
-            "plan_mode": self._plan_mode_uniforms,
         }.get(kind)
         if values is None:
             raise ValueError(f"unknown world-uniform kind={kind!r}")
@@ -251,7 +239,7 @@ class SemiMarkovBackgroundEnvironment:
             if self._rng is None:
                 raise RuntimeError("environment randomness not initialized")
             value = float(self._rng.random())
-        key = "plan_mode_uniforms" if kind == "plan_mode" else f"uniform_{kind}_random_numbers"
+        key = f"uniform_{kind}_random_numbers"
         self.trace[key].append(value)
         return value
 
@@ -270,10 +258,8 @@ class SemiMarkovBackgroundEnvironment:
             "lane_graph_edges": torch.as_tensor(np.asarray(self.graph.lane_graph_edges, np.int64)[None], device=self.device),
         }
         # Conflict regions are static map features, just like lane polylines.
-        # Passing them through the live environment is essential for rounD:
-        # otherwise the trained conflict cross-attention block would be
-        # silently absent during closed-loop rollout even though it was active
-        # in the sequence loader and evaluation path.
+        # Keep them aligned between the prepared sequence cache and live
+        # closed-loop rollout whenever the optional encoder block is enabled.
         if self.model.cfg.use_conflict_zones:
             batch["conflict_zone_features"] = torch.as_tensor(
                 np.asarray(self.graph.conflict_zone_features, np.float32)[None], device=self.device,
@@ -329,19 +315,9 @@ class SemiMarkovBackgroundEnvironment:
                 torch.as_tensor(self._behavior_anchor_std[None], device=self.device), self._behavior_anchor_initial,
                 self._behavior_anchor_generated, start_actions, int(self.trace["response_steps"]), valid & ~ego_mask,
             )
-        mode_uniform = None
-        if self.model.cfg.plan_num_modes > 1:
-            mode_uniform = torch.tensor([self._next_uniform("plan_mode")], dtype=current.dtype, device=self.device)
-        previous_mode = None if self._previous_plan_mode is None else torch.tensor(
-            [self._previous_plan_mode], dtype=torch.long, device=self.device,
-        )
         decoded = self.model._decode_response(
             agents, scene, self.model.latent.state_embedding(state_prob), torch.tensor([self._elapsed], device=self.device),
             valid & ~ego_mask, current, anchor_residual=anchor_residual,
-            previous_plan=None if self._previous_control_plan is None else torch.as_tensor(
-                self._previous_control_plan[None], dtype=current.dtype, device=self.device,
-            ),
-            previous_mode=previous_mode, mode_uniform=mode_uniform,
         )
         controls = decoded["controls"]
         b0_plan = self.model._b0_nominal_plan(current, start_actions, ego_index=ego_index)
@@ -429,10 +405,7 @@ class SemiMarkovBackgroundEnvironment:
             self._previous_plan_valid = self._valid.copy()
             self._previous_relation_summary = relation_summary.copy()
             self._previous_intent_state = int(self._latent_state)
-            self._previous_plan_mode = int(decoded["selected_plan_mode"][0].item())
             self._plan_response_index += 1
-        self.trace["realized_plan_modes"].append(int(decoded["selected_plan_mode"][0].item()))
-        self.trace["candidate_probabilities"].append(decoded["candidate_probabilities"][0].detach().cpu().numpy().tolist())
         return {
             "agent_states": self._states.copy(), "agent_valid": self._valid.copy(),
             "background_states": outputs[:, background_indices], "background_valid": np.repeat(self._valid[None, background_indices], len(outputs), axis=0),
@@ -448,8 +421,6 @@ class SemiMarkovBackgroundEnvironment:
             "overlap_diagnostics": overlap_diagnostics,
             "latent_state": int(self._latent_state), "remaining_duration": int(self._remaining_duration),
             "latent_probabilities": None if probabilities is None else probabilities.cpu().numpy(), "trace": dict(self.trace),
-            "plan_mode": int(decoded["selected_plan_mode"][0].item()),
-            "candidate_probabilities": decoded["candidate_probabilities"][0].cpu().numpy(),
         }
 
     @staticmethod

@@ -13,8 +13,7 @@ class HighDGraphAdapter:
     """Convert highD physical states to the common dynamic graph schema.
 
     No slot name is exposed outside this adapter.  The current highD cache has
-    a bounded number of agents, but the validity mask makes the emitted graph
-    variable-sized and retains the same interface used by rounD.
+    a bounded number of agents, represented by a validity mask.
     """
 
     version = "highd_straight_lane_v1"

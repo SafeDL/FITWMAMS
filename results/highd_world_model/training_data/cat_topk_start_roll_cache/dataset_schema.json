@@ -279,6 +279,6 @@
     "ay_left_mps2"
   ],
   "tail_context_csv": "/home/hp/FITWMAMS/results/highd_natural_evt/natural_tail_contexts.csv",
-  "dataset_cache": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll/dataset_cache_arrays",
-  "dataset_array_dir": "/home/hp/FITWMAMS/results/highd_world_model/shared_dense_start_roll/dataset_cache_arrays"
+  "dataset_cache": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache/dataset_cache_arrays",
+  "dataset_array_dir": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache/dataset_cache_arrays"
 }

@@ -28,7 +28,7 @@ class DynamicTrafficGraphBuilder:
     """Build lane-aware sparse graphs without referring to slot names.
 
     The highD adapter uses straight lane polylines, while the same graph format
-    accepts curved map polylines from rounD.  Agent identifiers are stable
+    accepts supplied map polylines. Agent identifiers are stable
     across a sequence but their membership is allowed to change at every step.
     """
 
@@ -57,8 +57,7 @@ class DynamicTrafficGraphBuilder:
         """Associate agents with nearest valid polyline geometry.
 
         The legacy centerline-y helper remains for compatibility with old
-        callers.  New graph adapters use this geometric version so a rounD
-        roundabout is not silently treated as a set of horizontal lanes.
+        callers. Supplied map geometry is never overwritten by this fallback.
         """
         states = np.asarray(states, np.float32)
         active = np.asarray(valid, bool)
@@ -96,8 +95,8 @@ class DynamicTrafficGraphBuilder:
         topology = np.asarray(lane_graph_edges if lane_graph_edges is not None else np.zeros((0, 3)), np.int64).reshape(-1, 3)
         # 0=successor (same traffic stream), 1=adjacent, 2=merge,
         # 3=diverge, and 4=cross.  Keep the non-highway relations intact;
-        # collapsing them to adjacent lane would discard the purpose of the
-        # rounD conflict graph before the encoder ever sees it.
+        # collapsing them to adjacent lane would discard meaningful map
+        # topology before the encoder sees it.
         relation_for_kind = {0: "same_lane", 1: "adjacent_lane", 2: "merge", 3: "diverge", 4: "cross"}
         direct_topology = {
             (int(source), int(destination)): int(kind)
@@ -121,7 +120,7 @@ class DynamicTrafficGraphBuilder:
                     relation = relation_for_kind.get(kind, "unrelated")
                     # The geometry-only fallback preserves useful highD
                     # behaviour for callers that intentionally omit a map
-                    # topology, but never overwrites an explicit rounD map.
+                    # topology, but never overwrites an explicit map.
                     if relation == "unrelated" and not len(direct_topology) and abs(lane_i - lane_j) == 1:
                         relation = "adjacent_lane"
                 # Keep only topology-relevant graph edges; unrelated agents do

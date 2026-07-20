@@ -1,12 +1,12 @@
 # Semi-Markov World Model: supervise a one-second temporal plan in physical
 # state space, then execute a bounded receding-horizon continuation.
 paths:
-  legacy_dataset_dir: "../../../results/highd_world_model/shared_dense_start_roll"
-  output_dir: "../../../results/highd_world_model/behavior_anchored_semi_markov_m2_plan_state_v5"
-  sequence_cache_dir: "../../../results/highd_world_model/semi_markov_relational_full"
+  legacy_dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
+  output_dir: "../../../results/highd_world_model/semi_markov_world_model"
+  sequence_cache_dir: "../../../results/highd_world_model/training_data/semi_markov_sequence_cache"
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
-  flow_checkpoint: "../../../results/highd_tail_flow_best/checkpoints/best_tail_conditional_maf.pt"
-  flow_schema: "../../../results/highd_tail_flow_best/dataset_schema.json"
+  flow_checkpoint: "../../../results/highd_tail_flow/checkpoints/best_tail_conditional_maf.pt"
+  flow_schema: "../../../results/highd_tail_flow/dataset_schema.json"
   flow_checkpoint_sha256: "206dbb371c80a46232f5f9dd92a98810b1c8644d1002989fc895d82ca4f45a68"
   flow_schema_sha256: "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a"
 
@@ -26,6 +26,7 @@ model:
   anchor_loss_weight: 1.0
   start_roll_weight: 4.0
   cold_start_history: true
+  use_start_flow_summary: true
   hidden_dim: 128
   temporal_layers: 1
   dropout: 0.10
@@ -61,22 +62,23 @@ model:
 training:
   seed: 42
   device: "auto"
-  epochs: 3
-  stage_one_epochs: 0
-  fixed_teacher_forcing_ratio: 0.0
+  epochs: 30
+  # Train the complete Semi-Markov World Model from random initialization.
+  # The Flow summary is a fixed input feature, not a loaded world-model state.
+  train_all_parameters: true
+  min_teacher_forcing: 0.0
   rollout_min_seconds: 3.0
   rollout_max_seconds: 5.0
   tbptt_response_steps: 5
   batch_size: 128
-  num_data_workers: 4
+  num_workers: 4
   learning_rate: 0.00005
   weight_decay: 0.0001
   grad_clip: 1.0
-  plan_freeze_latent_in_roll: true
   stages:
-    - {name: "roll", epochs: 3}
-  encoder_learning_rate: 0.000005
-  decoder_prior_learning_rate: 0.00001
+    - {name: "joint", epochs: 30}
+  encoder_learning_rate: 0.00005
+  decoder_prior_learning_rate: 0.00005
 
 evaluation:
   seed: 123

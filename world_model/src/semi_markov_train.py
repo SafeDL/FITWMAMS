@@ -75,7 +75,12 @@ def _loader(
 
 
 def _to_batch(values, names, device):
-    return {name: value.to(device) for name, value in zip(names, values)}
+    batch = {name: value.to(device) for name, value in zip(names, values)}
+    if "behavior_anchor_raw" in batch:
+        batch["flow_action_summary"] = batch["behavior_anchor_raw"]
+        batch["flow_action_summary_normalized"] = batch["behavior_anchor_std"]
+        batch["flow_action_summary_valid"] = batch["behavior_anchor_valid"].bool()
+    return batch
 
 
 def _cfg(config: dict[str, Any]) -> SemiMarkovWorldModelConfig:
@@ -132,7 +137,7 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     """Load a compatible standalone-model continuation checkpoint.
 
     The only sanctioned partial loads add or remove the optional conflict
-    attention block, or add the zero-initialized multi-hypothesis plan heads.
+    attention block.
     Hidden sizes, latent vocabulary and all shared parameters remain strict.
     """
     source_cfg = dict(payload.get("model_config", {}))
@@ -154,11 +159,8 @@ def _load_initial_state(model: SemiMarkovRelationalWorldModel, payload: dict[str
     missing, unexpected = list(incompatible.missing_keys), list(incompatible.unexpected_keys)
     conflict_prefixes = ("encoder.conflict_", "encoder.ac_edge.")
     can_add_conflicts = target_conflicts and not source_conflicts
-    can_add_plan_modes = int(model.cfg.plan_num_modes) > int(source_cfg.get("plan_num_modes", 1))
-    plan_mode_prefixes = ("decoder.plan_mode_", "decoder.previous_plan_projection.")
     allowed_missing = all(
-        (can_add_conflicts and key.startswith(conflict_prefixes))
-        or (can_add_plan_modes and key.startswith(plan_mode_prefixes))
+        can_add_conflicts and key.startswith(conflict_prefixes)
         for key in missing
     )
     allowed_unexpected = source_conflicts and not target_conflicts and all(
@@ -358,7 +360,7 @@ def _prototypes(model, loader, device) -> dict[str, Any]:
         "relation_edge_change_rate_by_state": (weighted_relation_change / np.maximum(change_weight, 1.0)).tolist(),
         "lane_assignment_change_rate_by_state": (weighted_lane_change / np.maximum(change_weight, 1.0)).tolist(),
         "primary_interaction_change_rate_by_state": (weighted_primary_change / np.maximum(change_weight, 1.0)).tolist(),
-        "cross_dataset_correspondence": {"highD": "present", "rounD": "requires a prepared rounD sequence cache"},
+        "dataset": "highD fixed natural-driving sequence cache",
         "label_permutation_warning": "Latent state numbers are not comparable across independently trained checkpoints.",
     }
 
@@ -400,18 +402,23 @@ def _stage_schedule(training: dict[str, Any], fallback_epochs: int) -> list[dict
 
 
 def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torch):
-    """Freeze by public subsystem and use the requested low-LR groups."""
-    if model.uses_control_plan:
+    """Select the explicit training subset and construct its optimizer.
+
+    ``train_all_parameters`` is the reproducible from-scratch protocol.  It
+    must not silently inherit one of the plan-head-only fine-tuning policies.
+    """
+    train_all = bool(training.get("train_all_parameters", False))
+    if train_all:
+        allowed: tuple[str, ...] = tuple()
+    elif model.uses_control_plan:
         plan_heads = (
             "decoder.plan_time", "decoder.intent_time", "decoder.cross_vehicle", "decoder.local_time",
         )
-        mode_heads = ("decoder.plan_mode_", "decoder.previous_plan_projection")
-        execution_heads = mode_heads if bool(training.get("plan_mode_only", False)) else (*plan_heads, *mode_heads)
         # The plan heads first learn forecasts and overlap; only joint
         # fine-tuning may alter the decoder/encoder execution path.
         allowed = {
-            "anchor": mode_heads if bool(training.get("plan_mode_only", False)) else plan_heads,
-            "roll": execution_heads if bool(training.get("plan_freeze_latent_in_roll", False)) else (*execution_heads, "latent"),
+            "anchor": plan_heads,
+            "roll": plan_heads if bool(training.get("plan_freeze_latent_in_roll", False)) else (*plan_heads, "latent"),
             "joint": ("decoder",) if bool(training.get("plan_decoder_only_joint", False)) else tuple(),
         }.get(stage, tuple())
     else:
@@ -442,6 +449,18 @@ def _configure_stage_optimizer(model, stage: str, training: dict[str, Any], torc
     if not groups:
         raise RuntimeError(f"training stage {stage!r} has no trainable parameters")
     return torch.optim.AdamW(groups, weight_decay=float(training.get("weight_decay", 1.0e-4)))
+
+
+def _trainable_parameter_summary(model) -> dict[str, int | float]:
+    total = sum(parameter.numel() for parameter in model.parameters())
+    trainable = sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
+    if total <= 0 or trainable <= 0:
+        raise RuntimeError("Semi-Markov World Model has no trainable parameters")
+    return {
+        "total_parameters": int(total),
+        "trainable_parameters": int(trainable),
+        "trainable_fraction": float(trainable / total),
+    }
 
 
 def train_semi_markov_world_model(
@@ -497,7 +516,7 @@ def train_semi_markov_world_model(
         # needless source of drift before the checkpoint is loaded.
         centroids = _fit_descriptor_centroids(arrays, num_states=model.cfg.num_latent_states, seed=seed)
         model.latent.set_descriptor_centroids(torch.from_numpy(centroids).to(device))
-    loader_workers = int(training.get("num_data_workers", 0))
+    loader_workers = int(training.get("num_workers", training.get("num_data_workers", 0)))
     train_loader = _loader(
         arrays, "train", batch_size=int(training.get("batch_size", 16)), maximum=max_train_sequences,
         shuffle=True, seed=seed, num_workers=loader_workers,
@@ -530,6 +549,8 @@ def train_semi_markov_world_model(
         "max_validation_sequences": int(max_val_sequences),
         "stage_offset": stage_offset,
         "run_epochs": requested_epochs,
+        "from_scratch": initial_checkpoint is None,
+        "train_all_parameters": bool(training.get("train_all_parameters", False)),
     }
     if training.get("fixed_teacher_forcing_ratio") is not None:
         training_protocol["fixed_teacher_forcing_ratio"] = float(training["fixed_teacher_forcing_ratio"])
@@ -538,7 +559,6 @@ def train_semi_markov_world_model(
     best_path = checkpoint_dir / "best_semi_markov_relational.pt"
     last_path = checkpoint_dir / "last_semi_markov_relational.pt"
     best = float("inf")
-    best_validation_loss = float("inf")
     records: list[dict[str, float]] = []
     optimizer = None
     active_stage = ""
@@ -546,12 +566,28 @@ def train_semi_markov_world_model(
     # first optimizer update becomes the "best" checkpoint even when it
     # degrades free-running ROLL performance.
     initial_selection: dict[str, float] | None = None
+
+    def write_history() -> None:
+        """Persist every completed epoch so an interrupted run remains auditable."""
+        prior_records: list[dict[str, str]] = []
+        if stage_offset and history_path.exists():
+            with history_path.open(newline="", encoding="utf-8") as handle:
+                prior_records = list(csv.DictReader(handle))
+        combined_records: list[dict[str, Any]] = [*prior_records, *records]
+        fieldnames: list[str] = []
+        for item in combined_records:
+            for key in item:
+                if key not in fieldnames:
+                    fieldnames.append(key)
+        with history_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(combined_records)
     if initial_payload is not None:
         initial_validation = _mean_metrics(model, val_loader, device, teacher_forcing=0.0)
         initial_selection = _roll_mode_metrics(model, val_loader, device, seed=seed + 10_000)
-        best = float(initial_selection["roll_mode_FDE_m"])
-        best_validation_loss = float(initial_validation["loss"])
-        if not math.isfinite(best) or not math.isfinite(best_validation_loss):
+        best = float(initial_validation["loss"])
+        if not math.isfinite(best):
             raise FloatingPointError("initial checkpoint has non-finite validation metrics")
         torch.save({
             "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
@@ -560,7 +596,11 @@ def train_semi_markov_world_model(
             "training_protocol": training_protocol, "selection_origin": "initial_checkpoint",
         }, best_path)
         save_json(_prototypes(model, val_loader, device), output_dir / "latent_state_prototypes.json")
-        logger.info("initial ROLL validation FDE=%.5f", best)
+        logger.info(
+            "initial val_loss=%.5f roll_mode_fde=%.5f",
+            best,
+            float(initial_selection["roll_mode_FDE_m"]),
+        )
     for local_epoch in range(1, requested_epochs + 1):
         epoch = stage_offset + local_epoch
         remaining_epochs = epoch
@@ -573,6 +613,10 @@ def train_semi_markov_world_model(
         stage_name = {"A": "anchor", "B": "roll", "C": "joint", "anchor": "anchor", "roll": "roll", "joint": "joint"}.get(stage_name, stage_name)
         if stage_name != active_stage:
             optimizer = _configure_stage_optimizer(model, stage_name, training, torch)
+            parameter_summary = _trainable_parameter_summary(model)
+            if bool(training.get("train_all_parameters", False)) and parameter_summary["trainable_fraction"] != 1.0:
+                raise RuntimeError("from-scratch full training must optimize every Semi-Markov model parameter")
+            training_protocol["parameter_summary"] = parameter_summary
             active_stage = stage_name
         teacher = _teacher_forcing_ratio(
             training, epoch=epoch, schedule_epochs=schedule_epochs, stage_one_epochs=stage_one,
@@ -598,7 +642,7 @@ def train_semi_markov_world_model(
             result["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
-            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss", "plan_mode_mixture_loss", "plan_mode_diversity_loss", "plan_mode_calibration_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
+            for key in ("loss", "recon_loss", "roll_loss", "prior_roll_loss", "endpoint_roll_loss", "prior_endpoint_roll_loss", "prior_control_loss", "late_prior_control_loss", "start_prior_roll_loss", "start_prior_endpoint_loss", "start_prior_control_loss", "plan_loss", "plan_state_loss", "joint_plan_loss", "overlap_loss", "local_residual_loss", "plan_smoothness_loss", "anchor_loss", "latent_loss", "switch_rate", "boundary_target_rate", "rollout_response_steps"):
                 totals[key] = totals.get(key, 0.0) + float(result[key].detach().cpu())
             batches += 1
         train_metrics = {f"train_{key}": value / max(batches, 1) for key, value in totals.items()}
@@ -615,14 +659,13 @@ def train_semi_markov_world_model(
         )
         if not math.isfinite(val_metrics["loss"]):
             raise FloatingPointError("non-finite validation loss; no checkpoint was written")
-        selection_score = rollout_metrics["roll_mode_FDE_m"]
+        selection_score = val_metrics["loss"]
         if not math.isfinite(selection_score):
-            raise FloatingPointError("non-finite ROLL validation FDE; no checkpoint was written")
+            raise FloatingPointError("non-finite validation loss; no checkpoint was written")
         eligible = True
         row["selection_eligible"] = 1.0
         if eligible and selection_score < best:
             best = selection_score
-            best_validation_loss = val_metrics["loss"]
             payload = {
                 "model_type": model.model_type, "model_config": model.config_payload(), "state_dict": model.state_dict(),
                 "epoch": epoch, "validation": val_metrics, "roll_mode_validation": rollout_metrics, "sequence_manifest": manifest,
@@ -639,27 +682,14 @@ def train_semi_markov_world_model(
             "dynamics_version": model.dynamics.version, "training_protocol": training_protocol,
             "selection_eligible": bool(eligible),
         }, last_path)
-    if records:
-        prior_records: list[dict[str, str]] = []
-        if stage_offset and history_path.exists():
-            with history_path.open(newline="", encoding="utf-8") as handle:
-                prior_records = list(csv.DictReader(handle))
-        combined_records: list[dict[str, Any]] = [*prior_records, *records]
-        fieldnames: list[str] = []
-        for row in combined_records:
-            for key in row:
-                if key not in fieldnames:
-                    fieldnames.append(key)
-        with history_path.open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=fieldnames)
-            writer.writeheader(); writer.writerows(combined_records)
+        write_history()
     report = {
         "best_checkpoint": str(best_path) if best_path.exists() else None,
         "checkpoint_sha256": _checkpoint_hash(best_path) if best_path.exists() else None,
         "last_checkpoint": str(last_path), "last_checkpoint_sha256": _checkpoint_hash(last_path),
         "selection_qualified": bool(best_path.exists()),
-        "selection_metric": "roll_mode_FDE_m", "best_roll_mode_FDE_m": best,
-        "best_validation_loss_at_selected_checkpoint": best_validation_loss, "sequence_manifest": manifest,
+        "selection_metric": "val_loss", "best_validation_loss": best,
+        "sequence_manifest": manifest,
         **reproducibility,
     }
     if initial_checkpoint is not None:

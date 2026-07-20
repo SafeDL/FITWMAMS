@@ -1,23 +1,17 @@
-# CAT-TopK reference configuration. The frozen best checkpoint is retained for
-# evaluation; training scripts always materialize a separate output directory.
 paths:
-  dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
-  output_dir: "../../../results/highd_world_model/cat_topk_world_model"
-  highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
-
+  dataset_dir: /home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache
+  output_dir: /home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model
+  highd_evt_config: /home/hp/FITWMAMS/process_highD/scripts/configs/highd_natural_evt.yaml
 dataset:
   max_sequences: 0
-
 split:
   seed: 42
-
 graph:
   lane_width_m: 3.6
   top_r_lanes: 3
   use_recording_lane_metadata: true
-
 model:
-  type: "catk_topk"
+  type: catk_topk
   hidden_dim: 128
   history_layers: 2
   interaction_layers: 2
@@ -38,10 +32,9 @@ model:
   max_jerk_longitudinal_mps3: 8.0
   max_jerk_lateral_mps3: 5.0
   nominal_logit_margin: 0.05
-
 training:
   seed: 42
-  device: "auto"
+  device: auto
   epochs: 30
   batch_size: 128
   num_workers: 4
@@ -51,10 +44,10 @@ training:
   model_state_closed_loop:
     max_chunks: 5
     curriculum_epochs_per_chunk: 8
-
 evaluation:
   seed: 123
-  device: "auto"
+  device: auto
   batch_size: 64
   max_sequences: 0
-  splits: ["test"]
+  splits:
+  - test

@@ -218,8 +218,6 @@ def evaluate_semi_markov_world_model(
     joint_plan_position_sum = 0.0; joint_plan_velocity_sum = 0.0; joint_plan_count = 0
     overlap_sum = 0.0; overlap_count = 0
     local_sum = 0.0; local_count = 0
-    selected_plan_modes: list[np.ndarray] = []
-    plan_mode_probabilities: list[np.ndarray] = []
     with torch.no_grad():
         for values in loader:
             batch = _to_batch(values, loader.field_names, device)
@@ -229,10 +227,6 @@ def evaluate_semi_markov_world_model(
             all_mask.append(rollout["target_valid"].cpu().numpy())
             all_tail.append(batch["is_evt_tail"].cpu().numpy().astype(bool))
             states.extend(rollout["latent_states"]); durations.extend(rollout["latent_durations"])
-            if isinstance(rollout.get("plan_modes"), torch.Tensor):
-                selected_plan_modes.append(rollout["plan_modes"].cpu().numpy())
-            if isinstance(rollout.get("plan_mode_probabilities"), torch.Tensor):
-                plan_mode_probabilities.append(rollout["plan_mode_probabilities"].cpu().numpy())
             posterior = model.forward_training(batch, teacher_forcing_ratio=1.0)
             posterior_boundaries.append(posterior["posterior_boundary_probs"][:, 1:].cpu().numpy())
             boundary_targets.append(posterior["boundary_target"][:, 1:].cpu().numpy())
@@ -334,17 +328,6 @@ def evaluate_semi_markov_world_model(
         "overlap_plan_l1": overlap_sum / max(overlap_count, 1),
         "local_residual_mean_abs": local_sum / max(local_count, 1),
     }
-    if selected_plan_modes:
-        selected = np.concatenate(selected_plan_modes, axis=0).reshape(-1)
-        counts = np.bincount(selected, minlength=int(model.cfg.plan_num_modes))
-        mode_diagnostics = {
-            "num_modes": int(model.cfg.plan_num_modes),
-            "selected_counts": counts.tolist(),
-            "selected_frequency": (counts / max(int(counts.sum()), 1)).tolist(),
-            "mean_probabilities": np.concatenate(plan_mode_probabilities, axis=0).mean(axis=(0, 1)).tolist(),
-        }
-    else:
-        mode_diagnostics = {"num_modes": int(model.cfg.plan_num_modes), "selected_counts": [], "selected_frequency": [], "mean_probabilities": []}
     current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     cache_identity = f"{manifest.get('source_dataset', '')} {manifest.get('adapter', '')}".lower()
     complete_highd = not bool(manifest.get("bounded_development_cache", True)) and "highd" in cache_identity
@@ -392,16 +375,6 @@ def evaluate_semi_markov_world_model(
     legacy_paired_long_path, legacy_paired_long_report = _optional_report(
         evaluation, "legacy_paired_long_horizon_baseline_summary", config_dir=config_dir,
     )
-    round_summary_path, round_report = _optional_report(
-        evaluation, "round_evaluation_summary", config_dir=config_dir,
-    )
-    round_manifest = round_report.get("sequence_cache", {})
-    round_identity = f"{round_manifest.get('source_dataset', '')} {round_manifest.get('adapter', '')}".lower()
-    round_complete = (
-        bool(round_report.get("test_sequences", 0))
-        and not bool(round_manifest.get("bounded_development_cache", True))
-        and "round" in round_identity
-    )
     duration_gate = bool(
         duration.get("available", False)
         and np.isfinite(duration.get("brier_score", np.nan))
@@ -420,15 +393,13 @@ def evaluate_semi_markov_world_model(
     controlled_response = _controlled_response_metrics(
         model, response_loader, device, seed=int(evaluation.get("seed", 123)) + 70_000,
     )
-    promotion_ready = complete_highd and paired_baseline and long_horizon_gate and round_complete and duration_gate
+    promotion_ready = complete_highd and paired_baseline and long_horizon_gate and duration_gate
     if not complete_highd:
         promotion_reason = "Requires complete held-out highD cache."
     elif not paired_baseline:
         promotion_reason = "Requires paired full-highD information-symmetric frozen-baseline comparison."
     elif not long_horizon_gate:
         promotion_reason = "Five-second paired error-accumulation / relationship-drift gate failed."
-    elif not round_complete:
-        promotion_reason = "Requires an independent full rounD evaluation summary."
     elif not duration_gate:
         promotion_reason = "Semi-Markov duration calibration/persistence gate failed."
     else:
@@ -441,7 +412,6 @@ def evaluate_semi_markov_world_model(
         "relationship_distribution": {"predicted": predicted_relations, "target": target_relations, "total_variation": relation_tv},
         "duration_calibration": duration, "prior_posterior_consistency": prior_posterior,
         "control_plan_diagnostics": plan_diagnostics,
-        "plan_mode_diagnostics": mode_diagnostics,
         "behavior_anchor": {
             "cold_start_history": bool(model.cfg.cold_start_history),
             "active_response_steps": int(model.cfg.behavior_anchor_response_steps),
@@ -479,7 +449,6 @@ def evaluate_semi_markov_world_model(
             "full_highd_cache": complete_highd,
             "paired_frozen_baseline": paired_baseline,
             "five_second_error_or_relation_drift_improved": long_horizon_gate,
-            "round_evaluation_complete": round_complete,
             "status": "pass" if promotion_ready else "not_promoted",
             "reason": promotion_reason,
         },

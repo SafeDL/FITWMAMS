@@ -78,7 +78,7 @@ class RelationalTrafficEncoder(nn.Module):
         """Return the nearest valid point of each candidate lane.
 
         A lane's mean ``y`` works only on a straight highway.  Selecting the
-        nearest polyline point preserves curved roundabout geometry and gives
+        nearest polyline point preserves supplied map geometry and gives
         the decoder a local tangent at the agent's actual road position.
         """
         b, n, _ = states.shape

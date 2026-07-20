@@ -8,7 +8,7 @@ paths:
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
   raw_dir: "../../../highD_dataset/Matlab/data"
   tail_context_csv: "../../../results/highd_natural_evt/natural_tail_contexts.csv"
-  output_dir: "../../../results/highd_tail_flow_best"
+  output_dir: "../../../results/highd_tail_flow"
 
 split:
   group_by: recording_ego
@@ -47,7 +47,7 @@ training:
       normalize_train_mean: true
   stages:
     - name: density_fit
-      output_dir: "../../../results/highd_tail_flow_best/stages/density_fit"
+      output_dir: "../../../results/highd_tail_flow/stages/density_fit"
       training:
         max_epochs: 240
         patience: 35
@@ -56,7 +56,7 @@ training:
         lr_decay_factor: 0.5
         min_lr: 0.000005
     - name: likelihood_refinement
-      output_dir: "../../../results/highd_tail_flow_best/stages/likelihood_refinement"
+      output_dir: "../../../results/highd_tail_flow/stages/likelihood_refinement"
       resume_from_stage: density_fit
       training:
         max_epochs: 180
@@ -66,7 +66,7 @@ training:
         lr_decay_factor: 0.5
         min_lr: 0.000001
     - name: final_refinement
-      output_dir: "../../../results/highd_tail_flow_best"
+      output_dir: "../../../results/highd_tail_flow"
       resume_from_stage: likelihood_refinement
       training:
         max_epochs: 260

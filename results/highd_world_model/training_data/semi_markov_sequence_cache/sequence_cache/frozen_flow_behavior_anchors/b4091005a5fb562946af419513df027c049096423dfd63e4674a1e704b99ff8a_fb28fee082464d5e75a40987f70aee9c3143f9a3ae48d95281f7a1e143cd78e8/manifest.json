@@ -9,7 +9,7 @@
   "flow_tail_max_abs_error": 3.6656856536865234e-06,
   "matched_flow_tail_sequences": 2209,
   "num_sequences": 161314,
-  "source_cache_version": "semi_markov_sequence_v3_continuous_coordinates_recording_map",
-  "source_sequence_manifest_sha256": "753282a547ea3f62c829615db4c4550fb4fc438376118160b8c2100fed2d212c",
+  "source_cache_version": "semi_markov_sequence_v4_compact_continuous_coordinates",
+  "source_sequence_manifest_sha256": "fb28fee082464d5e75a40987f70aee9c3143f9a3ae48d95281f7a1e143cd78e8",
   "summary": "exact_26_state_points"
 }

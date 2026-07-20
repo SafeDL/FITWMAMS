@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from copy import deepcopy
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from world_model.src.cli_config import materialize_config
 from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.semi_markov_evaluation import evaluate_semi_markov_world_model
 from world_model.src.semi_markov_train import train_semi_markov_world_model
@@ -24,11 +24,6 @@ from world_model.src.utils import load_yaml, setup_logging
 STAGES = ("validate", "train", "evaluate")
 
 
-def _resolve(value: str | Path, base: Path) -> Path:
-    path = Path(value)
-    return path if path.is_absolute() else (base / path).resolve()
-
-
 def _write_yaml(payload: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
@@ -37,18 +32,14 @@ def _write_yaml(payload: dict[str, Any], path: Path) -> None:
 def materialize_reproduction_config(template_path: Path, output: Path) -> dict[str, Path]:
     """Write an isolated standalone-model config using only prepared inputs."""
     template_path, output = Path(template_path).resolve(), Path(output).resolve()
-    template = load_yaml(template_path)
-    config = deepcopy(template)
-    template_paths = dict(template["paths"])
-    paths = dict(config["paths"])
-    for key in ("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"):
-        paths[key] = str(_resolve(template_paths[key], template_path.parent))
-    paths["output_dir"] = str(output)
-    paths.pop("highd_evt_config", None)
-    config["paths"] = paths
-
-    config_path = output / "configs" / "highd_semi_markov_world_model.yaml"
-    _write_yaml(config, config_path)
+    config, config_path = materialize_config(
+        template_path,
+        output,
+        config_name=template_path.name,
+        resolve_path_keys=("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"),
+        drop_path_keys=("highd_evt_config",),
+    )
+    paths = config["paths"]
     manifest_path = output / "reproduction_manifest.yaml"
     _write_yaml({
         "source_config": str(template_path),
@@ -107,7 +98,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     config_dir = Path(__file__).parent / "configs"
     parser.add_argument("--config", default=str(config_dir / "highd_semi_markov_world_model.yaml"))
-    parser.add_argument("--output-dir", default=str(ROOT / "results/highd_world_model/semi_markov_world_model_reproduction"))
+    parser.add_argument("--output-dir", default=str(ROOT / "results/highd_world_model/semi_markov_world_model"))
     parser.add_argument("--initial-checkpoint", help="Optional compatible checkpoint for a continuation or new plan heads.")
     parser.add_argument("--stages", nargs="+", choices=("all", *STAGES), default=["all"])
     parser.add_argument("--log-level", default="INFO")
