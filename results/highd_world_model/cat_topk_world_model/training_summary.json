@@ -10,7 +10,7 @@
   "diagnostic_validation_interval": 5,
   "epochs": 30,
   "epochs_completed": 30,
-  "latest_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/latest_world_model.pt",
+  "latest_checkpoint": null,
   "model_state_closed_loop": {
     "curriculum_epochs_per_chunk": 8,
     "enabled": true,
@@ -33,8 +33,8 @@
   "resumed_from_checkpoint": false,
   "start_epoch": 0,
   "stopped_early": false,
-  "tensorboard_available": true,
-  "tensorboard_log_dir": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/tensorboard",
+  "tensorboard_available": false,
+  "tensorboard_log_dir": null,
   "training_history": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/training_history.csv",
   "use_start_flow_summary": true
 }

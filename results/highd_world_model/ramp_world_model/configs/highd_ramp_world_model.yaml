@@ -1,0 +1,64 @@
+paths:
+  output_dir: /home/hp/FITWMAMS/results/highd_world_model/ramp_world_model
+  sequence_cache_dir: /home/hp/FITWMAMS/results/highd_world_model/training_data/semi_markov_sequence_cache
+  flow_schema: /home/hp/FITWMAMS/results/highd_tail_flow/dataset_schema.json
+dataset:
+  max_sequences: 0
+split:
+  seed: 42
+model:
+  hidden_dim: 128
+  temporal_layers: 1
+  dropout: 0.1
+  num_candidates: 8
+  plan_frames: 25
+  execute_frames: 5
+  jerk_controls: 5
+  response_interval_s: 0.2
+  simulation_dt_s: 0.04
+  max_longitudinal_jerk: 5.0
+  max_yaw_jerk: 0.5
+  hard_jerk_projection: true
+  mixture_temperature: 0.25
+  position_weight: 1.0
+  velocity_weight: 0.25
+  control_weight: 0.2
+  mixture_weight: 0.5
+  probability_weight: 0.1
+  overlap_weight: 0.15
+  diversity_weight: 0.02
+  smoothness_weight: 0.01
+training:
+  seed: 42
+  device: auto
+  batch_size: 64
+  val_batch_size: 64
+  num_workers: 0
+  learning_rate: 5.0e-05
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  tbptt_response_steps: 5
+  early_stopping_patience: 4
+  min_delta: 0.0001
+  min_epochs_before_stopping: 6
+  stages:
+  - name: nominal
+    epochs: 8
+    rollout_seconds: 1.0
+    learning_rate: 0.0001
+  - name: joint
+    epochs: 12
+    rollout_curriculum_seconds:
+    - 1.0
+    - 2.0
+    - 3.0
+    learning_rate: 5.0e-05
+  - name: five_second
+    epochs: 20
+    rollout_seconds: 5.0
+    learning_rate: 2.0e-05
+evaluation:
+  seed: 123
+  device: auto
+  batch_size: 64
+  max_sequences: 0

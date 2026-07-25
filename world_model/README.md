@@ -1,11 +1,25 @@
 # 背景交通世界模型
 
-本目录保留当前最佳的 **Semi-Markov World Model**（半马尔可夫世界模型）和冻结的 CAT-TopK 兼容层。Semi-Markov World Model 面向固定 highD 自然驾驶片段：以动态交通关系图表示场景，以场景级离散半马尔可夫状态表示交互意图，并以持续意图、行为锚定和时域控制计划生成短时闭环背景车控制。
+本目录包含独立训练的 **RAMP-WM**（关系记忆驱动的联合多假设滚动自回归世界模型）、当前 Semi-Markov World Model 和冻结的 CAT-TopK 兼容层。RAMP-WM 面向固定 highD 自然驾驶片段：以动态交通关系图、连续场景记忆和场景级联合候选计划生成 0.2 秒响应的闭环背景车演化；它不使用离散行为状态、边界或持续时间模型。
 
 | 对象 | 状态 | 用途 |
 | --- | --- | --- |
 | **Semi-Markov World Model** | 当前最佳模型 | 唯一的半马尔可夫世界模型训练、评测与运行时实现。 |
 | **CAT-TopK** | 冻结外部基线 | 保留源代码、训练脚本、checkpoint 兼容和配对比较。 |
+| **RAMP-WM** | 独立候选方法 | 从随机初始化训练的连续记忆、联合八候选、重叠滚动规划世界模型。 |
+
+## RAMP-WM：从零训练、监控和评测
+
+RAMP-WM 不加载 Semi-Markov 或 CAT-TopK checkpoint。START 仅使用冻结 Flow 的 B0 行为锚定，第一秒后该锚定从运行状态中移除；ROLL 仅接收已发生的 ego 状态和已生成的背景历史。
+
+```bash
+python world_model/scripts/train_ramp_world_model.py
+python world_model/scripts/test_ramp_world_model.py
+python world_model/scripts/compare_ramp_baselines.py --horizon-seconds 5
+python world_model/scripts/evaluate_ramp_distribution.py
+```
+
+RAMP 工件写入 `results/highd_world_model/ramp_world_model/`。CAT-TopK 的 START 仍使用冻结的未来首秒动作摘要；配对报告会将该条件显式标记为信息不对称，不能作为严格同信息提升声明。
 
 ## 当前边界
 

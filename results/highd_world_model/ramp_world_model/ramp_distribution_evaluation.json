@@ -1,0 +1,304 @@
+{
+  "candidate_calibration": {
+    "candidate_probability_ece": 0.06178813710723573,
+    "candidate_responsibility_cross_entropy": 2.0802381661079314
+  },
+  "candidate_probability_mean": [
+    0.12481652945280075,
+    0.12500382959842682,
+    0.12501093745231628,
+    0.1250108927488327,
+    0.12500640749931335,
+    0.12500493228435516,
+    0.12499791383743286,
+    0.12500424683094025
+  ],
+  "candidate_switch_rate": 0.8756073742378049,
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+  "coverage": {
+    "coverage_50": 0.11382142857142855,
+    "coverage_80": 0.11706150793650794,
+    "coverage_90": 0.11888690476190475,
+    "coverage_95": 0.12017063492063491
+  },
+  "crps": 0.11093040449278695,
+  "energy_score": 6.039902295313022,
+  "evt_tail_sequences": 328,
+  "minADE_32": 0.18807064411681873,
+  "minFDE_32": 0.7459571044664921,
+  "natural_vs_natural_reference": {
+    "braking_duration_s": {
+      "bootstrap_wasserstein_1_95": [
+        0.03452862340338683,
+        0.16365145880054505
+      ],
+      "ks_distance": 0.016949152542372947,
+      "quantile_error": 0.03862642936575733,
+      "wasserstein_1": 0.03862642936575733
+    },
+    "braking_start_s": {
+      "bootstrap_wasserstein_1_95": [
+        0.025255767178333874,
+        0.2036084724062196
+      ],
+      "ks_distance": 0.012711864406779669,
+      "quantile_error": 0.022079800636115064,
+      "wasserstein_1": 0.022079800636115064
+    },
+    "final_acceleration": {
+      "bootstrap_wasserstein_1_95": [
+        0.030513430978364,
+        0.07970451552372979
+      ],
+      "ks_distance": 0.04661016949152541,
+      "quantile_error": 0.03328697057462942,
+      "wasserstein_1": 0.03328697057462942
+    },
+    "final_speed": {
+      "bootstrap_wasserstein_1_95": [
+        0.30916108779375107,
+        0.9505441717286953
+      ],
+      "ks_distance": 0.06144067796610175,
+      "quantile_error": 0.408952478244715,
+      "wasserstein_1": 0.408952478244715
+    },
+    "initial_speed": {
+      "bootstrap_wasserstein_1_95": [
+        0.2568497936731563,
+        0.7000761032767422
+      ],
+      "ks_distance": 0.0423728813559322,
+      "quantile_error": 0.23429715427674558,
+      "wasserstein_1": 0.23429715427674558
+    },
+    "lateral_displacement": {
+      "bootstrap_wasserstein_1_95": [
+        0.048953888377123736,
+        0.1257288499635799
+      ],
+      "ks_distance": 0.052966101694915224,
+      "quantile_error": 0.04984443051262087,
+      "wasserstein_1": 0.04984443051262087
+    },
+    "longitudinal_displacement": {
+      "bootstrap_wasserstein_1_95": [
+        1.3552539719441288,
+        4.212656154156917
+      ],
+      "ks_distance": 0.03813559322033899,
+      "quantile_error": 1.377978671542426,
+      "wasserstein_1": 1.377978671542426
+    },
+    "maximum_drac": {
+      "bootstrap_wasserstein_1_95": [
+        28.391936523874634,
+        399.29439169368914
+      ],
+      "ks_distance": 0.03389830508474578,
+      "quantile_error": 163.7394685235568,
+      "wasserstein_1": 163.7394685235568
+    },
+    "mean_acceleration": {
+      "bootstrap_wasserstein_1_95": [
+        0.03093597413179116,
+        0.07092468192524898
+      ],
+      "ks_distance": 0.05932203389830509,
+      "quantile_error": 0.03730181367235316,
+      "wasserstein_1": 0.03730181367235316
+    },
+    "minimum_acceleration": {
+      "bootstrap_wasserstein_1_95": [
+        0.031747455502781574,
+        0.0795132485490993
+      ],
+      "ks_distance": 0.04661016949152541,
+      "quantile_error": 0.03252076133394715,
+      "wasserstein_1": 0.03252076133394715
+    },
+    "minimum_gap": {
+      "bootstrap_wasserstein_1_95": [
+        1.204727839078094,
+        3.980607888823359
+      ],
+      "ks_distance": 0.0402542372881356,
+      "quantile_error": 1.1937094750190325,
+      "wasserstein_1": 1.1937094750190325
+    },
+    "minimum_ttc": {
+      "bootstrap_wasserstein_1_95": [
+        0.07814301915597394,
+        0.7693856672318757
+      ],
+      "ks_distance": 0.05296610169491525,
+      "quantile_error": 0.28997033992736226,
+      "wasserstein_1": 0.28997033992736226
+    },
+    "speed_change": {
+      "bootstrap_wasserstein_1_95": [
+        0.10013664677939815,
+        0.31166982245995184
+      ],
+      "ks_distance": 0.03601694915254239,
+      "quantile_error": 0.10487518504968008,
+      "wasserstein_1": 0.10487518504968008
+    }
+  },
+  "rank_histogram": {
+    "bins": 20,
+    "chi_square_uniform": 2030246.5466729265,
+    "counts": [
+      124488,
+      690,
+      253,
+      343,
+      158,
+      302,
+      286,
+      119,
+      249,
+      99,
+      228,
+      213,
+      119,
+      230,
+      139,
+      247,
+      363,
+      192,
+      553,
+      105019
+    ]
+  },
+  "samples_per_condition": 32,
+  "temporal_and_multi_agent": {
+    "generated": {
+      "acceleration_lag1_autocorrelation": 0.9978969722783106,
+      "cross_agent_acceleration_dispersion": 0.1392170218217918,
+      "jerk_rms": 0.4816052758445342,
+      "relationship_occupancy": [
+        0.3300855583900248,
+        0.6652276856575959,
+        0.004686755952380948
+      ],
+      "relationship_transition": [
+        [
+          0.9986896860517304,
+          0.001310313948266337,
+          0.0
+        ],
+        [
+          0.0004886993413037098,
+          0.9993517516003088,
+          0.0001595490583845465
+        ],
+        [
+          0.0,
+          0.00152648366716571,
+          0.1413306591899771
+        ]
+      ]
+    },
+    "observed": {
+      "acceleration_lag1_autocorrelation": 0.9997610517348331,
+      "cross_agent_acceleration_dispersion": 0.18336705206213633,
+      "jerk_rms": 0.19675339687438237,
+      "relationship_occupancy": [
+        0.33134557823129246,
+        0.6651782312925172,
+        0.003476190476190476
+      ],
+      "relationship_transition": [
+        [
+          0.9982962260152893,
+          0.0017037739847107272,
+          0.0
+        ],
+        [
+          0.0006598096727814885,
+          0.9992243494027582,
+          0.00011584092446028864
+        ],
+        [
+          0.0,
+          0.0,
+          0.14285714285714285
+        ]
+      ]
+    }
+  },
+  "two_sample_multivariate": {
+    "energy_distance": 0.026844672102636302,
+    "mmd_rbf": 0.003399678631469394,
+    "pearson_correlation_matrix_error": 0.03894814283797229,
+    "spearman_correlation_matrix_error": 0.028647580249043146
+  },
+  "two_sample_univariate": {
+    "braking_duration_s": {
+      "ks_distance": 0.06806144067796605,
+      "quantile_error": 0.1353486274444773,
+      "wasserstein_1": 0.1353486274444773
+    },
+    "braking_start_s": {
+      "ks_distance": 0.06442002118644069,
+      "quantile_error": 0.1669718205753686,
+      "wasserstein_1": 0.1669718205753686
+    },
+    "final_acceleration": {
+      "ks_distance": 0.1270855402542373,
+      "quantile_error": 0.11737417019669523,
+      "wasserstein_1": 0.11737417019669523
+    },
+    "final_speed": {
+      "ks_distance": 0.020027807203389814,
+      "quantile_error": 0.11484282096425212,
+      "wasserstein_1": 0.11484282096425212
+    },
+    "initial_speed": {
+      "ks_distance": 0.0031779661016949623,
+      "quantile_error": 0.01317771648825542,
+      "wasserstein_1": 0.01317771648825542
+    },
+    "lateral_displacement": {
+      "ks_distance": 0.10570047669491525,
+      "quantile_error": 0.08921078436195662,
+      "wasserstein_1": 0.08921078436195662
+    },
+    "longitudinal_displacement": {
+      "ks_distance": 0.01165254237288127,
+      "quantile_error": 0.219319428517634,
+      "wasserstein_1": 0.219319428517634
+    },
+    "maximum_drac": {
+      "ks_distance": 0.029661016949152547,
+      "quantile_error": 130.2325051862152,
+      "wasserstein_1": 130.2325051862152
+    },
+    "mean_acceleration": {
+      "ks_distance": 0.04323358050847459,
+      "quantile_error": 0.025948664438151612,
+      "wasserstein_1": 0.025948664438151612
+    },
+    "minimum_acceleration": {
+      "ks_distance": 0.044954978813559254,
+      "quantile_error": 0.034990507591827265,
+      "wasserstein_1": 0.034990507591827265
+    },
+    "minimum_gap": {
+      "ks_distance": 0.011652542372881325,
+      "quantile_error": 0.14564300988380266,
+      "wasserstein_1": 0.14564300988380266
+    },
+    "minimum_ttc": {
+      "ks_distance": 0.010328389830508433,
+      "quantile_error": 0.027798543113138056,
+      "wasserstein_1": 0.027798543113138056
+    },
+    "speed_change": {
+      "ks_distance": 0.04548463983050846,
+      "quantile_error": 0.12792559030347334,
+      "wasserstein_1": 0.12792559030347334
+    }
+  }
+}

@@ -1,0 +1,607 @@
+{
+  "checkpoints": {
+    "cat_topk": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt",
+      "sha256": "27555650390b3115b23bf2d89c57602bb99d718b6a9012ca5327bcd10c64acd0"
+    },
+    "ramp": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+      "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
+    },
+    "semi_markov": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt",
+      "sha256": "be3e30096bfb10da95883c1727e344fcfb1490d76344873bedc164cdc139904b"
+    }
+  },
+  "comparisons": {
+    "ramp_vs_cat_topk": {
+      "baseline": {
+        "ADE_m": 0.17368398880200908,
+        "FDE_m": 0.690567604979202,
+        "acceleration_mae_mps2": 0.11374666026126501,
+        "acceleration_out_of_range_rate": 0.0,
+        "drac_error_mps2": 1.645426180877485,
+        "gap_mae_m": 0.14999737345966438,
+        "invalid_rate": 8.259002061095089e-05,
+        "jerk_out_of_range_rate": 0.0,
+        "negative_gap_rate": 3.8542010791763016e-07,
+        "overlap_rate": 3.8542010791763016e-07,
+        "relative_vx_mae_mps": 0.13486533918433918,
+        "risk_relaxation_rate": 0.010459242589122486,
+        "small_ttc_rate": 0.10548543046688087,
+        "speed_out_of_range_rate": 0.0,
+        "ttc_error_s": 0.05538780864173331,
+        "velocity_mae_mps": 0.15423993238530997
+      },
+      "candidate": {
+        "ADE_m": 0.1694688598815479,
+        "FDE_m": 0.6642826773790711,
+        "acceleration_mae_mps2": 0.27791169510315195,
+        "acceleration_out_of_range_rate": 0.0,
+        "drac_error_mps2": 1.5348336401299738,
+        "gap_mae_m": 0.1338326525699369,
+        "invalid_rate": 4.1295010305475444e-05,
+        "jerk_out_of_range_rate": 0.0,
+        "negative_gap_rate": 2.2024006166721725e-07,
+        "overlap_rate": 2.2024006166721725e-07,
+        "relative_vx_mae_mps": 0.12218989576850989,
+        "risk_relaxation_rate": 0.016746017371903895,
+        "small_ttc_rate": 0.104202125809517,
+        "speed_out_of_range_rate": 0.0,
+        "ttc_error_s": 0.04788539099389828,
+        "velocity_mae_mps": 0.14840496173139953
+      },
+      "evt_tail": {
+        "baseline": {
+          "ADE_m": 0.1972950513953532,
+          "FDE_m": 0.7793204635078829,
+          "acceleration_mae_mps2": 0.13231696840752805,
+          "acceleration_out_of_range_rate": 0.0,
+          "drac_error_mps2": 2.176891465657535,
+          "gap_mae_m": 0.17203720826523133,
+          "invalid_rate": 0.0,
+          "jerk_out_of_range_rate": 0.0,
+          "negative_gap_rate": 0.0,
+          "overlap_rate": 0.0,
+          "relative_vx_mae_mps": 0.15586052004596185,
+          "risk_relaxation_rate": 0.01893218031877689,
+          "small_ttc_rate": 0.13220859070562402,
+          "speed_out_of_range_rate": 0.0,
+          "ttc_error_s": 0.09366214279866962,
+          "velocity_mae_mps": 0.17628445556882966
+        },
+        "candidate": {
+          "ADE_m": 0.1895892006181401,
+          "FDE_m": 0.7519345899029234,
+          "acceleration_mae_mps2": 0.30510644782339313,
+          "acceleration_out_of_range_rate": 0.0,
+          "drac_error_mps2": 1.7438307054033122,
+          "gap_mae_m": 0.15386937553748212,
+          "invalid_rate": 0.0,
+          "jerk_out_of_range_rate": 0.0,
+          "negative_gap_rate": 0.0,
+          "overlap_rate": 0.0,
+          "relative_vx_mae_mps": 0.14272443511340444,
+          "risk_relaxation_rate": 0.029634423100475576,
+          "small_ttc_rate": 0.1308479694060201,
+          "speed_out_of_range_rate": 0.0,
+          "ttc_error_s": 0.08120257674419991,
+          "velocity_mae_mps": 0.16912143715847067
+        },
+        "num_paired_sequences": 328,
+        "paired_bootstrap": {
+          "ADE_m": {
+            "candidate_minus_baseline": -0.007705850777213069,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.0021623098520205638
+          },
+          "FDE_m": {
+            "candidate_minus_baseline": -0.02738587360495959,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.003471099364048825
+          },
+          "acceleration_mae_mps2": {
+            "candidate_minus_baseline": 0.17278947941586503,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.17639892885070677
+          },
+          "acceleration_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "drac_error_mps2": {
+            "candidate_minus_baseline": -0.4330607602542234,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.08342842387386488
+          },
+          "gap_mae_m": {
+            "candidate_minus_baseline": -0.018167832727749238,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.01277197131186992
+          },
+          "invalid_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "jerk_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "negative_gap_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "overlap_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "relative_vx_mae_mps": {
+            "candidate_minus_baseline": -0.013136084932557397,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.008435297047072441
+          },
+          "risk_relaxation_rate": {
+            "candidate_minus_baseline": 0.010702242781698684,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.017783568303681437
+          },
+          "small_ttc_rate": {
+            "candidate_minus_baseline": -0.001360621299603907,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.0009298835386663545
+          },
+          "speed_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "ttc_error_s": {
+            "candidate_minus_baseline": -0.012459566054469707,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.006086654806881978
+          },
+          "velocity_mae_mps": {
+            "candidate_minus_baseline": -0.007163018410359002,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.0029014244385856132
+          }
+        }
+      },
+      "paired_bootstrap": {
+        "ADE_m": {
+          "candidate_minus_baseline": -0.004215128920461219,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.0036094268577358817
+        },
+        "FDE_m": {
+          "candidate_minus_baseline": -0.026284927600130816,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.02356624018831039
+        },
+        "acceleration_mae_mps2": {
+          "candidate_minus_baseline": 0.16416503484188696,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 0.16477574409055296
+        },
+        "acceleration_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "drac_error_mps2": {
+          "candidate_minus_baseline": -0.11059254074751147,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 0.0017478006207388404
+        },
+        "gap_mae_m": {
+          "candidate_minus_baseline": -0.01616472088972747,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.015619249328655247
+        },
+        "invalid_rate": {
+          "candidate_minus_baseline": -4.1295011562603234e-05,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "jerk_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "negative_gap_rate": {
+          "candidate_minus_baseline": -1.6518004625041296e-07,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "overlap_rate": {
+          "candidate_minus_baseline": -1.6518004625041296e-07,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "relative_vx_mae_mps": {
+          "candidate_minus_baseline": -0.012675443415829319,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.012168892976349505
+        },
+        "risk_relaxation_rate": {
+          "candidate_minus_baseline": 0.006286774782781409,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 0.006918984368584635
+        },
+        "small_ttc_rate": {
+          "candidate_minus_baseline": -0.0012833046573638427,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.0012174348351121566
+        },
+        "speed_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "ttc_error_s": {
+          "candidate_minus_baseline": -0.007502417647835025,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.006744440571293146
+        },
+        "velocity_mae_mps": {
+          "candidate_minus_baseline": -0.005834970653910452,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.005318987327068683
+        }
+      }
+    },
+    "ramp_vs_semi_markov": {
+      "baseline": {
+        "ADE_m": 0.20507191587811657,
+        "FDE_m": 0.8114122799431999,
+        "acceleration_mae_mps2": 0.12737369554148759,
+        "acceleration_out_of_range_rate": 0.0,
+        "drac_error_mps2": 1.5509944235868973,
+        "gap_mae_m": 0.17657859166262022,
+        "invalid_rate": 4.1295010305475444e-05,
+        "jerk_out_of_range_rate": 0.0,
+        "negative_gap_rate": 1.6518004625041296e-07,
+        "overlap_rate": 1.6518004625041296e-07,
+        "relative_vx_mae_mps": 0.15436263649198062,
+        "risk_relaxation_rate": 0.017516508013534684,
+        "small_ttc_rate": 0.10446370465923904,
+        "speed_out_of_range_rate": 0.0,
+        "ttc_error_s": 0.05964861643023017,
+        "velocity_mae_mps": 0.1763700584559599
+      },
+      "candidate": {
+        "ADE_m": 0.1694688598815479,
+        "FDE_m": 0.6642826773790711,
+        "acceleration_mae_mps2": 0.27791169510315195,
+        "acceleration_out_of_range_rate": 0.0,
+        "drac_error_mps2": 1.5348336401299738,
+        "gap_mae_m": 0.1338326525699369,
+        "invalid_rate": 4.1295010305475444e-05,
+        "jerk_out_of_range_rate": 0.0,
+        "negative_gap_rate": 2.2024006166721725e-07,
+        "overlap_rate": 2.2024006166721725e-07,
+        "relative_vx_mae_mps": 0.12218989576850989,
+        "risk_relaxation_rate": 0.016746017371903895,
+        "small_ttc_rate": 0.104202125809517,
+        "speed_out_of_range_rate": 0.0,
+        "ttc_error_s": 0.04788539099389828,
+        "velocity_mae_mps": 0.14840496173139953
+      },
+      "evt_tail": {
+        "baseline": {
+          "ADE_m": 0.2353705072628631,
+          "FDE_m": 0.927751876080666,
+          "acceleration_mae_mps2": 0.15017703205112767,
+          "acceleration_out_of_range_rate": 0.0,
+          "drac_error_mps2": 2.042600689452813,
+          "gap_mae_m": 0.20508002054351865,
+          "invalid_rate": 0.0,
+          "jerk_out_of_range_rate": 0.0,
+          "negative_gap_rate": 0.0,
+          "overlap_rate": 0.0,
+          "relative_vx_mae_mps": 0.1814342516416961,
+          "risk_relaxation_rate": 0.0287989839509655,
+          "small_ttc_rate": 0.13121107553926784,
+          "speed_out_of_range_rate": 0.0,
+          "ttc_error_s": 0.09669742687997665,
+          "velocity_mae_mps": 0.20427047344982224
+        },
+        "candidate": {
+          "ADE_m": 0.1895892006181401,
+          "FDE_m": 0.7519345899029234,
+          "acceleration_mae_mps2": 0.30510644782339313,
+          "acceleration_out_of_range_rate": 0.0,
+          "drac_error_mps2": 1.7438307054033122,
+          "gap_mae_m": 0.15386937553748212,
+          "invalid_rate": 0.0,
+          "jerk_out_of_range_rate": 0.0,
+          "negative_gap_rate": 0.0,
+          "overlap_rate": 0.0,
+          "relative_vx_mae_mps": 0.14272443511340444,
+          "risk_relaxation_rate": 0.029634423100475576,
+          "small_ttc_rate": 0.1308479694060201,
+          "speed_out_of_range_rate": 0.0,
+          "ttc_error_s": 0.08120257674419991,
+          "velocity_mae_mps": 0.16912143715847067
+        },
+        "num_paired_sequences": 328,
+        "paired_bootstrap": {
+          "ADE_m": {
+            "candidate_minus_baseline": -0.045781306644723,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.0368906516799374
+          },
+          "FDE_m": {
+            "candidate_minus_baseline": -0.17581728617774278,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.13858915153209392
+          },
+          "acceleration_mae_mps2": {
+            "candidate_minus_baseline": 0.15492941577226543,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.15967415605527527
+          },
+          "acceleration_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "drac_error_mps2": {
+            "candidate_minus_baseline": -0.29876998404950084,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.07071353527079036
+          },
+          "gap_mae_m": {
+            "candidate_minus_baseline": -0.051210645006036525,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.042759123253102195
+          },
+          "invalid_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "jerk_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "negative_gap_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "overlap_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "relative_vx_mae_mps": {
+            "candidate_minus_baseline": -0.03870981652829167,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.03154576687899192
+          },
+          "risk_relaxation_rate": {
+            "candidate_minus_baseline": 0.0008354391495100676,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.005767017065525366
+          },
+          "small_ttc_rate": {
+            "candidate_minus_baseline": -0.0003631061332477392,
+            "num_pairs": 328,
+            "passes": false,
+            "upper_95": 0.00027590184921089594
+          },
+          "speed_out_of_range_rate": {
+            "candidate_minus_baseline": 0.0,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": 0.0
+          },
+          "ttc_error_s": {
+            "candidate_minus_baseline": -0.015494850135776748,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.0078909740929917
+          },
+          "velocity_mae_mps": {
+            "candidate_minus_baseline": -0.03514903629135157,
+            "num_pairs": 328,
+            "passes": true,
+            "upper_95": -0.028322866168009636
+          }
+        }
+      },
+      "paired_bootstrap": {
+        "ADE_m": {
+          "candidate_minus_baseline": -0.03560305599656867,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.034797342325413864
+        },
+        "FDE_m": {
+          "candidate_minus_baseline": -0.14712960256412888,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.1434805475909328
+        },
+        "acceleration_mae_mps2": {
+          "candidate_minus_baseline": 0.1505379995616644,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 0.1512058046974861
+        },
+        "acceleration_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "drac_error_mps2": {
+          "candidate_minus_baseline": -0.016160783456923424,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 0.07405576360918407
+        },
+        "gap_mae_m": {
+          "candidate_minus_baseline": -0.0427459390926833,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.04190639058416955
+        },
+        "invalid_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "jerk_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "negative_gap_rate": {
+          "candidate_minus_baseline": 5.5060015416804306e-08,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 1.651800462504129e-07
+        },
+        "overlap_rate": {
+          "candidate_minus_baseline": 5.5060015416804306e-08,
+          "num_pairs": 24216,
+          "passes": false,
+          "upper_95": 1.651800462504129e-07
+        },
+        "relative_vx_mae_mps": {
+          "candidate_minus_baseline": -0.032172740723470754,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.031441094098089255
+        },
+        "risk_relaxation_rate": {
+          "candidate_minus_baseline": -0.0007704906416307881,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -8.65051902953568e-05
+        },
+        "small_ttc_rate": {
+          "candidate_minus_baseline": -0.000261578849722024,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.00017681580428614206
+        },
+        "speed_out_of_range_rate": {
+          "candidate_minus_baseline": 0.0,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": 0.0
+        },
+        "ttc_error_s": {
+          "candidate_minus_baseline": -0.011763225436331891,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.010682617814195834
+        },
+        "velocity_mae_mps": {
+          "candidate_minus_baseline": -0.027965096724560396,
+          "num_pairs": 24216,
+          "passes": true,
+          "upper_95": -0.02724888656089434
+        }
+      }
+    }
+  },
+  "num_paired_sequences": 24216,
+  "protocol": {
+    "bootstrap_repetitions": 2000,
+    "candidate_start_information": "frozen B0 behavior anchor; removed after first second",
+    "cat_topk_information_symmetric": false,
+    "cat_topk_start_information": "future action summary (archived frozen interface)",
+    "horizon_seconds": 5,
+    "same_sequence": true,
+    "semi_markov_start_information": "frozen B0 behavior anchor",
+    "split": "test"
+  },
+  "relationship_distribution": {
+    "cat_topk": {
+      "predicted": {
+        "adjacent_lane": 0.6073846410942524,
+        "same_lane": 0.21200225345200546,
+        "unrelated": 0.18061310545374218
+      },
+      "total_variation": 0.0008744705298143474
+    },
+    "ramp": {
+      "predicted": {
+        "adjacent_lane": 0.6085377334222486,
+        "same_lane": 0.21098371248587533,
+        "unrelated": 0.18047855409187613
+      },
+      "total_variation": 0.0020275628578105415
+    },
+    "semi_markov": {
+      "predicted": {
+        "adjacent_lane": 0.6081162499591095,
+        "same_lane": 0.2113850245769659,
+        "unrelated": 0.18049872546392456
+      },
+      "total_variation": 0.0016060793946715002
+    },
+    "target": {
+      "adjacent_lane": 0.606510170564438,
+      "same_lane": 0.21265234579835987,
+      "unrelated": 0.1808374836372021
+    }
+  },
+  "target_coordinate_parity_max_abs_error": 0.0
+}

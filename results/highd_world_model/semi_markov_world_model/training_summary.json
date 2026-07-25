@@ -5,7 +5,7 @@
   "flow_checkpoint_sha256": "206dbb371c80a46232f5f9dd92a98810b1c8644d1002989fc895d82ca4f45a68",
   "flow_schema_sha256": "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a",
   "git_commit_sha": "4a0cc6bc0bcb452a72b11bc6c0b70b1f418b68e0",
-  "last_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/last_semi_markov_relational.pt",
+  "last_checkpoint": null,
   "last_checkpoint_sha256": "d0b11e96358cc0c95136fea2a43799b41946315865625f7597454d1b056f72ff",
   "selection_metric": "val_loss",
   "selection_qualified": true,
