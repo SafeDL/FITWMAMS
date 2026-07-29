@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train and evaluate the standalone Semi-Markov World Model from prepared inputs."""
+"""Train the standalone Semi-Markov World Model from prepared inputs."""
 from __future__ import annotations
 
 import argparse
@@ -15,13 +15,9 @@ if str(ROOT) not in sys.path:
 
 from world_model.src.core.cli_config import materialize_config
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.semi_markov.evaluation import evaluate_semi_markov_world_model
 from world_model.src.semi_markov.train import train_semi_markov_world_model
 from world_model.src.core.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
 from world_model.src.core.utils import load_yaml, setup_logging
-
-
-STAGES = ("validate", "train", "evaluate")
 
 
 def _write_yaml(payload: dict[str, Any], path: Path) -> None:
@@ -46,7 +42,7 @@ def materialize_reproduction_config(template_path: Path, output: Path) -> dict[s
         "output_dir": str(output),
         "prepared_inputs": {key: paths[key] for key in ("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema")},
         "config": str(config_path),
-        "stages": list(STAGES),
+        "stages": ["validate", "train"],
         "historical_semi_markov_checkpoint_inputs": False,
     }, manifest_path)
     return {"root": output, "config": config_path}
@@ -75,22 +71,14 @@ def _validate_inputs(config: dict[str, Any], config_path: Path) -> None:
 
 
 def run(
-    template_path: Path, output: Path, stages: tuple[str, ...], *, initial_checkpoint: Path | None = None,
+    template_path: Path, output: Path, *, initial_checkpoint: Path | None = None,
 ) -> dict[str, Path]:
     paths = materialize_reproduction_config(template_path, output)
-    selected = set(STAGES if "all" in stages else stages)
     config = load_yaml(paths["config"])
-    if "validate" in selected:
-        _validate_inputs(config, paths["config"])
-    if "train" in selected:
-        _validate_inputs(config, paths["config"])
-        train_semi_markov_world_model(
-            config, config_dir=paths["config"].parent, initial_checkpoint=initial_checkpoint,
-        )
-    if "evaluate" in selected:
-        checkpoint = paths["root"] / "checkpoints" / "best_semi_markov_relational.pt"
-        _require(checkpoint, "evaluate")
-        evaluate_semi_markov_world_model(config, config_dir=paths["config"].parent, checkpoint=checkpoint)
+    _validate_inputs(config, paths["config"])
+    train_semi_markov_world_model(
+        config, config_dir=paths["config"].parent, initial_checkpoint=initial_checkpoint,
+    )
     return paths
 
 
@@ -100,12 +88,11 @@ def main() -> None:
     parser.add_argument("--config", default=str(config_dir / "highd_semi_markov_world_model.yaml"))
     parser.add_argument("--output-dir", default=str(ROOT / "results/highd_world_model/semi_markov_world_model"))
     parser.add_argument("--initial-checkpoint", help="Optional compatible checkpoint for a continuation or new plan heads.")
-    parser.add_argument("--stages", nargs="+", choices=("all", *STAGES), default=["all"])
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
     paths = run(
-        Path(args.config), Path(args.output_dir), tuple(args.stages),
+        Path(args.config), Path(args.output_dir),
         initial_checkpoint=None if args.initial_checkpoint is None else Path(args.initial_checkpoint).resolve(),
     )
     print(paths["root"] / "reproduction_manifest.yaml")

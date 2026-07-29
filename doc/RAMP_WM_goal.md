@@ -26,40 +26,45 @@ FIRM-WM 保留 RAMP 的连续交通记忆、25 Hz jerk 动力学、0.2 s 滚动�
 
 ## 3. 正式评价协议
 
-主指标是 full held-out highD 的背景车 1--5 s ADE/FDE、速度、加速度、gap、相对速度及 TTC/DRAC。
-外部写回的 ego 不计入重建误差。RAMP-WM 与 Semi-Markov 使用重新匹配的背景车评测；CAT-TopK 的
-START 使用未来动作摘要，只能作为信息不对称参考。
+标准测试只报告各模型自身的 full held-out highD 重建。正式长尾评测由
+`evaluate_long_tail_reproduction.py` 在同一 EVT-tail 条件下同时运行 RAMP、FIRM、Semi-Markov 和
+CAT-TopK：每个条件有一条确定性路径与 32 条随机闭环未来。外部 ego 不计入背景车 ADE/FDE。
 
-Flow × FIRM 固定为 held-out EVT 条件上的 8 个外层 Flow 起点 × 每个起点 4 个内层世界，报告 B0
-执行误差、风险分布、随机 jerk、无效率和重叠率。进入 ADS 测试的前提是无效轨迹率和重叠率均低于 1%，
-且 q90 风险超越率处于真实 highD bootstrap 区间；不得以拒绝、重采样或后处理过滤达成。
+评测分为四层：轨迹 ADE/FDE/minADE/minFDE；加速度、jerk、曲率和速度 KL；全车辆对碰撞、
+TTC/DRAC/gap/相对速度和制动响应；以及 Wasserstein、KS、RBF-MMD 与交通行为特征 Fréchet 距离。
+highD 直路数据没有可靠让行/交叉口语义，因此社会行为结论仅限可测的跟驰、制动响应和安全间距。
 
-## 4. 当前正式证据
+RAMP/FIRM 的 Flow 组合通过各自 `test_* --flow-composition` 执行固定 8×4 测试。这是生成分布审核，
+不是 paired reconstruction，不能报告或推断 donor ADE/FDE。
 
-唯一正式结果位于：
+## 4. 正式结果工件与实现纪律
 
-    results/highd_world_model/firm_world_model/
-    results/highd_world_model/paper_experiments/firm_world_model/
+每个模型只保留 checkpoint、训练记录、标准测试和一个最终 Flow 组合 JSON。长尾正式结果位于：
 
-| 证据 | 结果 | 结论 |
-|---|---:|---|
-| held-out 5 s FDE，FIRM / RAMP / Semi-Markov | 0.695 / 0.679 / 0.833 m | 优于 Semi-Markov，未超过 RAMP |
-| EVT-tail 5 s FDE，FIRM / RAMP / Semi-Markov | 0.721 / 0.750 / 0.898 m | FIRM 终点误差较好，但 tail ADE 不优于 RAMP |
-| 固定条件 invalid / overlap | 0.0165% / 0.00127% | 固定条件物理门槛通过 |
-| Flow × FIRM q90 exceedance | 7.83%，真实 10.12%，bootstrap [6.75%, 13.50%] | 风险尾部位置通过 |
-| Flow × FIRM invalid / overlap | 33.57% / 3.04% | 严重失败，不得进入 ADS 测试 |
-| 随机 longitudinal jerk q90 / q99 | 1.45 / 4.26；highD 为 0.25 / 0.75 m/s³ | 概率控制尾部失真 |
+    results/highd_world_model/long_tail_reproduction/
 
-因此，当前可主张 FIRM-WM 是可回放、会响应已发生 ego 行为的闭环背景模型，并在该协议下优于
-Semi-Markov。不能主张它已超过 RAMP，或已能与 Flow 一起构成物理有效的长尾测试环境。
+其中每个模型都有独立子目录，包含 `metrics.json`、六张静态图和三段固定真实事件 GIF；根目录保留协议、
+checkpoint 哈希、固定场景和四模型总览。旧论文图、独立 compare 脚本和中间评测不保留。
 
-## 5. 结果工件与实现纪律
-
-论文图只读取正式评测文件，位于
-`results/highd_world_model/paper_experiments/firm_world_model/`；其 README 与 manifest 记录输入、哈希、
-固定扫描顺序和 skipped 工件。图表不得重新训练、采样、拟合 EVT 或隐藏无效轨迹。
-
-- 只保留 `firm_world_model` 的 checkpoint、训练记录、评测、Flow 组合和论文图；候选、smoke 与中间结果不保留。
 - 配置、脚本与结果目录统一使用完整的 `snake_case` 名称。
 - 不保留废弃 wrapper、旧模型分支或未使用字段；共享组件放在 `world_model/src/core/`。
-- 论文文字不得将 CAT-TopK 写成同信息比较，也不得声称 FIRM 已满足 ADS 环境要求。
+- CAT-TopK 必须标注 START 使用归档未来动作摘要；不能作为同信息提升结论。
+- FIRM 是否能超过 RAMP、是否能构成物理有效长尾环境，只能依据新的正式长尾与 Flow 结果判断，不延用已删除图表的结论。
+
+## 5. 当前正式运行结论（2026-07-29）
+
+已使用四个最终 checkpoint 完成标准 held-out 测试和固定种子 `20260729` 的 EVT-tail 长尾重建：328 个条件，
+每个条件一条确定性未来及 32 条随机未来。正式文件为
+`results/highd_world_model/long_tail_reproduction/<model>/metrics.json`，其中 checkpoint SHA-256、事件清单和
+协议由根目录 `study_manifest.json` 固定。
+
+在同一条件下，FIRM-WM 的确定性 FDE 为 **0.710 m**，`minFDE@32` 为 **0.473 m**，优于 RAMP-WM 的
+0.752 m / 0.746 m 和 Semi-Markov 的 0.928 m / 0.881 m；因此 FIRM 是当前 RAMP 内部状态转移改进中最好的
+轨迹重建版本。Semi-Markov 的交通行为特征 Fréchet 距离为 **0.720**，低于 FIRM 的 4.159 与 RAMP 的 15.145，
+但这不能抵消其较差的逐轨迹重建。CAT-TopK 的结果保留为参考，不参与同信息优劣判断，因为其 START 使用归档
+未来动作摘要。
+
+目前不能把任一模型表述为已完成的长尾闭环测试环境：在独立的 Flow 8×4 组合审核中，RAMP/FIRM 的碰撞
+episode rate 分别为 **0.348**/**0.374**。这说明初始 Flow 条件与世界模型状态转移之间仍缺少足够的安全和分布
+校准；后续改进应直接降低该分布级碰撞率并改善 DRAC 高分位，而不是增加历史/地图初始化模块或使用 donor
+轨迹重建指标掩盖该问题。

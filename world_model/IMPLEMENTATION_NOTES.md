@@ -34,7 +34,7 @@ highD 顺序缓存由 `src/sequential_dataset.py` 管理，是训练的既有输
 
 ## 冻结 CAT-TopK 兼容层
 
-CAT-TopK 是对比基线；其源代码、从零训练脚本和测试脚本均保留。模型层实现位于 `src/cat_topk/`，共享数据、schema 与指标位于 `src/core/`；单模型入口为 `scripts/train_cat_topk.py`、`scripts/test_cat_topk.py`、`scripts/train_semi_markov_world_model.py` 与 `scripts/test_semi_markov.py`；配对入口为 `scripts/compare_semi_markov_cat_topk.py`。
+CAT-TopK 是冻结对比基线；其源代码、从零训练脚本和测试脚本均保留。模型层实现位于 `src/cat_topk/`，共享数据、schema 与指标位于 `src/core/`；单模型入口统一为 `scripts/train_*` 与 `scripts/test_*_world_model.py`。跨模型的正式长尾比较由唯一的 `scripts/evaluate_long_tail_reproduction.py` 在统一条件下完成，不保留独立 compare 脚本。
 
 `CATKBackgroundEnvironment` 的初始化输入是完整 Flow 场景样本、slot mask 与 primary slot；`start()` 不接收 ego future，`roll()` 只接收已发生的 ego 历史。其候选索引 `Xi_world` 是显式离散世界随机性。默认按 categorical 分布采样，也可用 `WorldSamplingConfig(candidate_selection="argmax")` 固定为确定性选择。
 

@@ -12,7 +12,7 @@ from world_model.src.core.metrics import interaction_metrics, physical_diagnosti
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from .train import _loader, _to_batch, load_semi_markov_checkpoint
 from world_model.src.core.sequential_dataset import ensure_frozen_flow_behavior_anchor_cache, load_sequential_dataset, sequence_cache_owner_dir
-from world_model.src.core.utils import load_json, save_json, select_device
+from world_model.src.core.utils import save_json, select_device
 
 
 def _masked_mean(values: np.ndarray, mask: np.ndarray) -> float:
@@ -44,19 +44,6 @@ def _metrics(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> dict[str
 
 def _concat(items: list[np.ndarray]) -> np.ndarray:
     return np.concatenate(items, axis=0) if items else np.zeros((0,), np.float32)
-
-
-def _optional_report(
-    evaluation: dict[str, Any], key: str, *, config_dir: Path,
-) -> tuple[Path | None, dict[str, Any]]:
-    """Resolve an optional JSON report configured relative to this experiment."""
-    value = evaluation.get(key)
-    if not value:
-        return None, {}
-    path = Path(value)
-    if not path.is_absolute():
-        path = (config_dir / path).resolve()
-    return path, load_json(path) if path.exists() else {}
 
 
 def _relationship_distribution(states: np.ndarray, valid: np.ndarray, lane_width_m: float = 3.6) -> dict[str, float]:
@@ -329,60 +316,6 @@ def evaluate_semi_markov_world_model(
         "local_residual_mean_abs": local_sum / max(local_count, 1),
     }
     current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
-    cache_identity = f"{manifest.get('source_dataset', '')} {manifest.get('adapter', '')}".lower()
-    complete_highd = not bool(manifest.get("bounded_development_cache", True)) and "highd" in cache_identity
-    # A legacy summary alone is not a paired comparison: it can have a
-    # different cache, rollout protocol, or (for CAT-K) a Flow with future
-    # action summaries.  Formal promotion requires an explicit paired result.
-    paired_path, paired_report = _optional_report(
-        evaluation, "paired_baseline_summary", config_dir=config_dir,
-    )
-    paired_information_symmetric = bool(paired_report.get("protocol", {}).get("promotion_information_symmetric", False))
-    paired_baseline = bool(
-        paired_report.get("protocol", {}).get("same_sequence", False)
-        and int(paired_report.get("num_paired_sequences", 0)) == int(len(pred))
-        and paired_report.get("candidate_checkpoint_sha256") == current_hash
-        and paired_report.get("all_primary_error_gates_pass", False)
-        and paired_information_symmetric
-    )
-    paired_long_path, paired_long_report = _optional_report(
-        evaluation, "paired_long_horizon_baseline_summary", config_dir=config_dir,
-    )
-    paired_long_information_symmetric = bool(paired_long_report.get("protocol", {}).get("promotion_information_symmetric", False))
-    paired_long = bool(
-        paired_long_report.get("protocol", {}).get("same_sequence", False)
-        and float(paired_long_report.get("protocol", {}).get("horizon_seconds", 0.0)) >= 5.0
-        and int(paired_long_report.get("num_paired_sequences", 0)) == int(len(pred))
-        and paired_long_report.get("candidate_checkpoint_sha256") == current_hash
-        and paired_long_information_symmetric
-    )
-    long_errors = bool(paired_long_report.get("all_primary_error_gates_pass", False))
-    long_relation_delta = paired_long_report.get("relationship_distribution", {}).get("candidate_minus_baseline_total_variation")
-    long_relation_improved = long_relation_delta is not None and np.isfinite(float(long_relation_delta)) and float(long_relation_delta) < 0.0
-    # The five-second ROLL rollout must reduce either
-    # accumulated paired error or relation-distribution drift.  A legacy
-    # summary on its own is never enough—the paired artifact must use the
-    # evaluated checkpoint and every held-out sequence.
-    long_horizon_gate = paired_long and (long_errors or long_relation_improved)
-    # Archived CAT-K reports may use the legacy START action summary computed
-    # from a future trajectory.  Keep those reports visible for historical
-    # reproducibility, but they cannot be promotion references under the
-    # clean-START specification.  The primary paired paths above must instead
-    # explicitly attest information symmetry.
-    legacy_paired_path, legacy_paired_report = _optional_report(
-        evaluation, "legacy_paired_baseline_summary", config_dir=config_dir,
-    )
-    legacy_paired_long_path, legacy_paired_long_report = _optional_report(
-        evaluation, "legacy_paired_long_horizon_baseline_summary", config_dir=config_dir,
-    )
-    duration_gate = bool(
-        duration.get("available", False)
-        and np.isfinite(duration.get("brier_score", np.nan))
-        and np.isfinite(duration.get("expected_calibration_error", np.nan))
-        and duration.get("expected_calibration_error", np.inf) <= 0.10
-        and np.isfinite(np.mean([value for item in durations for value in item]) if durations else np.nan)
-        and (np.mean([value for item in durations for value in item]) if durations else 0.0) > 1.0
-    )
     responsiveness_max = int(evaluation.get("responsiveness_max_sequences", 256))
     if max_sequences:
         responsiveness_max = min(responsiveness_max, int(max_sequences))
@@ -393,17 +326,6 @@ def evaluate_semi_markov_world_model(
     controlled_response = _controlled_response_metrics(
         model, response_loader, device, seed=int(evaluation.get("seed", 123)) + 70_000,
     )
-    promotion_ready = complete_highd and paired_baseline and long_horizon_gate and duration_gate
-    if not complete_highd:
-        promotion_reason = "Requires complete held-out highD cache."
-    elif not paired_baseline:
-        promotion_reason = "Requires paired full-highD information-symmetric frozen-baseline comparison."
-    elif not long_horizon_gate:
-        promotion_reason = "Five-second paired error-accumulation / relationship-drift gate failed."
-    elif not duration_gate:
-        promotion_reason = "Semi-Markov duration calibration/persistence gate failed."
-    else:
-        promotion_reason = "All configured formal promotion gates passed."
     report = {
         "checkpoint": str(checkpoint), "checkpoint_sha256": current_hash,
         "sequence_cache": manifest, "test_sequences": int(len(pred)), "one_second_conditional_reconstruction": one_second,
@@ -419,38 +341,10 @@ def evaluate_semi_markov_world_model(
             "roll_mode_anchor_l1": float(np.mean(roll_anchor_losses)) if roll_anchor_losses else 0.0,
         },
         "controlled_response": controlled_response,
-        "legacy_frozen_baseline_comparison": {
-            "paired_baseline_summary": str(legacy_paired_path) if legacy_paired_path is not None else None,
-            "paired_long_horizon_baseline_summary": str(legacy_paired_long_path) if legacy_paired_long_path is not None else None,
-            "uses_future_flow_action_summary": bool(legacy_paired_report.get("protocol", {}).get("baseline_uses_future_flow_action_summary", False)),
-            "one_second_all_primary_error_gates_pass": bool(legacy_paired_report.get("all_primary_error_gates_pass", False)),
-            "five_second_all_primary_error_gates_pass": bool(legacy_paired_long_report.get("all_primary_error_gates_pass", False)),
-            "five_second_relationship_total_variation_candidate_minus_baseline": legacy_paired_long_report.get("relationship_distribution", {}).get("candidate_minus_baseline_total_variation"),
-            "promotion_eligible": False,
-            "reason": "Historical diagnostic only: legacy CAT-K START uses a future-action summary.",
-        },
-        "paired_frozen_baseline_long_horizon": {
-            "paired_and_full_test": complete_highd and paired_long,
-            "paired_baseline_summary": str(paired_long_path) if paired_long_path is not None else None,
-            "information_symmetric": paired_long_information_symmetric,
-            "all_primary_error_gates_pass": long_errors,
-            "relationship_total_variation_candidate_minus_baseline": float(long_relation_delta) if long_relation_delta is not None else None,
-            "relationship_drift_improved": bool(long_relation_improved),
-            "gate_pass": bool(long_horizon_gate),
-        },
         "latent_path": {
             "mean_segments_per_episode": float(np.mean([len(item) for item in states])) if states else float("nan"),
             "mean_duration_response_steps": float(np.mean([value for item in durations for value in item])) if durations else float("nan"),
             "switches_per_episode": float(np.mean([max(len(item) - 1, 0) for item in states])) if states else float("nan"),
-        },
-        "promotion": {
-            "eligible": promotion_ready,
-            "duration_calibrated_and_persistent": duration_gate,
-            "full_highd_cache": complete_highd,
-            "paired_frozen_baseline": paired_baseline,
-            "five_second_error_or_relation_drift_improved": long_horizon_gate,
-            "status": "pass" if promotion_ready else "not_promoted",
-            "reason": promotion_reason,
         },
     }
     save_json(report, out / "semi_markov_evaluation_summary.json")

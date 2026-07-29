@@ -1,0 +1,123 @@
+{
+  "checkpoint": {
+    "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+    "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
+  },
+  "closed_loop_distribution": {
+    "mmd_rbf": 0.2769814533381101,
+    "physical_validity": {
+      "collision_episode_rate": 0.348159509202454,
+      "collision_pair_point_rate": 0.016482503696402168
+    },
+    "risk_variable_distribution": {
+      "drac_mps2": {
+        "available": true,
+        "ks": 0.11309150812375623,
+        "num_generated": 2626496,
+        "num_real": 672720,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.2115917044129234,
+            "generated": 0.30133789890224366,
+            "real": 0.08974619448932024
+          },
+          "q95": {
+            "absolute_error": 0.6961621177591689,
+            "generated": 0.8538807900865162,
+            "real": 0.15771867232734724
+          },
+          "q99": {
+            "absolute_error": 42.959551479717504,
+            "generated": 43.37423056186307,
+            "real": 0.4146790821455697
+          }
+        },
+        "wasserstein_1": 3.0795536595430195
+      },
+      "gap_m": {
+        "available": true,
+        "ks": 0.1249990329619719,
+        "num_generated": 2626496,
+        "num_real": 672720,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 8.272060394287337,
+            "generated": 88.38306350708008,
+            "real": 80.11100311279274
+          },
+          "q95": {
+            "absolute_error": 1.659602165222168,
+            "generated": 114.66961498260498,
+            "real": 113.01001281738282
+          },
+          "q99": {
+            "absolute_error": 4.932101192476523,
+            "generated": 157.43450765609714,
+            "real": 152.50240646362062
+          }
+        },
+        "wasserstein_1": 5.3693312100627875
+      },
+      "relative_speed_mps": {
+        "available": true,
+        "ks": 0.14955612893838635,
+        "num_generated": 2626496,
+        "num_real": 672720,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 1.0925283432006836,
+            "generated": 3.412529945373535,
+            "real": 2.3200016021728516
+          },
+          "q95": {
+            "absolute_error": 0.918032169342041,
+            "generated": 4.568033695220947,
+            "real": 3.6500015258789062
+          },
+          "q99": {
+            "absolute_error": 0.025312576293345046,
+            "generated": 6.812787532806391,
+            "real": 6.838100109099736
+          }
+        },
+        "wasserstein_1": 0.7771568632849903
+      },
+      "ttc_s": {
+        "available": true,
+        "ks": 0.10450987475726786,
+        "num_generated": 2626496,
+        "num_real": 672720,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q95": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q99": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          }
+        },
+        "wasserstein_1": 0.7890572172120517
+      }
+    },
+    "traffic_feature_frechet_distance": 15.497064937652802
+  },
+  "protocol": {
+    "flow_initial_conditions": 2608,
+    "generated_world_futures": 10432,
+    "horizon_seconds": 5.0,
+    "inner_world_samples": 4,
+    "name": "held-out EVT Flow × RAMP composition",
+    "not_a_paired_reconstruction": true,
+    "outer_flow_samples": 8,
+    "seed": 20260729,
+    "supported_held_out_replays": 326
+  }
+}

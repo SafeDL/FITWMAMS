@@ -1,0 +1,17 @@
+{
+  "close_interaction": {
+    "selection": "largest observed severity within the named held-out event class",
+    "sequence_id": "nat_35_000140_001478",
+    "tail_row_index": 12
+  },
+  "hard_braking": {
+    "selection": "largest observed severity within the named held-out event class",
+    "sequence_id": "nat_36_000349_003634",
+    "tail_row_index": 196
+  },
+  "high_risk_following": {
+    "selection": "largest observed severity within the named held-out event class",
+    "sequence_id": "nat_45_000631_006978",
+    "tail_row_index": 20
+  }
+}

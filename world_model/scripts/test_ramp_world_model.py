@@ -25,6 +25,10 @@ def main() -> None:
     )
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--max-sequences", type=int, default=0)
+    parser.add_argument(
+        "--flow-composition", action="store_true",
+        help="Run the formal 8×4 Flow × RAMP test instead of ordinary reconstruction.",
+    )
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -40,6 +44,14 @@ def main() -> None:
         else Path(config["paths"]["output_dir"])
         / "checkpoints/best_ramp_world_model.pt"
     )
+    if args.flow_composition:
+        from world_model.src.ramp.flow_evaluation import evaluate_flow_composition
+
+        evaluate_flow_composition(
+            checkpoint=checkpoint.resolve(),
+            output_dir=Path(config["paths"]["output_dir"]),
+        )
+        return
     evaluate_ramp_world_model(
         config,
         config_dir=config_path.parent,

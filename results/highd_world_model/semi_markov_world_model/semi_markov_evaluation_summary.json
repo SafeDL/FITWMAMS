@@ -105,16 +105,6 @@
     "mean_segments_per_episode": 20.291129831516354,
     "switches_per_episode": 19.291129831516354
   },
-  "legacy_frozen_baseline_comparison": {
-    "five_second_all_primary_error_gates_pass": false,
-    "five_second_relationship_total_variation_candidate_minus_baseline": null,
-    "one_second_all_primary_error_gates_pass": false,
-    "paired_baseline_summary": null,
-    "paired_long_horizon_baseline_summary": null,
-    "promotion_eligible": false,
-    "reason": "Historical diagnostic only: legacy CAT-K START uses a future-action summary.",
-    "uses_future_flow_action_summary": false
-  },
   "one_second_conditional_reconstruction": {
     "ADE_1s_m": 0.030686900825537378,
     "ADE_m": 0.030686900825537378,
@@ -124,15 +114,6 @@
     "gap_mae_m": 0.02688406738649584,
     "relative_vx_mae_mps": 0.009637363865579576,
     "velocity_mae_mps": 0.013269314405879966
-  },
-  "paired_frozen_baseline_long_horizon": {
-    "all_primary_error_gates_pass": false,
-    "gate_pass": false,
-    "information_symmetric": false,
-    "paired_and_full_test": false,
-    "paired_baseline_summary": null,
-    "relationship_drift_improved": false,
-    "relationship_total_variation_candidate_minus_baseline": null
   },
   "physical_diagnostics": {
     "acceleration_out_of_range_rate": 0.0,
@@ -145,31 +126,9 @@
     "semantic_error_rate": 0.0,
     "speed_out_of_range_rate": 0.0
   },
-  "plan_mode_diagnostics": {
-    "mean_probabilities": [
-      1.0
-    ],
-    "num_modes": 1,
-    "selected_counts": [
-      605400
-    ],
-    "selected_frequency": [
-      1.0
-    ]
-  },
   "prior_posterior_consistency": {
     "categorical_cross_entropy": 0.45046332478523254,
     "mean_total_variation": 0.12901043891906738
-  },
-  "promotion": {
-    "duration_calibrated_and_persistent": false,
-    "eligible": false,
-    "five_second_error_or_relation_drift_improved": false,
-    "full_highd_cache": true,
-    "paired_frozen_baseline": false,
-    "reason": "Requires paired full-highD information-symmetric frozen-baseline comparison.",
-    "round_evaluation_complete": false,
-    "status": "not_promoted"
   },
   "relationship_distribution": {
     "predicted": {

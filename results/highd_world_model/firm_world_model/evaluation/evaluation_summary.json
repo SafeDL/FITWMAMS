@@ -18,7 +18,7 @@
     "crps": 0.1299191343156915,
     "energy_score": 6.330551546624344,
     "num_random_rollouts_per_condition": 8,
-    "prefix_nll": -2.006426465511322,
+    "prefix_nll": -2.006426470844369,
     "rank_histogram": {
       "chi_square_uniform": 950864.5753117885,
       "counts": [

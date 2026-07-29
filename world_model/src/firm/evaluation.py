@@ -1,4 +1,4 @@
-"""Held-out reconstruction, calibration, and counterfactual evaluation for FIRM-WM."""
+"""Held-out reconstruction and calibration evaluation for FIRM-WM."""
 
 from __future__ import annotations
 
@@ -100,54 +100,13 @@ def _prefix_nll(model, batch: dict[str, torch.Tensor], rollout: dict[str, torch.
     return float(torch.stack(values).mean().cpu())
 
 
-def _counterfactual_ego(model, initial: torch.Tensor, frames: int, acceleration: float) -> torch.Tensor:
-    state = initial[:, None].clone()
-    valid = torch.ones(state.shape[:2], dtype=torch.bool, device=state.device)
-    control = state.new_zeros((state.shape[0], 1, 2))
-    control[..., 0] = float(acceleration)
-    output = []
-    for _ in range(frames):
-        state = model.dynamics.step(state, control, valid, model.cfg.simulation_dt_s)
-        output.append(state[:, 0])
-    return torch.stack(output, dim=1)
-
-
-def _counterfactual_rollouts(
-    model,
-    batch: dict[str, torch.Tensor],
-    *,
-    seed: int,
-) -> dict[str, np.ndarray]:
-    states = batch["agent_states"].clone()
-    initial = states[:, 24, 0]
-    maintain = states.clone()
-    brake = states.clone()
-    maintain[:, 25:, 0] = _counterfactual_ego(model, initial, 125, 0.0)
-    brake[:, 25:, 0] = _counterfactual_ego(model, initial, 125, -2.0)
-    keep = {key: value for key, value in batch.items() if key != "agent_states"}
-    with torch.no_grad():
-        first = model.rollout_roll_mode(
-            {**keep, "agent_states": maintain}, seed=seed, deterministic=True
-        )
-        second = model.rollout_roll_mode(
-            {**keep, "agent_states": brake}, seed=seed, deterministic=True
-        )
-    return {
-        "maintain_ego": maintain[:, 25:, 0].cpu().numpy(),
-        "brake_ego": brake[:, 25:, 0].cpu().numpy(),
-        "maintain_background": first["predicted_states"][:, :, 1:].cpu().numpy(),
-        "brake_background": second["predicted_states"][:, :, 1:].cpu().numpy(),
-        "valid": first["target_valid"][:, :, 1:].cpu().numpy(),
-    }
-
-
 def _calibration_batch(
     model,
     batch: dict[str, torch.Tensor],
     *,
     seed: int,
     samples: int,
-) -> tuple[dict[str, Any], np.ndarray]:
+) -> dict[str, Any]:
     draws = []
     for draw in range(samples):
         rollout = model.rollout_roll_mode(batch, seed=seed + draw * 1009, deterministic=False)
@@ -171,7 +130,7 @@ def _calibration_batch(
         "crps": univariate_crps(position, observed, valid),
         "rank_counts": np.bincount(rank[mask].reshape(-1), minlength=samples + 1),
         "coverage": coverage,
-    }, generated
+    }
 
 
 def evaluate_firm_world_model(
@@ -221,16 +180,6 @@ def evaluate_firm_world_model(
         "coverage": {str(level): [0, 0] for level in (0.5, 0.8, 0.9, 0.95)},
     }
     calibration_samples = int(evaluation.get("calibration_samples", 8))
-    counterfactual_limit = int(evaluation.get("counterfactual_sequences", 256))
-    counterfactual: dict[str, list[np.ndarray]] = {}
-    counterfactual_seen = 0
-    example_draws: list[np.ndarray] = []
-    example_predicted: list[np.ndarray] = []
-    example_target: list[np.ndarray] = []
-    example_valid: list[np.ndarray] = []
-    example_tail: list[bool] = []
-    selected_by_stratum = {False: 0, True: 0}
-    examples_per_stratum = int(evaluation.get("visualization_examples_per_stratum", 3))
     replay_max_error: float | None = None
     with torch.no_grad():
         for batch_index, values in enumerate(loader):
@@ -260,7 +209,7 @@ def evaluate_firm_world_model(
             )
             anchor_errors.append(error)
             anchor_by_feature.append(by_feature)
-            measured, random_draws = _calibration_batch(
+            measured = _calibration_batch(
                 model,
                 batch,
                 seed=int(evaluation.get("seed", 123)) + batch_index * 11939,
@@ -275,28 +224,6 @@ def evaluate_firm_world_model(
             for level, (covered, count) in measured["coverage"].items():
                 calibration["coverage"][level][0] += covered
                 calibration["coverage"][level][1] += count
-            tail_flags = batch["is_evt_tail"].cpu().numpy().astype(bool)
-            for row, is_tail in enumerate(tail_flags):
-                if selected_by_stratum[bool(is_tail)] >= examples_per_stratum:
-                    continue
-                example_draws.append(random_draws[:, row])
-                example_predicted.append(rollout["predicted_states"][row].cpu().numpy())
-                example_target.append(rollout["target_states"][row].cpu().numpy())
-                example_valid.append(rollout["target_valid"][row].cpu().numpy())
-                example_tail.append(bool(is_tail))
-                selected_by_stratum[bool(is_tail)] += 1
-            if counterfactual_seen < counterfactual_limit:
-                take = min(counterfactual_limit - counterfactual_seen, batch["agent_states"].shape[0])
-                subset = {
-                    key: value[:take] if torch.is_tensor(value) and value.shape[0] == batch["agent_states"].shape[0] else value
-                    for key, value in batch.items()
-                }
-                result = _counterfactual_rollouts(
-                    model, subset, seed=int(evaluation.get("seed", 123)) + batch_index
-                )
-                for key, value in result.items():
-                    counterfactual.setdefault(key, []).append(value)
-                counterfactual_seen += take
     pred = np.concatenate(predicted)
     tgt = np.concatenate(target)
     mask = np.concatenate(masks)
@@ -342,20 +269,6 @@ def evaluate_firm_world_model(
             for level, (covered, count) in calibration["coverage"].items()
         },
     }
-    counterfactual_output = {key: np.concatenate(value) for key, value in counterfactual.items()}
-    np.savez_compressed(
-        evaluation_dir / "heldout_rollouts.npz",
-        predicted_states=pred.astype(np.float32),
-        target_states=tgt.astype(np.float32),
-        valid=mask.astype(bool),
-        is_evt_tail=tail.astype(bool),
-        example_sampled_background_states=np.asarray(example_draws, dtype=np.float32),
-        example_predicted_states=np.asarray(example_predicted, dtype=np.float32),
-        example_target_states=np.asarray(example_target, dtype=np.float32),
-        example_valid=np.asarray(example_valid, dtype=bool),
-        example_is_evt_tail=np.asarray(example_tail, dtype=bool),
-    )
-    np.savez_compressed(evaluation_dir / "counterfactual_rollouts.npz", **counterfactual_output)
     save_json(calibration_report, evaluation_dir / "calibration_metrics.json")
     report = {
         "model_type": model.model_type,
