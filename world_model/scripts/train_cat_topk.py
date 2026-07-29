@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from world_model.src.cli_config import materialize_config
-from world_model.src.train import train_world_model
-from world_model.src.utils import setup_logging
+from world_model.src.core.cli_config import materialize_config
+from world_model.src.cat_topk.train import train_world_model
+from world_model.src.core.utils import setup_logging
 
 
 def main() -> None:

@@ -1,0 +1,967 @@
+{
+  "diversity": {
+    "average_pairwise_FDE_m": 0.003524535874960073,
+    "average_pairwise_gap_distance_m": 0.0006741633235745417,
+    "average_pairwise_ttc_distance_s": 0.0002536102445505563,
+    "coverage": {
+      "minFDE_le_1m": 0.801829268292683,
+      "minFDE_le_2m": 0.9603658536585366,
+      "minFDE_le_5m": 0.9969512195121951
+    }
+  },
+  "events": {
+    "close_interaction": {
+      "available": true,
+      "num_sequences": 215,
+      "risk_tail": {
+        "available": true,
+        "exceedance_at_real_quantiles": {
+          "q90": {
+            "generated": 0.09767441860465116,
+            "real": 0.10232558139534884,
+            "threshold": 5.22289981842041
+          },
+          "q95": {
+            "generated": 0.04186046511627907,
+            "real": 0.05116279069767442,
+            "threshold": 5.3403655052185055
+          },
+          "q99": {
+            "generated": 0.013953488372093023,
+            "real": 0.013953488372093023,
+            "threshold": 5.757058181762694
+          }
+        },
+        "ks": 0.023255813953488413,
+        "num_generated": 6880,
+        "num_real": 215,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.01700153350830025,
+            "generated": 5.205898284912109,
+            "real": 5.22289981842041
+          },
+          "q95": {
+            "absolute_error": 0.01240546703338552,
+            "generated": 5.32796003818512,
+            "real": 5.3403655052185055
+          },
+          "q99": {
+            "absolute_error": 0.01618010044098117,
+            "generated": 5.773238282203675,
+            "real": 5.757058181762694
+          }
+        },
+        "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+        "wasserstein_1": 0.03902621169346692
+      },
+      "trajectory_reproduction": {
+        "ADE_m": 0.19978200169496757,
+        "FDE_m": 0.7852775163659753,
+        "minADE_at_K_m": 0.19829710347707882,
+        "minFDE_at_K_m": 0.7795059824844663,
+        "sample_mean_ADE_m": 0.19994881348955162,
+        "sample_mean_FDE_m": 0.7854708416889921
+      }
+    },
+    "hard_braking": {
+      "available": true,
+      "num_sequences": 17,
+      "risk_tail": {
+        "available": true,
+        "exceedance_at_real_quantiles": {
+          "q90": {
+            "generated": 0.058823529411764705,
+            "real": 0.11764705882352941,
+            "threshold": 5.000624084472657
+          },
+          "q95": {
+            "generated": 0.0,
+            "real": 0.058823529411764705,
+            "threshold": 5.233859634399414
+          },
+          "q99": {
+            "generated": 0.0,
+            "real": 0.058823529411764705,
+            "threshold": 5.481798477172852
+          }
+        },
+        "ks": 0.17647058823529413,
+        "num_generated": 544,
+        "num_real": 17,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.06876077651977575,
+            "generated": 4.931863307952881,
+            "real": 5.000624084472657
+          },
+          "q95": {
+            "absolute_error": 0.07676076889038086,
+            "generated": 5.157098865509033,
+            "real": 5.233859634399414
+          },
+          "q99": {
+            "absolute_error": 0.3244826841354369,
+            "generated": 5.157315793037415,
+            "real": 5.481798477172852
+          }
+        },
+        "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+        "wasserstein_1": 0.16206095637459497
+      },
+      "trajectory_reproduction": {
+        "ADE_m": 0.46301761269569397,
+        "FDE_m": 2.0443130219683927,
+        "minADE_at_K_m": 0.4606689381248811,
+        "minFDE_at_K_m": 2.0348146576507418,
+        "sample_mean_ADE_m": 0.46319703634499626,
+        "sample_mean_FDE_m": 2.043889861466253
+      }
+    },
+    "high_risk_following": {
+      "available": true,
+      "num_sequences": 183,
+      "risk_tail": {
+        "available": true,
+        "exceedance_at_real_quantiles": {
+          "q90": {
+            "generated": 0.09289617486338798,
+            "real": 0.10382513661202186,
+            "threshold": 5.26986484527588
+          },
+          "q95": {
+            "generated": 0.04918032786885246,
+            "real": 0.0546448087431694,
+            "threshold": 5.3669493198394775
+          },
+          "q99": {
+            "generated": 0.01092896174863388,
+            "real": 0.01092896174863388,
+            "threshold": 5.775660305023194
+          }
+        },
+        "ks": 0.02732240437158473,
+        "num_generated": 5856,
+        "num_real": 183,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.022823619842530007,
+            "generated": 5.24704122543335,
+            "real": 5.26986484527588
+          },
+          "q95": {
+            "absolute_error": 0.03200328350067139,
+            "generated": 5.334946036338806,
+            "real": 5.3669493198394775
+          },
+          "q99": {
+            "absolute_error": 0.017714519500731996,
+            "generated": 5.793374824523926,
+            "real": 5.775660305023194
+          }
+        },
+        "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+        "wasserstein_1": 0.05061848940492946
+      },
+      "trajectory_reproduction": {
+        "ADE_m": 0.19445644101239945,
+        "FDE_m": 0.7645748740499788,
+        "minADE_at_K_m": 0.19298798863679334,
+        "minFDE_at_K_m": 0.7588490995797303,
+        "sample_mean_ADE_m": 0.19462073438666008,
+        "sample_mean_FDE_m": 0.7647666453947066
+      }
+    },
+    "high_speed_approach": {
+      "available": true,
+      "num_sequences": 162,
+      "risk_tail": {
+        "available": true,
+        "exceedance_at_real_quantiles": {
+          "q90": {
+            "generated": 0.08641975308641975,
+            "real": 0.10493827160493827,
+            "threshold": 5.293915891647339
+          },
+          "q95": {
+            "generated": 0.04938271604938271,
+            "real": 0.05555555555555555,
+            "threshold": 5.3811815738677975
+          },
+          "q99": {
+            "generated": 0.012345679012345678,
+            "real": 0.012345679012345678,
+            "threshold": 5.7783882045745845
+          }
+        },
+        "ks": 0.030864197530864224,
+        "num_generated": 5184,
+        "num_real": 162,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.017906332015991566,
+            "generated": 5.276009559631348,
+            "real": 5.293915891647339
+          },
+          "q95": {
+            "absolute_error": 0.002602291107177024,
+            "generated": 5.3785792827606205,
+            "real": 5.3811815738677975
+          },
+          "q99": {
+            "absolute_error": 0.015016140937805567,
+            "generated": 5.79340434551239,
+            "real": 5.7783882045745845
+          }
+        },
+        "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+        "wasserstein_1": 0.03332840681765521
+      },
+      "trajectory_reproduction": {
+        "ADE_m": 0.19679722097920782,
+        "FDE_m": 0.7680946641682107,
+        "minADE_at_K_m": 0.1953552257683542,
+        "minFDE_at_K_m": 0.7623559521304236,
+        "sample_mean_ADE_m": 0.19702275282772327,
+        "sample_mean_FDE_m": 0.7685891163630272
+      }
+    },
+    "strong_relative_speed_change": {
+      "available": true,
+      "num_sequences": 65,
+      "risk_tail": {
+        "available": true,
+        "exceedance_at_real_quantiles": {
+          "q90": {
+            "generated": 0.09230769230769231,
+            "real": 0.1076923076923077,
+            "threshold": 5.121044254302978
+          },
+          "q95": {
+            "generated": 0.046153846153846156,
+            "real": 0.06153846153846154,
+            "threshold": 5.2931227684021
+          },
+          "q99": {
+            "generated": 0.015384615384615385,
+            "real": 0.015384615384615385,
+            "threshold": 5.7779985046386715
+          }
+        },
+        "ks": 0.04567307692307693,
+        "num_generated": 2080,
+        "num_real": 65,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.004559612274169567,
+            "generated": 5.116484642028809,
+            "real": 5.121044254302978
+          },
+          "q95": {
+            "absolute_error": 0.10155673027038592,
+            "generated": 5.191566038131714,
+            "real": 5.2931227684021
+          },
+          "q99": {
+            "absolute_error": 0.015394673347473464,
+            "generated": 5.793393177986145,
+            "real": 5.7779985046386715
+          }
+        },
+        "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+        "wasserstein_1": 0.05128305886428599
+      },
+      "trajectory_reproduction": {
+        "ADE_m": 0.2889368068713408,
+        "FDE_m": 1.193992419456824,
+        "minADE_at_K_m": 0.28707104990115534,
+        "minFDE_at_K_m": 1.186281254421442,
+        "sample_mean_ADE_m": 0.2890897121495352,
+        "sample_mean_FDE_m": 1.194116098148844
+      }
+    }
+  },
+  "model": "ramp",
+  "multi_vehicle_interaction": {
+    "brake_response_generated": {
+      "available": true,
+      "front_acceleration_bin_edges_mps2": [
+        -8.0,
+        -3.0,
+        -1.0,
+        0.0,
+        1.0,
+        3.0,
+        8.0
+      ],
+      "mean_rear_acceleration_mps2": [
+        -0.3925304675803465,
+        -0.5273552884779579,
+        -0.21320369646528067,
+        -0.027225459677804143,
+        NaN,
+        NaN
+      ],
+      "num_pairs": 28805,
+      "pearson_correlation": 0.32361271259921487
+    },
+    "brake_response_real": {
+      "available": true,
+      "front_acceleration_bin_edges_mps2": [
+        -8.0,
+        -3.0,
+        -1.0,
+        0.0,
+        1.0,
+        3.0,
+        8.0
+      ],
+      "mean_rear_acceleration_mps2": [
+        -0.7909174301755537,
+        -0.5975655420519383,
+        -0.24944478421251445,
+        -0.042846136813974714,
+        0.7599999904632568,
+        NaN
+      ],
+      "num_pairs": 29007,
+      "pearson_correlation": 0.3019374420099785
+    },
+    "correlation_generated": [
+      [
+        1.0,
+        0.023003413263662703,
+        0.0241375972948151
+      ],
+      [
+        0.0230034132636627,
+        1.0,
+        -0.038595578629992223
+      ],
+      [
+        0.0241375972948151,
+        -0.03859557862999222,
+        0.9999999999999999
+      ]
+    ],
+    "correlation_mean_absolute_error": 0.008817104918755264,
+    "correlation_real": [
+      [
+        1.0,
+        0.0345050364135609,
+        0.02679983761175439
+      ],
+      [
+        0.0345050364135609,
+        0.9999999999999999,
+        -0.013082469962431132
+      ],
+      [
+        0.02679983761175439,
+        -0.013082469962431132,
+        1.0
+      ]
+    ],
+    "correlation_variables": [
+      "speed_mps",
+      "acceleration_mps2",
+      "gap_m"
+    ],
+    "delta_gap_distribution": {
+      "available": true,
+      "ks": 0.03208999999999995,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.002321052551269631,
+          "generated": 0.17233448028564463,
+          "real": 0.170013427734375
+        },
+        "q95": {
+          "absolute_error": 0.0029682159423827237,
+          "generated": 0.2629779815673827,
+          "real": 0.260009765625
+        },
+        "q99": {
+          "absolute_error": 0.00253326416015609,
+          "generated": 0.3925173950195311,
+          "real": 0.389984130859375
+        }
+      },
+      "wasserstein_1": 0.0024953526210784904
+    },
+    "delta_relative_speed_distribution": {
+      "available": true,
+      "ks": 0.15106999999999993,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.0025691986083984375,
+          "generated": 0.022569656372070312,
+          "real": 0.020000457763671875
+        },
+        "q95": {
+          "absolute_error": 0.0013352394104003684,
+          "generated": 0.03133592605590818,
+          "real": 0.030000686645507812
+        },
+        "q99": {
+          "absolute_error": 0.0019396209716797674,
+          "generated": 0.058059844970703045,
+          "real": 0.05999946594238281
+        }
+      },
+      "wasserstein_1": 0.0028181096267700183
+    }
+  },
+  "physical_validity": {
+    "acceleration_out_of_range_rate": 0.0,
+    "collision_overlap_rate": 0.0,
+    "invalid_trajectory_rate": 0.0,
+    "jerk_out_of_range_rate": 0.0,
+    "speed_out_of_range_rate": 0.0
+  },
+  "risk_tail": {
+    "available": true,
+    "exceedance_at_real_quantiles": {
+      "q90": {
+        "generated": 0.10365853658536585,
+        "real": 0.10060975609756098,
+        "threshold": 5.138816785812378
+      },
+      "q95": {
+        "generated": 0.042682926829268296,
+        "real": 0.051829268292682924,
+        "threshold": 5.289784455299377
+      },
+      "q99": {
+        "generated": 0.012195121951219513,
+        "real": 0.012195121951219513,
+        "threshold": 5.628602690696718
+      }
+    },
+    "ks": 0.015339176829268275,
+    "num_generated": 10496,
+    "num_real": 328,
+    "quantiles": {
+      "q90": {
+        "absolute_error": 0.01828579902648908,
+        "generated": 5.157102584838867,
+        "real": 5.138816785812378
+      },
+      "q95": {
+        "absolute_error": 0.013862872123717729,
+        "generated": 5.275921583175659,
+        "real": 5.289784455299377
+      },
+      "q99": {
+        "absolute_error": 0.0430300283431988,
+        "generated": 5.671632719039917,
+        "real": 5.628602690696718
+      }
+    },
+    "risk_definition": "max_t,slot[(3-TTC)_+/3 + 0.5*log(1+DRAC) + (8-gap)_+/8 + (-ax-2)_+/4]",
+    "wasserstein_1": 0.026949187574279977
+  },
+  "risk_variable_distribution": {
+    "acceleration_mps2": {
+      "available": true,
+      "ks": 0.04621,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.04379170536994931,
+          "generated": 0.2662082970142365,
+          "real": 0.3100000023841858
+        },
+        "q95": {
+          "absolute_error": 0.07711664587259309,
+          "generated": 0.3628833517432211,
+          "real": 0.4399999976158142
+        },
+        "q99": {
+          "absolute_error": 0.10343056857585908,
+          "generated": 0.6365694409608841,
+          "real": 0.7400000095367432
+        }
+      },
+      "wasserstein_1": 0.04289837359265353
+    },
+    "closing_speed_mps": {
+      "available": true,
+      "ks": 0.00934999999999997,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.0454496383666978,
+          "generated": 6.514549827575685,
+          "real": 6.559999465942383
+        },
+        "q95": {
+          "absolute_error": 0.01697025299072319,
+          "generated": 7.79302921295166,
+          "real": 7.809999465942383
+        },
+        "q99": {
+          "absolute_error": 0.06775358200073711,
+          "generated": 10.722245426177974,
+          "real": 10.789999008178711
+        }
+      },
+      "wasserstein_1": 0.015104372377395628
+    },
+    "delta_speed_mps": {
+      "available": true,
+      "ks": 0.18463000000000002,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.0005649566650390847,
+          "generated": 0.010567092895507835,
+          "real": 0.01000213623046875
+        },
+        "q95": {
+          "absolute_error": 0.005615234375,
+          "generated": 0.014385223388671875,
+          "real": 0.020000457763671875
+        },
+        "q99": {
+          "absolute_error": 0.004669055938720773,
+          "generated": 0.025333538055419852,
+          "real": 0.030002593994140625
+        }
+      },
+      "wasserstein_1": 0.003281638669967651
+    },
+    "drac_mps2": {
+      "available": true,
+      "ks": 0.008050000000000002,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.04070508480072155,
+          "generated": 2.0409770727157603,
+          "real": 2.081682157516482
+        },
+        "q95": {
+          "absolute_error": 0.4942231178286143,
+          "generated": 16.405872154235578,
+          "real": 16.900095272064192
+        },
+        "q99": {
+          "absolute_error": 2.370875244133117,
+          "generated": 440.61495483397687,
+          "real": 438.24407958984375
+        }
+      },
+      "wasserstein_1": 0.3408538864413934
+    },
+    "gap_m": {
+      "available": true,
+      "ks": 0.0034799999999999276,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 6.103515616473487e-06,
+          "generated": 66.69999084472657,
+          "real": 66.69999694824219
+        },
+        "q95": {
+          "absolute_error": 0.09117736816413924,
+          "generated": 86.50382385253899,
+          "real": 86.59500122070312
+        },
+        "q99": {
+          "absolute_error": 0.08159912109374545,
+          "generated": 131.71664367675777,
+          "real": 131.63504455566402
+        }
+      },
+      "wasserstein_1": 0.032820736336708047
+    },
+    "jerk_mps3": {
+      "available": true,
+      "ks": 0.38296,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.03283773362636566,
+          "generated": 0.21716222167015076,
+          "real": 0.24999995529651642
+        },
+        "q95": {
+          "absolute_error": 0.16553884744644043,
+          "generated": 0.41553899645805237,
+          "real": 0.25000014901161194
+        },
+        "q99": {
+          "absolute_error": 0.8451604020595438,
+          "generated": 1.3451607000827677,
+          "real": 0.5000002980232239
+        }
+      },
+      "wasserstein_1": 0.12142776809912874
+    },
+    "max_closing_speed_mps": {
+      "available": true,
+      "ks": 0.021341463414634165,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.08001098632812464,
+          "generated": 8.851990699768066,
+          "real": 8.932001686096191
+        },
+        "q95": {
+          "absolute_error": 0.2717544555664073,
+          "generated": 10.154755592346191,
+          "real": 9.883001136779784
+        },
+        "q99": {
+          "absolute_error": 0.0046975135803233314,
+          "generated": 14.47450304031372,
+          "real": 14.479200553894044
+        }
+      },
+      "wasserstein_1": 0.06328477183751145
+    },
+    "max_drac_mps2": {
+      "available": true,
+      "ks": 0.018292682926829285,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 27.186737060546875,
+          "generated": 551.36279296875,
+          "real": 524.1760559082031
+        },
+        "q95": {
+          "absolute_error": 3.213699340820199,
+          "generated": 699.5340881347656,
+          "real": 702.7477874755858
+        },
+        "q99": {
+          "absolute_error": 121.40588256835417,
+          "generated": 1544.7512268066407,
+          "real": 1423.3453442382865
+        }
+      },
+      "wasserstein_1": 6.163090321707159
+    },
+    "min_acceleration_mps2": {
+      "available": true,
+      "ks": 0.06402439024390244,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.03542937301099289,
+          "generated": 0.018429373390972614,
+          "real": -0.016999999620020276
+        },
+        "q95": {
+          "absolute_error": 0.0392623245716095,
+          "generated": 0.10926232486963272,
+          "real": 0.07000000029802322
+        },
+        "q99": {
+          "absolute_error": 0.051929860413074846,
+          "generated": 0.21267014741897583,
+          "real": 0.2646000078320507
+        }
+      },
+      "wasserstein_1": 0.05472828632771455
+    },
+    "min_gap_m": {
+      "available": true,
+      "ks": 0.021341463414634165,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.3439331054687482,
+          "generated": 12.900924682617188,
+          "real": 12.55699157714844
+        },
+        "q95": {
+          "absolute_error": 0.15076828002929688,
+          "generated": 14.298770904541016,
+          "real": 14.148002624511719
+        },
+        "q99": {
+          "absolute_error": 0.3842771911621057,
+          "generated": 16.58027801513672,
+          "real": 16.196000823974614
+        }
+      },
+      "wasserstein_1": 0.08098421477481821
+    },
+    "min_ttc_s": {
+      "available": true,
+      "ks": 0.015243902439024404,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        },
+        "q95": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        },
+        "q99": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        }
+      },
+      "wasserstein_1": 0.05789276347055386
+    },
+    "relative_speed_mps": {
+      "available": true,
+      "ks": 0.011170000000000013,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.03941726684570357,
+          "generated": 2.3794176101684577,
+          "real": 2.340000343322754
+        },
+        "q95": {
+          "absolute_error": 0.0974619865416626,
+          "generated": 4.403039741516082,
+          "real": 4.500501728057745
+        },
+        "q99": {
+          "absolute_error": 0.04500150680541104,
+          "generated": 8.575000286102286,
+          "real": 8.529998779296875
+        }
+      },
+      "wasserstein_1": 0.031041737432479857
+    },
+    "risk_score": {
+      "available": true,
+      "ks": 0.015339176829268275,
+      "num_generated": 10496,
+      "num_real": 328,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.01828579902648908,
+          "generated": 5.157102584838867,
+          "real": 5.138816785812378
+        },
+        "q95": {
+          "absolute_error": 0.013862872123717729,
+          "generated": 5.275921583175659,
+          "real": 5.289784455299377
+        },
+        "q99": {
+          "absolute_error": 0.0430300283431988,
+          "generated": 5.671632719039917,
+          "real": 5.628602690696718
+        }
+      },
+      "wasserstein_1": 0.026949187574279977
+    },
+    "speed_mps": {
+      "available": true,
+      "ks": 0.005799999999999972,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.045452117919921875,
+          "generated": 34.79545249938965,
+          "real": 34.750000381469725
+        },
+        "q95": {
+          "absolute_error": 0.006424713134762783,
+          "generated": 36.516473579406735,
+          "real": 36.51004886627197
+        },
+        "q99": {
+          "absolute_error": 0.003668632507320524,
+          "generated": 40.57138740539549,
+          "real": 40.56771877288817
+        }
+      },
+      "wasserstein_1": 0.03202497835159303
+    },
+    "ttc_s": {
+      "available": true,
+      "ks": 0.003720000000000001,
+      "num_generated": 100000,
+      "num_real": 100000,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        },
+        "q95": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        },
+        "q99": {
+          "absolute_error": 0.0,
+          "generated": 10.0,
+          "real": 10.0
+        }
+      },
+      "wasserstein_1": 0.011912764245684666
+    }
+  },
+  "temporal_dynamics": {
+    "acceleration_acf_generated": [
+      0.9981187749540059,
+      0.9947665117369179,
+      0.9909845101092609,
+      0.9873462640590176,
+      0.9843764278274377,
+      0.9825793128247647,
+      0.9812285929224196,
+      0.9797707698404258,
+      0.9784493200053527,
+      0.9771123448784305,
+      0.9748626831961532,
+      0.972755706878457,
+      0.9706603625048202,
+      0.9684925376922129,
+      0.9664252577087437,
+      0.9633360331999077,
+      0.9604490461388228,
+      0.9574302386617436,
+      0.9546357275355829,
+      0.951768265043802,
+      0.9478691019094286,
+      0.9434592628289826,
+      0.93838961320482,
+      0.9329027032375412,
+      0.9277183175402368
+    ],
+    "acceleration_acf_mean_absolute_error": 0.00854255232862942,
+    "acceleration_acf_real": [
+      1.0002069632500459,
+      1.0001198122868586,
+      0.9996961106452121,
+      0.998939381548841,
+      0.9978478239703896,
+      0.9964306992810373,
+      0.9946832206150897,
+      0.9926091519905512,
+      0.9902086654020059,
+      0.9874899058546285,
+      0.9844687196206974,
+      0.9811341287356168,
+      0.9775004346677528,
+      0.973576589735523,
+      0.9693586179387101,
+      0.9648617514099042,
+      0.9600998593854402,
+      0.955063411218826,
+      0.9497682529083161,
+      0.9442184416765113,
+      0.938436259365295,
+      0.9324141977881142,
+      0.9261705793942535,
+      0.9197127652896712,
+      0.9130412674733338
+    ],
+    "acceleration_duration_s": {
+      "available": true,
+      "ks": 0.609770552874439,
+      "num_generated": 127,
+      "num_real": 93,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.8079999999999985,
+          "generated": 3.2320000000000015,
+          "real": 4.04
+        },
+        "q95": {
+          "absolute_error": 0.559999999999997,
+          "generated": 4.2,
+          "real": 4.759999999999997
+        },
+        "q99": {
+          "absolute_error": 0.04160000000000075,
+          "generated": 4.958399999999999,
+          "real": 5.0
+        }
+      },
+      "wasserstein_1": 1.0740407449068867
+    },
+    "braking_duration_s": {
+      "available": true,
+      "ks": 0.5332471804511278,
+      "num_generated": 266,
+      "num_real": 192,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 0.9159999999999999,
+          "generated": 3.8000000000000003,
+          "real": 4.716
+        },
+        "q95": {
+          "absolute_error": 0.5,
+          "generated": 4.5,
+          "real": 5.0
+        },
+        "q99": {
+          "absolute_error": 0.0,
+          "generated": 5.0,
+          "real": 5.0
+        }
+      },
+      "wasserstein_1": 1.1412886934316924
+    },
+    "lateral_motion_duration_s": {
+      "available": true,
+      "ks": 0.6933694030887817,
+      "num_generated": 1495,
+      "num_real": 722,
+      "quantiles": {
+        "q90": {
+          "absolute_error": 1.32,
+          "generated": 1.8800000000000001,
+          "real": 3.2
+        },
+        "q95": {
+          "absolute_error": 1.44,
+          "generated": 2.64,
+          "real": 4.08
+        },
+        "q99": {
+          "absolute_error": 0.0,
+          "generated": 5.0,
+          "real": 5.0
+        }
+      },
+      "wasserstein_1": 1.0549406723885506
+    }
+  },
+  "trajectory_reproduction": {
+    "ADE_m": 0.18958934067135177,
+    "FDE_m": 0.7519361226630163,
+    "minADE_at_K_m": 0.18806976397953382,
+    "minFDE_at_K_m": 0.7459856711630899,
+    "sample_mean_ADE_m": 0.18972729727918305,
+    "sample_mean_FDE_m": 0.752083781021136
+  }
+}

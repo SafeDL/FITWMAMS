@@ -1,12 +1,27 @@
 # 背景交通世界模型
 
-本目录包含独立训练的 **RAMP-WM**（关系记忆驱动的联合多假设滚动自回归世界模型）、当前 Semi-Markov World Model 和冻结的 CAT-TopK 兼容层。RAMP-WM 面向固定 highD 自然驾驶片段：以动态交通关系图、连续场景记忆和场景级联合候选计划生成 0.2 秒响应的闭环背景车演化；它不使用离散行为状态、边界或持续时间模型。
+本目录包含正在从零训练的 **FIRM-WM**、冻结的 RAMP-WM 基线、Semi-Markov World Model 和 CAT-TopK 兼容层。FIRM-WM 在 RAMP 的闭环关系记忆和动力学骨架上，用单帧 START、持续世界潜变量和联合 action flow 取代伪历史与离散候选；highD 主模型不读取合成地图编码。
 
 | 对象 | 状态 | 用途 |
 | --- | --- | --- |
 | **Semi-Markov World Model** | 当前最佳模型 | 唯一的半马尔可夫世界模型训练、评测与运行时实现。 |
 | **CAT-TopK** | 冻结外部基线 | 保留源代码、训练脚本、checkpoint 兼容和配对比较。 |
 | **RAMP-WM** | 独立候选方法 | 从随机初始化训练的连续记忆、联合八候选、重叠滚动规划世界模型。 |
+| **FIRM-WM** | 新世界模型 | Flow C0/B0 初始化、无地图关系编码、持续世界创新与可执行联合控制 flow。 |
+
+## FIRM-WM：从零训练、评测和论文图表
+
+FIRM 不加载 RAMP、Semi-Markov 或 CAT-TopK checkpoint。START 只读当前 C0、冻结 Flow 的 B0 及其 76 维 Flow 条件；ROLL 只读已发生 ego 状态和已生成背景状态。训练、评测和可视化写入独立目录，正式 Flow 组合评测固定为每个重放条件 8 个 Flow 起点 × 每个起点 4 个 FIRM 世界。
+
+```bash
+python world_model/scripts/train_firm_world_model.py
+python world_model/scripts/evaluate_firm_world_model.py
+python world_model/scripts/evaluate_flow_firm_composition.py
+python world_model/scripts/compare_firm_baselines.py
+python world_model/scripts/build_firm_world_model_paper_experiments.py
+```
+
+训练会在每个 epoch 写入 `results/highd_world_model/firm_world_model/training_progress.json`，供长训练巡检使用。评测完成后，`evaluation/` 保存数值结果和 rollout，论文图表写入 `results/highd_world_model/paper_experiments/firm_world_model/`；图表脚本只读取已保存产物，不重新训练或采样。
 
 ## RAMP-WM：从零训练、监控和评测
 
@@ -20,6 +35,17 @@ python world_model/scripts/evaluate_ramp_distribution.py
 ```
 
 RAMP 工件写入 `results/highd_world_model/ramp_world_model/`。CAT-TopK 的 START 仍使用冻结的未来首秒动作摘要；配对报告会将该条件显式标记为信息不对称，不能作为严格同信息提升声明。
+
+## 长尾事件复现实验
+
+下面的统一评测在 held-out `is_evt_tail` highD 序列上固定初始交通状态、道路图、B0 和已发生的 ego 回放，生成每个模型的确定性轨迹与 32 条随机闭环未来。它按真实物理轨迹划分高风险跟驰、急制动、高速接近、近距离交互和强相对速度变化；报告 ADE/FDE、minADE/minFDE@32、风险变量 Wasserstein/KS/尾部分位数、风险 CCDF、车辆交互、加速度时间结构、行为持续时间、多样性及物理可行性。
+
+```bash
+python world_model/scripts/evaluate_long_tail_reproduction.py
+python world_model/scripts/build_long_tail_reproduction_report.py
+```
+
+第一步产生规范化数值汇总，第二步生成 300 dpi 的论文式分析图。正式结果按 `comparison/`、`highd_real_tail/` 与各世界模型目录组织；每个模型目录包含原始指标、事件复现、风险分布、交互/时间动力学与多样性/物理有效性四组图。`--max-sequences` 和 `--num-samples` 仅用于小规模 smoke run；CAT-TopK 的结果始终标注为 START 条件信息不对称，不能作严格同信息结论。
 
 ## 当前边界
 
@@ -50,7 +76,8 @@ results/highd_world_model/semi_markov_world_model/
 CAT-TopK 的训练 checkpoint、训练记录、测试摘要和损失图统一保存在 `results/highd_world_model/cat_topk_world_model/`；Semi-Markov 对应工件统一保存在 `results/highd_world_model/semi_markov_world_model/`。CAT-TopK 的源代码、训练脚本和配置保留在：
 
 ```text
-world_model/src/{model,data,evaluation,environment,train}.py
+world_model/src/cat_topk/{model,environment,evaluation,rollout,train}.py
+world_model/src/core/{data,schema,metrics,dynamics}.py
 world_model/scripts/configs/highd_cat_topk_world_model.yaml
 ```
 
@@ -86,7 +113,7 @@ python world_model/scripts/test_semi_markov.py
 
 ## 环境接口
 
-`world_model.src.semi_markov_environment.SemiMarkovBackgroundEnvironment` 是 Semi-Markov World Model 的运行时环境。它接收调用方构造的 `DynamicTrafficGraph` 和外生 `WorldRandomness`，不接收 ego future：
+`world_model.src.semi_markov.environment.SemiMarkovBackgroundEnvironment` 是 Semi-Markov World Model 的运行时环境。它接收调用方构造的 `DynamicTrafficGraph` 和外生 `WorldRandomness`，不接收 ego future：
 
 ```python
 environment.reset(initial_graph, world_randomness, behavior_anchor=anchor)
@@ -100,6 +127,6 @@ environment.restore(snapshot)
 
 ## CAT-TopK 冻结接口
 
-若需要将冻结 CAT-TopK 用作背景环境，使用 `world_model.src.environment.CATKBackgroundEnvironment.from_checkpoint()` 加载保存的 checkpoint。它以完整 Flow 场景样本初始化，`start()` 生成首秒，`roll()` 只接受已经发生的 ego 历史。候选索引是其显式世界随机变量；需要复现实例时，应保存 `world_seed` 或每个 chunk 的 `xi_world_candidate_indices`。
+若需要将冻结 CAT-TopK 用作背景环境，使用 `world_model.src.cat_topk.environment.CATKBackgroundEnvironment.from_checkpoint()` 加载保存的 checkpoint。它以完整 Flow 场景样本初始化，`start()` 生成首秒，`roll()` 只接受已经发生的 ego 历史。候选索引是其显式世界随机变量；需要复现实例时，应保存 `world_seed` 或每个 chunk 的 `xi_world_candidate_indices`。
 
 更具体的实现约定见 [IMPLEMENTATION_NOTES.md](IMPLEMENTATION_NOTES.md)。

@@ -30,17 +30,17 @@ from world_model.scripts.compare_semi_markov_cat_topk import (
     _sha256,
     _total_variation,
 )
-from world_model.src.data import dataset_dir_from_config, load_world_model_dataset
-from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.model import load_checkpoint as load_catk_checkpoint
+from world_model.src.core.data import dataset_dir_from_config, load_world_model_dataset
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.cat_topk.model import load_checkpoint as load_catk_checkpoint
 from world_model.src.ramp.train import load_ramp_checkpoint
-from world_model.src.semi_markov_train import load_semi_markov_checkpoint
-from world_model.src.sequential_dataset import (
+from world_model.src.semi_markov.train import load_semi_markov_checkpoint
+from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.utils import (
+from world_model.src.core.utils import (
     ensure_dir,
     load_yaml,
     save_json,

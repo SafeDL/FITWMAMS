@@ -1,0 +1,34 @@
+{
+  "protocol": {
+    "cat_topk_information_asymmetric": true,
+    "cat_topk_start_condition": "archived future-action summary",
+    "dataset": "highD held-out EVT-tail sequences",
+    "distribution_empirical_max_points": 100000,
+    "fixed_conditions": [
+      "logged initial traffic state",
+      "frozen B0 behavior condition",
+      "road graph",
+      "ego history and observed closed-loop ego replay"
+    ],
+    "horizon_seconds": 5.0,
+    "num_sequences": 328,
+    "num_stochastic_futures": 32,
+    "ramp_and_semi_start_condition": "frozen B0 behavior anchor",
+    "split": "test",
+    "stochastic_branch_batch_size": 4
+  },
+  "checkpoints": {
+    "cat_topk": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt",
+      "sha256": "27555650390b3115b23bf2d89c57602bb99d718b6a9012ca5327bcd10c64acd0"
+    },
+    "ramp": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+      "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
+    },
+    "semi_markov": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt",
+      "sha256": "be3e30096bfb10da95883c1727e344fcfb1490d76344873bedc164cdc139904b"
+    }
+  }
+}

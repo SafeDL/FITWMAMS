@@ -8,16 +8,16 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from world_model.src.dynamics import DynamicsConfig, KinematicTrafficDynamics
-from world_model.src.initial_behavior_anchor import BehaviorAnchorControlPlan
-from world_model.src.relational_encoder import (
+from world_model.src.core.dynamics import DynamicsConfig, KinematicTrafficDynamics
+from world_model.src.core import ContinuousTrafficMemory
+from world_model.src.core.initial_behavior_anchor import BehaviorAnchorControlPlan
+from world_model.src.relations.relational_encoder import (
     RelationalEncoderConfig,
     RelationalTrafficEncoder,
 )
 from .config import RAMPConfig
 from .joint_plan_decoder import JointPlanDecoder
 from .losses import candidate_energy, masked_mean, mixture_loss
-from .memory import ContinuousTrafficMemory
 
 
 class RAMPWorldModel(nn.Module):

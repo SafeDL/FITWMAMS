@@ -9,16 +9,16 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.metrics import interaction_metrics, physical_diagnostics
-from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.semi_markov_evaluation import _metrics
-from world_model.src.semi_markov_train import _loader, _to_batch
-from world_model.src.sequential_dataset import (
+from world_model.src.core.metrics import interaction_metrics, physical_diagnostics
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.semi_markov.evaluation import _metrics
+from world_model.src.semi_markov.train import _loader, _to_batch
+from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.utils import save_json, select_device
+from world_model.src.core.utils import save_json, select_device
 from .train import load_ramp_checkpoint
 
 

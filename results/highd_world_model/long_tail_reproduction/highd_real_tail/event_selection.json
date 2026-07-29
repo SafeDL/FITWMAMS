@@ -1,0 +1,27 @@
+{
+  "protocol": {
+    "cat_topk_information_asymmetric": true,
+    "cat_topk_start_condition": "archived future-action summary",
+    "dataset": "highD held-out EVT-tail sequences",
+    "distribution_empirical_max_points": 100000,
+    "fixed_conditions": [
+      "logged initial traffic state",
+      "frozen B0 behavior condition",
+      "road graph",
+      "ego history and observed closed-loop ego replay"
+    ],
+    "horizon_seconds": 5.0,
+    "num_sequences": 328,
+    "num_stochastic_futures": 32,
+    "ramp_and_semi_start_condition": "frozen B0 behavior anchor",
+    "split": "test",
+    "stochastic_branch_batch_size": 4
+  },
+  "tail_event_selection": {
+    "close_interaction": 215,
+    "hard_braking": 17,
+    "high_risk_following": 183,
+    "high_speed_approach": 162,
+    "strong_relative_speed_change": 65
+  }
+}

@@ -4,12 +4,12 @@
 
 ## Semi-Markov World Model
 
-`world_model/src/semi_markov_model.py` 定义模型；训练、评测和运行时入口分别为：
+`world_model/src/semi_markov/model.py` 定义模型；训练、评测和运行时入口分别为：
 
 ```text
-src/semi_markov_train.py
-src/semi_markov_evaluation.py
-src/semi_markov_environment.py
+src/semi_markov/train.py
+src/semi_markov/evaluation.py
+src/semi_markov/environment.py
 ```
 
 模型输入是 ego 与背景车的动态关系图。状态张量按 `[x, y, vx, vy, ax, ay]` 表示；关系特征由当前 ego、背景状态和 primary slot 确定性计算，包括相对位置、速度、gap、TTC 和 DRAC。关系特征不是额外随机变量。
@@ -34,7 +34,7 @@ highD 顺序缓存由 `src/sequential_dataset.py` 管理，是训练的既有输
 
 ## 冻结 CAT-TopK 兼容层
 
-CAT-TopK 是对比基线；其源代码、从零训练脚本和测试脚本均保留。`src/model.py`、`src/data.py`、`src/evaluation.py`、`src/environment.py` 和 `src/train.py` 用于训练、评测 CAT-TopK，以及执行配对比较。单模型入口为 `scripts/train_cat_topk.py`、`scripts/test_cat_topk.py`、`scripts/train_semi_markov_world_model.py` 与 `scripts/test_semi_markov.py`；配对入口为 `scripts/compare_semi_markov_cat_topk.py`。
+CAT-TopK 是对比基线；其源代码、从零训练脚本和测试脚本均保留。模型层实现位于 `src/cat_topk/`，共享数据、schema 与指标位于 `src/core/`；单模型入口为 `scripts/train_cat_topk.py`、`scripts/test_cat_topk.py`、`scripts/train_semi_markov_world_model.py` 与 `scripts/test_semi_markov.py`；配对入口为 `scripts/compare_semi_markov_cat_topk.py`。
 
 `CATKBackgroundEnvironment` 的初始化输入是完整 Flow 场景样本、slot mask 与 primary slot；`start()` 不接收 ego future，`roll()` 只接收已发生的 ego 历史。其候选索引 `Xi_world` 是显式离散世界随机性。默认按 categorical 分布采样，也可用 `WorldSamplingConfig(candidate_selection="argmax")` 固定为确定性选择。
 

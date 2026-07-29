@@ -4,7 +4,6 @@
   "checkpoint_sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1",
   "epochs_completed": 40,
   "from_scratch": true,
-  "last_checkpoint": null,
   "model_config": {
     "control_weight": 0.2,
     "diversity_weight": 0.02,

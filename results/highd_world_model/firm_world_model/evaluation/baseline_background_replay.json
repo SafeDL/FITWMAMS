@@ -1,0 +1,174 @@
+{
+  "ramp_world_model": {
+    "evt_tail": {
+      "ADE_1s_m": 0.03500961436213031,
+      "ADE_2s_m": 0.0422978950429719,
+      "ADE_3s_m": 0.05457263792948003,
+      "ADE_4s_m": 0.09865480657342707,
+      "ADE_5s_m": 0.1874529558012494,
+      "ADE_m": 0.1874529558012494,
+      "FDE_1s_m": 0.047168680166424115,
+      "FDE_2s_m": 0.052706839549165094,
+      "FDE_3s_m": 0.12533691968630128,
+      "FDE_4s_m": 0.35879552553662253,
+      "FDE_5s_m": 0.7497771961701832,
+      "FDE_m": 0.7497771961701832,
+      "acceleration_mae_mps2": 0.30139697604016313,
+      "gap_mae_m": 0.14954041381657487,
+      "relative_vx_mae_mps": 0.14268706104881484,
+      "velocity_mae_mps": 0.16831595580155553
+    },
+    "five_second": {
+      "ADE_1s_m": 0.029739591921112186,
+      "ADE_2s_m": 0.03707675718275177,
+      "ADE_3s_m": 0.04936157315461253,
+      "ADE_4s_m": 0.09035671198101648,
+      "ADE_5s_m": 0.16936926182212617,
+      "ADE_m": 0.16936926182212617,
+      "FDE_1s_m": 0.03985904155882261,
+      "FDE_2s_m": 0.049317878867162185,
+      "FDE_3s_m": 0.11747660742427511,
+      "FDE_4s_m": 0.3296419759696827,
+      "FDE_5s_m": 0.6785106869364783,
+      "FDE_m": 0.6785106869364783,
+      "acceleration_mae_mps2": 0.27615349152961755,
+      "gap_mae_m": 0.13259181493762343,
+      "relative_vx_mae_mps": 0.12573805861694945,
+      "velocity_mae_mps": 0.15024701751291472
+    },
+    "one_second": {
+      "ADE_1s_m": 0.029739591921112186,
+      "ADE_m": 0.029739591921112186,
+      "FDE_1s_m": 0.03985904155882261,
+      "FDE_m": 0.03985904155882261,
+      "acceleration_mae_mps2": 0.25113612387961676,
+      "gap_mae_m": 0.025839904890685304,
+      "relative_vx_mae_mps": 0.014228860231385095,
+      "velocity_mae_mps": 0.020637877436656512
+    },
+    "protocol": {
+      "batch_size": 256,
+      "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+      "horizon_seconds": 5.0,
+      "primary_metric_scope": "generated background vehicles only",
+      "split": "full held-out highD test split"
+    },
+    "sequence_cache": {
+      "adapter": "highd_straight_lane_v1",
+      "arrays": [
+        "sequence_id",
+        "agent_states",
+        "agent_valid",
+        "ego_index",
+        "map_polylines",
+        "map_polyline_valid",
+        "lane_graph_edges",
+        "actions_highd",
+        "split_index",
+        "is_evt_tail"
+      ],
+      "bounded_development_cache": false,
+      "cache_version": "semi_markov_sequence_v4_compact_continuous_coordinates",
+      "evt_tail_sequences": 2209,
+      "fps": 25.0,
+      "frames": 150,
+      "future_frames": 125,
+      "history_frames": 25,
+      "num_sequences": 161314,
+      "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache",
+      "split_summary": {
+        "test": 24216,
+        "train": 112943,
+        "val": 24155
+      },
+      "top_r_lanes": 3,
+      "uses_recording_lane_metadata": true
+    }
+  },
+  "semi_markov_world_model": {
+    "evt_tail": {
+      "ADE_1s_m": 0.035984764845046716,
+      "ADE_2s_m": 0.04414496917732616,
+      "ADE_3s_m": 0.059488820303389534,
+      "ADE_4s_m": 0.11802945157522239,
+      "ADE_5s_m": 0.22662413492535283,
+      "ADE_m": 0.22662413492535283,
+      "FDE_1s_m": 0.05057337311623318,
+      "FDE_2s_m": 0.05217018324881113,
+      "FDE_3s_m": 0.15840243199107018,
+      "FDE_4s_m": 0.4500220296673621,
+      "FDE_5s_m": 0.8983610308076069,
+      "FDE_m": 0.8983610308076069,
+      "acceleration_mae_mps2": 0.14543127168739245,
+      "gap_mae_m": 0.19142828710182277,
+      "relative_vx_mae_mps": 0.17520890048454968,
+      "velocity_mae_mps": 0.1974579802892815
+    },
+    "five_second": {
+      "ADE_1s_m": 0.030686712750328807,
+      "ADE_2s_m": 0.037799250900351626,
+      "ADE_3s_m": 0.052775258898458424,
+      "ADE_4s_m": 0.10730022222751932,
+      "ADE_5s_m": 0.20643232088963914,
+      "ADE_m": 0.20643232088963914,
+      "FDE_1s_m": 0.04224740324604344,
+      "FDE_2s_m": 0.04626065866220265,
+      "FDE_3s_m": 0.14671883371978403,
+      "FDE_4s_m": 0.4166186651215387,
+      "FDE_5s_m": 0.8329061892563266,
+      "FDE_m": 0.8329061892563266,
+      "acceleration_mae_mps2": 0.12942021501441237,
+      "gap_mae_m": 0.17365288329744943,
+      "relative_vx_mae_mps": 0.1583170605810214,
+      "velocity_mae_mps": 0.1789991947115939
+    },
+    "one_second": {
+      "ADE_1s_m": 0.030686712750328807,
+      "ADE_m": 0.030686712750328807,
+      "FDE_1s_m": 0.04224740324604344,
+      "FDE_m": 0.04224740324604344,
+      "acceleration_mae_mps2": 0.04703093702272835,
+      "gap_mae_m": 0.026884064749292134,
+      "relative_vx_mae_mps": 0.009637517100870227,
+      "velocity_mae_mps": 0.013269401124952724
+    },
+    "protocol": {
+      "batch_size": 256,
+      "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt",
+      "horizon_seconds": 5.0,
+      "primary_metric_scope": "generated background vehicles only",
+      "split": "full held-out highD test split"
+    },
+    "sequence_cache": {
+      "adapter": "highd_straight_lane_v1",
+      "arrays": [
+        "sequence_id",
+        "agent_states",
+        "agent_valid",
+        "ego_index",
+        "map_polylines",
+        "map_polyline_valid",
+        "lane_graph_edges",
+        "actions_highd",
+        "split_index",
+        "is_evt_tail"
+      ],
+      "bounded_development_cache": false,
+      "cache_version": "semi_markov_sequence_v4_compact_continuous_coordinates",
+      "evt_tail_sequences": 2209,
+      "fps": 25.0,
+      "frames": 150,
+      "future_frames": 125,
+      "history_frames": 25,
+      "num_sequences": 161314,
+      "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache",
+      "split_summary": {
+        "test": 24216,
+        "train": 112943,
+        "val": 24155
+      },
+      "top_r_lanes": 3,
+      "uses_recording_lane_metadata": true
+    }
+  }
+}

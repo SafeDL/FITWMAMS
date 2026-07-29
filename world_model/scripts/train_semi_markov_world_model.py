@@ -13,12 +13,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from world_model.src.cli_config import materialize_config
-from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.semi_markov_evaluation import evaluate_semi_markov_world_model
-from world_model.src.semi_markov_train import train_semi_markov_world_model
-from world_model.src.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
-from world_model.src.utils import load_yaml, setup_logging
+from world_model.src.core.cli_config import materialize_config
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.semi_markov.evaluation import evaluate_semi_markov_world_model
+from world_model.src.semi_markov.train import train_semi_markov_world_model
+from world_model.src.core.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from world_model.src.core.utils import load_yaml, setup_logging
 
 
 STAGES = ("validate", "train", "evaluate")

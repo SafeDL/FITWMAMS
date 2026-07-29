@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from world_model.src.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.ramp.distribution_evaluation import (
     candidate_calibration,
     empirical_coverage,
@@ -25,13 +25,13 @@ from world_model.src.ramp.distribution_evaluation import (
     univariate_crps,
 )
 from world_model.src.ramp.train import load_ramp_checkpoint
-from world_model.src.semi_markov_train import _loader, _to_batch
-from world_model.src.sequential_dataset import (
+from world_model.src.semi_markov.train import _loader, _to_batch
+from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.utils import load_yaml, save_json, select_device
+from world_model.src.core.utils import load_yaml, save_json, select_device
 
 
 def _merge_feature_rows(parts: list[dict[str, np.ndarray]]) -> dict[str, np.ndarray]:

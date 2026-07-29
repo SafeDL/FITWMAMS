@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.graph_schema import DynamicTrafficGraph
+from world_model.src.traffic_graph.graph_schema import DynamicTrafficGraph
 from .model import RAMPWorldModel
 
 

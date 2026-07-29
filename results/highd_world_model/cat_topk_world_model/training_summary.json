@@ -10,7 +10,6 @@
   "diagnostic_validation_interval": 5,
   "epochs": 30,
   "epochs_completed": 30,
-  "latest_checkpoint": null,
   "model_state_closed_loop": {
     "curriculum_epochs_per_chunk": 8,
     "enabled": true,
