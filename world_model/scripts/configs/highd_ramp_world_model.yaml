@@ -33,6 +33,8 @@ model:
 training:
   seed: 42
   device: auto
+  # Common formal training budget: 8 + 12 + 20 = 40 epochs.
+  epochs: 40
   batch_size: 64
   val_batch_size: 64
   # The full sequence cache is memory-mapped.  A single loader process avoids
@@ -43,9 +45,6 @@ training:
   weight_decay: 0.0001
   grad_clip: 1.0
   tbptt_response_steps: 5
-  early_stopping_patience: 4
-  min_delta: 0.0001
-  min_epochs_before_stopping: 6
   # Stage A uses one nominal candidate in the loss path via candidate 0;
   # stages B/C activate joint candidate probability and long autoregression.
   stages:

@@ -10,9 +10,9 @@ import numpy as np
 import torch
 
 from world_model.src.core.metrics import interaction_metrics, physical_diagnostics
+from world_model.src.core.batching import make_sequence_loader, to_device_batch
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.semi_markov.evaluation import _metrics
-from world_model.src.semi_markov.train import _loader, _to_batch
 from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
@@ -52,7 +52,7 @@ def evaluate_ramp_world_model(
         )
     device = select_device(evaluation.get("device", "auto"))
     model = load_ramp_checkpoint(checkpoint, device=device)
-    loader = _loader(
+    loader = make_sequence_loader(
         arrays,
         "test",
         batch_size=int(evaluation.get("batch_size", 64)),
@@ -73,7 +73,7 @@ def evaluate_ramp_world_model(
     pair_position_sum = pair_velocity_sum = pair_count = 0.0
     with torch.no_grad():
         for values in loader:
-            batch = _to_batch(values, loader.field_names, device)
+            batch = to_device_batch(values, loader.field_names, device)
             rollout = model.rollout_roll_mode(batch, deterministic=True)
             predicted.append(rollout["predicted_states"].cpu().numpy())
             target.append(rollout["target_states"].cpu().numpy())

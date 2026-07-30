@@ -16,6 +16,10 @@ RAMP/FIRM 作为 baseline，不直接修改其代码。
 
 未来可用于风险感知长尾交通世界建模。
 
+可以明确参考的代码为:
+/home/hp/FITWMAMS/ref_code/VBD-main
+/home/hp/FITWMAMS/world_model
+
 ## 2. 设计目标
 
 当前 autoregressive world model 存在长期 rollout drift：
@@ -29,6 +33,8 @@ QR-WM 通过三个模块改进：
 1.  Query-centric relational scene encoder；
 2.  Behavior prior module；
 3.  Trajectory refinement buffer。
+
+即新模型是一个以 RAMP/FIRM 为基础，融合 Query-centric Transformer、Behavior Prior 和 SceneDiffuser trajectory refinement 的多模态交通世界模型。
 
 ## 3. Query-centric Relational Scene Encoder
 
@@ -96,21 +102,57 @@ Self attention 用于建模 agent-agent interaction，Temporal attention
 3.  修正剩余未来轨迹；
 4.  补充新的未来预测。
 
-## 6. 代码结构规划
+## 6. 新模型整体架构
 
-    FITWMAMS
-     |
-     +-- baselines
-     |      +-- ramp
-     |      +-- firm
-     |
-     +-- qr_wm
-            +-- scene_encoder
-            +-- behavior_prior
-            +-- trajectory_refiner
-            +-- world_memory
+              Historical Traffic Scene
 
-禁止覆盖 baseline 实现。
+                      |
+                      |
+                      v
+
+          Query-centric Relational
+              Scene Encoder
+
+                      |
+          +-----------+-----------+
+          |                       |
+
+   Agent Query Tokens       World Memory
+
+          |                       |
+
+          +-----------+-----------+
+
+                      |
+
+             Behavior Prior Module
+
+                      |
+
+          Multimodal Future Planner
+
+                      |
+
+              Future Plan Buffer
+
+                      |
+
+          Trajectory Refinement Module
+
+                      |
+
+              Future Trajectory
+
+模型中每个架构的解释可以参考:
+doc/QR_WM_training_architecture.md
+
+请注意模型的数据输入和最终normalizing flow的重建接口要是一致的,即可以使用准备好的training_data. 例如:
+
+Flow 组合评测：
+随机 Flow 76-D → 解码 → C0 + B0[6,6] → 世界模型
+
+统一长尾重建：
+真实 highD 片段 → C0 + B0[6,6] → 世界模型
 
 ## 7. 实验目标
 

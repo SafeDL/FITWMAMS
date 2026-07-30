@@ -13,11 +13,16 @@ from typing import Any
 import numpy as np
 import yaml
 
-from world_model.src.core.data import SPLIT_TO_INDEX
+from world_model.src.core.batching import (
+    OPTIONAL_SEQUENCE_FIELDS,
+    SEQUENCE_FIELDS,
+    make_sequence_loader,
+    select_sequence_indices,
+    to_device_batch,
+)
 from .model import SemiMarkovRelationalWorldModel, SemiMarkovWorldModelConfig
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.core.sequential_dataset import (
-    FLOW_ANCHOR_ARRAYS,
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     prepare_sequential_dataset,
@@ -27,8 +32,10 @@ from world_model.src.core.utils import ensure_dir, save_json, select_device, set
 
 logger = logging.getLogger(__name__)
 
-FIELDS = ("agent_states", "agent_valid", "ego_index", "map_polylines", "map_polyline_valid", "lane_graph_edges", "actions_highd", "is_evt_tail")
-OPTIONAL_FIELDS = ("conflict_zone_features", "conflict_zone_valid")
+# Kept as compatibility aliases for external scripts that previously imported
+# these Semi-Markov-local names.
+FIELDS = SEQUENCE_FIELDS
+OPTIONAL_FIELDS = OPTIONAL_SEQUENCE_FIELDS
 
 
 def _torch():
@@ -38,49 +45,26 @@ def _torch():
 
 
 def _indices(arrays: dict[str, np.ndarray], split: str, maximum: int, seed: int) -> np.ndarray:
-    index = np.flatnonzero(np.asarray(arrays["split_index"]) == SPLIT_TO_INDEX[split])
-    rng = np.random.default_rng(int(seed))
-    rng.shuffle(index)
-    return index[: int(maximum)] if maximum > 0 else index
+    return select_sequence_indices(arrays, split, maximum, seed)
 
 
 def _loader(
     arrays: dict[str, np.ndarray], split: str, *, batch_size: int, maximum: int, shuffle: bool, seed: int,
     num_workers: int = 0,
 ):
-    torch, DataLoader, Dataset = _torch()
-    indices = _indices(arrays, split, maximum, seed)
-    if not len(indices):
-        raise RuntimeError(f"No semi-Markov sequences in split={split}; prepare a larger/non-bounded cache")
-
-    field_names = tuple([*FIELDS, *[key for key in OPTIONAL_FIELDS if key in arrays], *[key for key in FLOW_ANCHOR_ARRAYS if key in arrays]])
-
-    class SequenceDataset(Dataset):
-        def __len__(self):
-            return len(indices)
-        def __getitem__(self, item):
-            index = int(indices[int(item)])
-            result = []
-            for key in field_names:
-                value = np.asarray(arrays[key][index])
-                result.append(torch.from_numpy(value.copy()))
-            return tuple(result)
-
-    loader = DataLoader(
-        SequenceDataset(), batch_size=int(batch_size), shuffle=bool(shuffle),
-        num_workers=max(0, int(num_workers)), persistent_workers=bool(num_workers), drop_last=False,
+    return make_sequence_loader(
+        arrays,
+        split,
+        batch_size=batch_size,
+        maximum=maximum,
+        shuffle=shuffle,
+        seed=seed,
+        num_workers=num_workers,
     )
-    loader.field_names = field_names
-    return loader
 
 
 def _to_batch(values, names, device):
-    batch = {name: value.to(device) for name, value in zip(names, values)}
-    if "behavior_anchor_raw" in batch:
-        batch["flow_action_summary"] = batch["behavior_anchor_raw"]
-        batch["flow_action_summary_normalized"] = batch["behavior_anchor_std"]
-        batch["flow_action_summary_valid"] = batch["behavior_anchor_valid"].bool()
-    return batch
+    return to_device_batch(values, names, device)
 
 
 def _cfg(config: dict[str, Any]) -> SemiMarkovWorldModelConfig:

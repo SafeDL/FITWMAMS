@@ -13,9 +13,9 @@ from world_model.src.core.initial_behavior_anchor import (
     FrozenLegacyFlowSchema,
     summarize_first_second_states,
 )
+from world_model.src.core.batching import to_device_batch
 from world_model.src.core.metrics import interaction_metrics, physical_diagnostics
 from world_model.src.ramp.distribution_evaluation import energy_score, univariate_crps
-from world_model.src.semi_markov.train import _to_batch
 from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
@@ -183,7 +183,7 @@ def evaluate_firm_world_model(
     replay_max_error: float | None = None
     with torch.no_grad():
         for batch_index, values in enumerate(loader):
-            batch = _to_batch(values, loader.field_names, device)
+            batch = to_device_batch(values, loader.field_names, device)
             rollout = model.rollout_roll_mode(
                 batch, seed=int(evaluation.get("seed", 123)) + batch_index * 997, deterministic=True
             )
@@ -269,7 +269,6 @@ def evaluate_firm_world_model(
             for level, (covered, count) in calibration["coverage"].items()
         },
     }
-    save_json(calibration_report, evaluation_dir / "calibration_metrics.json")
     report = {
         "model_type": model.model_type,
         "checkpoint": str(checkpoint),

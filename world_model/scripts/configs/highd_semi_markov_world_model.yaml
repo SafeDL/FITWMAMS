@@ -62,7 +62,8 @@ model:
 training:
   seed: 42
   device: "auto"
-  epochs: 30
+  # Common formal training budget for every active world-model method.
+  epochs: 40
   # Train the complete Semi-Markov World Model from random initialization.
   # The Flow summary is a fixed input feature, not a loaded world-model state.
   train_all_parameters: true
@@ -76,7 +77,7 @@ training:
   weight_decay: 0.0001
   grad_clip: 1.0
   stages:
-    - {name: "joint", epochs: 30}
+    - {name: "joint", epochs: 40}
   encoder_learning_rate: 0.00005
   decoder_prior_learning_rate: 0.00005
 

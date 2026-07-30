@@ -1,6 +1,8 @@
 # 背景交通世界模型
 
-本目录保留四个从零训练或冻结复现的背景交通世界模型：RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK。每种方法只保留一个最佳 checkpoint、训练记录和正式测试结果。
+本目录保留五个从零训练或冻结复现的背景交通世界模型：RAMP-WM、FIRM-WM、Semi-Markov WM、CAT-TopK 与 QR-WM。每种方法只保留一个最佳 checkpoint、训练记录和正式测试结果。
+
+代码按职责组织：`src/core/` 放置缓存、动力学、指标与批处理等共享能力；`src/<方法名>/` 只包含该方法的模型、训练和评测；`scripts/` 仅保留稳定的命令行入口及配置；`tests/` 对共享能力和模型行为分别回归验证。
 
 ## 统一入口
 
@@ -11,12 +13,18 @@ python world_model/scripts/train_ramp_world_model.py
 python world_model/scripts/train_firm_world_model.py
 python world_model/scripts/train_semi_markov_world_model.py
 python world_model/scripts/train_cat_topk.py
+python world_model/scripts/train_qr_world_model.py
 
 python world_model/scripts/test_ramp_world_model.py
 python world_model/scripts/test_firm_world_model.py
 python world_model/scripts/test_semi_markov_world_model.py
 python world_model/scripts/test_cat_topk_world_model.py
+python world_model/scripts/test_qr_world_model.py
 ```
+
+QR-WM 是独立的 Query-Refine 实现：它用每个 agent 的 scene query 查询关系化 agent/map context，以 CVAE behavior prior 保留多模态，并用持续 world memory、未来轨迹 buffer 和 refinement 进行闭环滚动。QR-WM 的训练不加载 RAMP/FIRM checkpoint，也不使用 traffic-light 特征。Flow 组合接口是固定的 76-D `C0+B0`，可通过 `QueryRefineWorldModel.flow_condition_to_scene` 解码到与 highD 训练缓存一致的 `[7, 6]` scene tensor。
+
+所有活跃世界模型的正式训练预算统一为 40 epoch。QR-WM 会在运行目录的 `tensorboard/` 写入 batch 训练损失、epoch 训练/验证损失和验证 FDE；训练后可运行 `tensorboard --logdir results/highd_world_model/qr_world_model/tensorboard` 查看曲线。
 
 RAMP/FIRM 的外层 EVT Flow × 内层世界模型组合测试是各自标准测试入口的显式模式：
 
@@ -59,6 +67,8 @@ CAT-TopK 的 START 使用归档的未来首秒动作摘要，结果始终带有�
 
 本仓库的正式结果由固定种子 `20260729`、328 个 held-out EVT-tail 条件和每条件 32 个随机未来生成；
 完整数值、哈希和图像以各模型的 `metrics.json` 为准。下表仅作便于阅读的摘要（距离单位为 m，越低越好）：
+
+> 该固定运行是历史复现记录：其中 RAMP/FIRM/Semi-Markov/CAT-TopK 分别训练了 40/60/30/30 epoch，且尚未包含 QR-WM。因此它只用于复现这些冻结 checkpoint，不能作为统一 40-epoch 预算下 QR-WM 与基线的公平比较；完成统一预算重训并在相同 328 个条件上加入 QR-WM 后，才可作正式横向结论。
 
 | 模型 | 确定性 FDE | minFDE@32 | minADE@32 | 特征 Fréchet | 碰撞 episode rate |
 | --- | ---: | ---: | ---: | ---: | ---: |

@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.semi_markov.train import _loader, _to_batch
+from world_model.src.core.batching import make_sequence_loader, to_device_batch
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.core.sequential_dataset import (
     ensure_frozen_flow_behavior_anchor_cache,
@@ -45,7 +45,7 @@ def _mean(
     with torch.no_grad():
         for values in loader:
             result = model.forward_training(
-                _to_batch(values, loader.field_names, device),
+                to_device_batch(values, loader.field_names, device),
                 response_steps=steps,
                 active_candidates=active_candidates,
             )
@@ -78,7 +78,7 @@ def _roll_fde(
     with torch.no_grad():
         for values in loader:
             result = model._closed_loop(
-                _to_batch(values, loader.field_names, device),
+                to_device_batch(values, loader.field_names, device),
                 response_steps,
                 deterministic=True,
                 active_candidates=active_candidates,
@@ -133,7 +133,7 @@ def train_ramp_world_model(
     batch_size = int(training.get("batch_size", 64))
     workers = int(training.get("num_workers", 4))
     seed = int(training.get("seed", 42))
-    train_loader = _loader(
+    train_loader = make_sequence_loader(
         arrays,
         "train",
         batch_size=batch_size,
@@ -142,7 +142,7 @@ def train_ramp_world_model(
         seed=seed,
         num_workers=workers,
     )
-    val_loader = _loader(
+    val_loader = make_sequence_loader(
         arrays,
         "val",
         batch_size=int(training.get("val_batch_size", batch_size)),
@@ -160,10 +160,16 @@ def train_ramp_world_model(
             {"name": "five_second", "epochs": 20, "rollout_seconds": 5.0},
         ],
     )
+    configured_epochs = int(training.get("epochs", sum(int(stage["epochs"]) for stage in stages)))
+    staged_epochs = sum(int(stage["epochs"]) for stage in stages)
+    if configured_epochs != staged_epochs:
+        raise ValueError(
+            "training.epochs must equal the sum of training.stages[*].epochs "
+            f"({configured_epochs} != {staged_epochs})"
+        )
     history: list[dict[str, Any]] = []
     best = float("inf")
     best_path = checkpoint_dir / "best_ramp_world_model.pt"
-    patience = int(training.get("early_stopping_patience", 4))
     epoch = 0
     for stage in stages:
         stage_name, stage_epochs = str(stage["name"]), int(stage["epochs"])
@@ -171,7 +177,7 @@ def train_ramp_world_model(
         # Metrics from one-second pretraining and five-second fine-tuning are
         # not comparable.  Each stage owns its checkpoint competition; the
         # final Stage C therefore necessarily selects by deterministic 5 s FDE.
-        stage_best, stale, previous_response_steps = float("inf"), 0, None
+        stage_best, previous_response_steps = float("inf"), None
         optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=float(stage.get("learning_rate", training.get("learning_rate", 5e-5))),
@@ -208,14 +214,14 @@ def train_ramp_world_model(
                 previous_response_steps is not None
                 and response_steps != previous_response_steps
             ):
-                stage_best, stale = float("inf"), 0
+                stage_best = float("inf")
             previous_response_steps = response_steps
             epoch += 1
             model.train()
             totals: dict[str, float] = {}
             count = 0
             for values in train_loader:
-                batch = _to_batch(values, train_loader.field_names, device)
+                batch = to_device_batch(values, train_loader.field_names, device)
                 optimizer.zero_grad(set_to_none=True)
                 result = model.forward_training(
                     batch,
@@ -283,24 +289,10 @@ def train_ramp_world_model(
                     "uses_baseline_checkpoint": False,
                 },
             }
-            if selection < stage_best - float(training.get("min_delta", 1e-4)):
-                stage_best, stale = selection, 0
+            if selection < stage_best:
+                stage_best = selection
                 best = selection
                 torch.save(payload, best_path)
-            else:
-                stale += 1
-            if (
-                response_steps == model.cfg.response_steps
-                and epoch >= int(training.get("min_epochs_before_stopping", 6))
-                and stale >= patience
-            ):
-                logger.info(
-                    "RAMP early stopping after %d non-improving full-horizon epochs",
-                    stale,
-                )
-                break
-        if response_steps == model.cfg.response_steps and stale >= patience:
-            break
     fields = sorted({key for row in history for key in row})
     with (output / "training_history.csv").open(
         "w", newline="", encoding="utf-8"
@@ -311,7 +303,7 @@ def train_ramp_world_model(
     report = {
         "model_type": model.model_type,
         "best_checkpoint": str(best_path),
-        "best_validation_metric": best,
+        "best_validation_metric": best, "configured_epochs": configured_epochs,
         "epochs_completed": epoch,
         "sequence_cache": manifest,
         "from_scratch": True,

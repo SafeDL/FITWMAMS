@@ -13,11 +13,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from world_model.src.core.data import SPLIT_TO_INDEX
+from world_model.src.core.batching import (
+    select_sequence_indices,
+    sequence_field_names,
+    to_device_batch,
+)
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.semi_markov.train import FIELDS, OPTIONAL_FIELDS, _to_batch
 from world_model.src.core.sequential_dataset import (
-    FLOW_ANCHOR_ARRAYS,
     ensure_frozen_flow_behavior_anchor_cache,
     load_sequential_dataset,
     sequence_cache_owner_dir,
@@ -47,20 +49,10 @@ def _loader(
     num_workers: int,
     tail_fraction: float | None = None,
 ):
-    indices = np.flatnonzero(np.asarray(arrays["split_index"]) == SPLIT_TO_INDEX[split])
-    rng = np.random.default_rng(int(seed))
-    rng.shuffle(indices)
-    if maximum > 0:
-        indices = indices[: int(maximum)]
+    indices = select_sequence_indices(arrays, split, maximum, seed)
     if not len(indices):
         raise RuntimeError(f"No FIRM sequences in split={split}")
-    fields = tuple(
-        [
-            *FIELDS,
-            *[key for key in OPTIONAL_FIELDS if key in arrays],
-            *[key for key in FLOW_ANCHOR_ARRAYS if key in arrays],
-        ]
-    )
+    fields = sequence_field_names(arrays)
 
     class SequenceDataset(Dataset):
         def __len__(self) -> int:
@@ -112,7 +104,7 @@ def _mean(model: FIRMWorldModel, loader, device, response_steps: int) -> dict[st
     with torch.no_grad():
         for values in loader:
             result = model.forward_training(
-                _to_batch(values, loader.field_names, device), response_steps=response_steps
+                to_device_batch(values, loader.field_names, device), response_steps=response_steps
             )
             for key in (
                 "loss",
@@ -141,7 +133,7 @@ def _roll_fde(
     with torch.no_grad():
         for values in loader:
             rollout = model._closed_loop(
-                _to_batch(values, loader.field_names, device),
+                to_device_batch(values, loader.field_names, device),
                 response_steps,
                 deterministic=True,
             )
@@ -213,11 +205,16 @@ def train_firm_world_model(
             {"name": "five_second", "epochs": 20, "rollout_seconds": 5.0},
         ],
     )
+    configured_epochs = int(training.get("epochs", sum(int(stage["epochs"]) for stage in stages)))
+    staged_epochs = sum(int(stage["epochs"]) for stage in stages)
+    if configured_epochs != staged_epochs:
+        raise ValueError(
+            "training.epochs must equal the sum of training.stages[*].epochs "
+            f"({configured_epochs} != {staged_epochs})"
+        )
     history: list[dict[str, Any]] = []
     best = float("inf")
     best_path = checkpoint_dir / "best_firm_world_model.pt"
-    patience = int(training.get("early_stopping_patience", 5))
-    minimum_full_horizon_epochs = int(training.get("minimum_full_horizon_epochs", 0))
     epoch = 0
     for stage in stages:
         name, stage_epochs = str(stage["name"]), int(stage["epochs"])
@@ -229,7 +226,7 @@ def train_firm_world_model(
         curriculum = stage.get("rollout_curriculum_seconds", [stage.get("rollout_seconds", 5.0)])
         if not isinstance(curriculum, list) or not curriculum:
             raise ValueError(f"stage {name!r} needs a non-empty rollout curriculum")
-        stage_best, stale, prior_steps = float("inf"), 0, None
+        stage_best, prior_steps = float("inf"), None
         for stage_epoch in range(stage_epochs):
             index = min(len(curriculum) - 1, stage_epoch * len(curriculum) // stage_epochs)
             response_steps = min(
@@ -237,14 +234,14 @@ def train_firm_world_model(
                 max(1, round(float(curriculum[index]) / model.cfg.response_interval_s)),
             )
             if prior_steps is not None and response_steps != prior_steps:
-                stage_best, stale = float("inf"), 0
+                stage_best = float("inf")
             prior_steps = response_steps
             epoch += 1
             model.train()
             totals: dict[str, float] = {}
             batches = tail_samples = total_samples = 0
             for values in train_loader:
-                batch = _to_batch(values, train_loader.field_names, device)
+                batch = to_device_batch(values, train_loader.field_names, device)
                 optimizer.zero_grad(set_to_none=True)
                 result = model.forward_training(
                     batch,
@@ -300,9 +297,9 @@ def train_firm_world_model(
             )
             if (
                 response_steps == model.cfg.response_steps
-                and selection < stage_best - float(training.get("min_delta", 1e-4))
+                and selection < stage_best
             ):
-                stage_best, stale, best = selection, 0, selection
+                stage_best, best = selection, selection
                 payload = {
                     **model.checkpoint_payload(),
                     "epoch": epoch,
@@ -318,8 +315,6 @@ def train_firm_world_model(
                     },
                 }
                 torch.save(payload, best_path)
-            else:
-                stale += 1
             save_json(
                 {
                     "status": "running",
@@ -334,19 +329,6 @@ def train_firm_world_model(
                 },
                 output / "training_progress.json",
             )
-            if (
-                response_steps == model.cfg.response_steps
-                and stale >= patience
-                and stage_epoch + 1 >= minimum_full_horizon_epochs
-            ):
-                logger.info("FIRM early stopping after %d non-improving full-horizon epochs", stale)
-                break
-        if (
-            prior_steps == model.cfg.response_steps
-            and stale >= patience
-            and stage_epoch + 1 >= minimum_full_horizon_epochs
-        ):
-            break
     fields = sorted({key for row in history for key in row})
     with (output / "training_history.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -361,6 +343,7 @@ def train_firm_world_model(
         "model_type": model.model_type,
         "best_checkpoint": str(best_path),
         "best_validation_fde": best,
+        "configured_epochs": configured_epochs,
         "epochs_completed": epoch,
         "sequence_cache": manifest,
         "from_scratch": True,

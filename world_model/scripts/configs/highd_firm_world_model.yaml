@@ -40,6 +40,8 @@ model:
 training:
   seed: 42
   device: auto
+  # Common formal training budget: 8 + 12 + 20 = 40 epochs.
+  epochs: 40
   batch_size: 128
   val_batch_size: 128
   num_workers: 0
@@ -48,13 +50,10 @@ training:
   grad_clip: 1.0
   tbptt_response_steps: 25
   tail_fraction: 0.10
-  early_stopping_patience: 5
-  minimum_full_horizon_epochs: 8
-  min_delta: 0.0001
   stages:
-    - {name: start_prefix, epochs: 12, rollout_seconds: 1.0, learning_rate: 0.00010}
-    - {name: closed_loop, epochs: 16, rollout_curriculum_seconds: [1.0, 3.0], learning_rate: 0.00005}
-    - {name: five_second, epochs: 32, rollout_seconds: 5.0, learning_rate: 0.00003}
+    - {name: start_prefix, epochs: 8, rollout_seconds: 1.0, learning_rate: 0.00010}
+    - {name: closed_loop, epochs: 12, rollout_curriculum_seconds: [1.0, 3.0], learning_rate: 0.00005}
+    - {name: five_second, epochs: 20, rollout_seconds: 5.0, learning_rate: 0.00003}
 
 evaluation:
   seed: 123
