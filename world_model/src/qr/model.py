@@ -1,4 +1,4 @@
-"""QR-WM: joint multi-agent control buffers with START-only Flow conditioning."""
+"""QR-WM: joint background future-action sequences with START-only Flow conditioning."""
 
 from __future__ import annotations
 
@@ -96,8 +96,7 @@ class QueryRefineWorldModel(nn.Module):
             hidden_dim=h, behavior_latent_dim=z, plan_frames=self.cfg.plan_frames,
             attention_layers=self.cfg.attention_layers, num_heads=self.cfg.num_heads, dropout=self.cfg.dropout,
             min_acceleration=self.cfg.min_acceleration, max_acceleration=self.cfg.max_acceleration,
-            max_yaw_rate=self.cfg.max_yaw_rate, acceleration_noise_std=self.cfg.denoising_acceleration_std,
-            yaw_noise_std=self.cfg.denoising_yaw_rate_std,
+            max_yaw_rate=self.cfg.max_yaw_rate,
         )
         self.dynamics = KinematicTrafficDynamics(
             DynamicsConfig(acceleration_min_mps2=self.cfg.min_acceleration, acceleration_max_mps2=self.cfg.max_acceleration)
@@ -116,21 +115,21 @@ class QueryRefineWorldModel(nn.Module):
         """Decode Flow's ``C0+B0`` row into initial state, validity, and raw B0."""
         return start_state_from_flow_tensor(flow_condition, slot_valid)[:3]
 
-    def _clamp_controls(self, controls: torch.Tensor) -> torch.Tensor:
+    def _clamp_actions(self, actions: torch.Tensor) -> torch.Tensor:
         return torch.stack(
             (
-                controls[..., 0].clamp(self.cfg.min_acceleration, self.cfg.max_acceleration),
-                controls[..., 1].clamp(-self.cfg.max_yaw_rate, self.cfg.max_yaw_rate),
+                actions[..., 0].clamp(self.cfg.min_acceleration, self.cfg.max_acceleration),
+                actions[..., 1].clamp(-self.cfg.max_yaw_rate, self.cfg.max_yaw_rate),
             ), dim=-1
         )
 
-    def _mix_start_controls(self, fresh: torch.Tensor, anchor_controls: torch.Tensor) -> torch.Tensor:
-        """Blend B0 controls once, with a decaying convex weight over one second."""
+    def _mix_start_actions(self, fresh: torch.Tensor, anchor_actions: torch.Tensor) -> torch.Tensor:
+        """Blend B0 actions once, with a decaying convex weight over one second."""
         alpha = torch.linspace(
             float(self.cfg.start_anchor_mix), 0.0, self.cfg.plan_frames,
             device=fresh.device, dtype=fresh.dtype,
         )[None, :, None, None]
-        return self._clamp_controls((1.0 - alpha) * fresh + alpha * anchor_controls)
+        return self._clamp_actions((1.0 - alpha) * fresh + alpha * anchor_actions)
 
     def _start_anchor(
         self,
@@ -139,7 +138,7 @@ class QueryRefineWorldModel(nn.Module):
         raw_anchor: torch.Tensor | None,
         anchor_valid: torch.Tensor | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Consume raw B0 exactly once to seed controls, memory, and behavior."""
+        """Consume raw B0 exactly once to seed actions, memory, and behavior."""
         batch, agents = current.shape[:2]
         background = agents - 1
         empty_plan = current.new_zeros((batch, self.cfg.plan_frames, background, 2))
@@ -150,10 +149,10 @@ class QueryRefineWorldModel(nn.Module):
             raise ValueError("B0 must have shape [batch, six background slots, 6]")
         valid = (current_valid[:, 1:] if anchor_valid is None else anchor_valid.bool()) & current_valid[:, 1:]
         highd = self.start_anchor_plan(current, raw_anchor, valid)
-        controls = self.dynamics.controls_from_highd_actions(highd, current[:, None, 1:])
+        actions = self.dynamics.controls_from_highd_actions(highd, current[:, None, 1:])
         seed = empty_seed.clone()
         seed[:, 1:] = self.start_behavior(raw_anchor) * valid[..., None].float()
-        return self._clamp_controls(controls) * valid[:, None, :, None].float(), seed
+        return self._clamp_actions(actions) * valid[:, None, :, None].float(), seed
 
     def initialize_start(
         self,
@@ -172,31 +171,31 @@ class QueryRefineWorldModel(nn.Module):
         agents, scene, _, _ = self.encoder.encode_start(
             current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
         )
-        anchor_controls, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
+        anchor_actions, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
         memory = self.scene_memory(
-            scene, agents, anchor_controls, torch.zeros_like(current), current.new_zeros((current.shape[0], 2)), None,
+            scene, agents, anchor_actions, torch.zeros_like(current), None,
         )
         behavior, _ = self._behavior_latent(
             {}, agents, scene, memory, current, current_valid, start_seed,
             deterministic=deterministic, use_posterior=False,
         )
-        return {"scene_memory": memory, "behavior_latent": behavior, "start_anchor_controls": anchor_controls}
+        return {"scene_memory": memory, "behavior_latent": behavior, "start_anchor_actions": anchor_actions}
 
     @staticmethod
     def _stack_masks(masks: dict[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
         return {name: torch.stack(masks[name], dim=1) for name in BUFFER_MASK_NAMES}
 
-    def _integrate_background_plan(self, current: torch.Tensor, controls: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
+    def _integrate_background_actions(self, current: torch.Tensor, actions: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
         state = current[:, 1:]
         frames: list[torch.Tensor] = []
-        for frame in range(controls.shape[1]):
-            state = self.dynamics.step(state, controls[:, frame], valid[:, 1:], self.cfg.simulation_dt_s)
+        for frame in range(actions.shape[1]):
+            state = self.dynamics.step(state, actions[:, frame], valid[:, 1:], self.cfg.simulation_dt_s)
             frames.append(state)
         return torch.stack(frames, dim=1)
 
     def _refine_controls(
         self,
-        controls: torch.Tensor,
+        actions: torch.Tensor,
         current: torch.Tensor,
         current_valid: torch.Tensor,
         agents: torch.Tensor,
@@ -205,21 +204,18 @@ class QueryRefineWorldModel(nn.Module):
         behavior: torch.Tensor,
         map_tokens: torch.Tensor,
         map_valid: torch.Tensor,
-        ego_controls: torch.Tensor,
-        ego_states: torch.Tensor,
         refine_mask: torch.Tensor,
-        noise_level: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        initial = self._integrate_background_plan(current, controls, current_valid)
-        refined = controls
+        initial = self._integrate_background_actions(current, actions, current_valid)
+        refined = actions
         for _ in range(max(1, int(self.cfg.refinement_iterations))):
-            states = self._integrate_background_plan(current, refined, current_valid)
+            states = self._integrate_background_actions(current, refined, current_valid)
             residual = self.joint_refiner.residual(
                 refined, states, agents, scene, memory, behavior, map_tokens, map_valid,
-                ego_controls, ego_states, refine_mask, noise_level,
+                refine_mask,
             )
-            refined = self._clamp_controls(refined + residual) * refine_mask[..., None].float()
-        return refined, initial, self._integrate_background_plan(current, refined, current_valid)
+            refined = self._clamp_actions(refined - residual) * refine_mask[..., None].float()
+        return refined, initial, self._integrate_background_actions(current, refined, current_valid)
 
     def plan_step(
         self,
@@ -232,14 +228,11 @@ class QueryRefineWorldModel(nn.Module):
         map_polyline_valid: torch.Tensor,
         lane_graph_edges: torch.Tensor,
         behavior_latent: torch.Tensor,
-        ego_controls: torch.Tensor,
-        ego_states: torch.Tensor,
         *,
         previous_buffer: torch.Tensor | None = None,
         previous_current: torch.Tensor | None = None,
         previous_memory: torch.Tensor | None = None,
-        previous_ego_control: torch.Tensor | None = None,
-        start_anchor_controls: torch.Tensor | None = None,
+        start_anchor_actions: torch.Tensor | None = None,
         start_mode: bool = False,
     ) -> dict[str, Any]:
         """One ROLL step; raw B0 is intentionally absent from this interface."""
@@ -253,59 +246,58 @@ class QueryRefineWorldModel(nn.Module):
                 map_polylines, map_polyline_valid, lane_graph_edges,
             )
         delta = torch.zeros_like(current) if previous_current is None else current - previous_current
-        ego_previous = current.new_zeros((current.shape[0], 2)) if previous_ego_control is None else previous_ego_control
         memory = previous_memory
         if memory is None:
-            memory = self.scene_memory(scene, agents, previous_buffer, delta, ego_previous, None)
+            memory = self.scene_memory(scene, agents, previous_buffer, delta, None)
         elif previous_buffer is not None:
-            memory = self.scene_memory(scene, agents, previous_buffer, delta, ego_previous, memory)
-        fresh = self.joint_refiner.fresh_plan(agents, memory, behavior_latent, ego_controls, ego_states)
+            memory = self.scene_memory(scene, agents, previous_buffer, delta, memory)
+        fresh = self.joint_refiner.fresh_plan(agents, memory, behavior_latent)
         valid_mask = current_valid[:, None, 1:].expand(-1, self.cfg.plan_frames, -1)
         carried_mask = torch.zeros_like(valid_mask)
         appended_mask = torch.ones_like(valid_mask)
         if previous_buffer is None:
             pre_refinement = fresh
-            if start_anchor_controls is not None:
-                pre_refinement = self._mix_start_controls(fresh, start_anchor_controls)
+            if start_anchor_actions is not None:
+                pre_refinement = self._mix_start_actions(fresh, start_anchor_actions)
         else:
             execute = int(self.cfg.execute_frames)
             carried = torch.cat((previous_buffer[:, execute:], fresh[:, -execute:]), dim=1)
             pre_refinement = (1.0 - self.cfg.buffer_carry_mix) * fresh + self.cfg.buffer_carry_mix * carried
             carried_mask[:, : -execute] = valid_mask[:, : -execute]
             appended_mask[:, : -execute] = False
-        noise = current.new_zeros((current.shape[0],))
         refined, initial_states, refined_states = self._refine_controls(
             pre_refinement, current, current_valid, agents, scene, memory, behavior_latent,
-            map_tokens, map_valid, ego_controls, ego_states, valid_mask, noise,
+            map_tokens, map_valid, valid_mask,
         )
         return {
             "agent_context": agents, "scene_context": scene, "map_context": map_tokens,
             "map_context_valid": map_valid, "scene_memory": memory,
-            "pre_refinement_buffer": pre_refinement,
-            "refined_buffer": refined, "initial_plan_states": initial_states,
-            "refined_plan_states": refined_states,
-            "buffer_masks": {
+            "background_future_actions_before_refinement": pre_refinement,
+            "background_future_actions": refined,
+            "initial_background_future_states": initial_states,
+            "refined_background_future_states": refined_states,
+            "background_future_action_masks": {
                 "carried": carried_mask, "appended": appended_mask & valid_mask,
                 "refinable": valid_mask, "valid": valid_mask,
             },
         }
 
     def _target_plan(self, batch: dict[str, torch.Tensor], response: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        states, valid, actions = batch["agent_states"], batch["agent_valid"], batch["actions_highd"]
+        states, valid, recorded_actions = batch["agent_states"], batch["agent_valid"], batch["actions_highd"]
         start = int(response) * self.cfg.execute_frames
-        count = min(self.cfg.plan_frames, int(actions.shape[1]) - start)
+        count = min(self.cfg.plan_frames, int(recorded_actions.shape[1]) - start)
         batch_size, agents = states.shape[0], states.shape[2]
         target_states = states.new_zeros((batch_size, self.cfg.plan_frames, agents, 6))
         target_valid = torch.zeros((batch_size, self.cfg.plan_frames, agents), dtype=torch.bool, device=states.device)
-        controls = states.new_zeros((batch_size, self.cfg.plan_frames, agents - 1, 2))
-        control_valid = torch.zeros((batch_size, self.cfg.plan_frames, agents - 1), dtype=torch.bool, device=states.device)
+        target_actions = states.new_zeros((batch_size, self.cfg.plan_frames, agents - 1, 2))
+        action_valid = torch.zeros((batch_size, self.cfg.plan_frames, agents - 1), dtype=torch.bool, device=states.device)
         if count:
             target_states[:, :count] = states[:, 25 + start : 25 + start + count]
             target_valid[:, :count] = valid[:, 25 + start : 25 + start + count]
             current = states[:, 24 + start : 24 + start + count, 1:]
-            controls[:, :count] = self.dynamics.controls_from_highd_actions(actions[:, start : start + count], current)
-            control_valid[:, :count] = valid[:, 25 + start : 25 + start + count, 1:]
-        return target_states, target_valid, controls, control_valid
+            target_actions[:, :count] = self.dynamics.controls_from_highd_actions(recorded_actions[:, start : start + count], current)
+            action_valid[:, :count] = valid[:, 25 + start : 25 + start + count, 1:]
+        return target_states, target_valid, target_actions, action_valid
 
     @staticmethod
     def _interaction_loss(predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
@@ -345,74 +337,25 @@ class QueryRefineWorldModel(nn.Module):
         terms = {name: current.new_zeros(()) for name in ("behavior_kl", "behavior_reconstruction", "diversity_floor")}
         mean, log_scale = prior_mean, prior_log
         if use_posterior:
-            future, future_valid = batch["agent_states"][:, 25:50], batch["agent_valid"][:, 25:50]
+            future = batch["agent_states"][:, 25:50].clone()
+            future_valid = batch["agent_valid"][:, 25:50].clone()
+            future[:, :, 0] = current[:, None, 0]
+            future_valid[:, :, 0] = current_valid[:, None, 0]
             posterior_mean, posterior_log, future_feature = self.behavior.posterior_parameters(
                 agents, scene, memory, current, future, future_valid, start_seed
             )
             mean, log_scale = posterior_mean, posterior_log
+            background = current_valid.clone()
+            background[:, 0] = False
             ratio = torch.exp(2.0 * (posterior_log - prior_log))
             kl = prior_log - posterior_log + 0.5 * (ratio + (posterior_mean - prior_mean).square() * torch.exp(-2.0 * prior_log) - 1.0)
-            terms["behavior_kl"] = _masked_mean(kl.mean(dim=-1), current_valid)
+            terms["behavior_kl"] = _masked_mean(kl.mean(dim=-1), background)
             terms["behavior_reconstruction"] = _masked_mean(
-                (self.behavior.reconstruction(posterior_mean) - future_feature).abs().mean(dim=-1), current_valid
+                (self.behavior.reconstruction(posterior_mean) - future_feature).abs().mean(dim=-1), background
             )
         terms["diversity_floor"] = functional.relu(0.12 - torch.exp(log_scale).mean())
         sample = mean if deterministic else mean + torch.randn_like(mean) * torch.exp(log_scale)
         return sample * current_valid[..., None].float(), terms
-
-    def _ego_controls_from_replay(self, states: torch.Tensor, *, frames: int) -> torch.Tensor:
-        """Adapt externally replayed highD ego acceleration to ADS control input."""
-        ego_states = states[:, 24 : 24 + frames, 0]
-        return self.dynamics.controls_from_highd_actions(ego_states[..., 4:6], ego_states)
-
-    def _ego_window(self, controls: torch.Tensor, response: int) -> torch.Tensor:
-        start, frames = int(response) * self.cfg.execute_frames, self.cfg.plan_frames
-        value = controls[:, start : start + frames]
-        if value.shape[1] == frames:
-            return value
-        if not value.shape[1]:
-            raise ValueError("ego controls do not cover the requested response")
-        return torch.cat((value, value[:, -1:].expand(-1, frames - value.shape[1], -1)), dim=1)
-
-    def _integrate_ego_plan(
-        self, current: torch.Tensor, current_valid: torch.Tensor, controls: torch.Tensor,
-    ) -> torch.Tensor:
-        """Convert ADS controls into the immutable ego state token sequence."""
-        state, valid = current[:, :1], current_valid[:, :1]
-        frames: list[torch.Tensor] = []
-        for frame in range(controls.shape[1]):
-            state = self.dynamics.step(state, controls[:, frame, None], valid, self.cfg.simulation_dt_s)
-            frames.append(state[:, 0])
-        return torch.stack(frames, dim=1)
-
-    def _replay_ego_window(self, states: torch.Tensor, response: int) -> torch.Tensor:
-        start, frames = 25 + int(response) * self.cfg.execute_frames, self.cfg.plan_frames
-        value = states[:, start : start + frames, 0]
-        if value.shape[1] == frames:
-            return value
-        if not value.shape[1]:
-            raise ValueError("logged ego replay does not cover the requested response")
-        return torch.cat((value, value[:, -1:].expand(-1, frames - value.shape[1], -1)), dim=1)
-
-    def _denoising_loss(
-        self, target_controls: torch.Tensor, target_valid: torch.Tensor, out: dict[str, Any], current: torch.Tensor, current_valid: torch.Tensor,
-        behavior: torch.Tensor, ego_controls: torch.Tensor, ego_states: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        levels = target_controls.new_tensor(self.cfg.refinement_noise_levels)
-        choice = torch.randint(len(levels), (target_controls.shape[0],), device=target_controls.device)
-        noise_level = levels[choice]
-        noise = torch.randn_like(target_controls) * target_controls.new_tensor(
-            (self.cfg.denoising_acceleration_std, self.cfg.denoising_yaw_rate_std)
-        )
-        corrupt = self._clamp_controls(target_controls + noise_level[:, None, None, None] * noise)
-        corrupt = torch.where(target_valid[..., None], corrupt, target_controls)
-        states = self._integrate_background_plan(current, corrupt, current_valid)
-        residual = self.joint_refiner.residual(
-            corrupt, states, out["agent_context"], out["scene_context"], out["scene_memory"], behavior,
-            out["map_context"], out["map_context_valid"], ego_controls, ego_states, target_valid, noise_level,
-        )
-        denoised = self._clamp_controls(corrupt + residual) * target_valid[..., None].float()
-        return _masked_mean((denoised - target_controls).abs().mean(dim=-1), target_valid), noise_level.mean()
 
     def _rollout(
         self,
@@ -422,21 +365,15 @@ class QueryRefineWorldModel(nn.Module):
         deterministic: bool = True,
         use_posterior: bool = False,
         tbptt_steps: int = 0,
-        ego_future_controls: torch.Tensor,
-        training_denoising: bool = False,
-        replay_ego: bool,
         start_mode: bool,
     ) -> dict[str, Any]:
-        """Shared rollout body; only reconstruction is permitted to replay ego."""
+        """Logged-state rollout; planning sees only ego state observed so far."""
         states, valid = batch["agent_states"], batch["agent_valid"]
         steps = min(int(response_steps or self.cfg.response_steps), self.cfg.response_steps)
         total_frames = steps * self.cfg.execute_frames
         ego_mask = self._ego_mask(batch)
         if not torch.all(ego_mask[:, 0]):
             raise ValueError("QR-WM uses the fixed [ego, six background slots] tensor schema")
-        controls = ego_future_controls
-        if controls.shape[:2] != (states.shape[0], total_frames) or controls.shape[-1] != 2:
-            raise ValueError("ego_future_controls must have shape [batch, response_steps * execute_frames, 2]")
         current, current_valid = states[:, 24], valid[:, 24]
         history, history_valid = (
             (current[:, None], current_valid[:, None]) if start_mode else (states[:, :25], valid[:, :25])
@@ -451,11 +388,11 @@ class QueryRefineWorldModel(nn.Module):
                 history, history_valid, current, current_valid, ego_mask,
                 batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
             )
-        anchor_controls, start_seed = self._start_anchor(
+        anchor_actions, start_seed = self._start_anchor(
             current, current_valid, batch.get("behavior_anchor_raw"), batch.get("behavior_anchor_valid")
         )
         initial_memory = self.scene_memory(
-            initial_scene, initial_agents, anchor_controls, torch.zeros_like(current), current.new_zeros((current.shape[0], 2)), None
+            initial_scene, initial_agents, anchor_actions, torch.zeros_like(current), None
         )
         behavior, behavior_terms = self._behavior_latent(
             batch, initial_agents, initial_scene, initial_memory, current, current_valid, start_seed,
@@ -465,68 +402,56 @@ class QueryRefineWorldModel(nn.Module):
         plans: list[torch.Tensor] = []
         pre_refinement: list[torch.Tensor] = []
         plan_states: list[torch.Tensor] = []
-        initial_plan_states: list[torch.Tensor] = []
+        initial_future_states: list[torch.Tensor] = []
         masks: dict[str, list[torch.Tensor]] = {name: [] for name in BUFFER_MASK_NAMES}
         term_rows: list[dict[str, torch.Tensor]] = []
         generated_valid_frames: list[torch.Tensor] = []
-        previous_buffer = previous_current = previous_ego = None
+        previous_buffer = previous_current = None
         previous_memory: torch.Tensor | None = initial_memory
         for response in range(steps):
-            target, target_valid, target_controls, target_control_valid = self._target_plan(batch, response)
-            step_current, step_valid = current, current_valid
-            ego_controls = self._ego_window(controls, response)
-            ego_states = self._replay_ego_window(states, response) if replay_ego else self._integrate_ego_plan(
-                current, current_valid, ego_controls
-            )
+            target, target_valid, target_actions, target_action_valid = self._target_plan(batch, response)
+            step_current = current
             out = self.plan_step(
                 history, history_valid, current, current_valid, ego_mask,
-                batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"], behavior, ego_controls, ego_states,
+                batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"], behavior,
                 previous_buffer=previous_buffer, previous_current=previous_current, previous_memory=previous_memory,
-                previous_ego_control=previous_ego, start_anchor_controls=anchor_controls if response == 0 else None,
+                start_anchor_actions=anchor_actions if response == 0 else None,
                 start_mode=start_mode and response == 0,
             )
-            plan = out["refined_buffer"]
+            plan = out["background_future_actions"]
             generated, response_frames, response_valid = current.clone(), [], []
             for frame in range(self.cfg.execute_frames):
                 physical = current.new_zeros((current.shape[0], current.shape[1], 2))
-                physical[:, 0] = controls[:, response * self.cfg.execute_frames + frame]
                 physical[:, 1:] = plan[:, frame]
                 generated = self.dynamics.step(generated, physical, current_valid, self.cfg.simulation_dt_s)
-                if replay_ego:
-                    target_frame = 25 + response * self.cfg.execute_frames + frame
-                    generated = torch.where(ego_mask[..., None], states[:, target_frame], generated)
-                    current_valid = torch.where(ego_mask, valid[:, target_frame], current_valid)
+                target_frame = 25 + response * self.cfg.execute_frames + frame
+                generated = torch.where(ego_mask[..., None], states[:, target_frame], generated)
+                current_valid = torch.where(ego_mask, valid[:, target_frame], current_valid)
                 response_frames.append(generated)
                 response_valid.append(current_valid)
             predicted = torch.stack(response_frames, dim=1)
             execute_valid, full_valid = target_valid[:, : self.cfg.execute_frames, 1:], target_valid[:, :, 1:]
             position = _masked_mean((predicted[:, :, 1:, :2] - target[:, : self.cfg.execute_frames, 1:, :2]).abs().mean(dim=-1), execute_valid)
             velocity = _masked_mean((predicted[:, :, 1:, 2:4] - target[:, : self.cfg.execute_frames, 1:, 2:4]).abs().mean(dim=-1), execute_valid)
-            control_loss = _masked_mean((plan[:, : self.cfg.execute_frames] - target_controls[:, : self.cfg.execute_frames]).abs().mean(dim=-1), target_control_valid[:, : self.cfg.execute_frames])
-            full_position = _masked_mean((out["refined_plan_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
-            initial_position = _masked_mean((out["initial_plan_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
-            full_control = _masked_mean((plan - target_controls).abs().mean(dim=-1), target_control_valid)
+            action_loss = _masked_mean((plan[:, : self.cfg.execute_frames] - target_actions[:, : self.cfg.execute_frames]).abs().mean(dim=-1), target_action_valid[:, : self.cfg.execute_frames])
+            full_position = _masked_mean((out["refined_background_future_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
+            initial_position = _masked_mean((out["initial_background_future_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
+            full_action = _masked_mean((plan - target_actions).abs().mean(dim=-1), target_action_valid)
             overlap = plan.new_zeros(()) if previous_buffer is None else (previous_buffer[:, self.cfg.execute_frames:] - plan[:, : -self.cfg.execute_frames]).abs().mean()
-            denoising, noise_level = plan.new_zeros(()), plan.new_zeros(())
-            if training_denoising:
-                denoising, noise_level = self._denoising_loss(
-                    target_controls, target_control_valid, out, step_current, step_valid, behavior, ego_controls, ego_states
-                )
             term_rows.append({
-                "position": position, "velocity": velocity, "control": control_loss, "plan_position": full_position,
-                "initial_plan_position": initial_position, "plan_control": full_control, "overlap": overlap,
+                "position": position, "velocity": velocity, "action": action_loss, "plan_position": full_position,
+                "initial_plan_position": initial_position, "plan_action": full_action, "overlap": overlap,
                 "interaction": self._interaction_loss(predicted, target[:, : self.cfg.execute_frames], execute_valid),
-                "physical": self._physical_loss(predicted, execute_valid), "denoising": denoising,
-                "denoising_noise_level": noise_level, "refinable_fraction": out["buffer_masks"]["refinable"].float().mean(),
+                "physical": self._physical_loss(predicted, execute_valid),
+                "refinable_fraction": out["background_future_action_masks"]["refinable"].float().mean(),
             })
             predicted_frames.extend(response_frames)
             generated_valid_frames.extend(response_valid)
-            plans.append(plan); pre_refinement.append(out["pre_refinement_buffer"])
-            plan_states.append(out["refined_plan_states"]); initial_plan_states.append(out["initial_plan_states"])
-            for name, value in out["buffer_masks"].items():
+            plans.append(plan); pre_refinement.append(out["background_future_actions_before_refinement"])
+            plan_states.append(out["refined_background_future_states"]); initial_future_states.append(out["initial_background_future_states"])
+            for name, value in out["background_future_action_masks"].items():
                 masks[name].append(value)
             previous_buffer, previous_current, previous_memory = plan, step_current, out["scene_memory"]
-            previous_ego = controls[:, (response + 1) * self.cfg.execute_frames - 1]
             current = predicted[:, -1]
             appended_valid = torch.stack(response_valid, dim=1)
             history, history_valid = torch.cat((history, predicted), dim=1)[:, -25:], torch.cat((history_valid, appended_valid), dim=1)[:, -25:]
@@ -546,10 +471,12 @@ class QueryRefineWorldModel(nn.Module):
         return {
             "predicted_states": torch.stack(predicted_frames, dim=1),
             "target_states": states[:, 25 : 25 + total_frames], "target_valid": valid[:, 25 : 25 + total_frames],
-            "control_buffers": torch.stack(plans, dim=1), "pre_refinement_buffers": torch.stack(pre_refinement, dim=1),
-            "refined_plan_states": torch.stack(plan_states, dim=1), "initial_plan_states": torch.stack(initial_plan_states, dim=1),
-            "control_buffer_masks": self._stack_masks(masks),
-            "executed_control_masks": torch.stack([item[:, : self.cfg.execute_frames] for item in masks["valid"]], dim=1),
+            "background_future_actions": torch.stack(plans, dim=1),
+            "background_future_actions_before_refinement": torch.stack(pre_refinement, dim=1),
+            "refined_background_future_states": torch.stack(plan_states, dim=1),
+            "initial_background_future_states": torch.stack(initial_future_states, dim=1),
+            "background_future_action_masks": self._stack_masks(masks),
+            "executed_background_action_masks": torch.stack([item[:, : self.cfg.execute_frames] for item in masks["valid"]], dim=1),
             "behavior_latent": behavior, "behavior_terms": behavior_terms, "loss_terms": term_rows,
             "start_summary": start_summary, "start_mode": start_mode,
         }
@@ -562,108 +489,38 @@ class QueryRefineWorldModel(nn.Module):
         deterministic: bool = True,
         use_posterior: bool = False,
         tbptt_steps: int = 0,
-        training_denoising: bool = False,
         start_mode: bool = False,
     ) -> dict[str, Any]:
-        """Logged highD ego replay, used only for training and reconstruction."""
+        """Logged-state reconstruction; future ego states never enter planning."""
         steps = min(int(response_steps or self.cfg.response_steps), self.cfg.response_steps)
         return self._rollout(
             batch, response_steps=steps, deterministic=deterministic, use_posterior=use_posterior,
-            tbptt_steps=tbptt_steps, ego_future_controls=self._ego_controls_from_replay(
-                batch["agent_states"], frames=steps * self.cfg.execute_frames
-            ), training_denoising=training_denoising, replay_ego=True, start_mode=start_mode,
+            tbptt_steps=tbptt_steps, start_mode=start_mode,
         )
 
     def rollout(
         self,
         batch: dict[str, torch.Tensor],
         *,
-        ego_future_controls: torch.Tensor | None = None,
         response_steps: int | None = None,
         deterministic: bool = True,
         use_posterior: bool = False,
         tbptt_steps: int = 0,
-        training_denoising: bool = False,
     ) -> dict[str, Any]:
-        """Dynamic ADS rollout; ego controls are required and never replayed."""
-        if ego_future_controls is None:
-            raise ValueError("rollout requires ADS ego_future_controls; use rollout_reconstruction for logged highD replay")
-        return self._rollout(
-            batch, response_steps=response_steps, deterministic=deterministic, use_posterior=use_posterior,
-            tbptt_steps=tbptt_steps, ego_future_controls=ego_future_controls,
-            training_denoising=training_denoising, replay_ego=False, start_mode=False,
+        """Alias for logged-state reconstruction without an ADS action input."""
+        return self.rollout_reconstruction(
+            batch, response_steps=response_steps, deterministic=deterministic,
+            use_posterior=use_posterior, tbptt_steps=tbptt_steps,
         )
-
-    @torch.no_grad()
-    def rollout_from_flow(
-        self,
-        flow_condition: torch.Tensor,
-        *,
-        slot_valid: torch.Tensor | None,
-        map_polylines: torch.Tensor,
-        map_polyline_valid: torch.Tensor,
-        lane_graph_edges: torch.Tensor,
-        ego_future_controls: torch.Tensor,
-        response_steps: int | None = None,
-        deterministic: bool = True,
-        flow_metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """START from Flow's ``C0+B0`` and ROLL using ADS-provided ego controls."""
-        current, current_valid, raw_anchor = self.flow_condition_to_scene(flow_condition, slot_valid)
-        steps = min(int(response_steps or self.cfg.response_steps), self.cfg.response_steps)
-        total = steps * self.cfg.execute_frames
-        if ego_future_controls.shape != (current.shape[0], total, 2):
-            raise ValueError("ego_future_controls must have shape [batch, response_steps * execute_frames, 2]")
-        ego_mask = torch.zeros_like(current_valid); ego_mask[:, 0] = True
-        history, history_valid = current[:, None], current_valid[:, None]
-        start = self.initialize_start(
-            current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
-            raw_anchor, current_valid[:, 1:], deterministic=deterministic,
-        )
-        memory, behavior, anchor_controls = start["scene_memory"], start["behavior_latent"], start["start_anchor_controls"]
-        frames: list[torch.Tensor] = []
-        plans: list[torch.Tensor] = []
-        masks: dict[str, list[torch.Tensor]] = {name: [] for name in BUFFER_MASK_NAMES}
-        previous_buffer = previous_current = previous_ego = None
-        for response in range(steps):
-            step_current = current
-            ego_controls = self._ego_window(ego_future_controls, response)
-            ego_states = self._integrate_ego_plan(current, current_valid, ego_controls)
-            out = self.plan_step(
-                history, history_valid, current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
-                behavior, ego_controls, ego_states, previous_buffer=previous_buffer, previous_current=previous_current,
-                previous_memory=memory, previous_ego_control=previous_ego,
-                start_anchor_controls=anchor_controls if response == 0 else None,
-                start_mode=response == 0,
-            )
-            plan = out["refined_buffer"]
-            for frame in range(self.cfg.execute_frames):
-                physical = current.new_zeros((current.shape[0], current.shape[1], 2))
-                physical[:, 0] = ego_future_controls[:, response * self.cfg.execute_frames + frame]
-                physical[:, 1:] = plan[:, frame]
-                current = self.dynamics.step(current, physical, current_valid, self.cfg.simulation_dt_s)
-                frames.append(current)
-            appended_valid = current_valid[:, None].expand(-1, self.cfg.execute_frames, -1)
-            history, history_valid = torch.cat((history, torch.stack(frames[-self.cfg.execute_frames:], dim=1)), dim=1)[:, -25:], torch.cat((history_valid, appended_valid), dim=1)[:, -25:]
-            previous_buffer, previous_current, memory = plan, step_current, out["scene_memory"]
-            previous_ego = ego_future_controls[:, (response + 1) * self.cfg.execute_frames - 1]
-            plans.append(plan)
-            for name, value in out["buffer_masks"].items():
-                masks[name].append(value)
-        return {
-            "predicted_states": torch.stack(frames, dim=1), "control_buffers": torch.stack(plans, dim=1),
-            "control_buffer_masks": self._stack_masks(masks), "behavior_latent": behavior,
-            "flow_metadata": {} if flow_metadata is None else dict(flow_metadata),
-        }
 
     def _objective(self, rollout: dict[str, Any]) -> dict[str, torch.Tensor]:
         terms = {key: torch.stack([value[key] for value in rollout["loss_terms"]]).mean() for key in rollout["loss_terms"][0]}
         behavior = rollout["behavior_terms"]
         loss = (
-            self.cfg.position_weight * terms["position"] + self.cfg.velocity_weight * terms["velocity"] + self.cfg.control_weight * terms["control"]
-            + self.cfg.plan_position_weight * terms["plan_position"] + self.cfg.plan_control_weight * terms["plan_control"]
+            self.cfg.position_weight * terms["position"] + self.cfg.velocity_weight * terms["velocity"] + self.cfg.action_weight * terms["action"]
+            + self.cfg.plan_position_weight * terms["plan_position"] + self.cfg.plan_action_weight * terms["plan_action"]
             + self.cfg.refinement_weight * functional.relu(terms["plan_position"] - terms["initial_plan_position"] + 0.01)
-            + self.cfg.denoising_weight * terms["denoising"] + self.cfg.overlap_weight * terms["overlap"]
+            + self.cfg.overlap_weight * terms["overlap"]
             + self.cfg.interaction_weight * terms["interaction"] + self.cfg.physical_weight * terms["physical"]
             + self.cfg.behavior_kl_weight * behavior["behavior_kl"] + self.cfg.behavior_reconstruction_weight * behavior["behavior_reconstruction"]
             + self.cfg.diversity_weight * behavior["diversity_floor"]
@@ -690,7 +547,7 @@ class QueryRefineWorldModel(nn.Module):
     ) -> dict[str, torch.Tensor]:
         rollout = self.rollout_reconstruction(
             batch, response_steps=response_steps, deterministic=not training, use_posterior=training,
-            tbptt_steps=tbptt_steps, training_denoising=training, start_mode=start_mode,
+            tbptt_steps=tbptt_steps, start_mode=start_mode,
         )
         return self._objective(rollout)
 
@@ -718,11 +575,11 @@ class QueryRefineWorldModel(nn.Module):
     def checkpoint_payload(self) -> dict[str, Any]:
         return {
             "model_type": self.model_type, "model_config": asdict(self.cfg), "state_dict": self.state_dict(),
-            "architecture_version": 3,
+            "architecture_version": 5,
             "flow_interface": {
                 "input_dim": 76, "layout": "ego[vx,vy,ax,ay]+background_relative[6,6]+B0[6,6]",
-                "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes latent, scene memory, and first control buffer",
-                "start_encoder": "C0 plus map only; no synthetic history", "ego_condition": "future ego state token from controls",
+                "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes latent, scene memory, and first background future-action sequence",
+                "start_encoder": "C0 plus map only; no synthetic history", "ego_condition": "observed ego state/history only; no ADS action input",
                 "flow_schema_sha256": self.flow_schema_sha256,
             },
         }

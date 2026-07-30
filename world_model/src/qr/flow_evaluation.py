@@ -7,14 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import torch
 
 from world_model.src.core.flow_composition import (
     FLOW_COMPOSITION_SEED,
     INNER_WORLD_SAMPLES,
     ROLLOUT_FRAMES,
     load_flow_tail_starts,
-    tensor,
     translated_ego_replay,
 )
 from world_model.src.core.long_tail_metrics import (
@@ -27,6 +25,7 @@ from world_model.src.core.long_tail_metrics import (
 from world_model.src.core.utils import ensure_dir, save_json, select_device
 
 from .train import load_qr_checkpoint
+from .environment import FlowStartMetadata, QRWorldModelEnvironment
 
 
 def _sha256(path: Path) -> str:
@@ -34,7 +33,7 @@ def _sha256(path: Path) -> str:
 
 
 def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str, Any]:
-    """Evaluate Flow C0+B0 STARTs with separate ADS ego-control replay."""
+    """Evaluate Flow STARTs with response-by-response observed ego replay."""
     device = select_device("auto")
     starts, cache, donors = load_flow_tail_starts(Path(__file__).resolve().parents[3], device=device)
     model = load_qr_checkpoint(checkpoint, device=device)
@@ -60,22 +59,34 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
         sampled_ego[:, 2:6] = np.asarray(starts["features"][start:stop, :4], np.float32)
         ego = np.stack([translated_ego_replay(cache["agent_states"][row], sampled_ego[index]) for index, row in enumerate(rows)])
         ego = np.repeat(ego, repeat, axis=0)
+        observed_ego = np.repeat(ego[:, :: model.cfg.execute_frames], model.cfg.execute_frames, axis=1)
         flow_metadata = {
             key: np.repeat(np.asarray(value[start:stop]), repeat, axis=0)
             for key, value in starts.items() if key != "features"
         }
         flow_metadata["donor_sequence_index"] = np.repeat(rows, repeat)
-        ego_tensor = tensor(ego, device)
-        ego_controls = model.dynamics.controls_from_highd_actions(ego_tensor[..., 4:6], ego_tensor)
-        with torch.no_grad():
-            rollout = model.rollout_from_flow(
-                tensor(features, device), slot_valid=tensor(slots, device), map_polylines=tensor(map_polylines, device),
-                map_polyline_valid=tensor(map_valid, device), lane_graph_edges=tensor(lane_edges, device),
-                ego_future_controls=ego_controls, response_steps=ROLLOUT_FRAMES // model.cfg.execute_frames, deterministic=False,
-                flow_metadata=flow_metadata,
+        environment = QRWorldModelEnvironment(model, device=device)
+        generated = []
+        for index in range(len(features)):
+            metadata = FlowStartMetadata(
+                slot_valid=slots[index], map_polylines=map_polylines[index],
+                map_polyline_valid=map_valid[index], lane_graph_edges=lane_edges[index],
+                primary_slot_index=int(flow_metadata["primary_slot_index"][index]),
+                event_structure=flow_metadata["event_structure"][index],
+                mask_pattern=int(flow_metadata["mask_pattern"][index]),
+                event_structure_id=int(flow_metadata["event_structure_id"][index]),
+                event_structure_log_prob=float(flow_metadata["event_structure_log_prob"][index]),
+                conditional_log_prob=float(flow_metadata["conditional_log_prob"][index]),
+                log_prob=float(flow_metadata["log_prob"][index]),
             )
-        generated_rows.append(rollout["predicted_states"][:, :, 1:].cpu().numpy())
-        ego_rows.append(ego)
+            environment.reset_from_flow(features[index, :40], features[index, 40:].reshape(6, 6), metadata, deterministic=False)
+            frames = [
+                environment.step(observed_ego[index, frame])["background_states"]
+                for frame in range(0, ROLLOUT_FRAMES, model.cfg.execute_frames)
+            ]
+            generated.append(np.concatenate(frames, axis=0))
+        generated_rows.append(np.stack(generated))
+        ego_rows.append(observed_ego)
         valid_rows.append(np.repeat(slots[:, None], ROLLOUT_FRAMES, axis=1))
         target_rows.append(np.repeat(np.asarray(cache["agent_states"][rows, 25:, 1:], np.float32), repeat, axis=0))
         target_ego_rows.append(np.repeat(np.asarray(cache["agent_states"][rows, 25:, 0], np.float32), repeat, axis=0))
@@ -99,7 +110,7 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
             "supported_held_out_replays": int(len(np.unique(donors))), "flow_initial_conditions": int(len(donors)),
             "generated_world_futures": int(len(donors) * INNER_WORLD_SAMPLES), "not_a_paired_reconstruction": True,
             "seed": FLOW_COMPOSITION_SEED, "b0_lifecycle": "START-only",
-            "ego_condition": "translated replay controls with dynamics-propagated ego state",
+            "ego_condition": "translated replay states supplied one response at a time and held within the response",
         },
         "checkpoint": {"path": str(checkpoint), "sha256": _sha256(checkpoint)},
         "flow_start_audit": {

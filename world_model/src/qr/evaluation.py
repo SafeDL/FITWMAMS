@@ -100,7 +100,7 @@ def evaluate_qr_world_model(
             target_drac = torch.where(target_closing > 1.0e-3, target_closing.square() / (2.0 * target_gap.clamp_min(1.0e-3)), torch.zeros_like(target_gap))
             sums["ttc"] += float(((ttc - target_ttc).abs() * weight).sum().cpu()); sums["ttc_count"] += float(weight.sum().cpu())
             sums["drac"] += float(((drac - target_drac).abs() * weight).sum().cpu()); sums["drac_count"] += float(weight.sum().cpu())
-            buffers = deterministic["control_buffers"]
+            buffers = deterministic["background_future_actions"]
             overlap = (buffers[:, 1:, : -model.cfg.execute_frames] - buffers[:, :-1, model.cfg.execute_frames:]).abs()
             sums["overlap"] += float(overlap.sum().cpu()); sums["overlap_count"] += float(overlap.numel())
             # A complete 25-frame target plan exists for the first 21
@@ -109,8 +109,8 @@ def evaluate_qr_world_model(
             # diagnostic rather than padded with fabricated futures.
             target_plan = batch["agent_states"][:, 25:].unfold(1, model.cfg.plan_frames, model.cfg.execute_frames).permute(0, 1, 4, 2, 3)[:, :, :, 1:]
             target_plan_valid = batch["agent_valid"][:, 25:].unfold(1, model.cfg.plan_frames, model.cfg.execute_frames).permute(0, 1, 3, 2)[:, :, :, 1:]
-            initial = deterministic["initial_plan_states"][:, :target_plan.shape[1]]
-            refined = deterministic["refined_plan_states"][:, :target_plan.shape[1]]
+            initial = deterministic["initial_background_future_states"][:, :target_plan.shape[1]]
+            refined = deterministic["refined_background_future_states"][:, :target_plan.shape[1]]
             plan_dist_before = torch.linalg.vector_norm(initial[..., :2] - target_plan[..., :2], dim=-1)
             plan_dist_after = torch.linalg.vector_norm(refined[..., :2] - target_plan[..., :2], dim=-1)
             plan_weight = target_plan_valid.float()
@@ -171,7 +171,7 @@ def evaluate_qr_world_model(
             "jerk_kl_pred_to_real": _distribution_kl(jerk_hist[0], jerk_hist[1]),
         },
         "long_horizon_consistency": {
-            "buffer_overlap_control_l1": divide(sums["overlap"], sums["overlap_count"]),
+            "background_future_action_overlap_l1": divide(sums["overlap"], sums["overlap_count"]),
             "refinement_position_gain_m": divide(sums["refinement_gain"], sums["refinement_count"]),
         },
         "evt_tail": {

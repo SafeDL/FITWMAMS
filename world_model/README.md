@@ -22,11 +22,11 @@ python world_model/scripts/test_cat_topk_world_model.py
 python world_model/scripts/test_qr_world_model.py
 ```
 
-QR-WM 是独立的联合多智能体实现：relation-aware 多头 scene encoder 产生 agent/map context，单一 persistent scene memory 保存历史交互、已执行计划和 ego 响应；联合 agent-time refiner 在 `[time, background-agent, a/yaw_rate]` 控制 buffer 上进行时间注意力、车辆注意力及 scene/map 交叉注意力。QR-WM 不使用 traffic-light 特征，也不加载 RAMP/FIRM checkpoint。
+QR-WM 是独立的联合多智能体实现：relation-aware 多头 scene encoder 产生 agent/map context，单一 persistent scene memory 保存历史交互、既有背景动作和 ego 状态响应；联合 agent-time refiner 在 `[time, background-agent, a/yaw_rate]` 背景车辆未来动作序列上进行时间注意力、车辆注意力及 scene/map 交叉注意力。QR-WM 不使用 traffic-light 特征，也不加载 RAMP/FIRM checkpoint。
 
-Flow 组合接口固定为 76-D `C0+B0`，并统一由共享 START adapter 将背景相对速度还原为绝对速度。`B0[6,6]` 只在 START 使用：初始化行为 latent、scene memory 和第一个 25-frame 背景控制 buffer；首段以时间衰减的凸组合融合 B0 控制先验，后续 ROLL 仅维护移位/追加的 buffer 与 scene memory。`rollout_from_flow(..., ego_future_controls=[B,T,2])` 及 ADS rollout 由动力学推进 ego，绝不以 highD 未来状态覆盖；`rollout_reconstruction` 是唯一的高D replay 重建路径。
+Flow 组合接口固定为 76-D `C0+B0`，并统一由共享 START adapter 将背景相对速度还原为绝对速度。`B0[6,6]` 只在 START 使用：初始化行为 latent、scene memory 和第一段 25-frame **背景车辆未来动作序列**；首段以时间衰减的凸组合融合 B0 动作先验，后续 ROLL 仅维护移位/追加的动作序列与 scene memory。QR 不接收 ADS 动作或未来 ego 序列；每次规划只使用已经观测到的 ego 状态与历史。`rollout_reconstruction` 仅在每次规划完成后回放日志 ego 状态，用于训练和重建评测。
 
-在线 ADS 可使用 `QRWorldModelEnvironment.reset_from_flow(C0, B0, metadata)`、`observe()`、`step(ego_action)`；每次只提供下一个 0.2 秒 `[5,2]` 控制块。Flow 组合结果同时写出逐样本 audit，保留 slot mask、primary risk slot、事件结构、条件密度和联合 `log_prob`，用于概率审计或重要性加权。
+在线 ADS 可使用 `QRWorldModelEnvironment.reset_from_flow(C0, B0, metadata)`、`observe()`、`step(ego_state)`；ADS 在环境外推进自身动力学，并在每个 0.2 秒周期提交当前观测到的 `[6]` ego 状态。Flow 组合结果同时写出逐样本 audit，保留 slot mask、primary risk slot、事件结构、条件密度和联合 `log_prob`，用于概率审计或重要性加权。
 
 所有活跃世界模型的正式训练预算统一为 40 epoch。QR-WM 会在运行目录的 `tensorboard/` 写入 batch 训练损失、epoch 训练/验证损失和验证 FDE；训练后可运行 `tensorboard --logdir results/highd_world_model/qr_world_model/tensorboard` 查看曲线。
 

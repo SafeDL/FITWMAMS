@@ -1,4 +1,4 @@
-"""Online QR-WM environment driven by incremental ADS controls."""
+"""Online QR-WM environment driven by observed ego states."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ class FlowStartMetadata:
 
 
 class QRWorldModelEnvironment:
-    """A 0.2-second closed-loop environment; ADS supplies only the next chunk."""
+    """A 0.2-second closed-loop environment conditioned on observed ego state."""
 
     def __init__(self, model: QueryRefineWorldModel, *, device: str | torch.device = "cpu") -> None:
         self.model = model.to(device).eval()
@@ -75,10 +75,9 @@ class QRWorldModelEnvironment:
         self._history_valid: torch.Tensor | None = None
         self._behavior: torch.Tensor | None = None
         self._memory: torch.Tensor | None = None
-        self._anchor_controls: torch.Tensor | None = None
+        self._anchor_actions: torch.Tensor | None = None
         self._previous_buffer: torch.Tensor | None = None
         self._previous_current: torch.Tensor | None = None
-        self._previous_ego: torch.Tensor | None = None
         self._map_inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None
         self.response_index = 0
         self.trace: dict[str, Any] = {}
@@ -88,6 +87,8 @@ class QRWorldModelEnvironment:
         C0: np.ndarray | torch.Tensor,
         B0: np.ndarray | torch.Tensor,
         metadata: FlowStartMetadata | Mapping[str, Any],
+        *,
+        deterministic: bool = True,
     ) -> dict[str, Any]:
         """Initialize an episode from raw Flow C0, B0, and auditable metadata."""
         self._metadata = FlowStartMetadata.from_value(metadata)
@@ -105,17 +106,20 @@ class QRWorldModelEnvironment:
         with torch.no_grad():
             current, valid, raw_anchor = self.model.flow_condition_to_scene(flow, slot_valid)
             ego_mask = torch.zeros_like(valid); ego_mask[:, 0] = True
-            start = self.model.initialize_start(current, valid, ego_mask, *self._map_inputs, raw_anchor, slot_valid)
+            start = self.model.initialize_start(
+                current, valid, ego_mask, *self._map_inputs, raw_anchor, slot_valid,
+                deterministic=deterministic,
+            )
         self._states, self._valid = current, valid
         self._history, self._history_valid = current[:, None], valid[:, None]
         self._behavior = start["behavior_latent"]
         self._memory = start["scene_memory"]
-        self._anchor_controls = start["start_anchor_controls"]
-        self._previous_buffer = self._previous_current = self._previous_ego = None
+        self._anchor_actions = start["start_anchor_actions"]
+        self._previous_buffer = self._previous_current = None
         self.response_index = 0
         self.trace = {
             "flow_metadata": self._metadata.audit_dict(), "b0_lifecycle": "START-only",
-            "online_ego_tail_policy": "hold_last_control", "response_steps": 0,
+            "ego_condition": "observed state only", "response_steps": 0,
         }
         return self.observe()
 
@@ -129,39 +133,41 @@ class QRWorldModelEnvironment:
         }
 
     @torch.no_grad()
-    def step(self, ego_action: np.ndarray | torch.Tensor) -> dict[str, Any]:
-        """Apply the next five 25-Hz ADS controls, then replan from feedback."""
+    def step(self, ego_state: np.ndarray | torch.Tensor, ego_valid: bool = True) -> dict[str, Any]:
+        """Advance one response interval from the currently observed ego state."""
         required = (
             self._states, self._valid, self._history, self._history_valid,
             self._behavior, self._memory, self._metadata,
         )
         if any(value is None for value in required):
             raise RuntimeError("Call reset_from_flow before step")
-        action = torch.as_tensor(ego_action, dtype=self._states.dtype, device=self.device)
-        expected = (self.model.cfg.execute_frames, 2)
-        if tuple(action.shape) != expected:
-            raise ValueError(f"ego_action must have shape {expected}")
-        tail = action[-1:].expand(self.model.cfg.plan_frames - len(action), -1)
-        horizon = torch.cat((action, tail), dim=0)[None]
+        observed = torch.as_tensor(ego_state, dtype=self._states.dtype, device=self.device)
+        if tuple(observed.shape) != (6,):
+            raise ValueError("ego_state must have shape [6]")
         if self._map_inputs is None:
             raise RuntimeError("Flow START map inputs are unavailable")
+        self._states = self._states.clone()
+        self._valid = self._valid.clone()
+        self._states[:, 0] = observed
+        self._valid[:, 0] = bool(ego_valid)
+        self._history[:, -1] = self._states
+        self._history_valid[:, -1] = self._valid
         ego_mask = torch.zeros_like(self._valid); ego_mask[:, 0] = True
-        ego_states = self.model._integrate_ego_plan(self._states, self._valid, horizon)
         out = self.model.plan_step(
             self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs,
-            self._behavior, horizon, ego_states, previous_buffer=self._previous_buffer,
+            self._behavior, previous_buffer=self._previous_buffer,
             previous_current=self._previous_current, previous_memory=self._memory,
-            previous_ego_control=self._previous_ego,
-            start_anchor_controls=self._anchor_controls if self.response_index == 0 else None,
+            start_anchor_actions=self._anchor_actions if self.response_index == 0 else None,
             start_mode=self.response_index == 0,
         )
         before, current, frames = self._states, self._states, []
-        plan = out["refined_buffer"]
+        plan = out["background_future_actions"]
         for frame in range(self.model.cfg.execute_frames):
             physical = current.new_zeros((1, current.shape[1], 2))
-            physical[:, 0] = action[frame]
             physical[:, 1:] = plan[:, frame]
             current = self.model.dynamics.step(current, physical, self._valid, self.model.cfg.simulation_dt_s)
+            current[:, 0] = observed
+            current[:, 0] *= float(ego_valid)
             frames.append(current)
         appended = torch.stack(frames, dim=1)
         self._states = current
@@ -169,14 +175,14 @@ class QRWorldModelEnvironment:
         valid_frames = self._valid[:, None].expand(-1, len(frames), -1)
         self._history_valid = torch.cat((self._history_valid, valid_frames), dim=1)[:, -25:]
         self._previous_buffer, self._previous_current = plan, before
-        self._previous_ego, self._memory = action[-1:], out["scene_memory"]
+        self._memory = out["scene_memory"]
         self.response_index += 1
         self.trace["response_steps"] = self.response_index
         observation = self.observe()
         observation.update({
             "background_states": appended[0, :, 1:].cpu().numpy(),
-            "applied_ego_controls": action.cpu().numpy(),
-            "applied_background_controls": plan[0, : self.model.cfg.execute_frames].cpu().numpy(),
-            "control_buffer": plan[0].cpu().numpy(), "trace": deepcopy(self.trace),
+            "observed_ego_state": observed.cpu().numpy(),
+            "applied_background_actions": plan[0, : self.model.cfg.execute_frames].cpu().numpy(),
+            "background_future_actions": plan[0].cpu().numpy(), "trace": deepcopy(self.trace),
         })
         return observation

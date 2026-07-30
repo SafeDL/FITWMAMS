@@ -30,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 def _config(source: dict[str, Any]) -> QRWorldModelConfig:
     allowed = {key: value for key, value in source.items() if key in QRWorldModelConfig.__dataclass_fields__}
-    if "refinement_noise_levels" in allowed:
-        allowed["refinement_noise_levels"] = tuple(float(value) for value in allowed["refinement_noise_levels"])
     return QRWorldModelConfig(**allowed)
 
 
@@ -269,7 +267,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
 
 def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") -> QueryRefineWorldModel:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
-    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != 3:
+    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != 5:
         raise ValueError(f"Checkpoint is incompatible with the current QR-WM architecture: {path}. Retrain QR-WM before evaluation.")
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)
