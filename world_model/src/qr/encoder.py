@@ -154,6 +154,33 @@ class QueryRelationalSceneEncoder(nn.Module):
         lane_graph_edges: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         temporal = self._temporal_tokens(history, history_valid, ego_mask)
+        return self._encode_current(current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges, temporal)
+
+    def encode_start(
+        self,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        ego_mask: torch.Tensor,
+        map_polylines: torch.Tensor,
+        map_polyline_valid: torch.Tensor,
+        lane_graph_edges: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Encode a Flow START from C0 and map tokens without synthetic history."""
+        return self._encode_current(
+            current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
+            torch.zeros_like(self.current_mlp(self._state_features(current, current_valid, ego_mask))),
+        )
+
+    def _encode_current(
+        self,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        ego_mask: torch.Tensor,
+        map_polylines: torch.Tensor,
+        map_polyline_valid: torch.Tensor,
+        lane_graph_edges: torch.Tensor | None,
+        temporal: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         base = (temporal + self.current_mlp(self._state_features(current, current_valid, ego_mask))) * current_valid[..., None].float()
         relation = self._relation_features(current)
         tokens = base

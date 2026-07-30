@@ -87,7 +87,8 @@ class JointAgentTimeRefiner(nn.Module):
         self.register_buffer("control_scale", torch.tensor((acceleration_noise_std, yaw_noise_std)))
         self.time_embedding = nn.Parameter(torch.randn(self.plan_frames, hidden_dim) * 0.02)
         self.agent_embedding = nn.Parameter(torch.randn(6, hidden_dim) * 0.02)
-        self.ego_embedding = nn.Sequential(nn.Linear(2, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim))
+        self.ego_control_embedding = nn.Sequential(nn.Linear(2, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim))
+        self.ego_state_embedding = nn.Sequential(nn.Linear(6, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim))
         self.seed = nn.Sequential(
             nn.Linear(hidden_dim * 2 + behavior_latent_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim)
         )
@@ -118,7 +119,8 @@ class JointAgentTimeRefiner(nn.Module):
         agents: torch.Tensor,
         scene_memory: torch.Tensor,
         behavior: torch.Tensor,
-        ego_plan: torch.Tensor,
+        ego_controls: torch.Tensor,
+        ego_states: torch.Tensor,
     ) -> torch.Tensor:
         """Create an unrefined joint-control proposal before buffer reuse."""
         background = agents[:, 1:]
@@ -128,7 +130,8 @@ class JointAgentTimeRefiner(nn.Module):
         base = self.seed(torch.cat((background, scene_memory[:, None].expand(-1, count, -1), behavior[:, 1:]), dim=-1))
         token = (
             base[:, None]
-            + self.ego_embedding(ego_plan)[:, :, None]
+            + self.ego_control_embedding(ego_controls)[:, :, None]
+            + self.ego_state_embedding(ego_states)[:, :, None]
             + self.time_embedding[None, :, None]
             + self.agent_embedding[None, None, :count]
         )
@@ -144,7 +147,8 @@ class JointAgentTimeRefiner(nn.Module):
         behavior: torch.Tensor,
         map_tokens: torch.Tensor,
         map_valid: torch.Tensor,
-        ego_plan: torch.Tensor,
+        ego_controls: torch.Tensor,
+        ego_states: torch.Tensor,
         valid: torch.Tensor,
         noise_level: torch.Tensor,
     ) -> torch.Tensor:
@@ -153,22 +157,31 @@ class JointAgentTimeRefiner(nn.Module):
         relative = plan_states.clone()
         relative[..., :2] = relative[..., :2] - plan_states[:, :1, :, :2]
         noise = self.noise_embedding(noise_level.reshape(batch, 1))[:, None, None]
-        tokens = (
+        background_tokens = (
             self.control_embedding(controls / self.control_scale)
             + self.state_embedding(relative)
             + agents[:, None, 1:]
             + self.behavior_embedding(behavior[:, None, 1:])
-            + self.ego_embedding(ego_plan)[:, :, None]
+            + self.ego_control_embedding(ego_controls)[:, :, None]
             + self.time_embedding[None, :frames, None]
             + self.agent_embedding[None, None, :count]
             + noise
         )
+        # The ego is an immutable agent-time token: it participates in both
+        # temporal and inter-agent attention but never receives a control
+        # residual from the background-world model.
+        ego_token = (
+            self.ego_state_embedding(ego_states)[:, :, None] + self.ego_control_embedding(ego_controls)[:, :, None]
+            + agents[:, None, :1] + self.time_embedding[None, :frames, None] + noise
+        )
+        tokens = torch.cat((ego_token, background_tokens), dim=2)
+        token_valid = torch.cat((torch.ones((batch, frames, 1), dtype=torch.bool, device=controls.device), valid), dim=2)
         context = torch.cat(
             (self.scene_embedding(scene)[:, None], self.memory_embedding(scene_memory)[:, None], self.map_embedding(map_tokens)), dim=1
         )
         context_valid = torch.cat((torch.ones((batch, 2), dtype=torch.bool, device=controls.device), map_valid.bool()), dim=1)
         for block in self.blocks:
-            tokens = block(tokens, valid, context, context_valid)
-        raw = self.residual_head(tokens)
+            tokens = block(tokens, token_valid, context, context_valid)
+        raw = self.residual_head(tokens[:, :, 1:])
         scale = raw.new_tensor((1.5, 0.15))
         return torch.tanh(raw) * scale * valid[..., None].float()

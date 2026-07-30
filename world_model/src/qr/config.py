@@ -35,6 +35,8 @@ class QRWorldModelConfig:
     refinement_iterations: int = 2
     buffer_carry_mix: float = 0.35
     start_anchor_mix: float = 0.75
+    start_summary_weight: float = 0.10
+    start_training_fraction: float = 0.50
     refinement_noise_levels: tuple[float, ...] = (0.0, 0.25, 0.50, 1.0)
     denoising_acceleration_std: float = 1.5
     denoising_yaw_rate_std: float = 0.15

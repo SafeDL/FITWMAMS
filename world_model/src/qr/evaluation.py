@@ -67,7 +67,7 @@ def evaluate_qr_world_model(
     with torch.no_grad():
         for values in loader:
             batch = to_device_batch(values, loader.field_names, device)
-            deterministic = model.rollout(batch, deterministic=True)
+            deterministic = model.rollout_reconstruction(batch, deterministic=True)
             pred = deterministic["predicted_states"][:, :, 1:]
             target = deterministic["target_states"][:, :, 1:]
             valid = deterministic["target_valid"][:, :, 1:]
@@ -131,7 +131,7 @@ def evaluate_qr_world_model(
                 tail_counts["sequences"] += int(tail.sum().cpu())
                 tail_counts["ade"] += float((distance[tail] * weight[tail]).sum().cpu()); tail_counts["ade_count"] += float(weight[tail].sum().cpu())
                 tail_counts["fde"] += float((distance[tail, -1] * final_valid[tail].float()).sum().cpu()); tail_counts["fde_count"] += float(final_valid[tail].sum().cpu())
-            generated = [model.rollout(batch, deterministic=False)["predicted_states"][:, :, 1:] for _ in range(samples)]
+            generated = [model.rollout_reconstruction(batch, deterministic=False)["predicted_states"][:, :, 1:] for _ in range(samples)]
             sample_tensor = torch.stack(generated)
             sample_distance = torch.linalg.vector_norm(sample_tensor[..., :2] - target[None, ..., :2], dim=-1)
             denom = weight.sum(dim=(1, 2)).clamp_min(1.0)
@@ -181,8 +181,8 @@ def evaluate_qr_world_model(
         "protocol": {
             "full_held_out_split": int(max_sequences or evaluation.get("max_sequences", 0)) == 0,
             "traffic_light_inputs": False, "future_encoder_at_inference": False,
-            "ego_condition": "externally replayed ego controls derived from highD state only for reconstruction",
-            "flow_interface": "76-D C0+B0 with B0 consumed only at START",
+            "ego_condition": "logged ego replay is used only by this reconstruction protocol",
+            "flow_interface": "76-D C0+B0 START with shared relative-velocity decoding",
             "flow_schema_sha256": schema.schema_sha256,
         },
     }

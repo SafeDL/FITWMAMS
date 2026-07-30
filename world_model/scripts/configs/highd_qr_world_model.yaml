@@ -25,7 +25,11 @@ model:
   max_yaw_rate: 0.60
   refinement_iterations: 2
   buffer_carry_mix: 0.35
+  # Convex B0-to-fresh-plan mixing starts at this value and decays to zero
+  # across the first one-second control buffer.
   start_anchor_mix: 0.75
+  start_summary_weight: 0.10
+  start_training_fraction: 0.50
   refinement_noise_levels: [0.0, 0.25, 0.50, 1.0]
   denoising_acceleration_std: 1.5
   denoising_yaw_rate_std: 0.15

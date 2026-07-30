@@ -69,7 +69,7 @@ def _roll_fde(model: QueryRefineWorldModel, loader, device: torch.device, *, res
     total = count = 0.0
     with torch.no_grad():
         for values in loader:
-            rollout = model.rollout(
+            rollout = model.rollout_reconstruction(
                 to_device_batch(values, loader.field_names, device), response_steps=response_steps, deterministic=True
             )
             predicted, target, valid = rollout["predicted_states"], rollout["target_states"], rollout["target_valid"]
@@ -89,12 +89,13 @@ def _mean_training_terms(
     model.eval()
     with torch.no_grad():
         for values in loader:
-            result = model.rollout(
-                to_device_batch(values, loader.field_names, device), response_steps=response_steps, deterministic=True
-            )
-            terms = {key: torch.stack([item[key] for item in result["loss_terms"]]).mean() for key in result["loss_terms"][0]}
-            for key, value in terms.items():
-                totals[key] = totals.get(key, 0.0) + float(value.cpu())
+            batch = to_device_batch(values, loader.field_names, device)
+            start = model.supervised_terms(batch, response_steps=response_steps, start_mode=True)
+            roll = model.supervised_terms(batch, response_steps=response_steps, start_mode=False)
+            for key in roll:
+                totals[key] = totals.get(key, 0.0) + 0.5 * float(start[key].cpu() + roll[key].cpu())
+                totals[f"start_{key}"] = totals.get(f"start_{key}", 0.0) + float(start[key].cpu())
+                totals[f"roll_{key}"] = totals.get(f"roll_{key}", 0.0) + float(roll[key].cpu())
             batches += 1
     return {key: value / max(batches, 1) for key, value in totals.items()}
 
@@ -218,6 +219,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
                         "complete_train_cache": True, "traffic_light_inputs": False,
                         "future_encoder_training_only": True,
                         "flow_b0_start_only": True,
+                        "start_encoder": "C0_plus_map_without_synthetic_history",
                         "flow_schema_sha256": schema.schema_sha256,
                     },
                 }
@@ -250,6 +252,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         "validation_sequences_per_epoch": int(len(val_loader.dataset)),
         "flow_schema_sha256": schema.schema_sha256,
         "flow_b0_start_only": True,
+        "start_encoder": "C0_plus_map_without_synthetic_history",
         "tensorboard_log_dir": str(tensorboard_dir) if tensorboard_dir is not None else None,
     }
     save_json(report, output / "training_summary.json")
@@ -266,7 +269,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
 
 def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") -> QueryRefineWorldModel:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
-    if payload.get("model_type") != QueryRefineWorldModel.model_type:
+    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != 3:
         raise ValueError(f"Checkpoint is incompatible with the current QR-WM architecture: {path}. Retrain QR-WM before evaluation.")
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)

@@ -1,7 +1,0 @@
-{
-  "best_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
-  "best_validation_fde": 1.4061636970154159,
-  "completed_train_sequences_per_epoch": 112943,
-  "epoch": 4,
-  "status": "completed"
-}

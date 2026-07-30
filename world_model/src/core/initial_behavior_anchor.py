@@ -141,6 +141,51 @@ def start_state_from_flow_feature(feature_row: np.ndarray, slot_mask: np.ndarray
     return states, valid, anchor, anchor_valid
 
 
+def start_state_from_flow_tensor(
+    feature_rows: torch.Tensor, slot_mask: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Batch Torch form of :func:`start_state_from_flow_feature`.
+
+    This is the shared Flow START adapter used by tensor world models.  It
+    deliberately follows the raw Flow coordinate contract: a background
+    velocity is stored relative to ego and must be reconstructed before any
+    scene encoder sees it.
+    """
+    if feature_rows.ndim != 2 or feature_rows.shape[-1] != 76:
+        raise ValueError("Flow START requires features with shape [batch, 76]")
+    if not torch.isfinite(feature_rows).all():
+        raise ValueError("Flow START feature rows contain non-finite values")
+    batch = feature_rows.shape[0]
+    if slot_mask is None:
+        slot_mask = torch.ones((batch, len(SLOT_NAMES)), dtype=torch.bool, device=feature_rows.device)
+    if slot_mask.shape != (batch, len(SLOT_NAMES)):
+        raise ValueError("Flow START slot mask must have shape [batch, six slots]")
+    valid_slots = slot_mask.bool()
+    states = feature_rows.new_zeros((batch, 1 + len(SLOT_NAMES), 6))
+    valid = torch.zeros((batch, 1 + len(SLOT_NAMES)), dtype=torch.bool, device=feature_rows.device)
+    ego_indices = [EGO_FEATURES.index(name) for name in EGO_FEATURES]
+    ego = feature_rows[:, ego_indices]
+    states[:, 0, 2:6] = ego
+    valid[:, 0] = True
+    anchor = feature_rows.new_zeros((batch, len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES)))
+    for index, slot in enumerate(SLOT_NAMES):
+        position_x = feature_rows[:, slot_feature_index(slot, "rel_x_m")]
+        position_y = feature_rows[:, slot_feature_index(slot, "rel_y_left_m")]
+        velocity_x = ego[:, 0] + feature_rows[:, slot_feature_index(slot, "rel_vx_mps")]
+        velocity_y = ego[:, 1] + feature_rows[:, slot_feature_index(slot, "rel_vy_left_mps")]
+        acceleration_x = feature_rows[:, slot_feature_index(slot, "other_ax_mps2")]
+        acceleration_y = feature_rows[:, slot_feature_index(slot, "other_ay_left_mps2")]
+        states[:, index + 1] = torch.stack(
+            (position_x, position_y, velocity_x, velocity_y, acceleration_x, acceleration_y), dim=-1
+        )
+        anchor[:, index] = torch.stack(
+            [feature_rows[:, trajectory_feature_index(slot, name)] for name in FLOW_ACTION_SUMMARY_FEATURES], dim=-1
+        )
+    states[:, 1:] *= valid_slots[..., None].to(dtype=states.dtype)
+    valid[:, 1:] = valid_slots
+    return states, valid, anchor * valid_slots[..., None].to(dtype=anchor.dtype), valid_slots
+
+
 def summarize_first_second_states(states_26: torch.Tensor, valid_26: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Return the exact six Flow summaries and their all-26-frame validity.
 
