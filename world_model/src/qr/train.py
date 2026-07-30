@@ -11,10 +11,14 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 
-from world_model.src.core.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.core.sequential_dataset import (
+    ensure_frozen_flow_behavior_anchor_cache,
+    load_sequential_dataset,
+    sequence_cache_owner_dir,
+)
 from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
 
@@ -26,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 def _config(source: dict[str, Any]) -> QRWorldModelConfig:
     allowed = {key: value for key, value in source.items() if key in QRWorldModelConfig.__dataclass_fields__}
+    if "refinement_noise_levels" in allowed:
+        allowed["refinement_noise_levels"] = tuple(float(value) for value in allowed["refinement_noise_levels"])
     return QRWorldModelConfig(**allowed)
 
 
@@ -108,6 +114,14 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         raise RuntimeError("formal QR-WM training requires the complete immutable sequence cache")
     if int(config.get("dataset", {}).get("max_sequences", 0)) != 0:
         raise RuntimeError("formal QR-WM training must keep dataset.max_sequences=0")
+    schema_value = paths.get("flow_schema")
+    if not schema_value:
+        raise ValueError("QR-WM requires paths.flow_schema for the START-only B0 contract")
+    schema_path = Path(schema_value)
+    if not schema_path.is_absolute():
+        schema_path = (config_dir / schema_path).resolve()
+    schema = FrozenLegacyFlowSchema.load(schema_path)
+    arrays.update(ensure_frozen_flow_behavior_anchor_cache(cache_owner, arrays, manifest, schema))
     workers = int(training.get("num_workers", 0))
     batch_size = int(training.get("batch_size", 64))
     train_loader = make_sequence_loader(
@@ -119,6 +133,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         shuffle=False, seed=int(training.get("seed", 42)) + 1, num_workers=workers,
     )
     model = QueryRefineWorldModel(_config(config.get("model", {}))).to(device)
+    model.flow_schema_sha256 = schema.schema_sha256
     stages = training.get("stages", [
         {"name": "buffer_warmup", "epochs": 1, "rollout_seconds": 1.0},
         {"name": "full_refinement", "epochs": 3, "rollout_seconds": 5.0},
@@ -202,6 +217,8 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
                         "from_scratch": True, "uses_baseline_checkpoint": False,
                         "complete_train_cache": True, "traffic_light_inputs": False,
                         "future_encoder_training_only": True,
+                        "flow_b0_start_only": True,
+                        "flow_schema_sha256": schema.schema_sha256,
                     },
                 }
                 torch.save(payload, best_path)
@@ -231,6 +248,8 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         "model_config": asdict(model.cfg), "checkpoint_sha256": checkpoint_hash,
         "train_sequences_per_epoch": int(len(train_loader.dataset)),
         "validation_sequences_per_epoch": int(len(val_loader.dataset)),
+        "flow_schema_sha256": schema.schema_sha256,
+        "flow_b0_start_only": True,
         "tensorboard_log_dir": str(tensorboard_dir) if tensorboard_dir is not None else None,
     }
     save_json(report, output / "training_summary.json")
@@ -248,8 +267,9 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
 def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") -> QueryRefineWorldModel:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
     if payload.get("model_type") != QueryRefineWorldModel.model_type:
-        raise ValueError(f"Not a QR-WM checkpoint: {path}")
+        raise ValueError(f"Checkpoint is incompatible with the current QR-WM architecture: {path}. Retrain QR-WM before evaluation.")
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)
+    model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256")
     model.checkpoint_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
     return model.to(device).eval()

@@ -22,7 +22,9 @@ python world_model/scripts/test_cat_topk_world_model.py
 python world_model/scripts/test_qr_world_model.py
 ```
 
-QR-WM 是独立的 Query-Refine 实现：它用每个 agent 的 scene query 查询关系化 agent/map context，以 CVAE behavior prior 保留多模态，并用持续 world memory、未来轨迹 buffer 和 refinement 进行闭环滚动。QR-WM 的训练不加载 RAMP/FIRM checkpoint，也不使用 traffic-light 特征。Flow 组合接口是固定的 76-D `C0+B0`，可通过 `QueryRefineWorldModel.flow_condition_to_scene` 解码到与 highD 训练缓存一致的 `[7, 6]` scene tensor。
+QR-WM 是独立的联合多智能体实现：relation-aware 多头 scene encoder 产生 agent/map context，单一 persistent scene memory 保存历史交互、已执行计划和 ego 响应；联合 agent-time refiner 在 `[time, background-agent, a/yaw_rate]` 控制 buffer 上进行时间注意力、车辆注意力及 scene/map 交叉注意力。QR-WM 不使用 traffic-light 特征，也不加载 RAMP/FIRM checkpoint。
+
+Flow 组合接口固定为 76-D `C0+B0`。`B0[6,6]` 只在 START 使用：初始化行为 latent、scene memory 和第一个 25-frame 背景控制 buffer；后续 ROLL 仅维护移位/追加的 buffer 与 scene memory。运行时由 ADS 通过 `rollout_from_flow(..., ego_future_controls=[B,T,2])` 显式提供 ego 控制，背景模型不会改写它。正式 highD 重建训练、验证与测试均使用冻结 Flow schema 的只读 B0 sidecar，并在结果中记录该信息条件。
 
 所有活跃世界模型的正式训练预算统一为 40 epoch。QR-WM 会在运行目录的 `tensorboard/` 写入 batch 训练损失、epoch 训练/验证损失和验证 FDE；训练后可运行 `tensorboard --logdir results/highd_world_model/qr_world_model/tensorboard` 查看曲线。
 
@@ -31,9 +33,10 @@ RAMP/FIRM 的外层 EVT Flow × 内层世界模型组合测试是各自标准测
 ```bash
 python world_model/scripts/test_ramp_world_model.py --flow-composition
 python world_model/scripts/test_firm_world_model.py --flow-composition
+python world_model/scripts/test_qr_world_model.py --flow-composition
 ```
 
-该模式固定为每个 held-out 回放条件 8 个 Flow 起点 × 每起点 4 条世界未来；它评估生成分布，不是逐 donor 轨迹重建，因而不报告 ADE/FDE。
+该模式固定为每个 held-out 回放条件 8 个 Flow 起点 × 每起点 4 条世界未来；它评估生成分布，不是逐 donor 轨迹重建，因而不报告 ADE/FDE。现有 4-epoch 历史 artifact 与当前 QR-WM 架构不兼容，不能加载或参与比较。
 
 ## 正式长尾重建评测
 

@@ -9,7 +9,12 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.core.sequential_dataset import load_sequential_dataset, sequence_cache_owner_dir
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
+from world_model.src.core.sequential_dataset import (
+    ensure_frozen_flow_behavior_anchor_cache,
+    load_sequential_dataset,
+    sequence_cache_owner_dir,
+)
 from world_model.src.core.utils import save_json, select_device
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
 
@@ -30,10 +35,22 @@ def evaluate_qr_world_model(
     output = Path(paths["output_dir"])
     if not output.is_absolute():
         output = (config_dir / output).resolve()
-    arrays, manifest = load_sequential_dataset(sequence_cache_owner_dir(config, config_dir=config_dir))
+    cache_owner = sequence_cache_owner_dir(config, config_dir=config_dir)
+    arrays, manifest = load_sequential_dataset(cache_owner)
+    schema_value = paths.get("flow_schema")
+    if not schema_value:
+        raise ValueError("QR-WM evaluation requires paths.flow_schema for the B0 START contract")
+    schema_path = Path(schema_value)
+    if not schema_path.is_absolute():
+        schema_path = (config_dir / schema_path).resolve()
+    schema = FrozenLegacyFlowSchema.load(schema_path)
+    arrays.update(ensure_frozen_flow_behavior_anchor_cache(cache_owner, arrays, manifest, schema))
     device = select_device(str(evaluation.get("device", "auto")))
     checkpoint = checkpoint or output / "checkpoints" / "best_qr_world_model.pt"
     model = load_qr_checkpoint(checkpoint, device=device)
+    if model.flow_schema_sha256 and model.flow_schema_sha256 != schema.schema_sha256:
+        raise ValueError("QR-WM checkpoint Flow schema differs from the requested B0 sidecar")
+    model.flow_schema_sha256 = schema.schema_sha256
     loader = make_sequence_loader(
         arrays, "test", batch_size=int(evaluation.get("batch_size", 64)),
         maximum=int(max_sequences or evaluation.get("max_sequences", 0)), shuffle=False,
@@ -164,7 +181,9 @@ def evaluate_qr_world_model(
         "protocol": {
             "full_held_out_split": int(max_sequences or evaluation.get("max_sequences", 0)) == 0,
             "traffic_light_inputs": False, "future_encoder_at_inference": False,
-            "flow_interface": "76-D C0+B0 decoded through QueryRefineWorldModel.flow_condition_to_scene",
+            "ego_condition": "externally replayed ego controls derived from highD state only for reconstruction",
+            "flow_interface": "76-D C0+B0 with B0 consumed only at START",
+            "flow_schema_sha256": schema.schema_sha256,
         },
     }
     save_json(report, output / "qr_world_model_evaluation_summary.json")

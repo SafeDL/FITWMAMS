@@ -2,6 +2,7 @@
 paths:
   output_dir: "../../../results/highd_world_model/qr_world_model"
   sequence_cache_dir: "../../../results/highd_world_model/training_data/semi_markov_sequence_cache"
+  flow_schema: "../../../results/highd_tail_flow/dataset_schema.json"
 
 dataset:
   # Formal training is intentionally over every immutable highD train sequence.
@@ -24,12 +25,17 @@ model:
   max_yaw_rate: 0.60
   refinement_iterations: 2
   buffer_carry_mix: 0.35
+  start_anchor_mix: 0.75
+  refinement_noise_levels: [0.0, 0.25, 0.50, 1.0]
+  denoising_acceleration_std: 1.5
+  denoising_yaw_rate_std: 0.15
   position_weight: 1.0
   velocity_weight: 0.25
   control_weight: 0.20
   plan_position_weight: 0.25
   plan_control_weight: 0.10
   refinement_weight: 0.35
+  denoising_weight: 0.15
   overlap_weight: 0.10
   interaction_weight: 0.12
   physical_weight: 0.03

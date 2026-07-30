@@ -18,6 +18,9 @@ class QRWorldModelConfig:
     hidden_dim: int = 128
     behavior_latent_dim: int = 16
     temporal_layers: int = 1
+    # Shared by the relation-aware scene encoder and the joint agent-time
+    # control refiner.  Both values are consumed by real MultiheadAttention
+    # modules rather than being descriptive-only configuration.
     attention_layers: int = 2
     num_heads: int = 4
     dropout: float = 0.10
@@ -31,12 +34,17 @@ class QRWorldModelConfig:
     max_yaw_rate: float = 0.60
     refinement_iterations: int = 2
     buffer_carry_mix: float = 0.35
+    start_anchor_mix: float = 0.75
+    refinement_noise_levels: tuple[float, ...] = (0.0, 0.25, 0.50, 1.0)
+    denoising_acceleration_std: float = 1.5
+    denoising_yaw_rate_std: float = 0.15
     position_weight: float = 1.0
     velocity_weight: float = 0.25
     control_weight: float = 0.20
     plan_position_weight: float = 0.25
     plan_control_weight: float = 0.10
     refinement_weight: float = 0.35
+    denoising_weight: float = 0.15
     overlap_weight: float = 0.10
     interaction_weight: float = 0.12
     physical_weight: float = 0.03

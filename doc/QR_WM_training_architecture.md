@@ -1,245 +1,66 @@
-# QR-WM Training Architecture：Query-Refine World Model 模块设计说明
+# QR-WM Training Architecture
 
-## 1. 训练定位
+## 1. 运行边界
 
-QR-WM 基于 FITWMAMS 中 RAMP-WM/FIRM-WM 作为 baseline，但采用独立实现。
+QR-WM 使用 highD 固定的 `[ego, six background slots]` 场景张量。输入为 25 帧历史交通状态、道路 polyline/topology 与 ADS 提供的 ego 控制；不输入交通灯，也不加载 RAMP/FIRM checkpoint。训练监督为未来背景状态和由 highD action 投影得到的背景控制。
 
-当前训练阶段保持与 RAMP/FIRM 一致的数据形式：
+Flow 不参与主训练的密度优化，但其冻结 76-D `C0+B0` schema 是正式 START 条件。训练、验证和测试均读取按同一 schema 生成的只读 B0 sidecar，以免 Flow 推理与训练条件不一致。
 
--   输入：历史交通状态 $S_{history}$
--   监督：未来真实轨迹 $S_{future}$
+## 2. 联合模型
 
-Normalizing Flow 不参与 QR-WM
-主训练，仅作为未来推理阶段的初始场景采样模块。
+1. **Relation-aware scene encoder**：历史状态经多头 temporal attention 编码；两层 relation-aware multi-head self-attention 对车辆关系使用可学习 pairwise bias；随后每个 agent 对 agent/map token 做多头 cross-attention。
+2. **Persistent scene memory**：唯一持续状态满足
+   \[
+   m_t=f(m_{t-1},S_t,U_{t-1},a_{t-1}^{ego}).
+   \]
+   它保存交通交互、既有计划和 ego 干预响应。QR-WM 没有独立 world memory。
+3. **Behavior prior**：CVAE prior 由 scene、memory 和 agent context 给出；训练期 posterior 可读取未来监督，推理期只使用 prior。START 的 B0 先投影为 behavior seed，原始 B0 不进入 ROLL。
+4. **Joint agent-time refiner**：直接处理
+   \[
+   U_t\in\mathbb{R}^{H\times N\times2},\quad U=[a,\dot\psi].
+   \]
+   每一层依次在时间维、车辆维做多头注意力，再对 scene memory 与 map tokens 做 cross-attention；所有 token 都条件于 `[B,H,2]` 的 ego future controls。
 
-当前不引入 EVT，但模型预留未来风险条件接口。
+## 3. START 与 ROLL
 
-------------------------------------------------------------------------
+**START**：Flow 或 sidecar 提供 `(C0,B0,map)`。`C0` 初始化场景；`B0` 通过平滑 first-second action projection 初始化第一个背景控制 buffer、behavior seed 与 scene memory。
 
-## 2. 总体训练架构
+**ROLL**：之后模型仅推进
+\[
+(S_t,m_t,B_t^{plan},a_t^{ego})\rightarrow(S_{t+1},m_{t+1},B_{t+1}^{plan}).
+\]
+每 0.2 秒执行 buffer 前五帧背景控制，接受 ADS 的五帧 ego controls，移位未执行背景 buffer，并在尾部追加五帧新控制。原始 B0 不会再次作为函数输入或状态读取。
 
-    Historical Traffic Scene
-              |
-              v
-    Query-centric Relational Scene Encoder
-              |
-              +----------------+
-              |                |
-    Agent-specific       Persistent World
-    Scene Latent          Memory
-              |                |
-              +----------------+
-                       |
-                       v
-              Behavior Prior Module
-                       |
-                       v
-           Multimodal Future Planner
-                       |
-                       v
-            Future Trajectory Buffer
-                       |
-                       v
-           Trajectory Refinement Module
-                       |
-                       v
-              Future Trajectory Output
+公开的 Flow 接口为：
 
-------------------------------------------------------------------------
+```python
+model.rollout_from_flow(
+    flow_condition, slot_valid=slot_mask,
+    map_polylines=map_polylines, map_polyline_valid=map_valid,
+    lane_graph_edges=lane_edges, ego_future_controls=ads_controls,
+)
+```
 
-# 3. Query-centric Relational Scene Encoder
+其中 `ads_controls` 必须是 `[B,T,2]`；它与背景 `U` 分离，背景模块不能修改 ego 控制。
 
-## 输入
+## 4. Buffer mask 与去噪精炼
 
-保持 RAMP/FIRM 数据接口：
+`B_t^plan` 始终表示**未执行的背景控制**，不表示未来状态或轨迹。每一步输出：
 
--   agent history states
--   agent-agent relational features
--   road/map topology
+- `executed_control_masks`：已经送入动力学的前五帧，不属于下一 buffer；
+- `carried`：从上一 buffer 保留的未执行区；
+- `appended`：新生成的尾部五帧；
+- `refinable`/`valid`：可由联合 refiner 修改的有效背景未来控制。
 
-不编码 traffic light。
+历史观测、已执行控制和所有 ego 控制均不可修改。训练期在有效 `refinable` 区域采样噪声等级：
+\[
+\widetilde U=U+\sigma_k\epsilon,
+\qquad R_\theta(\widetilde U,S,m,k)\rightarrow U.
+\]
+模型使用 noise-level embedding 和一次共享 joint refiner 计算 denoising loss；实际 rollout 固定零噪声，仅执行 1--2 次 amortized refinement，不实现长扩散链。
 
-## Query机制
+## 5. 训练、检查点与评测
 
-每个 agent 生成独立 query：
+训练预算仍为 8+12+20=40 epoch，并在 TensorBoard 记录 batch loss、epoch loss/FDE、joint plan、denoising 与 buffer-mask 标量。checkpoint 标识为 `query_refine_world_model`，带 Flow schema hash 和 B0 生命周期。现有 4-epoch 历史 checkpoint 在张量结构和语义上均不兼容，加载时必须提示重训。
 
-$q_i=W_qh_i$
-
-通过 cross attention 查询场景：
-
-$z_i=Attention(q_i,C,C)$
-
-其中 $C$ 包含 agent context 和 map context。
-
-## Attention作用
-
-Cross Attention：
-
--   agent 查询地图和周围交通信息；
--   形成 agent-specific scene representation。
-
-Self Attention：
-
--   建模车辆之间交互；
--   学习跟驰、避让、合流行为。
-
-Temporal Attention：
-
--   建模轨迹时间演化；
--   保持速度和行为连续性。
-
-------------------------------------------------------------------------
-
-# 4. Persistent World Memory Module
-
-继承 FIRM-WM 的思想，引入持续世界状态：
-
-$z_W$
-
-用于表示瞬时状态之外的隐藏交通状态。
-
-更新：
-
-$z_W^t=f(z_W^{t-1},Z_{scene})$
-
-作用：
-
--   保留长期交通演化信息；
--   避免仅依赖当前frame。
-
-------------------------------------------------------------------------
-
-# 5. Behavior Prior Module
-
-## 目的
-
-解决单一轨迹预测导致的 mode averaging。
-
-学习：
-
-$p(z_B|scene)$
-
-其中 $z_B$ 表示潜在行为模式。
-
-## 训练方式
-
-利用真实未来轨迹：
-
-$Y^{gt}$
-
-编码行为latent，并学习：
-
-$p(trajectory|scene,z_B)$
-
-支持：
-
--   keep lane
--   braking
--   merging
--   lane change
-
-等多模态行为。
-
-------------------------------------------------------------------------
-
-# 6. Multimodal Future Planner
-
-输入：
-
--   agent scene latent
--   world latent
--   behavior latent
-
-输出未来轨迹窗口：
-
-$Y=[S_{t+1},...,S_{t+H}]$
-
-区别于传统单步 autoregressive prediction。
-
-------------------------------------------------------------------------
-
-# 7. Future Trajectory Buffer
-
-借鉴 SceneDiffuser。
-
-维护未来轨迹缓存：
-
-$B_t=[S_{t+1},...,S_{t+H}]$
-
-目的：
-
--   共享未来约束；
--   降低 rollout drift；
--   保持时间一致性。
-
-每一步：
-
-1.  执行 buffer 第一时间步；
-2.  更新历史状态；
-3.  refine 剩余未来轨迹；
-4.  补充新的未来预测。
-
-------------------------------------------------------------------------
-
-# 8. Trajectory Refinement Module
-
-将：
-
-$S_t ightarrow S_{t+1}$
-
-转变为：
-
-未来轨迹持续优化。
-
-初始预测：
-
-$Y^0$
-
-精炼：
-
-$Y^{k+1}=R(Y^k,S)$
-
-监督目标：
-
-$Y^{k+1}ightarrow Y^{gt}$
-
-------------------------------------------------------------------------
-
-# 9. Normalizing Flow扩展接口
-
-训练阶段：
-
-    Real traffic data
-            |
-            v
-           QR-WM
-
-未来推理阶段：
-
-    Normalizing Flow
-            |
-            v
-    Initial Scene S0
-            |
-            v
-    QR-WM rollout
-
-Flow 输出必须转换为与训练数据一致的 scene tensor 格式。
-
-------------------------------------------------------------------------
-
-# 10. 总结
-
-QR-WM 保持 RAMP/FIRM 的训练范式：
-
-$History ightarrow Future$
-
-但引入：
-
-1.  Query-centric scene encoder；
-2.  Persistent world memory；
-3.  Behavior prior；
-4.  Future trajectory buffer；
-5.  Trajectory refinement。
-
-目标是构建稳定、多模态、可持续精炼，并支持未来可控初始化扩展的交通世界模型。
+标准重建评测使用外部 highD ego replay转出的控制；Flow 组合评测使用相同的 8x4 协议，但只评估生成分布。当前架构完成 40-epoch 训练后，才可加入统一长尾比较。
