@@ -1,6 +1,7 @@
 """Small IO, path, device and reproducibility helpers."""
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -28,6 +29,15 @@ def ensure_dir(path: str | Path) -> Path:
     out = Path(path)
     out.mkdir(parents=True, exist_ok=True)
     return out
+
+
+def file_sha256(path: str | Path) -> str:
+    """Return a file hash without loading a checkpoint into memory at once."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:

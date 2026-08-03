@@ -5,16 +5,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from .attention import safe_key_padding_mask
 from .config import QRWorldModelConfig
-
-
-def _safe_padding(valid: torch.Tensor) -> torch.Tensor:
-    padding = ~valid.bool()
-    empty = padding.all(dim=1)
-    if empty.any():
-        padding = padding.clone()
-        padding[empty, 0] = False
-    return padding
 
 
 class _RelationAwareAgentBlock(nn.Module):
@@ -36,7 +28,7 @@ class _RelationAwareAgentBlock(nn.Module):
         batch, agents, _ = tokens.shape
         bias = self.relation_bias(relation).permute(0, 3, 1, 2).reshape(batch * self.num_heads, agents, agents)
         attended, _ = self.attention(
-            tokens, tokens, tokens, key_padding_mask=_safe_padding(valid), attn_mask=bias, need_weights=False
+            tokens, tokens, tokens, key_padding_mask=safe_key_padding_mask(valid), attn_mask=bias, need_weights=False
         )
         tokens = self.attention_norm(tokens + self.dropout(attended))
         tokens = self.feed_forward_norm(tokens + self.dropout(self.feed_forward(tokens)))
@@ -93,7 +85,7 @@ class QueryRelationalSceneEncoder(nn.Module):
         encoded = encoded + self.temporal_position[None, :frames]
         valid = history_valid.permute(0, 2, 1).reshape(batch * agents, frames)
         for block in self.temporal_blocks:
-            encoded = block(encoded, src_key_padding_mask=_safe_padding(valid))
+            encoded = block(encoded, src_key_padding_mask=safe_key_padding_mask(valid))
         last = valid.long().sum(dim=1).sub(1).clamp_min(0)
         token = encoded.gather(1, last[:, None, None].expand(-1, 1, encoded.shape[-1])).squeeze(1)
         return token.reshape(batch, agents, -1) * history_valid.any(dim=1)[..., None].float()
@@ -168,7 +160,7 @@ class QueryRelationalSceneEncoder(nn.Module):
         """Encode a Flow START from C0 and map tokens without synthetic history."""
         return self._encode_current(
             current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
-            torch.zeros_like(self.current_mlp(self._state_features(current, current_valid, ego_mask))),
+            current.new_zeros((*current.shape[:2], self.cfg.hidden_dim)),
         )
 
     def _encode_current(
@@ -191,7 +183,7 @@ class QueryRelationalSceneEncoder(nn.Module):
         map_tokens, map_valid = self._map_tokens(map_polylines, map_polyline_valid, lane_graph_edges)
         context = torch.cat((tokens, map_tokens), dim=1)
         context_valid = torch.cat((current_valid, map_valid), dim=1)
-        queried, _ = self.cross_attention(tokens, context, context, key_padding_mask=_safe_padding(context_valid), need_weights=False)
+        queried, _ = self.cross_attention(tokens, context, context, key_padding_mask=safe_key_padding_mask(context_valid), need_weights=False)
         tokens = self.cross_norm(tokens + queried) * current_valid[..., None].float()
         denominator = current_valid.float().sum(dim=1, keepdim=True).clamp_min(1.0)
         scene = self.scene((tokens * current_valid[..., None].float()).sum(dim=1) / denominator)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +20,7 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, save_json, select_device
+from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device
 
 from .train import _loader, load_firm_checkpoint
 
@@ -272,7 +271,7 @@ def evaluate_firm_world_model(
     report = {
         "model_type": model.model_type,
         "checkpoint": str(checkpoint),
-        "checkpoint_sha256": hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest(),
+        "checkpoint_sha256": file_sha256(checkpoint),
         "sequence_cache": manifest,
         "test_sequences": int(len(pred)),
         "one_second_conditional_reconstruction": one,

@@ -298,10 +298,9 @@ def temporal_and_relationship_diagnostics(
     states: np.ndarray, valid: np.ndarray, ego: np.ndarray
 ) -> dict[str, float | list[float]]:
     """Compact temporal/multi-agent dependence diagnostics for one trajectory set."""
-    x, mask, ego_state = (
+    x, mask = (
         np.asarray(states, np.float32),
         np.asarray(valid, bool),
-        np.asarray(ego, np.float32),
     )
     acceleration = x[..., 4]
     pair = mask[:, 1:] & mask[:, :-1]

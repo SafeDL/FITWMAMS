@@ -567,7 +567,6 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         remaining = torch.zeros((b,), dtype=torch.long, device=states.device)
         outputs: list[torch.Tensor] = []
         controls_out: list[torch.Tensor] = []
-        previous_plan: torch.Tensor | None = None
         ego_index = int(batch["ego_index"][0].item())
         for response in range(rollout_steps):
             agent_context, scene_context, _ = self.encode_step(
@@ -621,7 +620,6 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 current_valid & background_mask, current, anchor_residual=anchor_residual,
             )
             controls = decoded["controls"]
-            previous_plan = decoded["forecast_control_plan"]
             controls_out.append((controls.mean(dim=1) if controls.ndim == 4 else controls)[:, 1:])
             ego_future = states[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
@@ -1092,7 +1090,6 @@ class SemiMarkovRelationalWorldModel(nn.Module):
         planned_states: list[torch.Tensor] = []
         forecast_planned_states: list[torch.Tensor] = []
         previous_clean_forecast: torch.Tensor | None = None
-        previous_plan: torch.Tensor | None = None
         for response in range(self.response_steps):
             agents, scene, _ = self.encode_step(
                 history, history_valid, current, current_valid, ego_mask,
@@ -1183,7 +1180,6 @@ class SemiMarkovRelationalWorldModel(nn.Module):
                 previous_clean_forecast = (
                     forecast_audit_plan if response >= self.cfg.behavior_anchor_response_steps else None
                 )
-                previous_plan = forecast_audit_plan
             ego_future = states[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             ego_future_valid = valid[:, 25 + start : 25 + start + self.cfg.physics_steps_per_response, ego_index]
             current, physical = self._integrate_response(

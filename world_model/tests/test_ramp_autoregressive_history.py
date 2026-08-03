@@ -1,4 +1,3 @@
-import torch
 from world_model.src.ramp import RAMPConfig, RAMPWorldModel
 from test_ramp_shapes import _batch
 

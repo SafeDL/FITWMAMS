@@ -10,7 +10,6 @@ information-asymmetric archived reference.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import io
 import sys
 from pathlib import Path
@@ -48,8 +47,9 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, load_yaml, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, file_sha256, load_yaml, save_json, select_device, set_seed
 from world_model.src.firm.train import load_firm_checkpoint
+from world_model.src.qr.train import load_qr_checkpoint
 from world_model.src.ramp.train import load_ramp_checkpoint
 from world_model.src.semi_markov.train import (
     FIELDS,
@@ -66,12 +66,9 @@ MODEL_SPECS = (
     ("firm_world_model", "FIRM-WM", "#984ea3"),
     ("semi_markov_world_model", "Semi-Markov WM", "#ff7f00"),
     ("cat_topk_world_model", "CAT-TopK", "#4daf4a"),
+    ("qr_world_model", "QR-WM", "#e41a1c"),
 )
 PLAYBACK_EVENTS = ("high_risk_following", "hard_braking", "close_interaction")
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _json_value(value: Any) -> Any:
@@ -114,6 +111,24 @@ def _sample_model(model, batch: dict[str, Any], *, seed: int, branch_batch_size:
         sampled = model.rollout_roll_mode(
             _repeat_batch(batch, count), seed=seed + 10_000 + start, deterministic=False
         )["predicted_states"][:, :, 1:].cpu().numpy()
+        branches.append(sampled.reshape(len(deterministic), count, *sampled.shape[1:]).transpose(1, 0, 2, 3, 4))
+    result = np.concatenate(branches, axis=0)
+    result[0] = deterministic
+    return result
+
+
+def _sample_qr(model, batch: dict[str, Any], *, seed: int, branch_batch_size: int) -> np.ndarray:
+    """Sample QR-WM with the same one deterministic plus 31 stochastic branches."""
+    import torch
+
+    deterministic = model.rollout_reconstruction(batch, deterministic=True)["predicted_states"][:, :, 1:].cpu().numpy()
+    branches: list[np.ndarray] = []
+    for start in range(0, NUM_SAMPLES, branch_batch_size):
+        count = min(branch_batch_size, NUM_SAMPLES - start)
+        torch.manual_seed(seed + 10_000 + start)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed + 10_000 + start)
+        sampled = model.rollout_reconstruction(_repeat_batch(batch, count), deterministic=False)["predicted_states"][:, :, 1:].cpu().numpy()
         branches.append(sampled.reshape(len(deterministic), count, *sampled.shape[1:]).transpose(1, 0, 2, 3, 4))
     result = np.concatenate(branches, axis=0)
     result[0] = deterministic
@@ -463,10 +478,12 @@ def main() -> None:
     parser.add_argument("--firm-config", default=str(ROOT / "world_model/scripts/configs/highd_firm_world_model.yaml"))
     parser.add_argument("--semi-config", default=str(ROOT / "world_model/scripts/configs/highd_semi_markov_world_model.yaml"))
     parser.add_argument("--catk-config", default=str(ROOT / "world_model/scripts/configs/highd_cat_topk_world_model.yaml"))
+    parser.add_argument("--qr-config", default=str(ROOT / "world_model/scripts/configs/highd_qr_world_model.yaml"))
     parser.add_argument("--ramp-checkpoint", default=str(ROOT / "results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt"))
     parser.add_argument("--firm-checkpoint", default=str(ROOT / "results/highd_world_model/firm_world_model/checkpoints/best_firm_world_model.pt"))
     parser.add_argument("--semi-checkpoint", default=str(ROOT / "results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt"))
     parser.add_argument("--catk-checkpoint", default=str(ROOT / "results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt"))
+    parser.add_argument("--qr-checkpoint", default=str(ROOT / "results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt"))
     parser.add_argument("--output-dir", default=str(ROOT / "results/highd_world_model/long_tail_reproduction"))
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--branch-batch-size", type=int, default=4)
@@ -483,6 +500,7 @@ def main() -> None:
     config_paths = {name: Path(path).resolve() for name, path in {
         "ramp_world_model": args.ramp_config, "firm_world_model": args.firm_config,
         "semi_markov_world_model": args.semi_config, "cat_topk_world_model": args.catk_config,
+        "qr_world_model": args.qr_config,
     }.items()}
     configs = {name: load_yaml(path) for name, path in config_paths.items()}
     ramp_config = configs["ramp_world_model"]
@@ -512,6 +530,7 @@ def main() -> None:
     semi = load_semi_markov_checkpoint(Path(args.semi_checkpoint).resolve(), device=device)
     semi.set_frozen_flow_schema(schema)
     cat, _ = load_cat_topk_checkpoint(str(Path(args.catk_checkpoint).resolve()), device)
+    qr = load_qr_checkpoint(Path(args.qr_checkpoint).resolve(), device=device)
 
     output = ensure_dir(output)
     sample_parts = {name: [] for name, _label, _color in MODEL_SPECS}
@@ -525,12 +544,14 @@ def main() -> None:
             sample_parts["firm_world_model"].append(_sample_model(firm, batch, seed=args.seed + 200_000 + start, branch_batch_size=args.branch_batch_size))
             sample_parts["semi_markov_world_model"].append(_sample_model(semi, batch, seed=args.seed + 300_000 + start, branch_batch_size=args.branch_batch_size))
             sample_parts["cat_topk_world_model"].append(_sample_cat_topk(cat, cat_arrays, cat_schema, cat_rows[start:stop], device=device, seed=args.seed + 400_000 + start, branch_batch_size=args.branch_batch_size))
+            sample_parts["qr_world_model"].append(_sample_qr(qr, batch, seed=args.seed + 500_000 + start, branch_batch_size=args.branch_batch_size))
     samples = {name: np.concatenate(parts, axis=1) for name, parts in sample_parts.items()}
     checkpoints = {
         "ramp_world_model": Path(args.ramp_checkpoint).resolve(),
         "firm_world_model": Path(args.firm_checkpoint).resolve(),
         "semi_markov_world_model": Path(args.semi_checkpoint).resolve(),
         "cat_topk_world_model": Path(args.catk_checkpoint).resolve(),
+        "qr_world_model": Path(args.qr_checkpoint).resolve(),
     }
     reports = {
         name: _model_report(samples[name], target, ego, valid, masks, seed=args.seed + index)
@@ -552,9 +573,10 @@ def main() -> None:
             "num_sequences": int(len(rows)), "seed": int(args.seed),
             "cat_topk_information_asymmetric": True,
             "cat_topk_start_condition": "archived future-action summary",
+            "qr_start_condition": "Flow-aligned B0 sidecar; current/history-only ego observations during rollout",
         },
         "sequence_cache": manifest,
-        "checkpoints": {name: {"path": str(path), "sha256": _sha256(path)} for name, path in checkpoints.items()},
+        "checkpoints": {name: {"path": str(path), "sha256": file_sha256(path)} for name, path in checkpoints.items()},
         "event_counts": {name: int(mask.sum()) for name, mask in masks.items()},
     }
     save_json(_json_value(manifest_report), output / "study_manifest.json")
@@ -578,7 +600,7 @@ def main() -> None:
         figures, playbacks = ensure_dir(model_dir / "figures"), ensure_dir(model_dir / "event_playbacks")
         report = {
             "model": label,
-            "checkpoint": {"path": str(checkpoints[name]), "sha256": _sha256(checkpoints[name])},
+            "checkpoint": {"path": str(checkpoints[name]), "sha256": file_sha256(checkpoints[name])},
             "information_conditions": {
                 "strictly_information_symmetric": name != "cat_topk_world_model",
                 "cat_topk_start_uses_archived_future_action_summary": name == "cat_topk_world_model",

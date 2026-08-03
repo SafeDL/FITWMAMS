@@ -131,7 +131,6 @@ IDM_subset/results/following/latent_subset_samples.npz
 IDM_subset/results/following/final_level_playbacks/
 IDM_subset/results/monte_carlo_following/latent_monte_carlo_summary.json
 IDM_subset/results/monte_carlo_following/latent_monte_carlo_stats.csv
-IDM_subset/results/monte_carlo_following/latent_monte_carlo_samples.npz
 IDM_subset/results/cutin/latent_subset_summary.json
 IDM_subset/results/cutin/global_risk_exposure_comparison.json
 IDM_subset/results/cutin/global_risk_exposure_comparison.csv
@@ -141,8 +140,7 @@ IDM_subset/results/cutin/latent_subset_samples.npz
 IDM_subset/results/cutin/final_level_playbacks/
 IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json
 IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_stats.csv
-IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_samples.npz
 ```
 
-`latent_subset_samples.npz`、`latent_monte_carlo_samples.npz` 和
-`final_level_playbacks/` 是可复现实验产物，可由对应脚本重建。
+`latent_subset_samples.npz` 和 `final_level_playbacks/` 保留为 subset 的可复现
+证据。Monte Carlo 只保留最终汇总、统计和代表性案例；其原始样本可由对应脚本重建。

@@ -19,6 +19,7 @@ from normalizing_flow.src.features import (
 )
 
 from .schema import FLOW_ACTION_SUMMARY_FEATURES
+from .utils import file_sha256
 
 
 BEHAVIOR_ANCHOR_SECONDS = 1.0
@@ -62,7 +63,7 @@ class FrozenLegacyFlowSchema:
         return cls(names, slots, trajectory, transforms, mean, std, expected_indices, hashlib.sha256(raw).hexdigest(), source)
 
     def verify_checkpoint(self, checkpoint: str | Path, expected_sha256: str | None = None) -> str:
-        digest = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+        digest = file_sha256(checkpoint)
         if expected_sha256 is not None and digest != str(expected_sha256):
             raise ValueError("frozen Flow checkpoint SHA256 mismatch")
         return digest

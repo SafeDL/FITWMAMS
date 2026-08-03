@@ -128,7 +128,7 @@ def test_b0_changes_only_start_initialization_and_flow_rollout() -> None:
 def test_observed_ego_state_conditions_background_and_invalid_slots_stay_masked() -> None:
     model, batch = _model().eval(), _batch()
     batch["agent_valid"][:, :, 6] = False
-    rollout = model.rollout(batch, response_steps=2, deterministic=True)
+    rollout = model.rollout_reconstruction(batch, response_steps=2, deterministic=True)
     assert not rollout["background_future_action_masks"]["refinable"][..., -1].any()
     assert torch.equal(
         rollout["background_future_actions"][..., -1, :],
@@ -146,6 +146,8 @@ def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
     assert torch.allclose(mixed[:, 0, :, 0], torch.full_like(mixed[:, 0, :, 0], -2.0))
     assert torch.allclose(mixed[:, 0, :, 1], torch.full_like(mixed[:, 0, :, 1], -0.2))
     assert torch.allclose(mixed[:, -1], fresh[:, -1])
+    absent_anchor, _ = model._start_anchor(batch["agent_states"][:, 24], batch["agent_valid"][:, 24], None, None)
+    assert absent_anchor is None
     batch["behavior_anchor_raw"] = torch.zeros(2, 6, 6)
     batch["behavior_anchor_valid"] = torch.ones(2, 6, dtype=torch.bool)
     start = model.supervised_terms(batch, response_steps=5, start_mode=True, training=True)
@@ -158,7 +160,8 @@ def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
 
 def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
     model, batch = _model().eval(), _batch()
-    assert "ego_future_controls" not in inspect.signature(model.rollout).parameters
+    assert not hasattr(model, "rollout")
+    assert "ego_future_controls" not in inspect.signature(model.rollout_reconstruction).parameters
     assert "ego_future" not in " ".join(inspect.signature(model.plan_step).parameters)
     assert "ego" not in " ".join(inspect.signature(model.scene_memory.forward).parameters)
     assert "noise_level" not in inspect.signature(model.joint_refiner.residual).parameters
@@ -166,17 +169,17 @@ def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
     assert not any("noise" in name or "denois" in name for name in model.cfg.__dataclass_fields__)
     assert torch.equal(model.joint_refiner.action_scale, torch.tensor((1.5, 0.15)))
     try:
-        model.rollout(batch, response_steps=2, ego_future_controls=torch.zeros(2, 10, 2))
+        model.rollout_reconstruction(batch, response_steps=2, ego_future_controls=torch.zeros(2, 10, 2))
     except TypeError:
         pass
     else:
         raise AssertionError("QR-WM must not accept a future ego-control argument")
-    reference = model.rollout(batch, response_steps=2, deterministic=True)
-    repeated = model.rollout(batch, response_steps=2, deterministic=True)
+    reference = model.rollout_reconstruction(batch, response_steps=2, deterministic=True)
+    repeated = model.rollout_reconstruction(batch, response_steps=2, deterministic=True)
     assert torch.equal(reference["background_future_actions"], repeated["background_future_actions"])
     changed = {key: value.clone() if isinstance(value, torch.Tensor) else value for key, value in batch.items()}
     changed["agent_states"][:, 25:, 0, :4] += 10_000.0
-    candidate = model.rollout(changed, response_steps=2, deterministic=True)
+    candidate = model.rollout_reconstruction(changed, response_steps=2, deterministic=True)
     assert torch.equal(reference["background_future_actions"][:, 0], candidate["background_future_actions"][:, 0])
     assert torch.equal(reference["predicted_states"][:, :5, 1:], candidate["predicted_states"][:, :5, 1:])
 
@@ -232,6 +235,23 @@ def test_flow_start_has_no_synthetic_history_and_keeps_metadata() -> None:
         environment.step(torch.tensor([0.0, 0.0, 20.0, 0.0, 0.0, 0.0]))
     assert not temporal.called
     assert observation["flow_metadata"]["log_prob"] == -1.5
+
+
+def test_flow_metadata_requires_a_matching_slot_mask() -> None:
+    metadata = FlowStartMetadata(
+        slot_valid=torch.tensor([True, False, False, False, False, False]).numpy(),
+        map_polylines=torch.zeros(2, 2, 6).numpy(),
+        map_polyline_valid=torch.ones(2, 2, dtype=torch.bool).numpy(),
+        lane_graph_edges=torch.zeros(1, 3, dtype=torch.long).numpy(),
+        primary_slot_index=0, event_structure=[1], mask_pattern=3, event_structure_id=0,
+        event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+    )
+    try:
+        metadata.validate()
+    except ValueError as exc:
+        assert "mask_pattern" in str(exc)
+    else:
+        raise AssertionError("Flow metadata must reject an inconsistent slot mask")
 
 
 def test_qr_flow_adapter_restores_absolute_background_velocity_numerically() -> None:

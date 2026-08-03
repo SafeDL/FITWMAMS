@@ -8,6 +8,10 @@
       "path": "/home/hp/FITWMAMS/results/highd_world_model/firm_world_model/checkpoints/best_firm_world_model.pt",
       "sha256": "0204d4772d773af8f94a3e0d00d1ea91f7c2dcb781091e481bb37552ae26f05a"
     },
+    "qr_world_model": {
+      "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
+      "sha256": "caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754"
+    },
     "ramp_world_model": {
       "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
       "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
@@ -37,6 +41,7 @@
     "name": "held-out highD EVT-tail conditional closed-loop reconstruction",
     "num_sequences": 328,
     "num_stochastic_futures": 32,
+    "qr_start_condition": "Flow-aligned B0 sidecar; current/history-only ego observations during rollout",
     "seed": 20260729,
     "simulation_dt_s": 0.04
   },

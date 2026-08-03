@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import logging
 import math
 import subprocess
@@ -28,7 +27,7 @@ from world_model.src.core.sequential_dataset import (
     prepare_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -349,10 +348,6 @@ def _prototypes(model, loader, device) -> dict[str, Any]:
     }
 
 
-def _checkpoint_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _resolved_path(value: str, config_dir: Path) -> Path:
     path = Path(value)
     return path if path.is_absolute() else (config_dir / path).resolve()
@@ -372,7 +367,7 @@ def _write_reproducibility_artifacts(config: dict[str, Any], output_dir: Path, c
             path = _resolved_path(str(raw), config_dir)
             if not path.exists():
                 raise FileNotFoundError(f"frozen Flow artifact missing: {path}")
-            values[f"{name}_sha256"] = _checkpoint_hash(path)
+            values[f"{name}_sha256"] = file_sha256(path)
     return values
 
 
@@ -676,7 +671,7 @@ def train_semi_markov_world_model(
         write_history()
     report = {
         "best_checkpoint": str(best_path) if best_path.exists() else None,
-        "checkpoint_sha256": _checkpoint_hash(best_path) if best_path.exists() else None,
+        "checkpoint_sha256": file_sha256(best_path) if best_path.exists() else None,
         "selection_qualified": bool(best_path.exists()),
         "selection_metric": "val_loss",
         "best_validation_loss": best,
@@ -711,5 +706,5 @@ def load_semi_markov_checkpoint(path: str | Path, *, device: str | Any = "cpu") 
         raise ValueError(f"checkpoint is incompatible with the current semi-Markov model: {incompatible}")
     # Environments created from a loaded checkpoint can include this immutable
     # identity in every replay trace without relying on a caller convention.
-    model.checkpoint_hash = _checkpoint_hash(checkpoint_path)
+    model.checkpoint_hash = file_sha256(checkpoint_path)
     return model.to(device).eval()

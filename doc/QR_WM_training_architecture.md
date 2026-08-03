@@ -1,64 +1,190 @@
-# QR-WM Training Architecture
+# QR-WM：目标、训练与架构
 
-## 1. 运行边界
+## 0. 模型定位
 
-QR-WM 使用 highD 固定的 `[ego, six background slots]` 场景张量。ROLL 输入为真实已发生的交通历史和道路 polyline/topology；START 输入仅为 Flow 的当前 C0、B0 与道路，不伪造历史帧。不输入交通灯、ADS 动作或 ego 未来序列，也不加载 RAMP/FIRM checkpoint。训练监督为未来背景状态和由 highD action 投影得到的背景动作。
+QR-WM（Query-Refine World Model）是当前正式的 highD 背景交通世界模型。它独立于 RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK：不加载这些基线的 checkpoint，只生成六个背景车辆槽位的后续动作与状态演化。四个基线仍保留用于统一条件下的横向比较。
 
-Flow 不参与主训练的密度优化，但其冻结 76-D `C0+B0` schema 是正式 START 条件。训练、验证和测试均读取按同一 schema 生成的只读 B0 sidecar，以免 Flow 推理与训练条件不一致。
+模型的直接输出是未来背景动作序列 `background_future_actions_before_refinement` 与 `background_future_actions`、精炼前后背景状态、动作来源/有效性 mask 和下一响应周期的 `scene_memory`。完整重建 rollout 另返回 `predicted_states`、`target_states`、`target_valid` 及当前响应实际执行的 `executed_background_action_masks`；后者不是下一轮计划缓冲区的 mask。
 
-## 2. 联合模型
+## 1. 运行边界与因果约束
 
-1. **Relation-aware scene encoder**：历史状态经多头 temporal attention 编码；两层 relation-aware multi-head self-attention 对车辆关系使用可学习 pairwise bias；随后每个 agent 对 agent/map token 做多头 cross-attention。
-2. **Persistent scene memory**：唯一持续状态满足
-   \[
-   m_t=f(m_{t-1},S_t,U_{t-1},\Delta S_t).
-   \]
-   它保存交通交互、既有背景动作和已观测状态变化。QR-WM 没有独立 world memory。
-3. **Behavior prior**：CVAE prior 由 scene、memory 和 agent context 给出；训练期 posterior 可读取未来监督，推理期只使用 prior。START 的 B0 先投影为 behavior seed，原始 B0 不进入 ROLL。
-4. **Joint agent-time refiner**：直接处理
-   \[
-   U_t\in\mathbb{R}^{H\times N\times2},\quad U=[a,\dot\psi].
-   \]
-   每一层依次在时间维、车辆维做多头注意力，再对 scene memory 与 map tokens 做 cross-attention；由当前/历史 ego 状态编码得到的 token 作为不可修改 agent token 参与时间和车辆注意力，不携带 ego 动作或未来状态。
+QR-WM 使用固定 highD 场景布局 `[ego, six background slots]`。单车状态为 `[x, y, vx, vy, ax, ay]`；单个背景动作是 `[longitudinal_acceleration, yaw_rate]`。模型只预测背景车辆动作。
 
-## 3. START 与 ROLL
+响应时刻 `t` 的推理分布为：
 
-**START**：Flow 或 sidecar 提供 `(C0,B0,map)`。项目共享 START adapter 将 Flow 相对背景速度恢复为 `v_bg=v_ego+Δv_bg`；专用 START encoder 只编码 C0 与 map。`B0` 通过平滑 first-second action projection 初始化第一段背景车辆未来动作序列、behavior seed 与 scene memory；首段动作采用从 `start_anchor_mix` 衰减至零的凸组合，而非动作相加。
-
-**ROLL**：之后模型仅推进
 \[
-(S_t,m_t,A_t^{bg})\rightarrow(S_{t+1},m_{t+1},A_{t+1}^{bg}).
+p_\theta(A_t^{bg}\mid H_t,S_t,M,m_t,A_{t-1}^{bg},z),
+\qquad A_t^{bg}\in\mathbb{R}^{H\times6\times2}.
 \]
-每 0.2 秒执行背景车辆未来动作序列的前五帧，移位未执行动作，并在尾部追加五帧新动作。ADS 在环境外推进 ego；QR 仅在下一周期使用新观测到的 ego 状态。原始 B0 不会再次作为函数输入或状态读取。
 
-公开的 Flow 在线接口为：
+其中 `H_t` 是已发生历史，`S_t` 是当前状态，`M` 是地图，`m_t` 是唯一场景记忆，`A_{t-1}^{bg}` 是未执行背景动作序列，`z` 是行为 latent。推理和动作生成路径不接收 ADS 当前动作、ADS 内部计划、ego 未来动作、ego 未来状态、traffic light 或未来背景标签，也不加载 RAMP/FIRM checkpoint。ADS 的影响只能在其动作已形成新的 ego 观测状态，并进入 `H_{t+1}` 后被模型感知。
 
-```python
-environment.reset_from_flow(C0, B0, metadata)
-environment.step(ego_state)
+代码有两条互补运行路径：
+
+- `rollout_reconstruction(...)` 是 highD 监督重建路径。它先生成背景动作，再把对应的日志 ego 状态写入下一已发生历史帧。
+- `QRWorldModelEnvironment` 是在线路径。外部 ADS 自行推进 ego，并每 0.2 秒调用 `step(ego_state)` 传入当前实现的 `[6]` ego 状态；QR-WM 不接收产生该状态的 ADS 动作。
+
+## 2. 场景编码器
+
+`QueryRelationalSceneEncoder` 的输入是历史、当前状态、有效 mask、ego mask、map polyline、地图点有效 mask 与 lane graph edges。
+
+ROLL 中，历史最多为 25 帧，经 `temporal_layers` 个 temporal Transformer 编码（正式配置为 1 层）。每车状态特征包括归一化的位置、速度、加速度、航向角正余弦、ego 标记和有效标记；最后一个有效 temporal token 再与当前状态 token 相加。
+
+当前 agent token 随后经过 `attention_layers` 个 relation-aware 多头注意力层（正式配置为 2 层，`num_heads=4`）。注意力偏置来自相对位置/速度、航向和车道关系、closing speed、TTC、DRAC。编码器还会构造 map polyline token、用车道拓扑更新它们，并执行 agent/map 多头交叉注意力，输出：
+
+\[
+(E_t,s_t,M_t,V_t^{map}),
+\]
+
+其中 `E_t` 含 7 个 agent token，`s_t` 是池化 scene token，`M_t` 是 map token 集合。
+
+START 使用专用 `encode_start(C0, map)` 路径，复用当前状态、关系和地图编码，但 temporal 分量为零；它不会复制当前状态来伪造 25 帧历史。
+
+## 3. START：Flow C0+B0
+
+冻结 Flow 条件有 76 维：
+
+\[
+[C0,B0]=[\text{ego}(4),\text{six relative background states}(36),\text{six action summaries}(36)].
+\]
+
+共享 adapter `start_state_from_flow_tensor` 是 QR 唯一的 Flow 张量解码器。它把 Flow 坐标变为 `[B,7,6]` 场景状态和 `[B,6,6]` 的原始 B0 摘要。Flow 的背景速度是相对 ego 的量，因此进入编码器前必须还原：
+
+\[
+v_x^{bg}=v_x^{ego}+\Delta v_x,\qquad
+v_y^{bg}=v_y^{ego}+\Delta v_y.
+\]
+
+无效槽位会归零并保持无效。每个背景槽位的 B0 含六个首秒摘要：纵/横速度变化、纵向平均/最小/末端加速度和横向平均加速度。
+
+`initialize_start(...)` 只在 episode 开始时执行一次：
+
+1. 用 `encode_start` 编码 C0 和地图；
+2. 将 B0 投影为平滑的 25 帧背景动作锚点；
+3. 将 B0 投影为逐车 behavior seed；
+4. 用动作锚点和零状态变化初始化唯一 `PersistentSceneMemory`；
+5. 从条件行为先验取样或选取均值；
+6. 返回 `scene_memory`、`behavior_latent` 和 `start_anchor_actions`。
+
+第一次 `plan_step` 中，fresh 动作与 B0 锚点采用随时间衰减的凸组合：
+
+\[
+A_0^{pre}(\tau)=(1-\alpha_\tau)A_0^{fresh}(\tau)+\alpha_\tau A_0^{B0}(\tau),
+\]
+
+其中 `alpha` 在 25 帧内从 `start_anchor_mix=0.75` 线性下降到 0。原始 B0 不作为 ROLL 参数，也不会在 START 后再次读取。
+
+`FlowStartMetadata` 另行保存 slot mask、地图张量、primary-risk slot、event structure、mask pattern、event-structure log probability、conditional log probability 与联合 `log_prob`。它会校验
+
+\[
+\mathrm{log\_prob}=\mathrm{event\_structure\_log\_prob}+\mathrm{conditional\_log\_prob},
+\]
+
+并将这些字段保留在环境 trace 与 Flow 组合审计中。
+
+## 4. ROLL：memory、行为与动作序列
+
+### Persistent scene memory
+
+模型只维护一个 memory：
+
+\[
+m_t=f(m_{t-1},s_t,\operatorname{pool}(E_t),A_{t-1}^{bg},\Delta S_t).
+\]
+
+实现将上一背景动作序列的均值和绝对均值、当前 agent token 的池化结果以及全场景状态变化的均值送入 GRU cell。不存在 `ContinuousTrafficMemory`、`world_memory`、`world_initializer` 或 `world_update`；memory 不接收 ADS 动作。
+
+### Behavior prior 与训练 posterior
+
+`BehaviorPrior` 为每个 agent 提供以 agent token、scene token 和 memory 为条件的 Gaussian prior。START 时 B0 behavior seed 会平移 prior 均值。推理中，`deterministic=True` 取 prior 均值；否则从该 Gaussian 取样，它是 rollout 的唯一随机来源。
+
+训练期额外使用 posterior 及 KL/重建损失。posterior 的特征只从未来背景状态监督中提取：实现先将 ego 未来状态替换为当前 ego 状态，再在所有 behavior loss 中排除 ego 槽位。因此，未来 ego 标签不会条件化背景动作；未来背景监督只用于训练期 latent 后验，不进入推理接口。
+
+### 滚动背景车辆未来动作序列
+
+`plan_step(...)` 先生成 `fresh = fresh_plan(E_t,m_t,z)`，其形状为 `[B,25,6,2]`。后续响应中，上一序列前 5 帧已执行，剩余 20 帧与当前 fresh 序列末 5 帧连接为 carried candidate；之后它与完整 fresh 序列线性混合：
+
+\[
+A_t^{pre}=(1-\lambda)A_t^{fresh}+\lambda\,[A_{t-1}^{bg}[5:],A_t^{fresh}[-5:]],
+\]
+
+正式配置中 `lambda=buffer_carry_mix=0.35`。这是连续性偏置，不是不可修改的硬 carry 区。
+
+`background_future_action_masks` 含四个 `[B,25,6]` mask：
+
+- `carried`：来源于上一序列剩余区的动作；
+- `appended`：新生成的尾部区；
+- `refinable`：仍未执行且有效、可精炼的背景动作；
+- `valid`：预测时域内的有效背景槽位。
+
+完整 rollout 额外给出 `executed_background_action_masks`，表示本响应实际送入动力学的前 5 帧有效性；它不属于下一动作序列。
+
+## 5. 确定性联合残差精炼
+
+`JointAgentTimeRefiner` 先由背景 agent token、memory 和背景 behavior latent 生成 fresh 联合动作序列。残差精炼器接收当前动作序列、由动作积分的背景计划状态、观测 agent token、scene token、memory、behavior latent、map token 和有效 mask。
+
+每个 `_AgentTimeBlock` 依次执行：
+
+1. 每辆车的时间维多头自注意力；
+2. 每个未来时刻跨全部 7 个 agent token 的多头自注意力；
+3. agent-time token 对 scene、memory、map token 的多头交叉注意力；
+4. 前馈更新。
+
+ego token 是当前/历史场景编码得到的 token 在时域上的重复。它不包含 ego 动作或 ego 未来状态，且不会输出 ego 动作残差。
+
+残差输出只作用于有效背景动作，内部固定动作尺度为 `(1.5, 0.15)`。精炼采用减法和动作裁剪：
+
+\[
+A^{(i+1)}=\operatorname{clip}\left(A^{(i)}-R_\theta(A^{(i)},\widehat S^{bg},E_t,s_t,m_t,z,M_t)\right).
+\]
+
+正式配置为 `refinement_iterations=2`，两次调用共享 refiner 参数。模型没有 noise schedule、noise-level embedding、corruption、denoising loss、diffusion objective 或反向扩散采样。
+
+## 6. 动力学与状态推进
+
+`KinematicTrafficDynamics` 是可微的 unicycle/single-track 兼容动力学。它将 `[a,yaw_rate]` 积分为下一六维状态；训练监督则先把 highD 笛卡尔加速度标签投影到相同动作坐标。
+
+重建过程中，背景动作按帧积分。每个响应的动作计划确定后，日志 ego 状态才逐帧写入生成历史。在线环境中，`QRWorldModelEnvironment.step(ego_state, ego_valid=True)` 先将观测 ego 状态写入当前状态与历史，再规划背景动作、执行 5 帧背景动作，并在该响应内保持 ego 为提供的观测状态，直到外部 ADS 提供下一观测。这保证了网络不会获知未实现的 ADS 意图。
+
+## 7. 训练目标与记录
+
+正式配置使用完整 immutable cache、40 个 epoch（`8 + 12 + 20`）：前两个阶段的 train/validation batch size 为 96，5 秒精炼阶段为 64；每 5 个 response 进行一次 truncated backpropagation。`forward_training` 以 50/50 为目标拆分 START/ROLL；奇数 batch 使用最接近的非空比例。
+
+START/ROLL 的等权目标包含：
+
+- 已执行响应段的背景位置、速度、动作误差；
+- 完整 1 秒背景状态和动作误差；
+- 鼓励精炼后位置误差低于精炼前的 hinge 项；
+- 相邻动作序列重叠、交互和物理损失；
+- behavior KL、behavior reconstruction、diversity floor；
+- `start_summary_weight=0.10` 乘以有效槽位上的 `L1(\widehat B0,B0)` 摘要损失。
+
+TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5 秒 stage 中按验证 FDE 选择。
+
+## 8. 评测、Flow 组合与 checkpoint
+
+`evaluate_qr_world_model` 在 held-out 重建集上使用确定性和采样 behavior latent，报告轨迹误差、minADE/minFDE、多样性、collision/gap/TTC/DRAC、速度/加速度/jerk 分布 KL、精炼位置增益及 `background_future_action_overlap_l1`。
+
+`evaluate_flow_composition` 对固定 Flow tail starts 逐个 world sample 创建 `QRWorldModelEnvironment`。其 replay 协议每个 response 传入平移后的 donor ego state，并在该 response 内保持该状态；它是生成分布评测，不是任意 ADS 的重建。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据与哈希。
+
+checkpoint 保存模型名 `query_refine_world_model`、架构版本 `5`、model config、state dict 和 Flow schema hash。`load_qr_checkpoint` 会拒绝所有更早架构版本并提示重训。
+
+## 9. 当前正式产物与复现入口
+
+当前正式 QR 运行位于 `results/highd_world_model/qr_world_model/`：训练已完成 40/40 epoch，最佳 5 秒验证 FDE 为 0.5922 m，checkpoint SHA-256 为 `caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754`。
+
+- `training_summary.json`、`training_progress.json` 和 `training_history.csv` 记录完整训练；`current_training_curves.png` 由 `world_model/scripts/plot_qr_training_curves.py` 从 CSV 与 TensorBoard 记录重绘。
+- `qr_world_model_evaluation_summary.json` 是完整 held-out 重建评测（24,216 条测试序列）。
+- `flow_composition_evaluation.json` 与 `flow_start_audit.npz` 是 Flow × QR-WM 分布评测（2,608 个 Flow 起点、10,432 条生成未来、326 个支持的 held-out replay）。
+- `results/highd_world_model/long_tail_reproduction/qr_world_model/` 保存统一长尾条件重建的指标、六张分析图、三段事件回放和中文 `analysis_summary.md`。该研究使用 328 个 held-out EVT-tail 条件、5 秒时域和 32 条分支；CAT-TopK 在该比较中被明确标注为信息条件不对称。
+
+常用入口如下：
+
+```bash
+python world_model/scripts/train_qr_world_model.py
+python world_model/scripts/train_qr_world_model.py --resume
+python world_model/scripts/test_qr_world_model.py
+python world_model/scripts/test_qr_world_model.py --flow-composition
+python world_model/scripts/plot_qr_training_curves.py
+python world_model/scripts/evaluate_long_tail_reproduction.py
 ```
-
-其中 `ego_state` 是当前观测到的 `[6]` 状态；ADS 控制不进入 QR。`rollout_reconstruction` 只在每次背景动作生成后回放日志 ego 状态，用于训练和独立重建评测。
-
-在线接口为 `QRWorldModelEnvironment.reset_from_flow(C0,B0,metadata)`、`observe()` 和 `step(ego_state)`。`ego_state` 是每 0.2 s 提供的当前 `[6]` 状态；QR 只依据已发生状态重规划。
-
-## 4. Buffer mask 与确定性精炼
-
-`A_t^{bg}` 始终表示**未执行的背景车辆未来动作序列**，不表示未来状态或轨迹。每一步输出：
-
-- `executed_background_action_masks`：已经送入动力学的前五帧，不属于下一动作序列；
-- `carried`：从上一动作序列保留的未执行区；
-- `appended`：新生成的尾部五帧；
-- `refinable`/`valid`：可由联合 refiner 修改的有效背景未来动作。
-
-历史观测与已执行背景动作均不可修改；ego 不属于背景动作序列。先由 carried 与 appended 区组成预动作序列，再以共享 joint refiner 执行两次确定性残差精炼：
-\[
-A_t^{refined}=A_t^{pre}-R_\theta(A_t^{pre},H_t,M,m_t,z,\mathrm{masks}).
-\]
-模型的随机性只来自 CVAE behavior latent；精炼不采样噪声、不使用噪声等级，也不承担多模态生成职责。
-
-## 5. 训练、检查点与评测
-
-训练预算仍为 8+12+20=40 epoch。每批随机平衡 50% START 与 50% ROLL；START 路径额外用首秒状态汇总 `B̂0` 计算 `L1(B̂0,B0)`。TensorBoard 记录 batch/epoch loss、START/ROLL loss、B0 summary、FDE、联合动作序列与 mask 标量。checkpoint 标识为 `query_refine_world_model`，带 Flow schema hash、START encoder 与 ego-state-only 合同。旧 QR checkpoint 不兼容；当前没有可加载 QR checkpoint，必须完成重训后才可评测。
-
-标准重建评测使用显式 highD ego replay；Flow 组合评测使用相同的 8x4 协议，但只评估生成分布，并输出包含 slot mask、primary slot、event structure、`event_structure_log_prob`、`conditional_log_prob` 与 `log_prob` 的逐样本 audit。当前架构完成 40-epoch 训练后，才可加入统一长尾比较。

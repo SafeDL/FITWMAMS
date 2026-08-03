@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +14,7 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import save_json, select_device
+from world_model.src.core.utils import file_sha256, save_json, select_device
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
 
 from .train import load_qr_checkpoint
@@ -148,7 +147,7 @@ def evaluate_qr_world_model(
             sums["diversity"] += pair_total; sums["diversity_count"] += pair_count
     divide = lambda numerator, denominator: float(numerator / max(denominator, 1.0))
     report = {
-        "checkpoint": str(checkpoint), "checkpoint_sha256": hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest(),
+        "checkpoint": str(checkpoint), "checkpoint_sha256": file_sha256(checkpoint),
         "model_type": model.model_type, "sequence_cache": manifest, "test_sequences": int(len(loader.dataset)),
         "closed_loop_trajectory": {
             "ADE_m": divide(sums["ade"], sums["ade_count"]), "FDE_m": divide(sums["fde"], sums["fde_count"]),

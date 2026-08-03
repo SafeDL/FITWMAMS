@@ -246,7 +246,6 @@ class SemiMarkovBackgroundEnvironment:
     def _tensors(self) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         if self.graph is None or self._states is None or self._valid is None:
             raise RuntimeError("environment has not been reset")
-        n = len(self._states)
         map_polylines = np.asarray(self.graph.map_polylines, np.float32)
         map_valid = np.asarray(self.graph.map_polyline_valid, bool)
         batch = {

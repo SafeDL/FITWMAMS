@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import logging
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
@@ -19,7 +17,7 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device, set_seed
 from .config import RAMPConfig
 from .model import RAMPWorldModel
 
@@ -310,7 +308,7 @@ def train_ramp_world_model(
         "uses_baseline_checkpoint": False,
         "model_config": asdict(model.cfg),
         "checkpoint_sha256": (
-            hashlib.sha256(best_path.read_bytes()).hexdigest()
+            file_sha256(best_path)
             if best_path.exists()
             else None
         ),
@@ -327,5 +325,5 @@ def load_ramp_checkpoint(
         raise ValueError(f"Not a RAMP-WM checkpoint: {path}")
     model = RAMPWorldModel(_config(payload["model_config"]))
     model.load_state_dict(payload["state_dict"], strict=True)
-    model.checkpoint_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    model.checkpoint_hash = file_sha256(path)
     return model.to(device).eval()

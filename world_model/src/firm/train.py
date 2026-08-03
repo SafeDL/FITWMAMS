@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import logging
 from dataclasses import asdict
 from pathlib import Path
@@ -24,7 +23,7 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device, set_seed
 
 from .config import FIRMConfig
 from .model import FIRMWorldModel
@@ -335,7 +334,7 @@ def train_firm_world_model(
         writer.writeheader()
         writer.writerows(history)
     checkpoint_hash = (
-        hashlib.sha256(best_path.read_bytes()).hexdigest()
+        file_sha256(best_path)
         if best_path.exists()
         else None
     )
@@ -373,5 +372,5 @@ def load_firm_checkpoint(
         raise ValueError(f"Not a FIRM-WM checkpoint: {path}")
     model = FIRMWorldModel(_config(payload["model_config"]))
     model.load_state_dict(payload["state_dict"], strict=True)
-    model.checkpoint_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    model.checkpoint_hash = file_sha256(path)
     return model.to(device).eval()

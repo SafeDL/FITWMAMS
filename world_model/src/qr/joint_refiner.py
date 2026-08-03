@@ -5,15 +5,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-
-def _safe_padding(valid: torch.Tensor) -> torch.Tensor:
-    """Build a key-padding mask that remains finite for empty background slots."""
-    padding = ~valid.bool()
-    empty = padding.all(dim=1)
-    if empty.any():
-        padding = padding.clone()
-        padding[empty, 0] = False
-    return padding
+from .attention import safe_key_padding_mask
 
 
 class _AgentTimeBlock(nn.Module):
@@ -38,7 +30,8 @@ class _AgentTimeBlock(nn.Module):
         temporal_tokens = tokens.permute(0, 2, 1, 3).reshape(batch * agents, frames, hidden)
         temporal_valid = valid.permute(0, 2, 1).reshape(batch * agents, frames)
         temporal, _ = self.temporal(
-            temporal_tokens, temporal_tokens, temporal_tokens, key_padding_mask=_safe_padding(temporal_valid), need_weights=False
+            temporal_tokens, temporal_tokens, temporal_tokens,
+            key_padding_mask=safe_key_padding_mask(temporal_valid), need_weights=False,
         )
         temporal = self.temporal_norm(temporal_tokens + self.dropout(temporal))
         tokens = temporal.reshape(batch, agents, frames, hidden).permute(0, 2, 1, 3)
@@ -46,13 +39,14 @@ class _AgentTimeBlock(nn.Module):
         agent_tokens = tokens.reshape(batch * frames, agents, hidden)
         agent_valid = valid.reshape(batch * frames, agents)
         cross_agents, _ = self.agents(
-            agent_tokens, agent_tokens, agent_tokens, key_padding_mask=_safe_padding(agent_valid), need_weights=False
+            agent_tokens, agent_tokens, agent_tokens,
+            key_padding_mask=safe_key_padding_mask(agent_valid), need_weights=False,
         )
         tokens = self.agent_norm(agent_tokens + self.dropout(cross_agents)).reshape(batch, frames, agents, hidden)
 
         query = tokens.reshape(batch, frames * agents, hidden)
         cross, _ = self.scene_cross(
-            query, context, context, key_padding_mask=_safe_padding(context_valid), need_weights=False
+            query, context, context, key_padding_mask=safe_key_padding_mask(context_valid), need_weights=False
         )
         tokens = self.cross_norm(query + self.dropout(cross)).reshape(batch, frames, agents, hidden)
         tokens = self.feed_forward_norm(tokens + self.dropout(self.feed_forward(tokens)))

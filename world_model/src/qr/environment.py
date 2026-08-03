@@ -12,6 +12,12 @@ import torch
 from .model import QueryRefineWorldModel
 
 
+def _as_numpy(value: Any, dtype) -> np.ndarray:
+    if isinstance(value, torch.Tensor):
+        value = value.detach().cpu().numpy()
+    return np.asarray(value, dtype)
+
+
 @dataclass(frozen=True)
 class FlowStartMetadata:
     """Static map inputs plus Flow probability/event audit fields for one START."""
@@ -35,17 +41,22 @@ class FlowStartMetadata:
         return cls(**dict(value))
 
     def validate(self) -> None:
-        if np.asarray(self.slot_valid, bool).shape != (6,):
+        slot_valid = _as_numpy(self.slot_valid, bool)
+        if slot_valid.shape != (6,):
             raise ValueError("Flow START metadata.slot_valid must have shape [6]")
-        maps = np.asarray(self.map_polylines)
-        map_valid = np.asarray(self.map_polyline_valid)
-        edges = np.asarray(self.lane_graph_edges)
+        maps = _as_numpy(self.map_polylines, np.float32)
+        map_valid = _as_numpy(self.map_polyline_valid, bool)
+        edges = _as_numpy(self.lane_graph_edges, np.int64)
         if maps.ndim != 3 or maps.shape[-1] != 6 or map_valid.shape != maps.shape[:2]:
             raise ValueError("Flow START metadata map tensors must be [polylines, points, 6] with matching validity")
         if edges.ndim != 2 or edges.shape[-1] != 3:
             raise ValueError("Flow START metadata.lane_graph_edges must have shape [edges, 3]")
-        if not 0 <= int(self.primary_slot_index) < 6:
+        primary = int(self.primary_slot_index)
+        if not 0 <= primary < 6 or not slot_valid[primary]:
             raise ValueError("Flow START metadata.primary_slot_index must identify one background slot")
+        mask_pattern = sum(int(value) << index for index, value in enumerate(slot_valid))
+        if int(self.mask_pattern) != mask_pattern:
+            raise ValueError("Flow START metadata.mask_pattern must match slot_valid")
         density = np.asarray(
             (self.event_structure_log_prob, self.conditional_log_prob, self.log_prob), np.float32,
         )
@@ -93,15 +104,15 @@ class QRWorldModelEnvironment:
         """Initialize an episode from raw Flow C0, B0, and auditable metadata."""
         self._metadata = FlowStartMetadata.from_value(metadata)
         self._metadata.validate()
-        c0, b0 = np.asarray(C0, np.float32).reshape(-1), np.asarray(B0, np.float32)
+        c0, b0 = _as_numpy(C0, np.float32).reshape(-1), _as_numpy(B0, np.float32)
         if c0.shape != (40,) or b0.shape != (6, 6):
             raise ValueError("reset_from_flow requires C0[40] and B0[6, 6] in raw Flow coordinates")
         flow = torch.as_tensor(np.concatenate((c0, b0.reshape(-1)))[None], device=self.device)
-        slot_valid = torch.as_tensor(np.asarray(self._metadata.slot_valid, bool)[None], device=self.device)
+        slot_valid = torch.as_tensor(_as_numpy(self._metadata.slot_valid, bool)[None], device=self.device)
         self._map_inputs = (
-            torch.as_tensor(np.asarray(self._metadata.map_polylines, np.float32)[None], device=self.device),
-            torch.as_tensor(np.asarray(self._metadata.map_polyline_valid, bool)[None], device=self.device),
-            torch.as_tensor(np.asarray(self._metadata.lane_graph_edges, np.int64)[None], device=self.device),
+            torch.as_tensor(_as_numpy(self._metadata.map_polylines, np.float32)[None], device=self.device),
+            torch.as_tensor(_as_numpy(self._metadata.map_polyline_valid, bool)[None], device=self.device),
+            torch.as_tensor(_as_numpy(self._metadata.lane_graph_edges, np.int64)[None], device=self.device),
         )
         with torch.no_grad():
             current, valid, raw_anchor = self.model.flow_condition_to_scene(flow, slot_valid)

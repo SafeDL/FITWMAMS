@@ -1,7 +1,6 @@
 """START/ROLL evaluation for the Semi-Markov World Model."""
 from __future__ import annotations
 
-import hashlib
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -12,7 +11,7 @@ from world_model.src.core.metrics import interaction_metrics, physical_diagnosti
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from .train import _loader, _to_batch, load_semi_markov_checkpoint
 from world_model.src.core.sequential_dataset import ensure_frozen_flow_behavior_anchor_cache, load_sequential_dataset, sequence_cache_owner_dir
-from world_model.src.core.utils import save_json, select_device
+from world_model.src.core.utils import file_sha256, save_json, select_device
 
 
 def _masked_mean(values: np.ndarray, mask: np.ndarray) -> float:
@@ -315,7 +314,7 @@ def evaluate_semi_markov_world_model(
         "overlap_plan_l1": overlap_sum / max(overlap_count, 1),
         "local_residual_mean_abs": local_sum / max(local_count, 1),
     }
-    current_hash = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+    current_hash = file_sha256(checkpoint)
     responsiveness_max = int(evaluation.get("responsiveness_max_sequences", 256))
     if max_sequences:
         responsiveness_max = min(responsiveness_max, int(max_sequences))

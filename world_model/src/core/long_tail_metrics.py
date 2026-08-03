@@ -400,7 +400,6 @@ def event_masks(target: np.ndarray, ego: np.ndarray, valid: np.ndarray) -> dict[
     """Deterministic event labels computed only from held-out real traffic."""
     fields = traffic_fields(target, ego, valid)
     present = np.asarray(valid, bool)
-    speed = np.linalg.norm(np.asarray(target)[..., 2:4], axis=-1)
     acceleration = np.asarray(target)[..., 4]
     relative = np.asarray(target)[..., 2] - np.asarray(ego)[:, :, None, 2]
     min_gap = np.full(len(target), np.inf)

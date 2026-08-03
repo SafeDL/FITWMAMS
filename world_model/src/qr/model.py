@@ -16,7 +16,7 @@ from world_model.src.core.initial_behavior_anchor import (
     summarize_first_second_states,
 )
 
-from .config import QRWorldModelConfig
+from .config import ARCHITECTURE_VERSION, QRWorldModelConfig
 from .encoder import QueryRelationalSceneEncoder
 from .joint_refiner import JointAgentTimeRefiner
 from .memory import PersistentSceneMemory
@@ -70,7 +70,7 @@ class BehaviorPrior(nn.Module):
         future: torch.Tensor,
         future_valid: torch.Tensor,
         start_seed: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         raw_feature = self._future_features(current, future, future_valid)
         feature = self.future(raw_feature)
         shared = torch.cat((scene, memory), dim=-1)[:, None].expand(-1, agents.shape[1], -1)
@@ -137,22 +137,45 @@ class QueryRefineWorldModel(nn.Module):
         current_valid: torch.Tensor,
         raw_anchor: torch.Tensor | None,
         anchor_valid: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor | None, torch.Tensor]:
         """Consume raw B0 exactly once to seed actions, memory, and behavior."""
         batch, agents = current.shape[:2]
         background = agents - 1
-        empty_plan = current.new_zeros((batch, self.cfg.plan_frames, background, 2))
         empty_seed = current.new_zeros((batch, agents, self.cfg.behavior_latent_dim))
         if raw_anchor is None:
-            return empty_plan, empty_seed
+            return None, empty_seed
         if raw_anchor.shape != (batch, background, 6):
             raise ValueError("B0 must have shape [batch, six background slots, 6]")
+        if anchor_valid is not None and anchor_valid.shape != (batch, background):
+            raise ValueError("B0 validity must have shape [batch, six background slots]")
         valid = (current_valid[:, 1:] if anchor_valid is None else anchor_valid.bool()) & current_valid[:, 1:]
         highd = self.start_anchor_plan(current, raw_anchor, valid)
         actions = self.dynamics.controls_from_highd_actions(highd, current[:, None, 1:])
         seed = empty_seed.clone()
         seed[:, 1:] = self.start_behavior(raw_anchor) * valid[..., None].float()
         return self._clamp_actions(actions) * valid[:, None, :, None].float(), seed
+
+    def _initialize_episode_state(
+        self,
+        batch: dict[str, torch.Tensor],
+        agents: torch.Tensor,
+        scene: torch.Tensor,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        raw_anchor: torch.Tensor | None,
+        anchor_valid: torch.Tensor | None,
+        *,
+        deterministic: bool,
+        use_posterior: bool,
+    ) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
+        """Initialize B0-derived actions, memory, and behavior once per rollout."""
+        anchor_actions, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
+        memory = self.scene_memory(scene, agents, anchor_actions, torch.zeros_like(current), None)
+        behavior, terms = self._behavior_latent(
+            batch, agents, scene, memory, current, current_valid, start_seed,
+            deterministic=deterministic, use_posterior=use_posterior,
+        )
+        return anchor_actions, memory, behavior, terms
 
     def initialize_start(
         self,
@@ -171,14 +194,12 @@ class QueryRefineWorldModel(nn.Module):
         agents, scene, _, _ = self.encoder.encode_start(
             current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
         )
-        anchor_actions, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
-        memory = self.scene_memory(
-            scene, agents, anchor_actions, torch.zeros_like(current), None,
-        )
-        behavior, _ = self._behavior_latent(
-            {}, agents, scene, memory, current, current_valid, start_seed,
+        anchor_actions, memory, behavior, _ = self._initialize_episode_state(
+            {}, agents, scene, current, current_valid, raw_anchor, anchor_valid,
             deterministic=deterministic, use_posterior=False,
         )
+        if anchor_actions is None:
+            raise ValueError("START initialization requires B0 actions")
         return {"scene_memory": memory, "behavior_latent": behavior, "start_anchor_actions": anchor_actions}
 
     @staticmethod
@@ -193,7 +214,7 @@ class QueryRefineWorldModel(nn.Module):
             frames.append(state)
         return torch.stack(frames, dim=1)
 
-    def _refine_controls(
+    def _refine_actions(
         self,
         actions: torch.Tensor,
         current: torch.Tensor,
@@ -265,7 +286,7 @@ class QueryRefineWorldModel(nn.Module):
             pre_refinement = (1.0 - self.cfg.buffer_carry_mix) * fresh + self.cfg.buffer_carry_mix * carried
             carried_mask[:, : -execute] = valid_mask[:, : -execute]
             appended_mask[:, : -execute] = False
-        refined, initial_states, refined_states = self._refine_controls(
+        refined, initial_states, refined_states = self._refine_actions(
             pre_refinement, current, current_valid, agents, scene, memory, behavior_latent,
             map_tokens, map_valid, valid_mask,
         )
@@ -298,6 +319,12 @@ class QueryRefineWorldModel(nn.Module):
             target_actions[:, :count] = self.dynamics.controls_from_highd_actions(recorded_actions[:, start : start + count], current)
             action_valid[:, :count] = valid[:, 25 + start : 25 + start + count, 1:]
         return target_states, target_valid, target_actions, action_valid
+
+    def _response_count(self, response_steps: int | None) -> int:
+        steps = self.cfg.response_steps if response_steps is None else int(response_steps)
+        if steps < 1:
+            raise ValueError("response_steps must be positive")
+        return min(steps, self.cfg.response_steps)
 
     @staticmethod
     def _interaction_loss(predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
@@ -369,7 +396,7 @@ class QueryRefineWorldModel(nn.Module):
     ) -> dict[str, Any]:
         """Logged-state rollout; planning sees only ego state observed so far."""
         states, valid = batch["agent_states"], batch["agent_valid"]
-        steps = min(int(response_steps or self.cfg.response_steps), self.cfg.response_steps)
+        steps = self._response_count(response_steps)
         total_frames = steps * self.cfg.execute_frames
         ego_mask = self._ego_mask(batch)
         if not torch.all(ego_mask[:, 0]):
@@ -388,14 +415,9 @@ class QueryRefineWorldModel(nn.Module):
                 history, history_valid, current, current_valid, ego_mask,
                 batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
             )
-        anchor_actions, start_seed = self._start_anchor(
-            current, current_valid, batch.get("behavior_anchor_raw"), batch.get("behavior_anchor_valid")
-        )
-        initial_memory = self.scene_memory(
-            initial_scene, initial_agents, anchor_actions, torch.zeros_like(current), None
-        )
-        behavior, behavior_terms = self._behavior_latent(
-            batch, initial_agents, initial_scene, initial_memory, current, current_valid, start_seed,
+        anchor_actions, initial_memory, behavior, behavior_terms = self._initialize_episode_state(
+            batch, initial_agents, initial_scene, current, current_valid,
+            batch.get("behavior_anchor_raw"), batch.get("behavior_anchor_valid"),
             deterministic=deterministic, use_posterior=use_posterior,
         )
         predicted_frames: list[torch.Tensor] = []
@@ -492,25 +514,9 @@ class QueryRefineWorldModel(nn.Module):
         start_mode: bool = False,
     ) -> dict[str, Any]:
         """Logged-state reconstruction; future ego states never enter planning."""
-        steps = min(int(response_steps or self.cfg.response_steps), self.cfg.response_steps)
         return self._rollout(
-            batch, response_steps=steps, deterministic=deterministic, use_posterior=use_posterior,
+            batch, response_steps=response_steps, deterministic=deterministic, use_posterior=use_posterior,
             tbptt_steps=tbptt_steps, start_mode=start_mode,
-        )
-
-    def rollout(
-        self,
-        batch: dict[str, torch.Tensor],
-        *,
-        response_steps: int | None = None,
-        deterministic: bool = True,
-        use_posterior: bool = False,
-        tbptt_steps: int = 0,
-    ) -> dict[str, Any]:
-        """Alias for logged-state reconstruction without an ADS action input."""
-        return self.rollout_reconstruction(
-            batch, response_steps=response_steps, deterministic=deterministic,
-            use_posterior=use_posterior, tbptt_steps=tbptt_steps,
         )
 
     def _objective(self, rollout: dict[str, Any]) -> dict[str, torch.Tensor]:
@@ -575,7 +581,7 @@ class QueryRefineWorldModel(nn.Module):
     def checkpoint_payload(self) -> dict[str, Any]:
         return {
             "model_type": self.model_type, "model_config": asdict(self.cfg), "state_dict": self.state_dict(),
-            "architecture_version": 5,
+            "architecture_version": ARCHITECTURE_VERSION,
             "flow_interface": {
                 "input_dim": 76, "layout": "ego[vx,vy,ax,ay]+background_relative[6,6]+B0[6,6]",
                 "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes latent, scene memory, and first background future-action sequence",

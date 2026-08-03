@@ -60,7 +60,9 @@ training:
   stages:
     - {name: buffer_warmup, epochs: 8, rollout_seconds: 1.0, learning_rate: 0.00010}
     - {name: closed_loop, epochs: 12, rollout_seconds: 3.0, learning_rate: 0.00005}
-    - {name: full_refinement, epochs: 20, rollout_seconds: 5.0, learning_rate: 0.00003}
+    # Five-second unrolling retains substantially more activations than the
+    # preceding stages; this remains below the measured 24 GB memory limit.
+    - {name: full_refinement, epochs: 20, rollout_seconds: 5.0, learning_rate: 0.00003, batch_size: 64, val_batch_size: 64}
 
 evaluation:
   seed: 20260730

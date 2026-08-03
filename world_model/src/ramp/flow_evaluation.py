@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -13,36 +12,21 @@ from world_model.src.core.flow_composition import (
     HISTORY_FRAMES,
     INNER_WORLD_SAMPLES,
     ROLLOUT_FRAMES,
+    decode_flow_starts,
     load_flow_tail_starts,
     repeat_batch,
     tensor,
     translated_ego_replay,
+    write_flow_composition_report,
 )
-from world_model.src.core.initial_behavior_anchor import start_state_from_flow_feature
-from world_model.src.core.long_tail_metrics import (
-    collision_metrics,
-    distribution_values,
-    empirical_distance,
-    feature_distribution_distance,
-    traffic_fields,
-)
-from world_model.src.core.utils import ensure_dir, save_json, select_device
+from world_model.src.core.utils import select_device
 
 from .train import load_ramp_checkpoint
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _batch(starts: dict[str, np.ndarray], donors: np.ndarray, cache: dict[str, np.ndarray], device) -> tuple[dict[str, Any], np.ndarray, np.ndarray]:
     count = len(donors)
-    initial = np.zeros((count, 7, 6), np.float32)
-    present = np.zeros((count, 7), bool)
-    anchor = np.zeros((count, 6, 6), np.float32)
-    anchor_valid = np.zeros((count, 6), bool)
-    for index, (feature, slot_mask) in enumerate(zip(starts["features"], starts["slot_mask"])):
-        initial[index], present[index], anchor[index], anchor_valid[index] = start_state_from_flow_feature(feature, slot_mask)
+    initial, present, anchor, anchor_valid = decode_flow_starts(starts)
     states = np.repeat(initial[:, None], HISTORY_FRAMES + ROLLOUT_FRAMES, axis=1)
     valid = np.repeat(present[:, None], HISTORY_FRAMES + ROLLOUT_FRAMES, axis=1)
     ego = np.stack([translated_ego_replay(cache["agent_states"][row], initial[index, 0]) for index, row in enumerate(donors)])
@@ -86,10 +70,10 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
         print(f"Flow × RAMP starts {stop}/{len(donors)}", flush=True)
     generated, ego, valid = map(np.concatenate, (outputs, egos, valids))
     target, target_ego, target_valid = map(np.concatenate, (reference, reference_ego, reference_valid))
-    generated_fields, target_fields = traffic_fields(generated, ego, valid), traffic_fields(target, target_ego, target_valid)
-    generated_values, target_values = distribution_values(generated_fields), distribution_values(target_fields)
-    report = {
-        "protocol": {
+    return write_flow_composition_report(
+        checkpoint=checkpoint,
+        output_dir=output_dir,
+        protocol={
             "name": "held-out EVT Flow × RAMP composition", "outer_flow_samples": 8,
             "inner_world_samples": 4, "horizon_seconds": 5.0,
             "supported_held_out_replays": int(len(np.unique(donors))),
@@ -97,14 +81,10 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
             "generated_world_futures": int(len(donors) * INNER_WORLD_SAMPLES),
             "not_a_paired_reconstruction": True, "seed": FLOW_COMPOSITION_SEED,
         },
-        "checkpoint": {"path": str(checkpoint), "sha256": _sha256(checkpoint)},
-        "closed_loop_distribution": {
-            "risk_variable_distribution": {key: empirical_distance(target_values[key], generated_values[key]) for key in ("ttc_s", "drac_mps2", "gap_m", "relative_speed_mps")},
-            "physical_validity": collision_metrics(generated_fields),
-            **feature_distribution_distance(generated, ego, valid, target, target_ego, target_valid, seed=FLOW_COMPOSITION_SEED),
-        },
-    }
-    destination = ensure_dir(output_dir) / "flow_composition_evaluation.json"
-    save_json(report, destination)
-    print(destination)
-    return report
+        generated=generated,
+        ego=ego,
+        valid=valid,
+        target=target,
+        target_ego=target_ego,
+        target_valid=target_valid,
+    )

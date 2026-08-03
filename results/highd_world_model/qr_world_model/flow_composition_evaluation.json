@@ -1,0 +1,151 @@
+{
+  "checkpoint": {
+    "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
+    "sha256": "caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754"
+  },
+  "closed_loop_distribution": {
+    "mmd_rbf": 0.017668152105062118,
+    "physical_validity": {
+      "collision_episode_rate": 0.3852569018404908,
+      "collision_pair_point_rate": 0.014679152291769344
+    },
+    "risk_variable_distribution": {
+      "drac_mps2": {
+        "available": true,
+        "ks": 0.0989866309588292,
+        "num_generated": 2623450,
+        "num_real": 2690880,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.15321956711299356,
+            "generated": 0.24296576160231437,
+            "real": 0.08974619448932082
+          },
+          "q95": {
+            "absolute_error": 0.443184158334185,
+            "generated": 0.6009028306615323,
+            "real": 0.15771867232734724
+          },
+          "q99": {
+            "absolute_error": 24.449342177096625,
+            "generated": 24.864034542169193,
+            "real": 0.4146923650725688
+          }
+        },
+        "wasserstein_1": 2.442806361118209
+      },
+      "gap_m": {
+        "available": true,
+        "ks": 0.1422182455079779,
+        "num_generated": 2623450,
+        "num_real": 2690880,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 7.724493932723092,
+            "generated": 87.83549704551699,
+            "real": 80.1110031127939
+          },
+          "q95": {
+            "absolute_error": 1.7009384155271476,
+            "generated": 114.71095123290996,
+            "real": 113.01001281738282
+          },
+          "q99": {
+            "absolute_error": 5.113686065673136,
+            "generated": 157.6236912536614,
+            "real": 152.51000518798827
+          }
+        },
+        "wasserstein_1": 5.269589437205078
+      },
+      "relative_speed_mps": {
+        "available": true,
+        "ks": 0.11030404477762168,
+        "num_generated": 2623450,
+        "num_real": 2690880,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.7828527450561529,
+            "generated": 3.1028543472290044,
+            "real": 2.3200016021728516
+          },
+          "q95": {
+            "absolute_error": 0.539165401458737,
+            "generated": 4.189166927337643,
+            "real": 3.6500015258789062
+          },
+          "q99": {
+            "absolute_error": 0.2705705642700238,
+            "generated": 6.569429588317867,
+            "real": 6.840000152587891
+          }
+        },
+        "wasserstein_1": 0.5134696245460268
+      },
+      "ttc_s": {
+        "available": true,
+        "ks": 0.09026203112540813,
+        "num_generated": 2623450,
+        "num_real": 2690880,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q95": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q99": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          }
+        },
+        "wasserstein_1": 0.6794243141885473
+      }
+    },
+    "traffic_feature_frechet_distance": 4.864771596609877
+  },
+  "flow_start_audit": {
+    "fields": [
+      "conditional_log_prob",
+      "contexts",
+      "donor_sequence_index",
+      "event_structure",
+      "event_structure_id",
+      "event_structure_log_prob",
+      "event_structure_sampling",
+      "feature_valid",
+      "features_normalized",
+      "flow_condition",
+      "log_prob",
+      "mask_pattern",
+      "num_rejected",
+      "primary_slot_index",
+      "primary_slot_name",
+      "rejection_rate",
+      "sampling_temperature",
+      "slot_mask"
+    ],
+    "log_density": "log_prob=conditional_log_prob+event_structure_log_prob",
+    "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/flow_start_audit.npz",
+    "samples": 10432,
+    "sha256": "176a71e2108742cc14019e34bb8694030f4d5698bbd2b5e2bdb8d70632491670"
+  },
+  "protocol": {
+    "b0_lifecycle": "START-only",
+    "ego_condition": "translated replay states supplied one response at a time and held within the response",
+    "flow_initial_conditions": 2608,
+    "generated_world_futures": 10432,
+    "horizon_seconds": 5.0,
+    "inner_world_samples": 4,
+    "name": "held-out EVT Flow x QR-WM composition",
+    "not_a_paired_reconstruction": true,
+    "outer_flow_samples": 8,
+    "seed": 20260729,
+    "supported_held_out_replays": 326
+  }
+}

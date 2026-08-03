@@ -299,6 +299,7 @@ class RAMPWorldModel(nn.Module):
         memory = None
         previous_plan = None
         previous_current = None
+        previous_scene = None
         pred_frames: list[torch.Tensor] = []
         all_plans = []
         all_plan_states = []
@@ -396,7 +397,7 @@ class RAMPWorldModel(nn.Module):
                 control_valid[:, :stride],
             )
             overlap = plans.new_zeros(())
-            if previous_plan is not None:
+            if previous_plan is not None and previous_scene is not None:
                 overlap_frames = min(
                     self.cfg.plan_frames - stride, self.cfg.plan_frames
                 )

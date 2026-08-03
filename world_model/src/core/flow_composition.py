@@ -11,8 +11,16 @@ import numpy as np
 from normalizing_flow.src.sampling import load_checkpoint_and_dataset, sample_tail_c0
 
 from .data import SPLIT_TO_INDEX
+from .initial_behavior_anchor import start_state_from_flow_feature
+from .long_tail_metrics import (
+    collision_metrics,
+    distribution_values,
+    empirical_distance,
+    feature_distribution_distance,
+    traffic_fields,
+)
 from .sequential_dataset import load_sequential_dataset
-from .utils import select_device
+from .utils import ensure_dir, file_sha256, save_json, select_device
 
 
 OUTER_FLOW_SAMPLES = 8
@@ -36,6 +44,60 @@ def translated_ego_replay(donor: np.ndarray, initial_ego: np.ndarray) -> np.ndar
     anchor = np.asarray(donor[HISTORY_FRAMES - 1, 0], np.float32)
     future = np.asarray(donor[HISTORY_FRAMES : HISTORY_FRAMES + ROLLOUT_FRAMES, 0], np.float32)
     return future - anchor + initial_ego
+
+
+def decode_flow_starts(starts: dict[str, np.ndarray]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Decode sampled Flow rows for models that consume NumPy scene batches."""
+    features = np.asarray(starts["features"], np.float32)
+    slot_masks = np.asarray(starts["slot_mask"], bool)
+    if features.ndim != 2 or features.shape[1] != 76 or slot_masks.shape != (len(features), 6):
+        raise ValueError("Flow starts require features [batch, 76] and slot_mask [batch, 6]")
+    states = np.zeros((len(features), 7, 6), np.float32)
+    valid = np.zeros((len(features), 7), bool)
+    anchor = np.zeros((len(features), 6, 6), np.float32)
+    anchor_valid = np.zeros((len(features), 6), bool)
+    for index, (feature, slot_mask) in enumerate(zip(features, slot_masks)):
+        states[index], valid[index], anchor[index], anchor_valid[index] = start_state_from_flow_feature(feature, slot_mask)
+    return states, valid, anchor, anchor_valid
+
+
+def write_flow_composition_report(
+    *,
+    checkpoint: Path,
+    output_dir: Path,
+    protocol: dict[str, Any],
+    generated: np.ndarray,
+    ego: np.ndarray,
+    valid: np.ndarray,
+    target: np.ndarray,
+    target_ego: np.ndarray,
+    target_valid: np.ndarray,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Write the shared distribution report for a completed Flow composition."""
+    generated_fields = traffic_fields(generated, ego, valid)
+    target_fields = traffic_fields(target, target_ego, target_valid)
+    generated_values = distribution_values(generated_fields)
+    target_values = distribution_values(target_fields)
+    report = {
+        "protocol": protocol,
+        "checkpoint": {"path": str(checkpoint), "sha256": file_sha256(checkpoint)},
+        "closed_loop_distribution": {
+            "risk_variable_distribution": {
+                key: empirical_distance(target_values[key], generated_values[key])
+                for key in ("ttc_s", "drac_mps2", "gap_m", "relative_speed_mps")
+            },
+            "physical_validity": collision_metrics(generated_fields),
+            **feature_distribution_distance(
+                generated, ego, valid, target, target_ego, target_valid, seed=FLOW_COMPOSITION_SEED
+            ),
+        },
+        **(extra or {}),
+    }
+    destination = ensure_dir(output_dir) / "flow_composition_evaluation.json"
+    save_json(report, destination)
+    print(destination)
+    return report
 
 
 def _event_groups(cache: dict[str, np.ndarray], rows: np.ndarray) -> dict[tuple[int, int], np.ndarray]:

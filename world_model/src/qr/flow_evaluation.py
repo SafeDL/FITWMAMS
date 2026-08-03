@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -14,22 +13,12 @@ from world_model.src.core.flow_composition import (
     ROLLOUT_FRAMES,
     load_flow_tail_starts,
     translated_ego_replay,
+    write_flow_composition_report,
 )
-from world_model.src.core.long_tail_metrics import (
-    collision_metrics,
-    distribution_values,
-    empirical_distance,
-    feature_distribution_distance,
-    traffic_fields,
-)
-from world_model.src.core.utils import ensure_dir, save_json, select_device
+from world_model.src.core.utils import ensure_dir, file_sha256, select_device
 
 from .train import load_qr_checkpoint
 from .environment import FlowStartMetadata, QRWorldModelEnvironment
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str, Any]:
@@ -45,6 +34,7 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
     target_valid_rows: list[np.ndarray] = []
     audit_rows: dict[str, list[np.ndarray]] = {}
     batch_size = 16
+    environment = QRWorldModelEnvironment(model, device=device)
     for start in range(0, len(donors), batch_size):
         stop = min(start + batch_size, len(donors))
         rows = donors[start:stop]
@@ -65,7 +55,6 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
             for key, value in starts.items() if key != "features"
         }
         flow_metadata["donor_sequence_index"] = np.repeat(rows, repeat)
-        environment = QRWorldModelEnvironment(model, device=device)
         generated = []
         for index in range(len(features)):
             metadata = FlowStartMetadata(
@@ -97,14 +86,14 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
         print(f"Flow x QR-WM starts {stop}/{len(donors)}", flush=True)
     generated, ego, valid = map(np.concatenate, (generated_rows, ego_rows, valid_rows))
     target, target_ego, target_valid = map(np.concatenate, (target_rows, target_ego_rows, target_valid_rows))
-    generated_fields, target_fields = traffic_fields(generated, ego, valid), traffic_fields(target, target_ego, target_valid)
-    generated_values, target_values = distribution_values(generated_fields), distribution_values(target_fields)
     destination_dir = ensure_dir(output_dir)
     audit_path = destination_dir / "flow_start_audit.npz"
     audit = {key: np.concatenate(value) for key, value in audit_rows.items()}
     np.savez_compressed(audit_path, **audit)
-    report = {
-        "protocol": {
+    return write_flow_composition_report(
+        checkpoint=checkpoint,
+        output_dir=destination_dir,
+        protocol={
             "name": "held-out EVT Flow x QR-WM composition", "outer_flow_samples": 8,
             "inner_world_samples": int(INNER_WORLD_SAMPLES), "horizon_seconds": 5.0,
             "supported_held_out_replays": int(len(np.unique(donors))), "flow_initial_conditions": int(len(donors)),
@@ -112,21 +101,16 @@ def evaluate_flow_composition(*, checkpoint: Path, output_dir: Path) -> dict[str
             "seed": FLOW_COMPOSITION_SEED, "b0_lifecycle": "START-only",
             "ego_condition": "translated replay states supplied one response at a time and held within the response",
         },
-        "checkpoint": {"path": str(checkpoint), "sha256": _sha256(checkpoint)},
-        "flow_start_audit": {
-            "path": str(audit_path), "sha256": _sha256(audit_path), "samples": int(len(audit["slot_mask"])),
-            "fields": sorted(audit), "log_density": "log_prob=conditional_log_prob+event_structure_log_prob",
-        },
-        "closed_loop_distribution": {
-            "risk_variable_distribution": {
-                key: empirical_distance(target_values[key], generated_values[key])
-                for key in ("ttc_s", "drac_mps2", "gap_m", "relative_speed_mps")
+        generated=generated,
+        ego=ego,
+        valid=valid,
+        target=target,
+        target_ego=target_ego,
+        target_valid=target_valid,
+        extra={
+            "flow_start_audit": {
+                "path": str(audit_path), "sha256": file_sha256(audit_path), "samples": int(len(audit["slot_mask"])),
+                "fields": sorted(audit), "log_density": "log_prob=conditional_log_prob+event_structure_log_prob",
             },
-            "physical_validity": collision_metrics(generated_fields),
-            **feature_distribution_distance(generated, ego, valid, target, target_ego, target_valid, seed=FLOW_COMPOSITION_SEED),
         },
-    }
-    destination = destination_dir / "flow_composition_evaluation.json"
-    save_json(report, destination)
-    print(destination)
-    return report
+    )

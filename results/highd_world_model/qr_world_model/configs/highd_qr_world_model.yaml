@@ -1,0 +1,73 @@
+paths:
+  output_dir: /home/hp/FITWMAMS/results/highd_world_model/qr_world_model
+  sequence_cache_dir: /home/hp/FITWMAMS/results/highd_world_model/training_data/semi_markov_sequence_cache
+  flow_schema: /home/hp/FITWMAMS/results/highd_tail_flow/dataset_schema.json
+dataset:
+  max_sequences: 0
+model:
+  hidden_dim: 128
+  behavior_latent_dim: 16
+  temporal_layers: 1
+  attention_layers: 2
+  num_heads: 4
+  dropout: 0.1
+  plan_frames: 25
+  execute_frames: 5
+  response_interval_s: 0.2
+  simulation_dt_s: 0.04
+  lane_width_m: 3.6
+  min_acceleration: -8.0
+  max_acceleration: 4.0
+  max_yaw_rate: 0.6
+  refinement_iterations: 2
+  buffer_carry_mix: 0.35
+  start_anchor_mix: 0.75
+  start_summary_weight: 0.1
+  start_training_fraction: 0.5
+  position_weight: 1.0
+  velocity_weight: 0.25
+  action_weight: 0.2
+  plan_position_weight: 0.25
+  plan_action_weight: 0.1
+  refinement_weight: 0.35
+  overlap_weight: 0.1
+  interaction_weight: 0.12
+  physical_weight: 0.03
+  behavior_kl_weight: 0.02
+  behavior_reconstruction_weight: 0.08
+  diversity_weight: 0.01
+training:
+  seed: 20260730
+  device: auto
+  epochs: 40
+  batch_size: 96
+  val_batch_size: 96
+  num_workers: 4
+  learning_rate: 8.0e-05
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  tbptt_response_steps: 5
+  tensorboard: true
+  tensorboard_dir: tensorboard
+  stages:
+  - name: buffer_warmup
+    epochs: 8
+    rollout_seconds: 1.0
+    learning_rate: 0.0001
+  - name: closed_loop
+    epochs: 12
+    rollout_seconds: 3.0
+    learning_rate: 5.0e-05
+  - name: full_refinement
+    epochs: 20
+    rollout_seconds: 5.0
+    learning_rate: 3.0e-05
+    batch_size: 64
+    val_batch_size: 64
+evaluation:
+  seed: 20260730
+  device: auto
+  batch_size: 96
+  num_workers: 4
+  max_sequences: 0
+  multimodal_samples: 4

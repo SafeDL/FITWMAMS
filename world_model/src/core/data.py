@@ -42,7 +42,7 @@ from .utils import (
     resolve_path,
     save_json,
 )
-from world_model.src.cat_topk.rollout import build_relation_features_from_current
+from .relation_features import build_relation_features_from_current
 
 
 logger = logging.getLogger(__name__)

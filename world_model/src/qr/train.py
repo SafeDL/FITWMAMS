@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import logging
 import math
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import torch
 
@@ -19,10 +18,10 @@ from world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device, set_seed
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
 
-from .config import QRWorldModelConfig
+from .config import ARCHITECTURE_VERSION, QRWorldModelConfig
 from .model import QueryRefineWorldModel
 
 logger = logging.getLogger(__name__)
@@ -98,7 +97,24 @@ def _mean_training_terms(
     return {key: value / max(batches, 1) for key, value in totals.items()}
 
 
-def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
+def _save_recovery_checkpoint(
+    path: Path, *, model: QueryRefineWorldModel, optimizer: torch.optim.Optimizer,
+    epoch: int, stage_index: int, next_stage_epoch: int, history: list[dict[str, Any]], best: float,
+) -> None:
+    """Atomically persist enough state to continue an interrupted full run."""
+    temporary = path.with_suffix(".tmp")
+    torch.save(
+        {
+            "model": model.checkpoint_payload(), "optimizer": optimizer.state_dict(),
+            "epoch": epoch, "stage_index": stage_index, "next_stage_epoch": next_stage_epoch,
+            "history": history, "best_validation_fde": best,
+        },
+        temporary,
+    )
+    temporary.replace(path)
+
+
+def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bool = False) -> dict[str, Any]:
     """Train QR-WM from random initialization on every cached train sequence."""
     training, paths = config.get("training", {}), config["paths"]
     output = Path(paths["output_dir"])
@@ -122,15 +138,8 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
     schema = FrozenLegacyFlowSchema.load(schema_path)
     arrays.update(ensure_frozen_flow_behavior_anchor_cache(cache_owner, arrays, manifest, schema))
     workers = int(training.get("num_workers", 0))
-    batch_size = int(training.get("batch_size", 64))
-    train_loader = make_sequence_loader(
-        arrays, "train", batch_size=batch_size, maximum=0, shuffle=True,
-        seed=int(training.get("seed", 42)), num_workers=workers,
-    )
-    val_loader = make_sequence_loader(
-        arrays, "val", batch_size=int(training.get("val_batch_size", batch_size)), maximum=0,
-        shuffle=False, seed=int(training.get("seed", 42)) + 1, num_workers=workers,
-    )
+    train_batch_size = int(training.get("batch_size", 64))
+    val_batch_size = int(training.get("val_batch_size", train_batch_size))
     model = QueryRefineWorldModel(_config(config.get("model", {}))).to(device)
     model.flow_schema_sha256 = schema.schema_sha256
     stages = training.get("stages", [
@@ -146,6 +155,22 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
             "training.epochs must equal the sum of training.stages[*].epochs "
             f"({configured_epochs} != {staged_epochs})"
         )
+
+    def stage_loaders(stage: Mapping[str, Any]):
+        """Build loaders with an optional per-stage memory-safe batch size."""
+        stage_train_batch = int(stage.get("batch_size", train_batch_size))
+        stage_val_batch = int(stage.get("val_batch_size", val_batch_size))
+        seed = int(training.get("seed", 42))
+        return (
+            make_sequence_loader(
+                arrays, "train", batch_size=stage_train_batch, maximum=0, shuffle=True,
+                seed=seed, num_workers=workers,
+            ),
+            make_sequence_loader(
+                arrays, "val", batch_size=stage_val_batch, maximum=0, shuffle=False,
+                seed=seed + 1, num_workers=workers,
+            ),
+        )
     tensorboard_writer, tensorboard_dir = _tensorboard_writer(output, training)
     if tensorboard_writer is not None:
         tensorboard_writer.add_text("run/model_type", QueryRefineWorldModel.model_type, 0)
@@ -154,8 +179,24 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
     history: list[dict[str, Any]] = []
     best = float("inf")
     best_path = checkpoint_dir / "best_qr_world_model.pt"
+    recovery_path = checkpoint_dir / "last_qr_training_state.pt"
     epoch = 0
-    for stage in stages:
+    resume_state: dict[str, Any] | None = None
+    if resume:
+        if not recovery_path.exists():
+            raise FileNotFoundError(f"QR-WM resume requested but no recovery checkpoint exists: {recovery_path}")
+        resume_state = torch.load(recovery_path, map_location=device, weights_only=False)
+        payload = dict(resume_state["model"])
+        model.load_state_dict(payload["state_dict"], strict=True)
+        model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256", schema.schema_sha256)
+        epoch, history = int(resume_state["epoch"]), list(resume_state.get("history", []))
+        best = float(resume_state.get("best_validation_fde", float("inf")))
+        logger.info("Resuming QR-WM from epoch %d with %d recorded epochs", epoch, len(history))
+    start_stage = int(resume_state.get("stage_index", 0)) if resume_state else 0
+    start_stage_epoch = int(resume_state.get("next_stage_epoch", 0)) if resume_state else 0
+    for stage_index, stage in enumerate(stages):
+        if stage_index < start_stage:
+            continue
         name, stage_epochs = str(stage["name"]), int(stage["epochs"])
         if stage_epochs <= 0:
             raise ValueError(f"stage {name!r} must contain at least one epoch")
@@ -168,7 +209,11 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
             model.cfg.response_steps,
             max(1, round(float(stage.get("rollout_seconds", 5.0)) / model.cfg.response_interval_s)),
         )
-        for stage_epoch in range(stage_epochs):
+        train_loader, val_loader = stage_loaders(stage)
+        if resume_state is not None and stage_index == start_stage and start_stage_epoch:
+            optimizer.load_state_dict(resume_state["optimizer"])
+        first_stage_epoch = start_stage_epoch if stage_index == start_stage else 0
+        for stage_epoch in range(first_stage_epoch, stage_epochs):
             epoch += 1
             model.train()
             totals: dict[str, float] = {}
@@ -231,6 +276,12 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
                     "completed_train_sequences_per_epoch": int(len(train_loader.dataset)),
                 }, output / "training_progress.json",
             )
+            next_index = stage_index + int(stage_epoch + 1 == stage_epochs)
+            _save_recovery_checkpoint(
+                recovery_path, model=model, optimizer=optimizer, epoch=epoch,
+                stage_index=next_index, next_stage_epoch=0 if next_index != stage_index else stage_epoch + 1,
+                history=history, best=best,
+            )
     if not best_path.exists():
         if tensorboard_writer is not None:
             tensorboard_writer.close()
@@ -239,7 +290,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
     with (output / "training_history.csv").open("w", newline="", encoding="utf-8") as handle:
         csv_writer = csv.DictWriter(handle, fieldnames=fields)
         csv_writer.writeheader(); csv_writer.writerows(history)
-    checkpoint_hash = hashlib.sha256(best_path.read_bytes()).hexdigest()
+    checkpoint_hash = file_sha256(best_path)
     report = {
         "model_type": model.model_type, "best_checkpoint": str(best_path),
         "best_validation_fde": best, "epochs_completed": epoch, "configured_epochs": configured_epochs,
@@ -259,6 +310,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
          "best_checkpoint": str(best_path), "completed_train_sequences_per_epoch": int(len(train_loader.dataset))},
         output / "training_progress.json",
     )
+    recovery_path.unlink(missing_ok=True)
     if tensorboard_writer is not None:
         tensorboard_writer.add_scalar("training/completed", 1, epoch)
         tensorboard_writer.close()
@@ -267,10 +319,10 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
 
 def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") -> QueryRefineWorldModel:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
-    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != 5:
+    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != ARCHITECTURE_VERSION:
         raise ValueError(f"Checkpoint is incompatible with the current QR-WM architecture: {path}. Retrain QR-WM before evaluation.")
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)
     model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256")
-    model.checkpoint_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    model.checkpoint_hash = file_sha256(path)
     return model.to(device).eval()
