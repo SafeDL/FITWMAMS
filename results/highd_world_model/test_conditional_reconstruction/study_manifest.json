@@ -1,0 +1,355 @@
+{
+  "models": {
+    "cat_topk_world_model": {
+      "checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt",
+        "sha256": "27555650390b3115b23bf2d89c57602bb99d718b6a9012ca5327bcd10c64acd0"
+      },
+      "metrics": {
+        "five_second_closed_loop": {
+          "ADE_m": 0.06252925213932406,
+          "FDE_m": 0.07341947027604863,
+          "drac_error_mps2": 1.2584301636259607,
+          "gap_mae_m": 0.05311552116339925,
+          "invalid_rate": 0.14197224975222994,
+          "num_samples": 24216,
+          "overlap_rate": 5.233259457153996e-07,
+          "ttc_error_s": 0.01231629945012677
+        },
+        "information_condition": "archived future-action summary; not information-symmetric with the other models"
+      },
+      "model": "CAT-TopK",
+      "source_report": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/evaluation_summary.json",
+        "sha256": "10007f26b417b722936704f6ddd24b90bdbf0d15e138f6a2b7dddb341363d3b8"
+      },
+      "test_sequences": 24216
+    },
+    "firm_world_model": {
+      "checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/firm_world_model/checkpoints/best_firm_world_model.pt",
+        "sha256": "0204d4772d773af8f94a3e0d00d1ea91f7c2dcb781091e481bb37552ae26f05a"
+      },
+      "metrics": {
+        "evt_tail_subset": {
+          "ADE_1s_m": 0.03707340172000039,
+          "ADE_2s_m": 0.05263169817145666,
+          "ADE_3s_m": 0.07350392423984542,
+          "ADE_4s_m": 0.11553268023074456,
+          "ADE_5s_m": 0.19774357187787625,
+          "ADE_m": 0.19774357187787625,
+          "FDE_1s_m": 0.05296903662358892,
+          "FDE_2s_m": 0.0867617514385908,
+          "FDE_3s_m": 0.15209834969112096,
+          "FDE_4s_m": 0.35440763912177725,
+          "FDE_5s_m": 0.720557771216887,
+          "FDE_m": 0.720557771216887,
+          "acceleration_mae_mps2": 0.12227968073988574,
+          "gap_mae_m": 0.1508987405916921,
+          "relative_vx_mae_mps": 0.13775254350968577,
+          "velocity_mae_mps": 0.16548231262249738
+        },
+        "five_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.030923984666957918,
+          "ADE_2s_m": 0.04579081711530049,
+          "ADE_3s_m": 0.06905821709250189,
+          "ADE_4s_m": 0.11367301769446386,
+          "ADE_5s_m": 0.19242931558648949,
+          "ADE_m": 0.19242931558648949,
+          "FDE_1s_m": 0.04376990311226425,
+          "FDE_2s_m": 0.08114984410078412,
+          "FDE_3s_m": 0.1592218419213258,
+          "FDE_4s_m": 0.3575274955201001,
+          "FDE_5s_m": 0.6950070046118231,
+          "FDE_m": 0.6950070046118231,
+          "acceleration_mae_mps2": 0.11067801524070925,
+          "gap_mae_m": 0.14795048601798824,
+          "relative_vx_mae_mps": 0.1305162580575345,
+          "velocity_mae_mps": 0.15640225256447
+        },
+        "information_condition": "logged ego is replayed during roll mode; future background is not read",
+        "one_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.030923984666957918,
+          "ADE_m": 0.030923984666957918,
+          "FDE_1s_m": 0.04376990311226425,
+          "FDE_m": 0.04376990311226425,
+          "acceleration_mae_mps2": 0.030804205015575063,
+          "gap_mae_m": 0.02698981821892062,
+          "relative_vx_mae_mps": 0.009763902155111847,
+          "velocity_mae_mps": 0.01735964086389869
+        },
+        "safety_and_interaction": {
+          "interaction_metrics": {
+            "drac_error_mps2": 1.247153669905399,
+            "gap_mae_m": 0.15223636378165634,
+            "relative_vx_mae_mps": 0.1305162580575345,
+            "risk_relaxation_rate": 0.015048338051303352,
+            "small_ttc_rate_pred": 0.08925001419814453,
+            "small_ttc_rate_target": 0.0895045723333098,
+            "ttc_error_s": 0.05731986514694093
+          },
+          "physical_diagnostics": {
+            "acceleration_out_of_range_rate": 0.0,
+            "invalid_rate": 0.00016518004625041294,
+            "jerk_out_of_range_rate": 0.0,
+            "negative_gap_rate": 1.2738522193424905e-05,
+            "num_samples": 24216,
+            "overlap_rate": 1.2738522193424905e-05,
+            "semantic_diagnostic_available": false,
+            "semantic_error_rate": 0.0,
+            "speed_out_of_range_rate": 0.0
+          }
+        }
+      },
+      "model": "FIRM-WM",
+      "source_report": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/firm_world_model/evaluation/evaluation_summary.json",
+        "sha256": "50b1e64ff798342d4398d2bf77356f0422e5cf418450cae346fe1dd4ee6f9c5d"
+      },
+      "test_sequences": 24216
+    },
+    "qr_world_model": {
+      "checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
+        "sha256": "e0e9c85c6769dfdbd1aeec53cca3091b97a724c7577fe9ce1dd3a83a4553927a"
+      },
+      "metrics": {
+        "evt_tail_subset": {
+          "ADE_m": 0.1575890045413501,
+          "FDE_m": 0.6288035541707843,
+          "test_sequences": 328
+        },
+        "five_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.030796847683139908,
+          "ADE_2s_m": 0.03805785454341973,
+          "ADE_3s_m": 0.04607634343979817,
+          "ADE_4s_m": 0.07886528608493516,
+          "ADE_5s_m": 0.14733678837896136,
+          "ADE_m": 0.14733678837896136,
+          "FDE_1s_m": 0.042273281349097816,
+          "FDE_2s_m": 0.04639913303609185,
+          "FDE_3s_m": 0.09454128021225718,
+          "FDE_4s_m": 0.27984228180194193,
+          "FDE_5s_m": 0.5960466995766205,
+          "FDE_m": 0.5960466995766205,
+          "acceleration_mae_mps2": 0.10227033228591678,
+          "velocity_mae_mps": 0.13073685252075865
+        },
+        "information_condition": "logged ego replay is used only by this reconstruction protocol",
+        "multimodal": {
+          "minADE_m": 0.13764070417962138,
+          "minFDE_m": 0.5112467580241166,
+          "samples_per_condition": 4,
+          "trajectory_diversity_pairwise_ADE_m": 0.04188390085988667
+        },
+        "safety_and_interaction": {
+          "collision_episode_rate": 4.1295011562603234e-05,
+          "drac_error_mps2": 0.8929023089865231,
+          "gap_mae_m": 0.11981376892184731,
+          "ttc_error_s": 0.02883820716957928
+        }
+      },
+      "model": "QR-WM",
+      "source_report": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/qr_world_model_evaluation_summary.json",
+        "sha256": "ca4e08bb7b381e795b5d0ca57ae9522ff031ad6ac965ba16f8b906187e082a6e"
+      },
+      "test_sequences": 24216
+    },
+    "ramp_world_model": {
+      "checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
+        "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
+      },
+      "metrics": {
+        "evt_tail_subset": {
+          "ADE_1s_m": 0.025981964020154107,
+          "ADE_2s_m": 0.031389311352137246,
+          "ADE_3s_m": 0.040492326609149754,
+          "ADE_4s_m": 0.07315154201492838,
+          "ADE_5s_m": 0.13885464432029104,
+          "ADE_m": 0.13885464432029104,
+          "FDE_1s_m": 0.03500564217484342,
+          "FDE_2s_m": 0.03910506144917059,
+          "FDE_3s_m": 0.09291551653472031,
+          "FDE_4s_m": 0.26509688361104844,
+          "FDE_5s_m": 0.5522454531556631,
+          "FDE_m": 0.5522454531556631,
+          "acceleration_mae_mps2": 0.22325805832318665,
+          "gap_mae_m": 0.11077114396220557,
+          "interaction_metrics": {
+            "drac_error_mps2": 1.362946325391681,
+            "gap_mae_m": 0.15284071538648702,
+            "relative_vx_mae_mps": 0.1426869879672976,
+            "risk_relaxation_rate": 0.0177886292291594,
+            "small_ttc_rate_pred": 0.12030389687993512,
+            "small_ttc_rate_target": 0.12121729480558283,
+            "ttc_error_s": 0.08240441507668222
+          },
+          "physical_diagnostics": {
+            "acceleration_out_of_range_rate": 0.0,
+            "invalid_rate": 0.0,
+            "jerk_out_of_range_rate": 0.0,
+            "negative_gap_rate": 0.0,
+            "num_samples": 328,
+            "overlap_rate": 0.0,
+            "semantic_diagnostic_available": false,
+            "semantic_error_rate": 0.0,
+            "speed_out_of_range_rate": 0.0
+          },
+          "relative_vx_mae_mps": 0.10569456641328577,
+          "velocity_mae_mps": 0.12467903105445156
+        },
+        "five_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.02258709465330665,
+          "ADE_2s_m": 0.028157944636564215,
+          "ADE_3s_m": 0.037471929914552796,
+          "ADE_4s_m": 0.06851929146769035,
+          "ADE_5s_m": 0.12818096820788868,
+          "ADE_m": 0.12818096820788868,
+          "FDE_1s_m": 0.03027206210562573,
+          "FDE_2s_m": 0.037441802342459134,
+          "FDE_3s_m": 0.08899974507788318,
+          "FDE_4s_m": 0.24849644330785897,
+          "FDE_5s_m": 0.5066312189046253,
+          "FDE_m": 0.5066312189046253,
+          "acceleration_mae_mps2": 0.20899673633909463,
+          "gap_mae_m": 0.10034729458200299,
+          "relative_vx_mae_mps": 0.09516027114052783,
+          "velocity_mae_mps": 0.1137089867980246
+        },
+        "information_condition": "logged ego is replayed during roll mode; future background is not read",
+        "one_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.02258709465330665,
+          "ADE_m": 0.02258709465330665,
+          "FDE_1s_m": 0.03027206210562573,
+          "FDE_m": 0.03027206210562573,
+          "acceleration_mae_mps2": 0.19073684014836403,
+          "gap_mae_m": 0.019625299864036123,
+          "relative_vx_mae_mps": 0.010806762800278308,
+          "velocity_mae_mps": 0.015674384217770555
+        },
+        "safety_and_interaction": {
+          "interaction_metrics": {
+            "drac_error_mps2": 1.1698406752789636,
+            "gap_mae_m": 0.1361843247233903,
+            "relative_vx_mae_mps": 0.12573804706274405,
+            "risk_relaxation_rate": 0.014625903720372072,
+            "small_ttc_rate_pred": 0.08925744500275735,
+            "small_ttc_rate_target": 0.0895045723333098,
+            "ttc_error_s": 0.05511030550569421
+          },
+          "physical_diagnostics": {
+            "acceleration_out_of_range_rate": 0.0,
+            "invalid_rate": 0.0001238850346878097,
+            "jerk_out_of_range_rate": 0.0,
+            "negative_gap_rate": 1.0933898216023044e-05,
+            "num_samples": 24216,
+            "overlap_rate": 1.0933898216023044e-05,
+            "semantic_diagnostic_available": false,
+            "semantic_error_rate": 0.0,
+            "speed_out_of_range_rate": 0.0
+          }
+        }
+      },
+      "model": "RAMP-WM",
+      "source_report": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/ramp_evaluation_summary.json",
+        "sha256": "09819805f6e193922e40764580e35efbcab074fa007c3905b958f0d47ba1a964"
+      },
+      "test_sequences": 24216
+    },
+    "semi_markov_world_model": {
+      "checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt",
+        "sha256": "be3e30096bfb10da95883c1727e344fcfb1490d76344873bedc164cdc139904b"
+      },
+      "metrics": {
+        "evt_tail_subset": {
+          "ADE_1s_m": 0.03598476965417353,
+          "ADE_2s_m": 0.04414450218741115,
+          "ADE_3s_m": 0.05949058868708045,
+          "ADE_4s_m": 0.11803999843177593,
+          "ADE_5s_m": 0.22664519210436618,
+          "ADE_m": 0.22664519210436618,
+          "FDE_1s_m": 0.05057337179620182,
+          "FDE_2s_m": 0.052166787593326484,
+          "FDE_3s_m": 0.1584239543326437,
+          "FDE_4s_m": 0.4500731631154034,
+          "FDE_5s_m": 0.8984346652165819,
+          "FDE_m": 0.8984346652165819,
+          "acceleration_mae_mps2": 0.14543056392037196,
+          "gap_mae_m": 0.19145335637020583,
+          "relative_vx_mae_mps": 0.17522508436497136,
+          "velocity_mae_mps": 0.1974707558209532
+        },
+        "five_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.030686900825537378,
+          "ADE_2s_m": 0.03779877784122316,
+          "ADE_3s_m": 0.05277587006807003,
+          "ADE_4s_m": 0.10730062968214321,
+          "ADE_5s_m": 0.20643214966633947,
+          "ADE_m": 0.20643214966633947,
+          "FDE_1s_m": 0.04224825885301373,
+          "FDE_2s_m": 0.04625909478608078,
+          "FDE_3s_m": 0.14672004868775768,
+          "FDE_4s_m": 0.41661689433672816,
+          "FDE_5s_m": 0.8329023856169591,
+          "FDE_m": 0.8329023856169591,
+          "acceleration_mae_mps2": 0.1294215526827667,
+          "gap_mae_m": 0.1736554183949984,
+          "relative_vx_mae_mps": 0.15831602781918797,
+          "velocity_mae_mps": 0.17899899598499558
+        },
+        "information_condition": "logged ego is replayed during roll mode; future background is not read",
+        "one_second_logged_ego_reconstruction": {
+          "ADE_1s_m": 0.030686900825537378,
+          "ADE_m": 0.030686900825537378,
+          "FDE_1s_m": 0.04224825885301373,
+          "FDE_m": 0.04224825885301373,
+          "acceleration_mae_mps2": 0.04703369957240146,
+          "gap_mae_m": 0.02688406738649584,
+          "relative_vx_mae_mps": 0.009637363865579576,
+          "velocity_mae_mps": 0.013269314405879966
+        },
+        "safety_and_interaction": {
+          "interaction_metrics": {
+            "drac_error_mps2": 1.1960035377243374,
+            "gap_mae_m": 0.1796815289196387,
+            "relative_vx_mae_mps": 0.15831602781918797,
+            "risk_relaxation_rate": 0.017296207884890186,
+            "small_ttc_rate_pred": 0.08940468108844303,
+            "small_ttc_rate_target": 0.0895045723333098,
+            "ttc_error_s": 0.0681741303870952
+          },
+          "physical_diagnostics": {
+            "acceleration_out_of_range_rate": 0.0,
+            "invalid_rate": 8.259002312520647e-05,
+            "jerk_out_of_range_rate": 0.0,
+            "negative_gap_rate": 9.978509051516175e-06,
+            "num_samples": 24216,
+            "overlap_rate": 9.978509051516175e-06,
+            "semantic_diagnostic_available": false,
+            "semantic_error_rate": 0.0,
+            "speed_out_of_range_rate": 0.0
+          }
+        }
+      },
+      "model": "Semi-Markov WM",
+      "source_report": {
+        "path": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/semi_markov_evaluation_summary.json",
+        "sha256": "554a45d67a076250b4fb4eb78fc15a28da2ff055f202972e15386417b7526b30"
+      },
+      "test_sequences": 24216
+    }
+  },
+  "protocol": {
+    "cat_topk_information_asymmetry": "CAT-TopK has an archived future-action summary and is reported as a reference, not a strictly symmetric comparison.",
+    "condition": "logged one-second history, fixed road/map inputs, and logged ego replay during each response interval",
+    "horizon_seconds": 5.0,
+    "name": "full highD held-out-test model-native conditional reconstruction",
+    "not_a_common_multisample_benchmark": "Native reports use their own validated deterministic/stochastic diagnostics. The optional 32-branch diagnostic is not used here because retaining all full-test branches is unsuitable for repeated subset-simulation evaluation.",
+    "num_sequences": 24216,
+    "purpose": "measure each world model's closed-loop background reconstruction without Flow-sampled initial-state error"
+  }
+}

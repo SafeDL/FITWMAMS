@@ -22,7 +22,6 @@ def main() -> None:
     parser.add_argument("--output-dir", default=str(ROOT / "results/highd_world_model/qr_world_model"))
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--max-sequences", type=int, default=0)
-    parser.add_argument("--flow-composition", action="store_true", help="Run the formal Flow x QR-WM distribution test.")
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -31,14 +30,6 @@ def main() -> None:
         resolve_path_keys=("sequence_cache_dir", "flow_schema"),
     )
     checkpoint = Path(args.checkpoint).resolve() if args.checkpoint else None
-    if args.flow_composition:
-        from world_model.src.qr.flow_evaluation import evaluate_flow_composition
-
-        evaluate_flow_composition(
-            checkpoint=checkpoint or (Path(config["paths"]["output_dir"]) / "checkpoints/best_qr_world_model.pt"),
-            output_dir=Path(config["paths"]["output_dir"]),
-        )
-        return
     evaluate_qr_world_model(config, config_dir=config_path.parent, checkpoint=checkpoint, max_sequences=args.max_sequences)
 
 

@@ -165,18 +165,20 @@ TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入�
 
 `evaluate_qr_world_model` 在 held-out 重建集上使用确定性和采样 behavior latent，报告轨迹误差、minADE/minFDE、多样性、collision/gap/TTC/DRAC、速度/加速度/jerk 分布 KL、精炼位置增益及 `background_future_action_overlap_l1`。
 
-`evaluate_flow_composition` 对固定 Flow tail starts 逐个 world sample 创建 `QRWorldModelEnvironment`。其 replay 协议每个 response 传入平移后的 donor ego state，并在该 response 内保持该状态；它是生成分布评测，不是任意 ADS 的重建。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据与哈希。
+`evaluate_flow_composition` 从全部 highD EVT-tail replay 中匹配固定 Flow tail starts。冻结 Flow 按 slot mask 和主风险槽位采样；在高D唯一的直道路型 cohort 内，以 Flow 初始 ego 纵向速度最近邻匹配 replay，并将其平移到 Flow 起点。每个 response 只传入已经实现的 replay ego state，并在该 response 内保持该状态；它是 Flow + QR 的生成分布评测，不是任意 ADS 的重建，也不是 paired reconstruction。
+
+一个 `QRWorldModelEnvironment` 只维护一个世界。该世界的随机变量是 START 行为 latent 的标准正态扰动：用 `WorldRandomness(seed=...)` 可重现地生成，或直接以 `behavior_standard_normal` 注入；给定它以后，后续响应没有隐式随机数。`BatchedQRWorldModelEnvironment` 一次推进 96 个 Flow 起点的 4 条独立世界（384 条），只共享张量计算；每行有独立 seed/latent，绝不共享场景状态、latent、记忆、计划或 ego。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据、速度匹配误差、world seed 与哈希。
 
 checkpoint 保存模型名 `query_refine_world_model`、架构版本 `5`、model config、state dict 和 Flow schema hash。`load_qr_checkpoint` 会拒绝所有更早架构版本并提示重训。
 
 ## 9. 当前正式产物与复现入口
 
-当前正式 QR 运行位于 `results/highd_world_model/qr_world_model/`：训练已完成 40/40 epoch，最佳 5 秒验证 FDE 为 0.5922 m，checkpoint SHA-256 为 `caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754`。
+当前正式 QR 运行位于 `results/highd_world_model/qr_world_model/`：训练已完成 40/40 epoch，最佳 5 秒验证 FDE 为 0.5922 m，checkpoint SHA-256 为 `e0e9c85c6769dfdbd1aeec53cca3091b97a724c7577fe9ce1dd3a83a4553927a`。
 
 - `training_summary.json`、`training_progress.json` 和 `training_history.csv` 记录完整训练；`current_training_curves.png` 由 `world_model/scripts/plot_qr_training_curves.py` 从 CSV 与 TensorBoard 记录重绘。
 - `qr_world_model_evaluation_summary.json` 是完整 held-out 重建评测（24,216 条测试序列）。
-- `flow_composition_evaluation.json` 与 `flow_start_audit.npz` 是 Flow × QR-WM 分布评测（2,608 个 Flow 起点、10,432 条生成未来、326 个支持的 held-out replay）。
-- `results/highd_world_model/long_tail_reproduction/qr_world_model/` 保存统一长尾条件重建的指标、六张分析图、三段事件回放和中文 `analysis_summary.md`。该研究使用 328 个 held-out EVT-tail 条件、5 秒时域和 32 条分支；CAT-TopK 在该比较中被明确标注为信息条件不对称。
+- `results/highd_world_model/long_tail_reproduction/` 专用于 Flow × QR-WM 端到端分布评测，保存 `flow_composition_evaluation.json`、`flow_start_audit.npz` 和协议清单。
+- `results/highd_world_model/test_conditional_reconstruction/` 保存不含 Flow 的全测试集模型原生条件重建汇总：它从 24,216 条 held-out highD 测试序列直接取真实 `C0+B0`、道路图和 ego replay。收集器记录每份完整测试报告与 checkpoint 的 SHA-256；CAT-TopK 仍须明确标注为信息条件不对称。单模型 32 分支诊断仅按需执行，不作为该全量汇总。
 
 常用入口如下：
 
@@ -184,7 +186,7 @@ checkpoint 保存模型名 `query_refine_world_model`、架构版本 `5`、model
 python world_model/scripts/train_qr_world_model.py
 python world_model/scripts/train_qr_world_model.py --resume
 python world_model/scripts/test_qr_world_model.py
-python world_model/scripts/test_qr_world_model.py --flow-composition
+python world_model/scripts/evaluate_qr_flow_tail_composition.py
 python world_model/scripts/plot_qr_training_curves.py
-python world_model/scripts/evaluate_long_tail_reproduction.py
+python world_model/scripts/evaluate_test_conditional_reconstruction.py --mode native
 ```

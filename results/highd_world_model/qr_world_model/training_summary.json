@@ -1,7 +1,7 @@
 {
   "best_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
   "best_validation_fde": 0.5921875355449573,
-  "checkpoint_sha256": "caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754",
+  "checkpoint_sha256": "e0e9c85c6769dfdbd1aeec53cca3091b97a724c7577fe9ce1dd3a83a4553927a",
   "complete_train_cache": true,
   "configured_epochs": 40,
   "epochs_completed": 40,

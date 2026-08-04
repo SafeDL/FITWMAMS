@@ -26,45 +26,42 @@ FIRM-WM 保留 RAMP 的连续交通记忆、25 Hz jerk 动力学、0.2 s 滚动�
 
 ## 3. 正式评价协议
 
-标准测试只报告各模型自身的 full held-out highD 重建。正式长尾评测由
-`evaluate_long_tail_reproduction.py` 在同一 EVT-tail 条件下同时运行 RAMP、FIRM、Semi-Markov 和
-CAT-TopK：每个条件有一条确定性路径与 32 条随机闭环未来。外部 ego 不计入背景车 ADE/FDE。
+标准测试报告各模型自身的完整 held-out highD 条件重建。RAMP、FIRM、Semi-Markov 与 QR 在每个响应段只回放已实现的
+logged ego，不读取未来背景；完整报告由五个 `test_*_world_model.py` 入口生成，再由
+`evaluate_test_conditional_reconstruction.py --mode native` 以源报告和 checkpoint SHA-256 汇总。CAT-TopK 使用归档未来动作摘要，
+因此只保留为信息条件不对称的参考。
 
-评测分为四层：轨迹 ADE/FDE/minADE/minFDE；加速度、jerk、曲率和速度 KL；全车辆对碰撞、
-TTC/DRAC/gap/相对速度和制动响应；以及 Wasserstein、KS、RBF-MMD 与交通行为特征 Fréchet 距离。
-highD 直路数据没有可靠让行/交叉口语义，因此社会行为结论仅限可测的跟驰、制动响应和安全间距。
+全测试集汇总保留五秒 ADE/FDE、gap、TTC 与 DRAC 等模型原生指标。单模型的 32 分支脚本只用于深入诊断，
+不作为重复子集模拟的全量标准评测。highD 直路数据没有可靠让行/交叉口语义，因此社会行为结论仅限可测的跟驰、制动响应和安全间距。
 
-RAMP/FIRM 的 Flow 组合通过各自 `test_* --flow-composition` 执行固定 8×4 测试。这是生成分布审核，
-不是 paired reconstruction，不能报告或推断 donor ADE/FDE。
+Flow × QR 组合另存于 `results/highd_world_model/long_tail_reproduction/`：它从全部 EVT-tail 样本的事件结构中采样
+Flow START，再在匹配、平移后的 ego replay 下生成背景交通分布。这是生成分布审核，不是 paired reconstruction，
+不能报告或推断 donor ADE/FDE。
 
 ## 4. 正式结果工件与实现纪律
 
-每个模型只保留 checkpoint、训练记录、标准测试和一个最终 Flow 组合 JSON。长尾正式结果位于：
+每个模型保留 checkpoint、训练记录和标准测试；完整测试集汇总位于：
 
-    results/highd_world_model/long_tail_reproduction/
+    results/highd_world_model/test_conditional_reconstruction/
 
-其中每个模型都有独立子目录，包含 `metrics.json`、六张静态图和三段固定真实事件 GIF；根目录保留协议、
-checkpoint 哈希、固定场景和四模型总览。旧论文图、独立 compare 脚本和中间评测不保留。
+根目录的 `study_manifest.json` 固定五份源报告及 checkpoint 哈希，
+`overview/test_conditional_reconstruction_summary.json` 给出可追溯的五秒指标索引。Flow × QR 的全 EVT-tail 产物只保留在
+`results/highd_world_model/long_tail_reproduction/`。
 
 - 配置、脚本与结果目录统一使用完整的 `snake_case` 名称。
 - 不保留废弃 wrapper、旧模型分支或未使用字段；共享组件放在 `world_model/src/core/`。
 - CAT-TopK 必须标注 START 使用归档未来动作摘要；不能作为同信息提升结论。
-- FIRM 是否能超过 RAMP、是否能构成物理有效长尾环境，只能依据新的正式长尾与 Flow 结果判断，不延用已删除图表的结论。
+- FIRM 是否能超过 RAMP、是否能构成物理有效长尾环境，只能依据 hash 固定的完整测试与 Flow 结果判断，不延用已删除图表的结论。
 
-## 5. 当前正式运行结论（2026-07-29）
+## 5. 当前已验证结论（2026-08-04）
 
-已使用四个最终 checkpoint 完成标准 held-out 测试和固定种子 `20260729` 的 EVT-tail 长尾重建：328 个条件，
-每个条件一条确定性未来及 32 条随机未来。正式文件为
-`results/highd_world_model/long_tail_reproduction/<model>/metrics.json`，其中 checkpoint SHA-256、事件清单和
-协议由根目录 `study_manifest.json` 固定。
+五个 checkpoint 的完整 held-out 测试均为 24,216 条序列。信息对称的五秒条件重建中，RAMP 的
+ADE/FDE 为 **0.1282/0.5066 m**，QR 为 **0.1473/0.5960 m**，FIRM 为 **0.1924/0.6950 m**，
+Semi-Markov 为 **0.2064/0.8329 m**。所以按当前轨迹重建指标，RAMP 优于 FIRM；不能沿用“FIRM 最优”的旧结论。
 
-在同一条件下，FIRM-WM 的确定性 FDE 为 **0.710 m**，`minFDE@32` 为 **0.473 m**，优于 RAMP-WM 的
-0.752 m / 0.746 m 和 Semi-Markov 的 0.928 m / 0.881 m；因此 FIRM 是当前 RAMP 内部状态转移改进中最好的
-轨迹重建版本。Semi-Markov 的交通行为特征 Fréchet 距离为 **0.720**，低于 FIRM 的 4.159 与 RAMP 的 15.145，
-但这不能抵消其较差的逐轨迹重建。CAT-TopK 的结果保留为参考，不参与同信息优劣判断，因为其 START 使用归档
-未来动作摘要。
+QR 的交互误差最好：DRAC **0.8929 m/s²**、TTC **0.02884 s**、gap **0.1198 m**，低于 RAMP 的
+1.1698 m/s²、0.05511 s、0.1362 m。CAT-TopK 的 FDE 为 0.0734 m，但因其未来动作摘要信息不能进入上述同信息排序。
 
-目前不能把任一模型表述为已完成的长尾闭环测试环境：在独立的 Flow 8×4 组合审核中，RAMP/FIRM 的碰撞
-episode rate 分别为 **0.348**/**0.374**。这说明初始 Flow 条件与世界模型状态转移之间仍缺少足够的安全和分布
-校准；后续改进应直接降低该分布级碰撞率并改善 DRAC 高分位，而不是增加历史/地图初始化模块或使用 donor
-轨迹重建指标掩盖该问题。
+全部 2,209 条 EVT-tail 中有 1,761 条具有冻结 Flow 的事件结构支持；8 个 Flow START 和 4 条 QR 世界未来
+共产生 70,400 条五秒合成未来。每条未来的 START 行为 latent 由独立、可审计的 `world_seed` 控制。Flow × QR 的交通特征 Fréchet 距离为 **4.0773**、RBF-MMD 为 **0.01567**，
+碰撞 episode rate 为 **11.19%**。这仍说明组合的长尾安全与交互分布需要进一步校准，不能以单条 replay 重建误差代替该分布级审核。

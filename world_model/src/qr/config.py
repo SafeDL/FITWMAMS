@@ -5,9 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-ARCHITECTURE_VERSION = 5
-
-
 @dataclass(frozen=True)
 class QRWorldModelConfig:
     """Architecture and objective settings for QR-WM.

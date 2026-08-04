@@ -1,79 +1,32 @@
 {
-  "checkpoints": {
-    "cat_topk_world_model": {
-      "path": "/home/hp/FITWMAMS/results/highd_world_model/cat_topk_world_model/checkpoints/best_world_model.pt",
-      "sha256": "27555650390b3115b23bf2d89c57602bb99d718b6a9012ca5327bcd10c64acd0"
-    },
-    "firm_world_model": {
-      "path": "/home/hp/FITWMAMS/results/highd_world_model/firm_world_model/checkpoints/best_firm_world_model.pt",
-      "sha256": "0204d4772d773af8f94a3e0d00d1ea91f7c2dcb781091e481bb37552ae26f05a"
-    },
-    "qr_world_model": {
-      "path": "/home/hp/FITWMAMS/results/highd_world_model/qr_world_model/checkpoints/best_qr_world_model.pt",
-      "sha256": "caee850ff455a8f41cc196ac6c7f6979b86ff5f57566ad1f3f92f21db02be754"
-    },
-    "ramp_world_model": {
-      "path": "/home/hp/FITWMAMS/results/highd_world_model/ramp_world_model/checkpoints/best_ramp_world_model.pt",
-      "sha256": "2921f131118781bc6ec87a2d951dbcc39e008ddca4cf94383a2be6cf8e25fae1"
-    },
-    "semi_markov_world_model": {
-      "path": "/home/hp/FITWMAMS/results/highd_world_model/semi_markov_world_model/checkpoints/best_semi_markov_relational.pt",
-      "sha256": "be3e30096bfb10da95883c1727e344fcfb1490d76344873bedc164cdc139904b"
-    }
+  "artifacts": {
+    "evaluation": "flow_composition_evaluation.json",
+    "figures": [
+      "figures/01_tail_interaction_distribution.png",
+      "figures/02_flow_sampling_and_runtime.png"
+    ],
+    "start_audit": "flow_start_audit.npz"
   },
-  "event_counts": {
-    "close_interaction": 73,
-    "hard_braking": 17,
-    "high_risk_following": 6,
-    "high_speed_approach": 25,
-    "strong_relative_speed_change": 65
-  },
+  "comparison_target": "Compare interaction-feature distributions between all highD EVT-tail futures and Flow × QR-WM synthetic futures; this is not a paired trajectory reconstruction.",
   "protocol": {
-    "cat_topk_information_asymmetric": true,
-    "cat_topk_start_condition": "archived future-action summary",
-    "fixed_conditions": [
-      "logged one-second traffic history",
-      "frozen B0",
-      "road graph",
-      "observed ego replay"
-    ],
+    "b0_lifecycle": "START-only",
+    "ego_condition": "translated replay states supplied one response at a time and held within the response",
+    "flow_initial_conditions": 17600,
+    "generated_world_futures": 70400,
     "horizon_seconds": 5.0,
-    "name": "held-out highD EVT-tail conditional closed-loop reconstruction",
-    "num_sequences": 328,
-    "num_stochastic_futures": 32,
-    "qr_start_condition": "Flow-aligned B0 sidecar; current/history-only ego observations during rollout",
-    "seed": 20260729,
-    "simulation_dt_s": 0.04
-  },
-  "sequence_cache": {
-    "adapter": "highd_straight_lane_v1",
-    "arrays": [
-      "sequence_id",
-      "agent_states",
-      "agent_valid",
-      "ego_index",
-      "map_polylines",
-      "map_polyline_valid",
-      "lane_graph_edges",
-      "actions_highd",
-      "split_index",
-      "is_evt_tail"
-    ],
-    "bounded_development_cache": false,
-    "cache_version": "semi_markov_sequence_v4_compact_continuous_coordinates",
-    "evt_tail_sequences": 2209,
-    "fps": 25.0,
-    "frames": 150,
-    "future_frames": 125,
-    "history_frames": 25,
-    "num_sequences": 161314,
-    "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache",
-    "split_summary": {
-      "test": 24216,
-      "train": 112943,
-      "val": 24155
+    "inner_world_samples": 4,
+    "name": "all-highD EVT-tail Flow x QR-WM composition",
+    "not_a_paired_reconstruction": true,
+    "outer_flow_samples": 8,
+    "reference_scope": "all highD EVT-tail sequences",
+    "replay_matching": {
+      "event_structure": "exact Flow slot mask and primary risk slot",
+      "initial_ego_speed": "nearest EVT-tail replay longitudinal speed within the event structure",
+      "road_type": "single highD straight-lane cache cohort"
     },
-    "top_r_lanes": 3,
-    "uses_recording_lane_metadata": true
-  }
+    "seed": 20260729,
+    "supported_evt_tail_replays": 1761,
+    "world_randomness": "each inner QR world receives an auditable derived world_seed that controls only its START behavior-standard-normal latent"
+  },
+  "study": "all-highD EVT-tail Flow × QR-WM end-to-end composition"
 }

@@ -111,21 +111,57 @@ def _event_groups(cache: dict[str, np.ndarray], rows: np.ndarray) -> dict[tuple[
     return {key: np.asarray(value, np.int64) for key, value in groups.items()}
 
 
+def _match_reference_replays(
+    cache: dict[str, np.ndarray],
+    candidates: np.ndarray,
+    sampled_features: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Match sampled Flow starts to a compatible reference ego replay.
+
+    The frozen Flow controls the discrete event structure (slot mask and
+    primary risk slot).  Within that exact structure, the only continuous
+    replay-side condition available in the sequential cache is the ego
+    longitudinal speed at the history anchor.  Use deterministic nearest
+    neighbour matching for it, rather than retaining the arbitrary source row
+    that happened to request a Flow draw.
+    """
+
+    candidates = np.asarray(candidates, np.int64)
+    sampled_speed = np.asarray(sampled_features, np.float32)[:, 0]
+    replay_speed = np.asarray(
+        cache["agent_states"][candidates, HISTORY_FRAMES - 1, 0, 2], np.float32
+    )
+    distances = np.abs(sampled_speed[:, None] - replay_speed[None, :])
+    nearest = np.argmin(distances, axis=1)
+    donors = candidates[nearest]
+    return donors, replay_speed[nearest], distances[np.arange(len(nearest)), nearest].astype(np.float32)
+
+
 def load_flow_tail_starts(
-    repo_root: Path, *, device=None
+    repo_root: Path, *, device=None, replay_scope: str = "held_out_test"
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], np.ndarray]:
-    """Load frozen Flow and draw eight valid C0/B0 starts per supported tail replay."""
+    """Draw Flow C0/B0 starts and match compatible reference ego replays.
+
+    Matching is exact for Flow's event structure (slot mask and primary risk
+    slot), uses the single highD straight-lane road cohort, and minimizes the
+    initial longitudinal ego-speed mismatch within that cohort.
+    """
     device = select_device("auto") if device is None else device
     flow_checkpoint = repo_root / "results/highd_tail_flow/checkpoints/best_tail_conditional_maf.pt"
     flow, flow_arrays, flow_schema, _ = load_checkpoint_and_dataset(
         flow_checkpoint, repo_root / "results/highd_tail_flow", repo_root=repo_root, device=device
     )
     cache, _ = load_sequential_dataset(repo_root / "results/highd_world_model/training_data/semi_markov_sequence_cache")
-    heldout = np.flatnonzero(
-        (np.asarray(cache["split_index"]) == SPLIT_TO_INDEX["test"])
-        & np.asarray(cache["is_evt_tail"], bool)
-    )
-    groups = _event_groups(cache, heldout)
+    if replay_scope == "held_out_test":
+        reference_rows = np.flatnonzero(
+            (np.asarray(cache["split_index"]) == SPLIT_TO_INDEX["test"])
+            & np.asarray(cache["is_evt_tail"], bool)
+        )
+    elif replay_scope == "all_evt_tail":
+        reference_rows = np.flatnonzero(np.asarray(cache["is_evt_tail"], bool))
+    else:
+        raise ValueError("replay_scope must be 'held_out_test' or 'all_evt_tail'")
+    groups = _event_groups(cache, reference_rows)
     trained = np.flatnonzero(np.asarray(flow_arrays["split_index"]) == SPLIT_TO_INDEX["train"])
     supported = {(int(flow_arrays["mask_pattern"][row]), int(flow_arrays["primary_slot_index"][row])) for row in trained}
     pieces: dict[str, list[np.ndarray]] = defaultdict(list)
@@ -142,8 +178,14 @@ def load_flow_tail_starts(
         )
         for name, value in sampled.items():
             pieces[name].append(np.asarray(value))
-        donors.append(np.repeat(rows, OUTER_FLOW_SAMPLES))
+        matched_rows, matched_speed, speed_error = _match_reference_replays(
+            cache, rows, np.asarray(sampled["features"], np.float32)
+        )
+        donors.append(matched_rows)
+        pieces["matched_replay_ego_vx_mps"].append(matched_speed)
+        pieces["matched_replay_ego_vx_abs_error_mps"].append(speed_error)
+        pieces["road_type"].append(np.full(len(matched_rows), "highd_straight_lane"))
     if not donors:
-        raise RuntimeError("no held-out EVT replay structure is supported by the frozen Flow")
+        raise RuntimeError("no reference EVT-tail replay structure is supported by the frozen Flow")
     starts = {name: np.concatenate(parts) for name, parts in pieces.items()}
     return starts, cache, np.concatenate(donors)

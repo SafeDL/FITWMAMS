@@ -16,7 +16,7 @@ from world_model.src.core.initial_behavior_anchor import (
     summarize_first_second_states,
 )
 
-from .config import ARCHITECTURE_VERSION, QRWorldModelConfig
+from .config import QRWorldModelConfig
 from .encoder import QueryRelationalSceneEncoder
 from .joint_refiner import JointAgentTimeRefiner
 from .memory import PersistentSceneMemory
@@ -167,6 +167,7 @@ class QueryRefineWorldModel(nn.Module):
         *,
         deterministic: bool,
         use_posterior: bool,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Initialize B0-derived actions, memory, and behavior once per rollout."""
         anchor_actions, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
@@ -174,6 +175,7 @@ class QueryRefineWorldModel(nn.Module):
         behavior, terms = self._behavior_latent(
             batch, agents, scene, memory, current, current_valid, start_seed,
             deterministic=deterministic, use_posterior=use_posterior,
+            behavior_standard_normal=behavior_standard_normal,
         )
         return anchor_actions, memory, behavior, terms
 
@@ -189,6 +191,7 @@ class QueryRefineWorldModel(nn.Module):
         anchor_valid: torch.Tensor,
         *,
         deterministic: bool = True,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Initialize the shared START state once from C0, B0, and map."""
         agents, scene, _, _ = self.encoder.encode_start(
@@ -197,6 +200,7 @@ class QueryRefineWorldModel(nn.Module):
         anchor_actions, memory, behavior, _ = self._initialize_episode_state(
             {}, agents, scene, current, current_valid, raw_anchor, anchor_valid,
             deterministic=deterministic, use_posterior=False,
+            behavior_standard_normal=behavior_standard_normal,
         )
         if anchor_actions is None:
             raise ValueError("START initialization requires B0 actions")
@@ -359,6 +363,7 @@ class QueryRefineWorldModel(nn.Module):
         *,
         deterministic: bool,
         use_posterior: bool,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         prior_mean, prior_log = self.behavior.prior_parameters(agents, scene, memory, start_seed)
         terms = {name: current.new_zeros(()) for name in ("behavior_kl", "behavior_reconstruction", "diversity_floor")}
@@ -381,7 +386,19 @@ class QueryRefineWorldModel(nn.Module):
                 (self.behavior.reconstruction(posterior_mean) - future_feature).abs().mean(dim=-1), background
             )
         terms["diversity_floor"] = functional.relu(0.12 - torch.exp(log_scale).mean())
-        sample = mean if deterministic else mean + torch.randn_like(mean) * torch.exp(log_scale)
+        if deterministic:
+            if behavior_standard_normal is not None:
+                raise ValueError("deterministic QR rollout must not receive behavior_standard_normal")
+            sample = mean
+        elif behavior_standard_normal is None:
+            sample = mean + torch.randn_like(mean) * torch.exp(log_scale)
+        else:
+            if behavior_standard_normal.shape != mean.shape:
+                raise ValueError(
+                    "behavior_standard_normal must have shape "
+                    "[batch, agents, behavior_latent_dim]"
+                )
+            sample = mean + behavior_standard_normal.to(device=mean.device, dtype=mean.dtype) * torch.exp(log_scale)
         return sample * current_valid[..., None].float(), terms
 
     def _rollout(
@@ -393,6 +410,7 @@ class QueryRefineWorldModel(nn.Module):
         use_posterior: bool = False,
         tbptt_steps: int = 0,
         start_mode: bool,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         """Logged-state rollout; planning sees only ego state observed so far."""
         states, valid = batch["agent_states"], batch["agent_valid"]
@@ -419,6 +437,7 @@ class QueryRefineWorldModel(nn.Module):
             batch, initial_agents, initial_scene, current, current_valid,
             batch.get("behavior_anchor_raw"), batch.get("behavior_anchor_valid"),
             deterministic=deterministic, use_posterior=use_posterior,
+            behavior_standard_normal=behavior_standard_normal,
         )
         predicted_frames: list[torch.Tensor] = []
         plans: list[torch.Tensor] = []
@@ -512,11 +531,13 @@ class QueryRefineWorldModel(nn.Module):
         use_posterior: bool = False,
         tbptt_steps: int = 0,
         start_mode: bool = False,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         """Logged-state reconstruction; future ego states never enter planning."""
         return self._rollout(
             batch, response_steps=response_steps, deterministic=deterministic, use_posterior=use_posterior,
             tbptt_steps=tbptt_steps, start_mode=start_mode,
+            behavior_standard_normal=behavior_standard_normal,
         )
 
     def _objective(self, rollout: dict[str, Any]) -> dict[str, torch.Tensor]:
@@ -581,7 +602,6 @@ class QueryRefineWorldModel(nn.Module):
     def checkpoint_payload(self) -> dict[str, Any]:
         return {
             "model_type": self.model_type, "model_config": asdict(self.cfg), "state_dict": self.state_dict(),
-            "architecture_version": ARCHITECTURE_VERSION,
             "flow_interface": {
                 "input_dim": 76, "layout": "ego[vx,vy,ax,ay]+background_relative[6,6]+B0[6,6]",
                 "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes latent, scene memory, and first background future-action sequence",

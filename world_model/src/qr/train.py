@@ -21,7 +21,7 @@ from world_model.src.core.sequential_dataset import (
 from world_model.src.core.utils import ensure_dir, file_sha256, save_json, select_device, set_seed
 from world_model.src.core.batching import make_sequence_loader, to_device_batch
 
-from .config import ARCHITECTURE_VERSION, QRWorldModelConfig
+from .config import QRWorldModelConfig
 from .model import QueryRefineWorldModel
 
 logger = logging.getLogger(__name__)
@@ -319,8 +319,10 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
 
 def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") -> QueryRefineWorldModel:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
-    if payload.get("model_type") != QueryRefineWorldModel.model_type or int(payload.get("architecture_version", 0)) != ARCHITECTURE_VERSION:
-        raise ValueError(f"Checkpoint is incompatible with the current QR-WM architecture: {path}. Retrain QR-WM before evaluation.")
+    if payload.get("model_type") != QueryRefineWorldModel.model_type:
+        raise ValueError(f"Checkpoint model_type is incompatible with QR-WM: {path}.")
+    if not isinstance(payload.get("model_config"), dict) or not isinstance(payload.get("state_dict"), dict):
+        raise ValueError(f"Checkpoint is missing QR-WM model_config or state_dict: {path}.")
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)
     model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256")

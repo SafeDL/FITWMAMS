@@ -36,6 +36,7 @@ model:
 training:
   seed: 42
   device: auto
+  epochs: 40
   batch_size: 128
   val_batch_size: 128
   num_workers: 0
@@ -44,22 +45,19 @@ training:
   grad_clip: 1.0
   tbptt_response_steps: 25
   tail_fraction: 0.1
-  early_stopping_patience: 5
-  minimum_full_horizon_epochs: 8
-  min_delta: 0.0001
   stages:
   - name: start_prefix
-    epochs: 12
+    epochs: 8
     rollout_seconds: 1.0
     learning_rate: 0.0001
   - name: closed_loop
-    epochs: 16
+    epochs: 12
     rollout_curriculum_seconds:
     - 1.0
     - 3.0
     learning_rate: 5.0e-05
   - name: five_second
-    epochs: 32
+    epochs: 20
     rollout_seconds: 5.0
     learning_rate: 3.0e-05
 evaluation:

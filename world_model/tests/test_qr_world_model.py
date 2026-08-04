@@ -9,7 +9,12 @@ import torch
 from normalizing_flow.src.features import slot_feature_index
 from world_model.src.core.initial_behavior_anchor import start_state_from_flow_feature, start_state_from_flow_tensor
 from world_model.src.qr.config import QRWorldModelConfig
-from world_model.src.qr.environment import FlowStartMetadata, QRWorldModelEnvironment
+from world_model.src.qr.environment import (
+    BatchedQRWorldModelEnvironment,
+    FlowStartMetadata,
+    QRWorldModelEnvironment,
+    WorldRandomness,
+)
 from world_model.src.qr.model import QueryRefineWorldModel
 from world_model.src.qr.train import _tensorboard_writer, _write_tensorboard_epoch, load_qr_checkpoint
 
@@ -184,6 +189,26 @@ def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
     assert torch.equal(reference["predicted_states"][:, :5, 1:], candidate["predicted_states"][:, :5, 1:])
 
 
+def test_qr_explicit_behavior_latent_noise_controls_stochastic_reconstruction() -> None:
+    model, batch = _model().eval(), _batch()
+    noise = torch.linspace(-1.0, 1.0, 2 * 7 * model.cfg.behavior_latent_dim).reshape(
+        2, 7, model.cfg.behavior_latent_dim
+    )
+    torch.manual_seed(11)
+    first = model.rollout_reconstruction(
+        batch, response_steps=2, deterministic=False, behavior_standard_normal=noise
+    )
+    torch.manual_seed(99_999)
+    repeated = model.rollout_reconstruction(
+        batch, response_steps=2, deterministic=False, behavior_standard_normal=noise
+    )
+    assert torch.equal(first["predicted_states"], repeated["predicted_states"])
+    changed = model.rollout_reconstruction(
+        batch, response_steps=2, deterministic=False, behavior_standard_normal=-noise
+    )
+    assert not torch.equal(first["predicted_states"], changed["predicted_states"])
+
+
 def test_observed_ego_token_and_online_environment() -> None:
     model, batch = _model().eval(), _batch()
     refiner, h, z = model.joint_refiner, model.cfg.hidden_dim, model.cfg.behavior_latent_dim
@@ -237,6 +262,73 @@ def test_flow_start_has_no_synthetic_history_and_keeps_metadata() -> None:
     assert observation["flow_metadata"]["log_prob"] == -1.5
 
 
+def test_batched_flow_environment_matches_independent_deterministic_environments() -> None:
+    model, batch = _model().eval(), _batch()
+    features = torch.zeros(2, 76); features[:, 0] = torch.tensor((20.0, 22.0))
+    slots = torch.ones(2, 6, dtype=torch.bool)
+    batched = BatchedQRWorldModelEnvironment(model)
+    batched.reset_from_flow_batch(
+        features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
+        deterministic=True,
+    )
+    ego = torch.tensor(((0.0, 0.0, 20.0, 0.0, 0.0, 0.0), (0.0, 0.0, 22.0, 0.0, 0.0, 0.0)))
+    actual = batched.step(ego)
+    expected = []
+    for index in range(2):
+        metadata = FlowStartMetadata(
+            slot_valid=slots[index].numpy(), map_polylines=batch["map_polylines"][index].numpy(),
+            map_polyline_valid=batch["map_polyline_valid"][index].numpy(), lane_graph_edges=batch["lane_graph_edges"][index].numpy(),
+            primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+            event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+        )
+        environment = QRWorldModelEnvironment(model)
+        environment.reset_from_flow(features[index, :40], features[index, 40:].reshape(6, 6), metadata, deterministic=True)
+        expected.append(torch.from_numpy(environment.step(ego[index])["background_states"]))
+    assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
+
+
+def test_stochastic_world_seed_is_replayable_and_batch_rows_remain_independent() -> None:
+    model, batch = _model().eval(), _batch()
+    features = torch.zeros(2, 76)
+    features[:, 0] = torch.tensor((20.0, 22.0))
+    slots = torch.ones(2, 6, dtype=torch.bool)
+    ego = torch.tensor(((0.0, 0.0, 20.0, 0.0, 0.0, 0.0), (0.0, 0.0, 22.0, 0.0, 0.0, 0.0)))
+    controls = (WorldRandomness(seed=1001), WorldRandomness(seed=1002))
+    batched = BatchedQRWorldModelEnvironment(model)
+    batched.reset_from_flow_batch(
+        features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
+        deterministic=False, world_randomness=controls,
+    )
+    actual = batched.step(ego)
+    assert [row["seed"] for row in batched.world_randomness_audit] == [1001, 1002]
+    expected = []
+    for index, control in enumerate(controls):
+        metadata = FlowStartMetadata(
+            slot_valid=slots[index].numpy(), map_polylines=batch["map_polylines"][index].numpy(),
+            map_polyline_valid=batch["map_polyline_valid"][index].numpy(), lane_graph_edges=batch["lane_graph_edges"][index].numpy(),
+            primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+            event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+        )
+        environment = QRWorldModelEnvironment(model)
+        torch.manual_seed(77 + index)  # Explicit world seeds must ignore global RNG state.
+        observation = environment.reset_from_flow(
+            features[index, :40], features[index, 40:].reshape(6, 6), metadata,
+            deterministic=False, world_randomness=control,
+        )
+        assert observation["world_randomness"]["seed"] == control.seed
+        expected.append(torch.from_numpy(environment.step(ego[index])["background_states"]))
+    assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
+    try:
+        QRWorldModelEnvironment(model).reset_from_flow(
+            features[0, :40], features[0, 40:].reshape(6, 6), metadata,
+            deterministic=False,
+        )
+    except ValueError as exc:
+        assert "explicit WorldRandomness" in str(exc)
+    else:
+        raise AssertionError("stochastic QR environments must reject implicit global RNG")
+
+
 def test_flow_metadata_requires_a_matching_slot_mask() -> None:
     metadata = FlowStartMetadata(
         slot_valid=torch.tensor([True, False, False, False, False, False]).numpy(),
@@ -275,13 +367,13 @@ def test_qr_flow_adapter_restores_absolute_background_velocity_numerically() -> 
     assert torch.equal(qr_scene, scene)
 
 
-def test_incompatible_checkpoint_is_rejected_with_retrain_message(tmp_path) -> None:
+def test_incompatible_checkpoint_model_type_is_rejected(tmp_path) -> None:
     checkpoint = tmp_path / "obsolete.pt"
-    torch.save({"model_type": QueryRefineWorldModel.model_type, "architecture_version": 4}, checkpoint)
+    torch.save({"model_type": "obsolete_qr_world_model"}, checkpoint)
     try:
         load_qr_checkpoint(checkpoint)
     except ValueError as exc:
-        assert "Retrain QR-WM" in str(exc)
+        assert "model_type" in str(exc)
     else:
         raise AssertionError("incompatible checkpoint must not load into QR-WM")
 
