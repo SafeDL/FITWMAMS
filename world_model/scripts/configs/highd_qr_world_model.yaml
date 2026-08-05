@@ -1,10 +1,14 @@
 # Formal full-data QR-WM configuration.  This is independent of RAMP/FIRM.
 paths:
   output_dir: "../../../results/highd_world_model/qr_world_model"
-  sequence_cache_dir: "../../../results/highd_world_model/training_data/semi_markov_sequence_cache"
+  # QR owns this cache and retains all 150 observed highD states.
+  sequence_cache_dir: "../../../results/highd_world_model/training_data/qr_sequence_cache"
+  source_dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
+  highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
   flow_schema: "../../../results/highd_tail_flow/dataset_schema.json"
 
 dataset:
+  sequence_protocol: "start_roll_5p96"
   # Formal training is intentionally over every immutable highD train sequence.
   max_sequences: 0
 
@@ -17,6 +21,8 @@ model:
   dropout: 0.10
   plan_frames: 25
   execute_frames: 5
+  rollout_frames: 149
+  start_reconstruction_frames: 25
   response_interval_s: 0.20
   simulation_dt_s: 0.04
   lane_width_m: 3.6
@@ -60,9 +66,10 @@ training:
   stages:
     - {name: buffer_warmup, epochs: 8, rollout_seconds: 1.0, learning_rate: 0.00010}
     - {name: closed_loop, epochs: 12, rollout_seconds: 3.0, learning_rate: 0.00005}
-    # Five-second unrolling retains substantially more activations than the
-    # preceding stages; this remains below the measured 24 GB memory limit.
-    - {name: full_refinement, epochs: 20, rollout_seconds: 5.0, learning_rate: 0.00003, batch_size: 64, val_batch_size: 64}
+    # Complete protocol: 1.00 s Flow-conditioned START reconstruction plus
+    # 4.96 s B0-free ROLL.  The last 5 Hz response has four physical ticks,
+    # matching the 150 recorded highD state points without fabricating S150.
+    - {name: full_refinement, epochs: 20, rollout_seconds: 5.96, learning_rate: 0.00003, batch_size: 64, val_batch_size: 64}
 
 evaluation:
   seed: 20260730

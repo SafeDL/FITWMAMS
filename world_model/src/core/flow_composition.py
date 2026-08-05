@@ -16,7 +16,9 @@ from .long_tail_metrics import (
     collision_metrics,
     distribution_values,
     empirical_distance,
+    event_masks,
     feature_distribution_distance,
+    speed_kl_divergence,
     traffic_fields,
 )
 from .sequential_dataset import load_sequential_dataset
@@ -40,9 +42,27 @@ def repeat_batch(batch: dict[str, Any], copies: int) -> dict[str, Any]:
     return {key: value.repeat_interleave(int(copies), dim=0) for key, value in batch.items()}
 
 
-def translated_ego_replay(donor: np.ndarray, initial_ego: np.ndarray) -> np.ndarray:
+def translated_ego_replay(
+    donor: np.ndarray,
+    initial_ego: np.ndarray,
+    *,
+    rollout_frames: int = ROLLOUT_FRAMES,
+) -> np.ndarray:
+    """Translate a logged ego replay to a sampled Flow C0 origin.
+
+    ``rollout_frames`` is explicit because QR consumes every available highD
+    transition (149), whereas older model families retain their 125-frame
+    protocol.
+    """
+    frames = int(rollout_frames)
+    if frames < 1:
+        raise ValueError("rollout_frames must be positive")
     anchor = np.asarray(donor[HISTORY_FRAMES - 1, 0], np.float32)
-    future = np.asarray(donor[HISTORY_FRAMES : HISTORY_FRAMES + ROLLOUT_FRAMES, 0], np.float32)
+    future = np.asarray(donor[HISTORY_FRAMES : HISTORY_FRAMES + frames, 0], np.float32)
+    if future.shape[0] != frames:
+        raise ValueError(
+            f"donor replay has {future.shape[0]} future states, expected {frames}"
+        )
     return future - anchor + initial_ego
 
 
@@ -79,14 +99,74 @@ def write_flow_composition_report(
     target_fields = traffic_fields(target, target_ego, target_valid)
     generated_values = distribution_values(generated_fields)
     target_values = distribution_values(target_fields)
+
+    def exceedance(
+        real: np.ndarray, generated_value: np.ndarray, *, threshold: float, less_than: bool,
+    ) -> dict[str, float]:
+        """Compare a tail probability without treating either sample as paired."""
+        left = np.asarray(real, np.float64).reshape(-1)
+        right = np.asarray(generated_value, np.float64).reshape(-1)
+        left, right = left[np.isfinite(left)], right[np.isfinite(right)]
+        if not len(left) or not len(right):
+            return {"real_probability": float("nan"), "generated_probability": float("nan"), "absolute_error": float("nan"), "relative_error": float("nan")}
+        if less_than:
+            real_probability = float(np.mean(left < threshold))
+            generated_probability = float(np.mean(right < threshold))
+        else:
+            real_probability = float(np.mean(left > threshold))
+            generated_probability = float(np.mean(right > threshold))
+        absolute_error = abs(generated_probability - real_probability)
+        return {
+            "real_probability": real_probability,
+            "generated_probability": generated_probability,
+            "absolute_error": float(absolute_error),
+            "relative_error": float(absolute_error / max(real_probability, 1.0e-6)),
+        }
+
+    def event_rates(background: np.ndarray, ego_state: np.ndarray, present: np.ndarray, fields: dict[str, np.ndarray]) -> dict[str, float]:
+        labels = event_masks(background, ego_state, present)
+        following = np.asarray(fields["following_valid"], bool)
+        near_collision = np.any((np.asarray(fields["gap_m"]) < 2.0) & following, axis=(1, 2, 3))
+        labels.update({
+            "near_collision_gap_lt_2m": near_collision,
+            "collision": np.asarray(fields["collision"], bool).any(axis=(1, 2, 3)),
+        })
+        return {name: float(np.mean(value)) for name, value in labels.items()}
+
+    generated_events = event_rates(generated, ego, valid, generated_fields)
+    target_events = event_rates(target, target_ego, target_valid, target_fields)
+    event_distribution = {
+        name: {
+            "real_episode_rate": target_events[name],
+            "generated_episode_rate": generated_events[name],
+            "absolute_error": float(abs(generated_events[name] - target_events[name])),
+            "relative_error": float(
+                abs(generated_events[name] - target_events[name]) / max(target_events[name], 1.0e-6)
+            ),
+        }
+        for name in target_events
+    }
     report = {
         "protocol": protocol,
         "checkpoint": {"path": str(checkpoint), "sha256": file_sha256(checkpoint)},
         "closed_loop_distribution": {
+            "motion_variable_distribution": {
+                key: {
+                    **empirical_distance(target_values[key], generated_values[key]),
+                    "kl_real_to_generated": speed_kl_divergence(target_values[key], generated_values[key]),
+                }
+                for key in ("speed_mps", "acceleration_mps2", "jerk_mps3", "curvature_m_inv")
+            },
             "risk_variable_distribution": {
                 key: empirical_distance(target_values[key], generated_values[key])
                 for key in ("ttc_s", "drac_mps2", "gap_m", "relative_speed_mps")
             },
+            "risk_tail_exceedance": {
+                "ttc_lt_1s": exceedance(target_values["ttc_s"], generated_values["ttc_s"], threshold=1.0, less_than=True),
+                "drac_gt_3mps2": exceedance(target_values["drac_mps2"], generated_values["drac_mps2"], threshold=3.0, less_than=False),
+                "gap_lt_2m": exceedance(target_values["gap_m"], generated_values["gap_m"], threshold=2.0, less_than=True),
+            },
+            "semantic_event_distribution": event_distribution,
             "physical_validity": collision_metrics(generated_fields),
             **feature_distribution_distance(
                 generated, ego, valid, target, target_ego, target_valid, seed=FLOW_COMPOSITION_SEED
@@ -138,7 +218,11 @@ def _match_reference_replays(
 
 
 def load_flow_tail_starts(
-    repo_root: Path, *, device=None, replay_scope: str = "held_out_test"
+    repo_root: Path,
+    *,
+    device=None,
+    replay_scope: str = "held_out_test",
+    sequence_cache_owner: Path | None = None,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], np.ndarray]:
     """Draw Flow C0/B0 starts and match compatible reference ego replays.
 
@@ -151,7 +235,13 @@ def load_flow_tail_starts(
     flow, flow_arrays, flow_schema, _ = load_checkpoint_and_dataset(
         flow_checkpoint, repo_root / "results/highd_tail_flow", repo_root=repo_root, device=device
     )
-    cache, _ = load_sequential_dataset(repo_root / "results/highd_world_model/training_data/semi_markov_sequence_cache")
+    # Baseline model families retain their own default.  QR passes its
+    # raw-150-state cache explicitly, so its 5.96 s protocol cannot read a
+    # different model's replay cache.
+    cache_owner = sequence_cache_owner or (
+        repo_root / "results/highd_world_model/training_data/semi_markov_sequence_cache"
+    )
+    cache, _ = load_sequential_dataset(cache_owner)
     if replay_scope == "held_out_test":
         reference_rows = np.flatnonzero(
             (np.asarray(cache["split_index"]) == SPLIT_TO_INDEX["test"])

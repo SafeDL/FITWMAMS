@@ -179,7 +179,11 @@ class QueryRelationalSceneEncoder(nn.Module):
         for block in self.relation_blocks:
             tokens = block(tokens, relation, current_valid)
         # Keep a learned relation value path in addition to relation-aware attention bias.
-        tokens = tokens + self.relation_mlp(relation).mean(dim=2) * current_valid[..., None].float()
+        pairwise_valid = current_valid[:, :, None] & current_valid[:, None, :]
+        relation_value = self.relation_mlp(relation)
+        relation_value = (relation_value * pairwise_valid[..., None]).sum(dim=2)
+        relation_value = relation_value / pairwise_valid.sum(dim=2, keepdim=True).clamp_min(1)
+        tokens = tokens + relation_value * current_valid[..., None].float()
         map_tokens, map_valid = self._map_tokens(map_polylines, map_polyline_valid, lane_graph_edges)
         context = torch.cat((tokens, map_tokens), dim=1)
         context_valid = torch.cat((current_valid, map_valid), dim=1)

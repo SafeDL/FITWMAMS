@@ -1,7 +1,7 @@
 # Semi-Markov World Model: supervise a one-second temporal plan in physical
 # state space, then execute a bounded receding-horizon continuation.
 paths:
-  legacy_dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
+  source_dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
   output_dir: "../../../results/highd_world_model/semi_markov_world_model"
   sequence_cache_dir: "../../../results/highd_world_model/training_data/semi_markov_sequence_cache"
   highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"

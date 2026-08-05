@@ -1,4 +1,4 @@
-"""Online QR-WM environment driven by observed ego states."""
+"""Online QR-WM environment with ADS-driven ego physics."""
 
 from __future__ import annotations
 
@@ -177,7 +177,13 @@ class FlowStartMetadata:
 
 
 class QRWorldModelEnvironment:
-    """A 0.2-second closed-loop environment conditioned on observed ego state."""
+    """25 Hz joint environment with 5 Hz QR-WM background replanning.
+
+    ``step`` accepts only the physical ADS control ``[acceleration, yaw_rate]``.
+    The control is consumed by the environment's ego dynamics and never passed
+    to QR-WM.  QR-WM plans background actions on every response boundary from
+    the joint state/history that has actually occurred so far.
+    """
 
     def __init__(self, model: QueryRefineWorldModel, *, device: str | torch.device = "cpu") -> None:
         self.model = model.to(device).eval()
@@ -193,6 +199,10 @@ class QRWorldModelEnvironment:
         self._previous_buffer: torch.Tensor | None = None
         self._previous_current: torch.Tensor | None = None
         self._map_inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None
+        self._active_plan: torch.Tensor | None = None
+        self._plan_frame_index = 0
+        self._has_planned = False
+        self.physics_step_index = 0
         self.response_index = 0
         self.trace: dict[str, Any] = {}
 
@@ -241,10 +251,15 @@ class QRWorldModelEnvironment:
         self._memory = start["scene_memory"]
         self._anchor_actions = start["start_anchor_actions"]
         self._previous_buffer = self._previous_current = None
+        self._active_plan = None
+        self._plan_frame_index = 0
+        self._has_planned = False
+        self.physics_step_index = 0
         self.response_index = 0
         self.trace = {
             "flow_metadata": self._metadata.audit_dict(), "b0_lifecycle": "START-only",
-            "ego_condition": "observed state only", "response_steps": 0,
+            "ego_condition": "25 Hz ADS actions applied only by environment ego dynamics",
+            "response_steps": 0, "physics_steps": 0, "planning_steps": 0,
             "world_randomness": randomness_audit,
         }
         return self.observe()
@@ -255,62 +270,123 @@ class QRWorldModelEnvironment:
         return {
             "agent_states": self._states[0].detach().cpu().numpy().copy(),
             "agent_valid": self._valid[0].detach().cpu().numpy().astype(bool, copy=True),
-            "response_index": self.response_index, "flow_metadata": self._metadata.audit_dict(),
+            "response_index": self.response_index, "physics_step_index": self.physics_step_index,
+            "flow_metadata": self._metadata.audit_dict(),
             "world_randomness": deepcopy(self.trace["world_randomness"]),
         }
 
     @torch.no_grad()
-    def step(self, ego_state: np.ndarray | torch.Tensor, ego_valid: bool = True) -> dict[str, Any]:
-        """Advance one response interval from the currently observed ego state."""
+    def _plan_if_needed(self) -> bool:
+        """Create the next background plan exactly at a 5 Hz response boundary."""
         required = (
             self._states, self._valid, self._history, self._history_valid,
             self._behavior, self._memory, self._metadata,
         )
         if any(value is None for value in required):
             raise RuntimeError("Call reset_from_flow before step")
-        observed = torch.as_tensor(ego_state, dtype=self._states.dtype, device=self.device)
-        if tuple(observed.shape) != (6,):
-            raise ValueError("ego_state must have shape [6]")
         if self._map_inputs is None:
             raise RuntimeError("Flow START map inputs are unavailable")
-        self._states = self._states.clone()
-        self._valid = self._valid.clone()
-        self._states[:, 0] = observed
-        self._valid[:, 0] = bool(ego_valid)
-        self._history[:, -1] = self._states
-        self._history_valid[:, -1] = self._valid
+        if self._active_plan is not None and self._plan_frame_index < self.model.cfg.execute_frames:
+            return False
         ego_mask = torch.zeros_like(self._valid); ego_mask[:, 0] = True
         out = self.model.plan_step(
             self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs,
             self._behavior, previous_buffer=self._previous_buffer,
             previous_current=self._previous_current, previous_memory=self._memory,
-            start_anchor_actions=self._anchor_actions if self.response_index == 0 else None,
-            start_mode=self.response_index == 0,
+            start_anchor_actions=self._anchor_actions if not self._has_planned else None,
+            start_mode=not self._has_planned,
         )
-        before, current, frames = self._states, self._states, []
-        plan = out["background_future_actions"]
-        for frame in range(self.model.cfg.execute_frames):
-            physical = current.new_zeros((1, current.shape[1], 2))
-            physical[:, 1:] = plan[:, frame]
-            current = self.model.dynamics.step(current, physical, self._valid, self.model.cfg.simulation_dt_s)
-            current[:, 0] = observed
-            current[:, 0] *= float(ego_valid)
-            frames.append(current)
-        appended = torch.stack(frames, dim=1)
-        self._states = current
-        self._history = torch.cat((self._history, appended), dim=1)[:, -25:]
-        valid_frames = self._valid[:, None].expand(-1, len(frames), -1)
-        self._history_valid = torch.cat((self._history_valid, valid_frames), dim=1)[:, -25:]
-        self._previous_buffer, self._previous_current = plan, before
+        self._active_plan = out["background_future_actions"]
+        self._plan_frame_index = 0
+        self._previous_buffer, self._previous_current = self._active_plan, self._states
         self._memory = out["scene_memory"]
-        self.response_index += 1
-        self.trace["response_steps"] = self.response_index
+        self._has_planned = True
+        self.trace["planning_steps"] += 1
+        return True
+
+    @torch.no_grad()
+    def step(self, ads_action: np.ndarray | torch.Tensor, ego_valid: bool = True) -> dict[str, Any]:
+        """Advance ego and background by one 0.04-second physical tick.
+
+        ``ads_action`` has shape ``[2]`` in the shared
+        ``[longitudinal_acceleration, yaw_rate]`` control coordinates.  It is
+        assembled into the joint physical control only after QR-WM has (if
+        needed) generated a background plan, so it cannot enter the network.
+        """
+        if self._states is None or self._valid is None:
+            raise RuntimeError("Call reset_from_flow before step")
+        action = torch.as_tensor(ads_action, dtype=self._states.dtype, device=self.device)
+        if tuple(action.shape) != (2,):
+            raise ValueError("ads_action must have shape [2]")
+        self._states = self._states.clone()
+        self._valid = self._valid.clone()
+        self._valid[:, 0] = bool(ego_valid)
+        if not ego_valid:
+            self._states[:, 0] = 0.0
+        planner_updated = self._plan_if_needed()
+        if self._active_plan is None:
+            raise RuntimeError("QR-WM failed to create a background action plan")
+        executed_plan_frame = self._plan_frame_index
+        physical = self._states.new_zeros((1, self._states.shape[1], 2))
+        physical[:, 0] = action
+        physical[:, 1:] = self._active_plan[:, executed_plan_frame]
+        self._states = self.model.dynamics.step(
+            self._states, physical, self._valid, self.model.cfg.simulation_dt_s
+        )
+        self._history = torch.cat((self._history, self._states[:, None]), dim=1)[:, -25:]
+        self._history_valid = torch.cat((self._history_valid, self._valid[:, None]), dim=1)[:, -25:]
+        self._plan_frame_index += 1
+        self.physics_step_index += 1
+        self.trace["physics_steps"] = self.physics_step_index
+        if self._plan_frame_index == self.model.cfg.execute_frames:
+            self.response_index += 1
+            self.trace["response_steps"] = self.response_index
         observation = self.observe()
         observation.update({
-            "background_states": appended[0, :, 1:].cpu().numpy(),
-            "observed_ego_state": observed.cpu().numpy(),
-            "applied_background_actions": plan[0, : self.model.cfg.execute_frames].cpu().numpy(),
-            "background_future_actions": plan[0].cpu().numpy(), "trace": deepcopy(self.trace),
+            "background_state": self._states[0, 1:].cpu().numpy(),
+            "applied_ego_action": action.cpu().numpy(),
+            "applied_background_actions": physical[0, 1:].cpu().numpy(),
+            "background_future_actions": self._active_plan[0].cpu().numpy(),
+            "planner_updated": planner_updated, "executed_plan_frame": executed_plan_frame,
+            "trace": deepcopy(self.trace),
+        })
+        return observation
+
+    @torch.no_grad()
+    def advance_response(
+        self, ads_actions: np.ndarray | torch.Tensor, ego_valid: bool | np.ndarray | torch.Tensor = True,
+    ) -> dict[str, Any]:
+        """Advance one response prefix using one to five ADS controls.
+
+        Normal operation supplies five controls (0.2 s).  A final four-tick
+        prefix is also valid for the audited 150-state highD window, whose
+        physical horizon is 5.96 s rather than an invented terminal S150.
+        """
+        if self._active_plan is not None and 0 < self._plan_frame_index < self.model.cfg.execute_frames:
+            raise RuntimeError("advance_response must start on a response boundary")
+        actions = torch.as_tensor(ads_actions, dtype=torch.float32, device=self.device)
+        if actions.ndim != 2 or actions.shape[1] != 2 or not 1 <= actions.shape[0] <= self.model.cfg.execute_frames:
+            raise ValueError(
+                "ads_actions must have shape [ticks, 2] with "
+                f"1 <= ticks <= {self.model.cfg.execute_frames}"
+            )
+        ticks_count = int(actions.shape[0])
+        valid = torch.as_tensor(ego_valid, dtype=torch.bool, device=self.device)
+        if valid.ndim == 0:
+            valid = valid.expand(ticks_count)
+        if tuple(valid.shape) != (ticks_count,):
+            raise ValueError("ego_valid must be a bool or have shape [ticks]")
+        ticks = [self.step(actions[index], bool(valid[index])) for index in range(ticks_count)]
+        observation = ticks[-1]
+        states = np.stack([tick["agent_states"] for tick in ticks])
+        observation.update({
+            "agent_state_frames": states,
+            "background_states": states[:, 1:],
+            "applied_ego_actions": np.stack([tick["applied_ego_action"] for tick in ticks]),
+            "applied_background_action_frames": np.stack(
+                [tick["applied_background_actions"] for tick in ticks]
+            ),
+            "planning_updates": np.asarray([tick["planner_updated"] for tick in ticks], dtype=bool),
         })
         return observation
 
@@ -336,6 +412,10 @@ class BatchedQRWorldModelEnvironment:
         self._previous_buffer: torch.Tensor | None = None
         self._previous_current: torch.Tensor | None = None
         self._map_inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None
+        self._active_plan: torch.Tensor | None = None
+        self._plan_frame_index = 0
+        self._has_planned = False
+        self.physics_step_index = 0
         self.response_index = 0
 
     @torch.no_grad()
@@ -383,47 +463,106 @@ class BatchedQRWorldModelEnvironment:
         self._behavior, self._memory = start["behavior_latent"], start["scene_memory"]
         self._anchor_actions = start["start_anchor_actions"]
         self._previous_buffer = self._previous_current = None
+        self._active_plan = None
+        self._plan_frame_index = 0
+        self._has_planned = False
+        self.physics_step_index = 0
         self._map_inputs = (maps, map_valid, edges)
         self.world_randomness_audit = randomness_audit
         self.response_index = 0
 
     @torch.no_grad()
-    def step(self, ego_states: np.ndarray | torch.Tensor, ego_valid: np.ndarray | torch.Tensor | None = None) -> torch.Tensor:
-        """Causally advance every batch row by one response interval."""
-
+    def _plan_if_needed(self) -> bool:
+        """Create a shared-tensor background plan when the 5 Hz boundary is due."""
         required = (self._states, self._valid, self._history, self._history_valid, self._behavior, self._memory)
         if any(value is None for value in required) or self._map_inputs is None:
             raise RuntimeError("Call reset_from_flow_batch before step")
-        observed = torch.as_tensor(ego_states, dtype=self._states.dtype, device=self.device)
-        if observed.shape != (self._states.shape[0], 6):
-            raise ValueError("ego_states must have shape [batch, 6]")
-        valid_ego = torch.ones(len(observed), dtype=torch.bool, device=self.device) if ego_valid is None else torch.as_tensor(ego_valid, dtype=torch.bool, device=self.device)
-        if valid_ego.shape != (len(observed),):
-            raise ValueError("ego_valid must have shape [batch]")
-        states, valid = self._states.clone(), self._valid.clone()
-        states[:, 0], valid[:, 0] = observed, valid_ego
-        history, history_valid = self._history.clone(), self._history_valid.clone()
-        history[:, -1], history_valid[:, -1] = states, valid
-        ego_mask = torch.zeros_like(valid); ego_mask[:, 0] = True
+        if self._active_plan is not None and self._plan_frame_index < self.model.cfg.execute_frames:
+            return False
+        ego_mask = torch.zeros_like(self._valid); ego_mask[:, 0] = True
         out = self.model.plan_step(
-            history, history_valid, states, valid, ego_mask, *self._map_inputs, self._behavior,
+            self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs, self._behavior,
             previous_buffer=self._previous_buffer, previous_current=self._previous_current,
-            previous_memory=self._memory, start_anchor_actions=self._anchor_actions if self.response_index == 0 else None,
-            start_mode=self.response_index == 0,
+            previous_memory=self._memory, start_anchor_actions=self._anchor_actions if not self._has_planned else None,
+            start_mode=not self._has_planned,
         )
-        before, current, frames = states, states, []
-        plan = out["background_future_actions"]
-        for frame in range(self.model.cfg.execute_frames):
-            physical = current.new_zeros((len(current), current.shape[1], 2))
-            physical[:, 1:] = plan[:, frame]
-            current = self.model.dynamics.step(current, physical, valid, self.model.cfg.simulation_dt_s)
-            current[:, 0] = observed * valid_ego[:, None]
-            frames.append(current)
-        appended = torch.stack(frames, dim=1)
-        valid_frames = valid[:, None].expand(-1, len(frames), -1)
-        self._states, self._valid = current, valid
-        self._history = torch.cat((history, appended), dim=1)[:, -25:]
-        self._history_valid = torch.cat((history_valid, valid_frames), dim=1)[:, -25:]
-        self._previous_buffer, self._previous_current, self._memory = plan, before, out["scene_memory"]
-        self.response_index += 1
-        return appended[:, :, 1:]
+        self._active_plan = out["background_future_actions"]
+        self._plan_frame_index = 0
+        self._previous_buffer, self._previous_current, self._memory = self._active_plan, self._states, out["scene_memory"]
+        self._has_planned = True
+        return True
+
+    @torch.no_grad()
+    def step(
+        self, ads_actions: np.ndarray | torch.Tensor, ego_valid: np.ndarray | torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Advance every batch row by one 0.04-second joint physical tick.
+
+        Inputs are ADS controls ``[batch, 2]``.  The returned tensor is the
+        joint post-step state ``[batch, 7, 6]``; the controls never enter QR-WM.
+        """
+        if self._states is None or self._valid is None:
+            raise RuntimeError("Call reset_from_flow_batch before step")
+        actions = torch.as_tensor(ads_actions, dtype=self._states.dtype, device=self.device)
+        if actions.shape != (self._states.shape[0], 2):
+            raise ValueError("ads_actions must have shape [batch, 2]")
+        valid_ego = (
+            torch.ones(len(actions), dtype=torch.bool, device=self.device)
+            if ego_valid is None
+            else torch.as_tensor(ego_valid, dtype=torch.bool, device=self.device)
+        )
+        if valid_ego.shape != (len(actions),):
+            raise ValueError("ego_valid must have shape [batch]")
+        self._states, self._valid = self._states.clone(), self._valid.clone()
+        self._valid[:, 0] = valid_ego
+        self._states[:, 0] *= valid_ego[:, None].float()
+        self._plan_if_needed()
+        if self._active_plan is None:
+            raise RuntimeError("QR-WM failed to create a background action plan")
+        physical = self._states.new_zeros((len(self._states), self._states.shape[1], 2))
+        physical[:, 0] = actions
+        physical[:, 1:] = self._active_plan[:, self._plan_frame_index]
+        self._states = self.model.dynamics.step(
+            self._states, physical, self._valid, self.model.cfg.simulation_dt_s
+        )
+        self._history = torch.cat((self._history, self._states[:, None]), dim=1)[:, -25:]
+        self._history_valid = torch.cat((self._history_valid, self._valid[:, None]), dim=1)[:, -25:]
+        self._plan_frame_index += 1
+        self.physics_step_index += 1
+        if self._plan_frame_index == self.model.cfg.execute_frames:
+            self.response_index += 1
+        return self._states
+
+    @torch.no_grad()
+    def advance_response(
+        self, ads_actions: np.ndarray | torch.Tensor, ego_valid: np.ndarray | torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Advance a response prefix from ``[batch, ticks, 2]`` controls."""
+        if self._states is None:
+            raise RuntimeError("Call reset_from_flow_batch before advance_response")
+        if self._active_plan is not None and 0 < self._plan_frame_index < self.model.cfg.execute_frames:
+            raise RuntimeError("advance_response must start on a response boundary")
+        actions = torch.as_tensor(ads_actions, dtype=self._states.dtype, device=self.device)
+        if (
+            actions.ndim != 3
+            or actions.shape[0] != self._states.shape[0]
+            or actions.shape[2] != 2
+            or not 1 <= actions.shape[1] <= self.model.cfg.execute_frames
+        ):
+            raise ValueError(
+                "ads_actions must have shape [batch, ticks, 2] with "
+                f"1 <= ticks <= {self.model.cfg.execute_frames}"
+            )
+        ticks_count = int(actions.shape[1])
+        expected = (self._states.shape[0], ticks_count)
+        if ego_valid is None:
+            valid = torch.ones(expected, dtype=torch.bool, device=self.device)
+        else:
+            valid = torch.as_tensor(ego_valid, dtype=torch.bool, device=self.device)
+            if valid.shape == (self._states.shape[0],):
+                valid = valid[:, None].expand(-1, ticks_count)
+        if tuple(valid.shape) != expected:
+            raise ValueError("ego_valid must have shape [batch] or [batch, ticks]")
+        return torch.stack(
+            [self.step(actions[:, index], valid[:, index]) for index in range(ticks_count)], dim=1
+        )

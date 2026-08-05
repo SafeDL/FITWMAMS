@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 
 import torch
+from torch import nn
 
 from normalizing_flow.src.features import slot_feature_index
 from world_model.src.core.initial_behavior_anchor import start_state_from_flow_feature, start_state_from_flow_tensor
@@ -16,12 +17,19 @@ from world_model.src.qr.environment import (
     WorldRandomness,
 )
 from world_model.src.qr.model import QueryRefineWorldModel
-from world_model.src.qr.train import _tensorboard_writer, _write_tensorboard_epoch, load_qr_checkpoint
+from world_model.src.qr.train import (
+    _tensorboard_writer,
+    _write_tensorboard_epoch,
+    load_qr_checkpoint,
+    require_canonical_qr_checkpoint,
+)
 
 
 def _batch(batch_size: int = 2) -> dict[str, torch.Tensor]:
     torch.manual_seed(7)
-    frames, agents, maps, points = 150, 7, 8, 8
+    # 24 invalid compatibility entries, then S0..S149.  This is the formal
+    # START(25 tick)+ROLL(124 tick) QR cache layout.
+    frames, agents, maps, points = 174, 7, 8, 8
     state = torch.zeros(batch_size, frames, agents, 6)
     state[..., 0] = torch.arange(frames).view(1, frames, 1) * 0.8
     state[..., 0] += torch.arange(agents).view(1, 1, agents) * 12.0
@@ -31,12 +39,15 @@ def _batch(batch_size: int = 2) -> dict[str, torch.Tensor]:
     state[..., 5] = 0.01
     return {
         "agent_states": state,
-        "agent_valid": torch.ones(batch_size, frames, agents, dtype=torch.bool),
+        "agent_valid": torch.cat((
+            torch.zeros(batch_size, 24, agents, dtype=torch.bool),
+            torch.ones(batch_size, frames - 24, agents, dtype=torch.bool),
+        ), dim=1),
         "ego_index": torch.zeros(batch_size, dtype=torch.long),
         "map_polylines": torch.randn(batch_size, maps, points, 6),
         "map_polyline_valid": torch.ones(batch_size, maps, points, dtype=torch.bool),
         "lane_graph_edges": torch.tensor([[[0, 1, 0], [1, 2, 1]]], dtype=torch.long).expand(batch_size, -1, -1).clone(),
-        "actions_highd": torch.zeros(batch_size, 125, agents - 1, 2),
+        "actions_highd": torch.zeros(batch_size, 149, agents - 1, 2),
         "is_evt_tail": torch.zeros(batch_size, dtype=torch.bool),
     }
 
@@ -69,6 +80,21 @@ def test_qr_training_rollout_has_refined_receding_buffer_and_gradients() -> None
     assert not hasattr(model, "memory")
     assert len(model.encoder.relation_blocks) == model.cfg.attention_layers
     assert len(model.joint_refiner.blocks) == model.cfg.attention_layers
+
+
+def test_qr_full_protocol_is_one_second_start_plus_4p96_second_roll() -> None:
+    model, batch = _model().eval(), _batch()
+    rollout = model.rollout_reconstruction(batch, deterministic=True)
+    assert model.cfg.response_steps == 30
+    assert rollout["predicted_states"].shape == (2, 149, 7, 6)
+    assert rollout["target_states"].shape == (2, 149, 7, 6)
+    assert rollout["background_future_actions"].shape == (2, 30, 25, 6, 2)
+    assert rollout["start_reconstruction_frames"] == 25
+    assert rollout["roll_frames"] == 124
+    assert rollout["total_frames"] == 149
+    # The final 5 Hz response contains only the four recorded highD transitions
+    # S145->S146 through S148->S149; it must not supervise a fabricated fifth.
+    assert rollout["executed_background_action_masks"][:, -1, 4].sum() == 0
 
 
 def test_qr_inference_does_not_read_background_future() -> None:
@@ -139,6 +165,32 @@ def test_observed_ego_state_conditions_background_and_invalid_slots_stay_masked(
         rollout["background_future_actions"][..., -1, :],
         torch.zeros_like(rollout["background_future_actions"][..., -1, :]),
     )
+
+
+def test_qr_relation_value_path_excludes_invalid_pair_slots() -> None:
+    """Invalid slots must not contribute learned relation values to valid tokens."""
+    encoder = _model().encoder.eval()
+    encoder.relation_blocks = nn.ModuleList()
+    with torch.no_grad():
+        for module in (encoder.current_mlp, encoder.relation_mlp, encoder.cross_attention):
+            for parameter in module.parameters():
+                parameter.zero_()
+        # Make the learned value depend only on pairwise longitudinal displacement.
+        encoder.relation_mlp[0].weight[0, 0] = 1.0
+        encoder.relation_mlp[2].weight[0, 0] = 1.0
+
+    current = torch.zeros(1, 7, 6)
+    current_valid = torch.tensor([[True, True, False, False, False, False, False]])
+    ego_mask = torch.tensor([[True, False, False, False, False, False, False]])
+    map_polylines = torch.zeros(1, 1, 1, 6)
+    map_polyline_valid = torch.zeros(1, 1, 1, dtype=torch.bool)
+    baseline = encoder.encode_start(current, current_valid, ego_mask, map_polylines, map_polyline_valid)[0]
+
+    # This creates a large relation value only for pairs whose target is invalid.
+    current[:, 2, 0] = 100_000.0
+    changed = encoder.encode_start(current, current_valid, ego_mask, map_polylines, map_polyline_valid)[0]
+
+    assert torch.equal(changed[:, :2], baseline[:, :2])
 
 
 def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
@@ -232,16 +284,104 @@ def test_observed_ego_token_and_online_environment() -> None:
     left, right = QRWorldModelEnvironment(model), QRWorldModelEnvironment(model)
     assert left.reset_from_flow(c0, b0, metadata)["flow_metadata"]["log_prob"] == -1.5
     right.reset_from_flow(c0, b0, metadata)
-    observed = torch.tensor([0.0, 0.0, 20.0, 0.0, 0.0, 0.0])
-    first_left, first_right = left.step(observed), right.step(observed)
+    quiet_action, brake_action = torch.tensor([0.0, 0.0]), torch.tensor([-4.0, 0.0])
+    first_left, first_right = left.step(quiet_action), right.step(brake_action)
     assert torch.equal(
         torch.from_numpy(first_left["background_future_actions"]),
         torch.from_numpy(first_right["background_future_actions"]),
     )
-    quiet = left.step(observed)
-    braking = right.step(torch.tensor([0.0, 0.0, 14.0, 0.0, -4.0, 0.0]))
-    assert quiet["response_index"] == 2
+    # The action is not a QR-WM input, but the physical ego trajectory from
+    # this response is part of the next 5 Hz causal condition.
+    for _ in range(model.cfg.execute_frames - 1):
+        left.step(quiet_action)
+        right.step(brake_action)
+    quiet = left.step(quiet_action)
+    braking = right.step(brake_action)
+    assert quiet["response_index"] == 1
+    assert quiet["planner_updated"] and braking["planner_updated"]
     assert not torch.equal(torch.from_numpy(quiet["background_future_actions"]), torch.from_numpy(braking["background_future_actions"]))
+
+
+def test_online_environment_advances_joint_physics_at_25hz_and_replans_at_5hz() -> None:
+    from unittest.mock import patch
+
+    model, batch = _model().eval(), _batch()
+    metadata = FlowStartMetadata(
+        slot_valid=torch.ones(6, dtype=torch.bool).numpy(), map_polylines=batch["map_polylines"][0].numpy(),
+        map_polyline_valid=batch["map_polyline_valid"][0].numpy(), lane_graph_edges=batch["lane_graph_edges"][0].numpy(),
+        primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+        event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+    )
+    c0, b0 = torch.zeros(40), torch.zeros(6, 6)
+    c0[0] = 20.0
+    action = torch.tensor([2.0, 0.0])
+    environment = QRWorldModelEnvironment(model)
+    environment.reset_from_flow(c0, b0, metadata)
+    with patch.object(model, "plan_step", wraps=model.plan_step) as planner:
+        ticks = [environment.step(action) for _ in range(model.cfg.execute_frames + 1)]
+
+    assert planner.call_count == 2
+    assert [tick["planner_updated"] for tick in ticks] == [True, False, False, False, False, True]
+    assert [tick["executed_plan_frame"] for tick in ticks[:5]] == list(range(model.cfg.execute_frames))
+    first = torch.from_numpy(ticks[0]["agent_states"])[0]
+    dt = model.cfg.simulation_dt_s
+    assert torch.allclose(first, torch.tensor([20.0 * dt + 0.5 * 2.0 * dt ** 2, 0.0, 20.0 + 2.0 * dt, 0.0, 2.0, 0.0]))
+    for index in range(model.cfg.execute_frames):
+        assert torch.allclose(
+            torch.from_numpy(ticks[index]["applied_background_actions"]),
+            torch.from_numpy(ticks[0]["background_future_actions"])[index],
+        )
+    assert ticks[4]["response_index"] == 1
+
+
+def test_advance_response_matches_five_physics_steps_for_single_and_batched_environments() -> None:
+    model, batch = _model().eval(), _batch()
+    metadata = FlowStartMetadata(
+        slot_valid=torch.ones(6, dtype=torch.bool).numpy(), map_polylines=batch["map_polylines"][0].numpy(),
+        map_polyline_valid=batch["map_polyline_valid"][0].numpy(), lane_graph_edges=batch["lane_graph_edges"][0].numpy(),
+        primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+        event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+    )
+    c0, b0 = torch.zeros(40), torch.zeros(6, 6)
+    c0[0] = 20.0
+    actions = torch.tensor(((1.0, 0.0), (0.5, 0.01), (0.0, 0.0), (-0.5, -0.01), (-1.0, 0.0)))
+    stepped, grouped = QRWorldModelEnvironment(model), QRWorldModelEnvironment(model)
+    stepped.reset_from_flow(c0, b0, metadata)
+    grouped.reset_from_flow(c0, b0, metadata)
+    expected = torch.stack([torch.from_numpy(stepped.step(action)["agent_states"]) for action in actions])
+    actual = torch.from_numpy(grouped.advance_response(actions)["agent_state_frames"])
+    assert torch.allclose(actual, expected, atol=1.0e-6)
+
+    features = torch.zeros(2, 76); features[:, 0] = torch.tensor((20.0, 22.0))
+    slots = torch.ones(2, 6, dtype=torch.bool)
+    batch_actions = actions.unsqueeze(0).expand(2, -1, -1).clone()
+    stepped_batch, grouped_batch = BatchedQRWorldModelEnvironment(model), BatchedQRWorldModelEnvironment(model)
+    for environment in (stepped_batch, grouped_batch):
+        environment.reset_from_flow_batch(
+            features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"], deterministic=True,
+        )
+    expected_batch = torch.stack([stepped_batch.step(batch_actions[:, index]) for index in range(model.cfg.execute_frames)], dim=1)
+    actual_batch = grouped_batch.advance_response(batch_actions)
+    assert torch.allclose(actual_batch, expected_batch, atol=1.0e-6)
+
+
+def test_advance_response_accepts_the_final_four_tick_highd_prefix() -> None:
+    model, batch = _model().eval(), _batch()
+    metadata = FlowStartMetadata(
+        slot_valid=torch.ones(6, dtype=torch.bool).numpy(), map_polylines=batch["map_polylines"][0].numpy(),
+        map_polyline_valid=batch["map_polyline_valid"][0].numpy(), lane_graph_edges=batch["lane_graph_edges"][0].numpy(),
+        primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+        event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+    )
+    c0, b0 = torch.zeros(40), torch.zeros(6, 6)
+    c0[0] = 20.0
+    actions = torch.tensor(((1.0, 0.0), (0.5, 0.01), (0.0, 0.0), (-0.5, -0.01)))
+    stepped, grouped = QRWorldModelEnvironment(model), QRWorldModelEnvironment(model)
+    stepped.reset_from_flow(c0, b0, metadata)
+    grouped.reset_from_flow(c0, b0, metadata)
+    expected = torch.stack([torch.from_numpy(stepped.step(action)["agent_states"]) for action in actions])
+    actual = torch.from_numpy(grouped.advance_response(actions)["agent_state_frames"])
+    assert torch.allclose(actual, expected, atol=1.0e-6)
 
 
 def test_flow_start_has_no_synthetic_history_and_keeps_metadata() -> None:
@@ -257,7 +397,7 @@ def test_flow_start_has_no_synthetic_history_and_keeps_metadata() -> None:
     environment = QRWorldModelEnvironment(model)
     with patch.object(model.encoder, "_temporal_tokens", wraps=model.encoder._temporal_tokens) as temporal:
         observation = environment.reset_from_flow(torch.tensor([20.0] + [0.0] * 39), torch.zeros(6, 6), metadata)
-        environment.step(torch.tensor([0.0, 0.0, 20.0, 0.0, 0.0, 0.0]))
+        environment.step(torch.zeros(2))
     assert not temporal.called
     assert observation["flow_metadata"]["log_prob"] == -1.5
 
@@ -271,8 +411,8 @@ def test_batched_flow_environment_matches_independent_deterministic_environments
         features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
         deterministic=True,
     )
-    ego = torch.tensor(((0.0, 0.0, 20.0, 0.0, 0.0, 0.0), (0.0, 0.0, 22.0, 0.0, 0.0, 0.0)))
-    actual = batched.step(ego)
+    actions = torch.zeros(2, model.cfg.execute_frames, 2)
+    actual = batched.advance_response(actions)
     expected = []
     for index in range(2):
         metadata = FlowStartMetadata(
@@ -283,7 +423,7 @@ def test_batched_flow_environment_matches_independent_deterministic_environments
         )
         environment = QRWorldModelEnvironment(model)
         environment.reset_from_flow(features[index, :40], features[index, 40:].reshape(6, 6), metadata, deterministic=True)
-        expected.append(torch.from_numpy(environment.step(ego[index])["background_states"]))
+        expected.append(torch.from_numpy(environment.advance_response(actions[index])["agent_state_frames"]))
     assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
 
 
@@ -292,14 +432,14 @@ def test_stochastic_world_seed_is_replayable_and_batch_rows_remain_independent()
     features = torch.zeros(2, 76)
     features[:, 0] = torch.tensor((20.0, 22.0))
     slots = torch.ones(2, 6, dtype=torch.bool)
-    ego = torch.tensor(((0.0, 0.0, 20.0, 0.0, 0.0, 0.0), (0.0, 0.0, 22.0, 0.0, 0.0, 0.0)))
+    actions = torch.zeros(2, model.cfg.execute_frames, 2)
     controls = (WorldRandomness(seed=1001), WorldRandomness(seed=1002))
     batched = BatchedQRWorldModelEnvironment(model)
     batched.reset_from_flow_batch(
         features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
         deterministic=False, world_randomness=controls,
     )
-    actual = batched.step(ego)
+    actual = batched.advance_response(actions)
     assert [row["seed"] for row in batched.world_randomness_audit] == [1001, 1002]
     expected = []
     for index, control in enumerate(controls):
@@ -316,7 +456,7 @@ def test_stochastic_world_seed_is_replayable_and_batch_rows_remain_independent()
             deterministic=False, world_randomness=control,
         )
         assert observation["world_randomness"]["seed"] == control.seed
-        expected.append(torch.from_numpy(environment.step(ego[index])["background_states"]))
+        expected.append(torch.from_numpy(environment.advance_response(actions[index])["agent_state_frames"]))
     assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
     try:
         QRWorldModelEnvironment(model).reset_from_flow(
@@ -344,6 +484,16 @@ def test_flow_metadata_requires_a_matching_slot_mask() -> None:
         assert "mask_pattern" in str(exc)
     else:
         raise AssertionError("Flow metadata must reject an inconsistent slot mask")
+
+
+def test_flow_replay_control_adapter_recovers_25hz_speed_and_heading_changes() -> None:
+    from world_model.src.qr.flow_evaluation import replay_states_to_ego_controls
+
+    initial = torch.tensor([[0.0, 0.0, 10.0, 0.0, 0.0, 0.0]]).numpy()
+    future = torch.tensor([[[0.4, 0.0, 10.04, 0.0, 0.0, 0.0], [0.8, 0.0, 0.0, 10.08, 0.0, 0.0]]]).numpy()
+    controls = replay_states_to_ego_controls(initial, future, dt_s=0.04)
+    assert torch.allclose(torch.from_numpy(controls[0, 0]), torch.tensor([1.0, 0.0]), atol=1.0e-5)
+    assert controls[0, 1, 1] > 30.0
 
 
 def test_qr_flow_adapter_restores_absolute_background_velocity_numerically() -> None:
@@ -376,6 +526,28 @@ def test_incompatible_checkpoint_model_type_is_rejected(tmp_path) -> None:
         assert "model_type" in str(exc)
     else:
         raise AssertionError("incompatible checkpoint must not load into QR-WM")
+
+
+def test_qr_evaluation_requires_canonical_checkpoint_training_contract(tmp_path) -> None:
+    historical = tmp_path / "historical.pt"
+    torch.save(_model().checkpoint_payload(), historical)
+    try:
+        require_canonical_qr_checkpoint(load_qr_checkpoint(historical))
+    except RuntimeError as exc:
+        assert "raw-150-state START+ROLL" in str(exc)
+    else:
+        raise AssertionError("checkpoint without canonical training metadata must be rejected")
+
+    canonical = tmp_path / "canonical.pt"
+    payload = _model().checkpoint_payload()
+    payload["training_protocol"] = {
+        "sequence_cache_format": "qr_start_roll_raw150",
+        "total_transition_frames": 149,
+        "start_reconstruction_frames": 25,
+        "roll_transition_frames": 124,
+    }
+    torch.save(payload, canonical)
+    require_canonical_qr_checkpoint(load_qr_checkpoint(canonical))
 
 
 def test_qr_tensorboard_records_batch_loss_and_epoch_metrics(tmp_path) -> None:

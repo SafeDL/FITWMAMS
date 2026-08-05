@@ -73,6 +73,30 @@ def speed_kl_divergence(real: np.ndarray, generated: np.ndarray) -> float:
     return float(np.sum(p * np.log(p / q)))
 
 
+def histogram_kl_divergence(real: np.ndarray, generated: np.ndarray, *, bins: int = 100) -> float:
+    """KL(real || generated) on a robust shared numeric support.
+
+    Unlike :func:`speed_kl_divergence`, this is appropriate for signed motion
+    variables such as curvature and yaw-related quantities.  The outer 0.1%
+    is clipped into the edge bins so a single numerical outlier cannot make
+    the comparison grid meaningless.
+    """
+    left, right = finite(real), finite(generated)
+    if not len(left) or not len(right):
+        return float("nan")
+    combined = np.concatenate((left, right))
+    lower, upper = np.quantile(combined, (0.001, 0.999))
+    if not np.isfinite(lower) or not np.isfinite(upper) or upper - lower < 1.0e-8:
+        lower, upper = float(combined.min()) - 0.5, float(combined.max()) + 0.5
+    left = np.clip(left, lower, upper)
+    right = np.clip(right, lower, upper)
+    edges = np.linspace(lower, upper, int(bins) + 1)
+    p = np.histogram(left, bins=edges)[0].astype(np.float64) + 1.0e-8
+    q = np.histogram(right, bins=edges)[0].astype(np.float64) + 1.0e-8
+    p /= p.sum(); q /= q.sum()
+    return float(np.sum(p * np.log(p / q)))
+
+
 def _kinematics(states: np.ndarray, valid: np.ndarray) -> dict[str, np.ndarray]:
     value = np.asarray(states, np.float64)
     mask = np.asarray(valid, bool)

@@ -27,7 +27,7 @@ def main() -> None:
     setup_logging(args.log_level)
     config, config_path = materialize_config(
         Path(args.config), Path(args.output_dir), config_name=Path(args.config).name,
-        resolve_path_keys=("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"),
+        resolve_path_keys=("source_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"),
         drop_path_keys=("highd_evt_config",),
     )
     config.setdefault("evaluation", {})["max_sequences"] = int(args.max_sequences)

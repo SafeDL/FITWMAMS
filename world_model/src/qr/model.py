@@ -331,6 +331,15 @@ class QueryRefineWorldModel(nn.Module):
         return min(steps, self.cfg.response_steps)
 
     @staticmethod
+    def _available_rollout_frames(batch: dict[str, torch.Tensor]) -> int:
+        """Number of supervised physical transitions represented by a batch."""
+        states = batch["agent_states"]
+        actions = batch["actions_highd"]
+        # Cache index 24 is C0; the first predicted state is index 25/S1.
+        state_transitions = max(0, int(states.shape[1]) - 25)
+        return min(state_transitions, int(actions.shape[1]))
+
+    @staticmethod
     def _interaction_loss(predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
         pred_bg, true_bg, ego = predicted[:, :, 1:], target[:, :, 1:], predicted[:, :, :1]
         target_ego = target[:, :, :1]
@@ -414,8 +423,15 @@ class QueryRefineWorldModel(nn.Module):
     ) -> dict[str, Any]:
         """Logged-state rollout; planning sees only ego state observed so far."""
         states, valid = batch["agent_states"], batch["agent_valid"]
-        steps = self._response_count(response_steps)
-        total_frames = steps * self.cfg.execute_frames
+        requested_steps = self._response_count(response_steps)
+        available_frames = self._available_rollout_frames(batch)
+        total_frames = min(
+            self.cfg.rollout_frames_for_responses(requested_steps),
+            available_frames,
+        )
+        if total_frames < 1:
+            raise ValueError("QR rollout batch does not contain a supervised future transition")
+        steps = (total_frames + self.cfg.execute_frames - 1) // self.cfg.execute_frames
         ego_mask = self._ego_mask(batch)
         if not torch.all(ego_mask[:, 0]):
             raise ValueError("QR-WM uses the fixed [ego, six background slots] tensor schema")
@@ -447,6 +463,7 @@ class QueryRefineWorldModel(nn.Module):
         masks: dict[str, list[torch.Tensor]] = {name: [] for name in BUFFER_MASK_NAMES}
         term_rows: list[dict[str, torch.Tensor]] = []
         generated_valid_frames: list[torch.Tensor] = []
+        executed_action_masks: list[torch.Tensor] = []
         previous_buffer = previous_current = None
         previous_memory: torch.Tensor | None = initial_memory
         for response in range(steps):
@@ -460,8 +477,12 @@ class QueryRefineWorldModel(nn.Module):
                 start_mode=start_mode and response == 0,
             )
             plan = out["background_future_actions"]
+            execute_count = min(
+                self.cfg.execute_frames,
+                total_frames - response * self.cfg.execute_frames,
+            )
             generated, response_frames, response_valid = current.clone(), [], []
-            for frame in range(self.cfg.execute_frames):
+            for frame in range(execute_count):
                 physical = current.new_zeros((current.shape[0], current.shape[1], 2))
                 physical[:, 1:] = plan[:, frame]
                 generated = self.dynamics.step(generated, physical, current_valid, self.cfg.simulation_dt_s)
@@ -471,10 +492,10 @@ class QueryRefineWorldModel(nn.Module):
                 response_frames.append(generated)
                 response_valid.append(current_valid)
             predicted = torch.stack(response_frames, dim=1)
-            execute_valid, full_valid = target_valid[:, : self.cfg.execute_frames, 1:], target_valid[:, :, 1:]
-            position = _masked_mean((predicted[:, :, 1:, :2] - target[:, : self.cfg.execute_frames, 1:, :2]).abs().mean(dim=-1), execute_valid)
-            velocity = _masked_mean((predicted[:, :, 1:, 2:4] - target[:, : self.cfg.execute_frames, 1:, 2:4]).abs().mean(dim=-1), execute_valid)
-            action_loss = _masked_mean((plan[:, : self.cfg.execute_frames] - target_actions[:, : self.cfg.execute_frames]).abs().mean(dim=-1), target_action_valid[:, : self.cfg.execute_frames])
+            execute_valid, full_valid = target_valid[:, :execute_count, 1:], target_valid[:, :, 1:]
+            position = _masked_mean((predicted[:, :, 1:, :2] - target[:, :execute_count, 1:, :2]).abs().mean(dim=-1), execute_valid)
+            velocity = _masked_mean((predicted[:, :, 1:, 2:4] - target[:, :execute_count, 1:, 2:4]).abs().mean(dim=-1), execute_valid)
+            action_loss = _masked_mean((plan[:, :execute_count] - target_actions[:, :execute_count]).abs().mean(dim=-1), target_action_valid[:, :execute_count])
             full_position = _masked_mean((out["refined_background_future_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
             initial_position = _masked_mean((out["initial_background_future_states"][..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1), full_valid)
             full_action = _masked_mean((plan - target_actions).abs().mean(dim=-1), target_action_valid)
@@ -482,7 +503,7 @@ class QueryRefineWorldModel(nn.Module):
             term_rows.append({
                 "position": position, "velocity": velocity, "action": action_loss, "plan_position": full_position,
                 "initial_plan_position": initial_position, "plan_action": full_action, "overlap": overlap,
-                "interaction": self._interaction_loss(predicted, target[:, : self.cfg.execute_frames], execute_valid),
+                "interaction": self._interaction_loss(predicted, target[:, :execute_count], execute_valid),
                 "physical": self._physical_loss(predicted, execute_valid),
                 "refinable_fraction": out["background_future_action_masks"]["refinable"].float().mean(),
             })
@@ -492,6 +513,10 @@ class QueryRefineWorldModel(nn.Module):
             plan_states.append(out["refined_background_future_states"]); initial_future_states.append(out["initial_background_future_states"])
             for name, value in out["background_future_action_masks"].items():
                 masks[name].append(value)
+            executed_mask = out["background_future_action_masks"]["valid"][:, : self.cfg.execute_frames].clone()
+            if execute_count < self.cfg.execute_frames:
+                executed_mask[:, execute_count:] = False
+            executed_action_masks.append(executed_mask)
             previous_buffer, previous_current, previous_memory = plan, step_current, out["scene_memory"]
             current = predicted[:, -1]
             appended_valid = torch.stack(response_valid, dim=1)
@@ -517,9 +542,12 @@ class QueryRefineWorldModel(nn.Module):
             "refined_background_future_states": torch.stack(plan_states, dim=1),
             "initial_background_future_states": torch.stack(initial_future_states, dim=1),
             "background_future_action_masks": self._stack_masks(masks),
-            "executed_background_action_masks": torch.stack([item[:, : self.cfg.execute_frames] for item in masks["valid"]], dim=1),
+            "executed_background_action_masks": torch.stack(executed_action_masks, dim=1),
             "behavior_latent": behavior, "behavior_terms": behavior_terms, "loss_terms": term_rows,
             "start_summary": start_summary, "start_mode": start_mode,
+            "start_reconstruction_frames": min(int(self.cfg.start_reconstruction_frames), total_frames),
+            "roll_frames": max(0, total_frames - int(self.cfg.start_reconstruction_frames)),
+            "total_frames": total_frames,
         }
 
     def rollout_reconstruction(

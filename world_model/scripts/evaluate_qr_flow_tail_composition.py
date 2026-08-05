@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 from world_model.src.core.utils import save_json, setup_logging
 from world_model.src.qr.flow_evaluation import evaluate_flow_composition
-from world_model.scripts.plot_reconstruction_result_summaries import (
+from world_model.scripts.plot_qr_flow_results import (
     plot_tail_interaction_distribution,
     plot_tail_sampling_and_runtime,
 )
@@ -30,6 +30,11 @@ def main() -> None:
         default=str(ROOT / "results/highd_world_model/long_tail_reproduction"),
     )
     parser.add_argument(
+        "--sequence-cache-dir",
+        default=str(ROOT / "results/highd_world_model/training_data/qr_sequence_cache"),
+        help="Canonical raw-150-state QR cache.",
+    )
+    parser.add_argument(
         "--flow-start-batch-size", type=int, default=96,
         help="Independent Flow starts evaluated together (four QR futures per start).",
     )
@@ -43,6 +48,7 @@ def main() -> None:
         checkpoint=checkpoint,
         output_dir=output_dir,
         flow_start_batch_size=args.flow_start_batch_size,
+        sequence_cache_owner=Path(args.sequence_cache_dir).resolve(),
     )
     figures = [
         plot_tail_interaction_distribution(output_dir),

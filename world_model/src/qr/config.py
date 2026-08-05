@@ -26,6 +26,11 @@ class QRWorldModelConfig:
     dropout: float = 0.10
     plan_frames: int = 25
     execute_frames: int = 5
+    # A highD natural window stores S0..S149.  QR reconstructs the first 25
+    # transitions from B0, then rolls the remaining 124 transitions without
+    # raw B0: 1.00 s START + 4.96 s ROLL = 5.96 s total.
+    rollout_frames: int = 149
+    start_reconstruction_frames: int = 25
     response_interval_s: float = 0.20
     simulation_dt_s: float = 0.04
     lane_width_m: float = 3.6
@@ -52,4 +57,14 @@ class QRWorldModelConfig:
 
     @property
     def response_steps(self) -> int:
-        return 125 // int(self.execute_frames)
+        return (int(self.rollout_frames) + int(self.execute_frames) - 1) // int(self.execute_frames)
+
+    @property
+    def roll_frames(self) -> int:
+        return int(self.rollout_frames) - int(self.start_reconstruction_frames)
+
+    def rollout_frames_for_responses(self, response_steps: int) -> int:
+        return min(int(self.rollout_frames), int(response_steps) * int(self.execute_frames))
+
+    def rollout_seconds_for_responses(self, response_steps: int) -> float:
+        return self.rollout_frames_for_responses(response_steps) * float(self.simulation_dt_s)

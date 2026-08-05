@@ -6,6 +6,20 @@ QR-WM（Query-Refine World Model）是当前正式的 highD 背景交通世界�
 
 模型的直接输出是未来背景动作序列 `background_future_actions_before_refinement` 与 `background_future_actions`、精炼前后背景状态、动作来源/有效性 mask 和下一响应周期的 `scene_memory`。完整重建 rollout 另返回 `predicted_states`、`target_states`、`target_valid` 及当前响应实际执行的 `executed_background_action_masks`；后者不是下一轮计划缓冲区的 mask。
 
+## 0.1 训练/ADS 的统一时间协议
+
+highD 的“6 秒”自然片段实际保存 150 个 25 Hz 状态点 `S0..S149`，因此可观测的状态转移只有 149 个、总跨度为 5.96 s。QR 缓存保留全部这些原始点：
+
+\[
+\underbrace{S_0\to\cdots\to S_{25}}_{25\ \text{START transitions}=1.00\ \mathrm{s}}
+\quad+\quad
+\underbrace{S_{25}\to\cdots\to S_{149}}_{124\ \text{ROLL transitions}=4.96\ \mathrm{s}}.
+\]
+
+训练的完整阶段、held-out 重建和 Flow×QR/ADS 评测都采用这一相同定义。`B0` 只直接约束 START；ROLL 不再读取原始 `B0`。没有虚构 `S150`，因而不能把它宣称为完整 5.00 s 的自由 ROLL；若需要该定义，原始窗口必须至少提供 151 个状态点。
+
+该缓存位于 `results/highd_world_model/training_data/qr_sequence_cache`。
+
 ## 1. 运行边界与因果约束
 
 QR-WM 使用固定 highD 场景布局 `[ego, six background slots]`。单车状态为 `[x, y, vx, vy, ax, ay]`；单个背景动作是 `[longitudinal_acceleration, yaw_rate]`。模型只预测背景车辆动作。
@@ -22,7 +36,7 @@ p_\theta(A_t^{bg}\mid H_t,S_t,M,m_t,A_{t-1}^{bg},z),
 代码有两条互补运行路径：
 
 - `rollout_reconstruction(...)` 是 highD 监督重建路径。它先生成背景动作，再把对应的日志 ego 状态写入下一已发生历史帧。
-- `QRWorldModelEnvironment` 是在线路径。外部 ADS 自行推进 ego，并每 0.2 秒调用 `step(ego_state)` 传入当前实现的 `[6]` ego 状态；QR-WM 不接收产生该状态的 ADS 动作。
+- `QRWorldModelEnvironment` 是在线路径。外部 ADS 每 0.04 秒调用 `step(ads_action)`，环境以 `f_ego` 推进 ego，并与背景车辆同步积分；QR-WM 只在每 0.2 秒规划边界读取已经发生的联合历史。`ads_action` 绝不进入 QR-WM 网络。
 
 ## 2. 场景编码器
 
@@ -144,11 +158,11 @@ A^{(i+1)}=\operatorname{clip}\left(A^{(i)}-R_\theta(A^{(i)},\widehat S^{bg},E_t,
 
 `KinematicTrafficDynamics` 是可微的 unicycle/single-track 兼容动力学。它将 `[a,yaw_rate]` 积分为下一六维状态；训练监督则先把 highD 笛卡尔加速度标签投影到相同动作坐标。
 
-重建过程中，背景动作按帧积分。每个响应的动作计划确定后，日志 ego 状态才逐帧写入生成历史。在线环境中，`QRWorldModelEnvironment.step(ego_state, ego_valid=True)` 先将观测 ego 状态写入当前状态与历史，再规划背景动作、执行 5 帧背景动作，并在该响应内保持 ego 为提供的观测状态，直到外部 ADS 提供下一观测。这保证了网络不会获知未实现的 ADS 意图。
+重建过程中，背景动作按帧积分。每个响应的动作计划确定后，日志 ego 状态才逐帧写入生成历史。在线环境中，`QRWorldModelEnvironment.step(ads_action, ego_valid=True)` 是一个 0.04 秒物理 tick：在 0.2 秒边界先以已发生联合历史规划背景动作，然后将 ADS 的 `[longitudinal_acceleration, yaw_rate]` 与当前背景计划帧组成联合控制，并同步积分 ego 和背景车辆。`advance_response(ads_actions)` 是严格等价的 1--5 tick 便捷接口；最后一个响应自然只有 4 tick。ADS 动作只属于环境 `f_ego`，不会输入编码器、memory、prior 或 refiner；其影响只能通过下一规划边界已发生的 ego 状态/历史被模型感知。
 
 ## 7. 训练目标与记录
 
-正式配置使用完整 immutable cache、40 个 epoch（`8 + 12 + 20`）：前两个阶段的 train/validation batch size 为 96，5 秒精炼阶段为 64；每 5 个 response 进行一次 truncated backpropagation。`forward_training` 以 50/50 为目标拆分 START/ROLL；奇数 batch 使用最接近的非空比例。
+正式配置使用完整 immutable cache、40 个 epoch（`8 + 12 + 20`）：前两个阶段的 train/validation batch size 为 96，5.96 秒精炼阶段为 64；每 5 个 response 进行一次 truncated backpropagation。完整阶段有 30 个 5 Hz 响应，其中最后一个只监督 4 个物理 tick。`forward_training` 以 50/50 为目标拆分 START/ROLL；奇数 batch 使用最接近的非空比例。
 
 START/ROLL 的等权目标包含：
 
@@ -159,26 +173,25 @@ START/ROLL 的等权目标包含：
 - behavior KL、behavior reconstruction、diversity floor；
 - `start_summary_weight=0.10` 乘以有效槽位上的 `L1(\widehat B0,B0)` 摘要损失。
 
-TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5 秒 stage 中按验证 FDE 选择。
+TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5.96 秒 stage 中按验证 FDE 选择，并写入 cache format、149/25/124 帧协议字段。
 
 ## 8. 评测、Flow 组合与 checkpoint
 
 `evaluate_qr_world_model` 在 held-out 重建集上使用确定性和采样 behavior latent，报告轨迹误差、minADE/minFDE、多样性、collision/gap/TTC/DRAC、速度/加速度/jerk 分布 KL、精炼位置增益及 `background_future_action_overlap_l1`。
 
-`evaluate_flow_composition` 从全部 highD EVT-tail replay 中匹配固定 Flow tail starts。冻结 Flow 按 slot mask 和主风险槽位采样；在高D唯一的直道路型 cohort 内，以 Flow 初始 ego 纵向速度最近邻匹配 replay，并将其平移到 Flow 起点。每个 response 只传入已经实现的 replay ego state，并在该 response 内保持该状态；它是 Flow + QR 的生成分布评测，不是任意 ADS 的重建，也不是 paired reconstruction。
+`evaluate_flow_composition` 从全部 highD EVT-tail replay 中匹配固定 Flow tail starts。冻结 Flow 按 slot mask 和主风险槽位采样；在高D唯一的直道路型 cohort 内，以 Flow 初始 ego 纵向速度最近邻匹配 replay，并将其平移到 Flow 起点。评测从相邻 25 Hz replay 速度状态恢复 ego 的 `[a,yaw_rate]`，仅由环境动力学应用，绝不输入 QR-WM；它按 149 个 tick 输出 `1.00 s START + 4.96 s ROLL` 的生成分布，不是任意 ADS 的配对重建。
 
 一个 `QRWorldModelEnvironment` 只维护一个世界。该世界的随机变量是 START 行为 latent 的标准正态扰动：用 `WorldRandomness(seed=...)` 可重现地生成，或直接以 `behavior_standard_normal` 注入；给定它以后，后续响应没有隐式随机数。`BatchedQRWorldModelEnvironment` 一次推进 96 个 Flow 起点的 4 条独立世界（384 条），只共享张量计算；每行有独立 seed/latent，绝不共享场景状态、latent、记忆、计划或 ego。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据、速度匹配误差、world seed 与哈希。
 
-checkpoint 保存模型名 `query_refine_world_model`、架构版本 `5`、model config、state dict 和 Flow schema hash。`load_qr_checkpoint` 会拒绝所有更早架构版本并提示重训。
+checkpoint 保存模型名 `query_refine_world_model`、model config、state dict 和 Flow schema hash。
 
 ## 9. 当前正式产物与复现入口
 
-当前正式 QR 运行位于 `results/highd_world_model/qr_world_model/`：训练已完成 40/40 epoch，最佳 5 秒验证 FDE 为 0.5922 m，checkpoint SHA-256 为 `e0e9c85c6769dfdbd1aeec53cca3091b97a724c7577fe9ce1dd3a83a4553927a`。
+训练完成后，正式 QR 运行位于 `results/highd_world_model/qr_world_model/`，并使用本文件定义的唯一训练和评测协议。
 
 - `training_summary.json`、`training_progress.json` 和 `training_history.csv` 记录完整训练；`current_training_curves.png` 由 `world_model/scripts/plot_qr_training_curves.py` 从 CSV 与 TensorBoard 记录重绘。
 - `qr_world_model_evaluation_summary.json` 是完整 held-out 重建评测（24,216 条测试序列）。
 - `results/highd_world_model/long_tail_reproduction/` 专用于 Flow × QR-WM 端到端分布评测，保存 `flow_composition_evaluation.json`、`flow_start_audit.npz` 和协议清单。
-- `results/highd_world_model/test_conditional_reconstruction/` 保存不含 Flow 的全测试集模型原生条件重建汇总：它从 24,216 条 held-out highD 测试序列直接取真实 `C0+B0`、道路图和 ego replay。收集器记录每份完整测试报告与 checkpoint 的 SHA-256；CAT-TopK 仍须明确标注为信息条件不对称。单模型 32 分支诊断仅按需执行，不作为该全量汇总。
 
 常用入口如下：
 
@@ -188,5 +201,5 @@ python world_model/scripts/train_qr_world_model.py --resume
 python world_model/scripts/test_qr_world_model.py
 python world_model/scripts/evaluate_qr_flow_tail_composition.py
 python world_model/scripts/plot_qr_training_curves.py
-python world_model/scripts/evaluate_test_conditional_reconstruction.py --mode native
+python world_model/scripts/plot_qr_flow_results.py
 ```

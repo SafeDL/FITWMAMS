@@ -14,7 +14,9 @@ import torch
 
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.core.sequential_dataset import (
+    QR_SEQUENCE_CACHE_FORMAT,
     ensure_frozen_flow_behavior_anchor_cache,
+    is_canonical_qr_manifest,
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
@@ -125,6 +127,11 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
     set_seed(int(training.get("seed", 42)))
     cache_owner = sequence_cache_owner_dir(config, config_dir=config_dir)
     arrays, manifest = load_sequential_dataset(cache_owner)
+    if not is_canonical_qr_manifest(manifest):
+        raise RuntimeError(
+            "QR-WM training requires the 1.00 s START + 4.96 s ROLL cache. "
+            "Run prepare_qr_sequence.py with highd_qr_world_model.yaml before training."
+        )
     if manifest.get("bounded_development_cache", True):
         raise RuntimeError("formal QR-WM training requires the complete immutable sequence cache")
     if int(config.get("dataset", {}).get("max_sequences", 0)) != 0:
@@ -144,7 +151,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
     model.flow_schema_sha256 = schema.schema_sha256
     stages = training.get("stages", [
         {"name": "buffer_warmup", "epochs": 1, "rollout_seconds": 1.0},
-        {"name": "full_refinement", "epochs": 3, "rollout_seconds": 5.0},
+        {"name": "full_refinement", "epochs": 3, "rollout_seconds": 5.96},
     ])
     if not stages:
         raise ValueError("training.stages must not be empty")
@@ -207,7 +214,7 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
         )
         response_steps = min(
             model.cfg.response_steps,
-            max(1, round(float(stage.get("rollout_seconds", 5.0)) / model.cfg.response_interval_s)),
+            max(1, round(float(stage.get("rollout_seconds", 5.96)) / model.cfg.response_interval_s)),
         )
         train_loader, val_loader = stage_loaders(stage)
         if resume_state is not None and stage_index == start_stage and start_stage_epoch:
@@ -238,7 +245,15 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
             fde = _roll_fde(model, val_loader, device, response_steps=response_steps)
             row = {
                 "epoch": epoch, "stage": name, "stage_epoch": stage_epoch + 1,
-                "rollout_seconds": response_steps * model.cfg.response_interval_s,
+                "rollout_seconds": model.cfg.rollout_seconds_for_responses(response_steps),
+                "start_reconstruction_seconds": min(
+                    model.cfg.start_reconstruction_frames,
+                    model.cfg.rollout_frames_for_responses(response_steps),
+                ) * model.cfg.simulation_dt_s,
+                "roll_seconds": max(
+                    0,
+                    model.cfg.rollout_frames_for_responses(response_steps) - model.cfg.start_reconstruction_frames,
+                ) * model.cfg.simulation_dt_s,
                 **{f"train_{key}": value / max(batches, 1) for key, value in totals.items()},
                 **{f"val_{key}": value for key, value in validation.items()},
                 "selection_metric": fde,
@@ -260,6 +275,10 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
                     "training_protocol": {
                         "from_scratch": True, "uses_baseline_checkpoint": False,
                         "complete_train_cache": True, "traffic_light_inputs": False,
+                        "sequence_cache_format": manifest["cache_format"],
+                        "total_transition_frames": int(manifest["future_transition_frames"]),
+                        "start_reconstruction_frames": int(manifest["start_reconstruction_frames"]),
+                        "roll_transition_frames": int(manifest["roll_transition_frames"]),
                         "future_encoder_training_only": True,
                         "flow_b0_start_only": True,
                         "start_encoder": "C0_plus_map_without_synthetic_history",
@@ -300,6 +319,10 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
         "train_sequences_per_epoch": int(len(train_loader.dataset)),
         "validation_sequences_per_epoch": int(len(val_loader.dataset)),
         "flow_schema_sha256": schema.schema_sha256,
+        "sequence_cache_format": manifest["cache_format"],
+        "total_transition_frames": int(manifest["future_transition_frames"]),
+        "start_reconstruction_frames": int(manifest["start_reconstruction_frames"]),
+        "roll_transition_frames": int(manifest["roll_transition_frames"]),
         "flow_b0_start_only": True,
         "start_encoder": "C0_plus_map_without_synthetic_history",
         "tensorboard_log_dir": str(tensorboard_dir) if tensorboard_dir is not None else None,
@@ -326,5 +349,27 @@ def load_qr_checkpoint(path: str | Path, *, device: str | torch.device = "cpu") 
     model = QueryRefineWorldModel(_config(dict(payload["model_config"])))
     model.load_state_dict(payload["state_dict"], strict=True)
     model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256")
+    model.training_protocol = dict(payload.get("training_protocol", {}))
     model.checkpoint_hash = file_sha256(path)
     return model.to(device).eval()
+
+
+def require_canonical_qr_checkpoint(model: QueryRefineWorldModel) -> None:
+    """Require QR's sole 1.00 s START + 4.96 s ROLL training contract.
+
+    The parameter shapes did not change, so loading an old checkpoint is
+    technically possible.  It must nevertheless not be reported as a model
+    trained for the new 1.00 s START + 4.96 s ROLL protocol.
+    """
+    protocol = getattr(model, "training_protocol", {})
+    required = {
+        "sequence_cache_format": QR_SEQUENCE_CACHE_FORMAT,
+        "total_transition_frames": 149,
+        "start_reconstruction_frames": 25,
+        "roll_transition_frames": 124,
+    }
+    if any(protocol.get(key) != value for key, value in required.items()):
+        raise RuntimeError(
+            "QR checkpoint was not trained on the canonical raw-150-state START+ROLL protocol. "
+            "It may not be used for a 5.96 s Flow/ADS evaluation; train after preparing the QR cache."
+        )

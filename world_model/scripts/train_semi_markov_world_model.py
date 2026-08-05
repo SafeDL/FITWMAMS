@@ -32,7 +32,7 @@ def materialize_reproduction_config(template_path: Path, output: Path) -> dict[s
         template_path,
         output,
         config_name=template_path.name,
-        resolve_path_keys=("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"),
+        resolve_path_keys=("source_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema"),
         drop_path_keys=("highd_evt_config",),
     )
     paths = config["paths"]
@@ -40,7 +40,7 @@ def materialize_reproduction_config(template_path: Path, output: Path) -> dict[s
     _write_yaml({
         "source_config": str(template_path),
         "output_dir": str(output),
-        "prepared_inputs": {key: paths[key] for key in ("legacy_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema")},
+        "prepared_inputs": {key: paths[key] for key in ("source_dataset_dir", "sequence_cache_dir", "flow_checkpoint", "flow_schema")},
         "config": str(config_path),
         "stages": ["validate", "train"],
         "historical_semi_markov_checkpoint_inputs": False,
