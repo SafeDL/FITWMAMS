@@ -193,7 +193,13 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
         resume_state = torch.load(recovery_path, map_location=device, weights_only=False)
         payload = dict(resume_state["model"])
         model.load_state_dict(payload["state_dict"], strict=True)
-        model.flow_schema_sha256 = payload.get("flow_interface", {}).get("flow_schema_sha256", schema.schema_sha256)
+        checkpoint_schema = payload.get("flow_interface", {}).get("flow_schema_sha256")
+        if checkpoint_schema != schema.schema_sha256:
+            raise RuntimeError(
+                "QR-WM recovery checkpoint Flow schema differs from the configured frozen B0 schema; "
+                "do not resume across Flow coordinate contracts."
+            )
+        model.flow_schema_sha256 = checkpoint_schema
         epoch, history = int(resume_state["epoch"]), list(resume_state.get("history", []))
         best = float(resume_state.get("best_validation_fde", float("inf")))
         logger.info("Resuming QR-WM from epoch %d with %d recorded epochs", epoch, len(history))
@@ -371,11 +377,20 @@ def require_canonical_qr_checkpoint(model: QueryRefineWorldModel) -> None:
         "total_transition_frames": 149,
         "start_reconstruction_frames": 25,
         "roll_transition_frames": 124,
+        "flow_b0_start_only": True,
+        "start_encoder": "C0_plus_map_without_synthetic_history",
         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "independent_roll_auxiliary": False,
     }
     if any(protocol.get(key) != value for key, value in required.items()):
         raise RuntimeError(
             "QR checkpoint was not trained on the canonical raw-150-state START+ROLL protocol. "
             "It may not be used for a 5.96 s Flow/ADS evaluation; train after preparing the QR cache."
+        )
+    checkpoint_schema = getattr(model, "flow_schema_sha256", None)
+    if not checkpoint_schema or protocol.get("flow_schema_sha256") != checkpoint_schema:
+        raise RuntimeError(
+            "QR checkpoint is missing a matching frozen Flow schema hash; it cannot be used for "
+            "the formal C0+B0 START contract."
         )

@@ -106,7 +106,7 @@ environment.reset_from_flow(
 )
 ```
 
-该 seed（或等价的 `behavior_standard_normal`）只控制 START 行为 latent；给定它、已发生的 ego 与当前状态，后续背景计划是确定的。`step()` 返回一个物理 tick 的联合状态、已执行 ego/背景动作、最新未来背景计划和可审计的 Flow/随机性元数据。批量场景使用 `BatchedQRWorldModelEnvironment`，只向量化网络与动力学计算；每行仍是互不共享状态、latent、记忆、计划或 ego 的独立世界。
+该 seed（或等价的 `behavior_standard_normal`）只控制 START 行为 latent；给定它、已发生的 ego 与当前状态，后续背景计划是确定的。单体和批量环境的 `step()` 都返回一个物理 tick 的联合状态、已执行 ego/背景动作、最新未来背景计划、`planner_updated`、物理 tick 与已完成响应计数；批量输出只是在这些字段前加 batch 维。批量场景使用 `BatchedQRWorldModelEnvironment`，只向量化网络与动力学计算；每行仍是互不共享状态、latent、记忆、计划或 ego 的独立世界。
 
 ### QR 正式产物
 

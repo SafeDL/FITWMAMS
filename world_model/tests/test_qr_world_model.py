@@ -226,7 +226,7 @@ def test_qr_relation_value_path_excludes_invalid_pair_slots() -> None:
     assert torch.equal(changed[:, :2], baseline[:, :2])
 
 
-def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
+def test_start_mix_is_convex_decaying_and_start_summary_is_trained() -> None:
     model, batch = _model(), _batch()
     fresh = torch.ones(1, 25, 6, 2)
     anchor = torch.full_like(fresh, -3.0)
@@ -243,9 +243,7 @@ def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
     start = model.supervised_terms(batch, response_steps=5, start_mode=True, training=True)
     assert torch.isfinite(start["start_summary"])
     terms = model.forward_training(batch, response_steps=2, tbptt_steps=1)
-    assert "start_fraction" not in terms
-    assert "start_loss" not in terms
-    assert "roll_loss" not in terms
+    assert "start_summary" in terms
     assert torch.isfinite(terms["loss"])
 
 
@@ -394,8 +392,15 @@ def test_advance_response_matches_five_physics_steps_for_single_and_batched_envi
         environment.reset_from_flow_batch(
             features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"], deterministic=True,
         )
-    expected_batch = torch.stack([stepped_batch.step(batch_actions[:, index]) for index in range(model.cfg.execute_frames)], dim=1)
-    actual_batch = grouped_batch.advance_response(batch_actions)
+    stepped_ticks = [
+        stepped_batch.step(batch_actions[:, index])
+        for index in range(model.cfg.execute_frames)
+    ]
+    assert stepped_ticks[0]["planner_updated"]
+    assert torch.equal(stepped_ticks[0]["applied_ego_action"], batch_actions[:, 0])
+    assert stepped_ticks[0]["background_future_actions"].shape == (2, 25, 6, 2)
+    expected_batch = torch.stack([tick["agent_states"] for tick in stepped_ticks], dim=1)
+    actual_batch = grouped_batch.advance_response(batch_actions)["agent_state_frames"]
     assert torch.allclose(actual_batch, expected_batch, atol=1.0e-6)
 
 
@@ -458,7 +463,14 @@ def test_batched_flow_environment_matches_independent_deterministic_environments
         environment = QRWorldModelEnvironment(model)
         environment.reset_from_flow(features[index, :40], features[index, 40:].reshape(6, 6), metadata, deterministic=True)
         expected.append(torch.from_numpy(environment.advance_response(actions[index])["agent_state_frames"]))
-    assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
+    assert torch.allclose(actual["agent_state_frames"].cpu(), torch.stack(expected), atol=1.0e-6)
+    assert actual["physics_step_index"] == model.cfg.execute_frames
+    assert actual["response_index"] == 1
+    assert actual["planning_updates"].tolist() == [True, False, False, False, False]
+    assert torch.equal(
+        actual["applied_background_action_frames"],
+        actual["background_future_actions"][:, :model.cfg.execute_frames],
+    )
 
 
 def test_stochastic_world_seed_is_replayable_and_batch_rows_remain_independent() -> None:
@@ -491,7 +503,7 @@ def test_stochastic_world_seed_is_replayable_and_batch_rows_remain_independent()
         )
         assert observation["world_randomness"]["seed"] == control.seed
         expected.append(torch.from_numpy(environment.advance_response(actions[index])["agent_state_frames"]))
-    assert torch.allclose(actual.cpu(), torch.stack(expected), atol=1.0e-6)
+    assert torch.allclose(actual["agent_state_frames"].cpu(), torch.stack(expected), atol=1.0e-6)
     try:
         QRWorldModelEnvironment(model).reset_from_flow(
             features[0, :40], features[0, 40:].reshape(6, 6), metadata,
@@ -573,14 +585,20 @@ def test_qr_evaluation_requires_canonical_checkpoint_training_contract(tmp_path)
         raise AssertionError("checkpoint without canonical training metadata must be rejected")
 
     canonical = tmp_path / "canonical.pt"
-    payload = _model().checkpoint_payload()
+    model = _model()
+    model.flow_schema_sha256 = "frozen-flow-schema-for-test"
+    payload = model.checkpoint_payload()
     payload["training_protocol"] = {
         "sequence_cache_format": "qr_start_roll_raw150",
         "total_transition_frames": 149,
         "start_reconstruction_frames": 25,
         "roll_transition_frames": 124,
+        "flow_b0_start_only": True,
+        "start_encoder": "C0_plus_map_without_synthetic_history",
         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "independent_roll_auxiliary": False,
+        "flow_schema_sha256": "frozen-flow-schema-for-test",
     }
     torch.save(payload, canonical)
     require_canonical_qr_checkpoint(load_qr_checkpoint(canonical))
@@ -597,8 +615,8 @@ def test_qr_tensorboard_records_batch_loss_and_epoch_metrics(tmp_path) -> None:
         tensorboard_writer,
         {
             "epoch": 1,
-            "rollout_seconds": 5.0,
-            "train_loss": 1.0, "train_start_summary": 0.25, "train_start_loss": 1.1, "train_roll_loss": 0.9,
+            "rollout_seconds": 5.96,
+            "train_loss": 1.0, "train_start_summary": 0.25, "train_plan_position": 1.1,
             "val_position": 0.5,
             "selection_metric": 1.75,
         },
@@ -609,6 +627,6 @@ def test_qr_tensorboard_records_batch_loss_and_epoch_metrics(tmp_path) -> None:
     events.Reload()
     tags = events.Tags()["scalars"]
     assert {
-        "batch/train/loss", "epoch/train/loss", "epoch/train/start_summary", "epoch/train/start_loss",
+        "batch/train/loss", "epoch/train/loss", "epoch/train/start_summary", "epoch/train/plan_position",
         "epoch/validation/position", "selection/validation_fde_m",
     } <= set(tags)

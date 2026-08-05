@@ -54,9 +54,8 @@ def evaluate_qr_world_model(
     checkpoint = checkpoint or output / "checkpoints" / "best_qr_world_model.pt"
     model = load_qr_checkpoint(checkpoint, device=device)
     require_canonical_qr_checkpoint(model)
-    if model.flow_schema_sha256 and model.flow_schema_sha256 != schema.schema_sha256:
+    if model.flow_schema_sha256 != schema.schema_sha256:
         raise ValueError("QR-WM checkpoint Flow schema differs from the requested B0 sidecar")
-    model.flow_schema_sha256 = schema.schema_sha256
     loader = make_sequence_loader(
         arrays, "test", batch_size=int(evaluation.get("batch_size", 64)),
         maximum=int(max_sequences or evaluation.get("max_sequences", 0)), shuffle=False,

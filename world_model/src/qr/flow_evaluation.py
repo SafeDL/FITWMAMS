@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import torch
 
+from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
 from world_model.src.core.flow_composition import (
     FLOW_COMPOSITION_SEED,
     INNER_WORLD_SAMPLES,
@@ -91,6 +92,9 @@ def evaluate_flow_composition(
         starts, cache, donors = prepared_starts, prepared_cache, np.asarray(prepared_donors, np.int64)
     model = load_qr_checkpoint(checkpoint, device=device) if model is None else model
     require_canonical_qr_checkpoint(model)
+    flow_schema = FrozenLegacyFlowSchema.load(repo_root / "results/highd_tail_flow/dataset_schema.json")
+    if model.flow_schema_sha256 != flow_schema.schema_sha256:
+        raise ValueError("QR-WM checkpoint Flow schema differs from the frozen Flow START sampler")
     rollout_frames = min(
         int(model.cfg.rollout_frames),
         int(np.asarray(cache["actions_highd"]).shape[1]),
@@ -166,7 +170,9 @@ def evaluate_flow_composition(
         frames = []
         for frame in range(0, rollout_frames, model.cfg.execute_frames):
             stop_frame = min(frame + model.cfg.execute_frames, rollout_frames)
-            frames.append(environment.advance_response(ego_controls[:, frame:stop_frame]))
+            frames.append(
+                environment.advance_response(ego_controls[:, frame:stop_frame])["agent_state_frames"]
+            )
         joint_frames = torch.cat(frames, dim=1)
         generated_rows.append(joint_frames[:, :, 1:].cpu().numpy())
         ego_rows.append(joint_frames[:, :, 0].cpu().numpy())

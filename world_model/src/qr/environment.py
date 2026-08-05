@@ -397,6 +397,10 @@ class BatchedQRWorldModelEnvironment:
     Every row keeps independent scene state, history, latent, memory and action
     buffer.  The rows are only batched for neural-network and dynamics calls;
     no ego state or future information is shared across them.
+
+    Its public step observations mirror :class:`QRWorldModelEnvironment` with
+    a leading batch dimension.  This keeps high-throughput Flow evaluation
+    auditable without exposing mutable private planning buffers.
     """
 
     def __init__(self, model: QueryRefineWorldModel, *, device: str | torch.device = "cpu") -> None:
@@ -471,6 +475,22 @@ class BatchedQRWorldModelEnvironment:
         self.world_randomness_audit = randomness_audit
         self.response_index = 0
 
+    def observe(self) -> dict[str, Any]:
+        """Return the current batched state and episode counters.
+
+        State tensors are cloned so an integration caller cannot mutate the
+        causal environment state between 25 Hz ticks.
+        """
+        if self._states is None or self._valid is None:
+            raise RuntimeError("Call reset_from_flow_batch before observe")
+        return {
+            "agent_states": self._states.clone(),
+            "agent_valid": self._valid.clone(),
+            "response_index": self.response_index,
+            "physics_step_index": self.physics_step_index,
+            "world_randomness": deepcopy(self.world_randomness_audit),
+        }
+
     @torch.no_grad()
     def _plan_if_needed(self) -> bool:
         """Create a shared-tensor background plan when the 5 Hz boundary is due."""
@@ -495,11 +515,13 @@ class BatchedQRWorldModelEnvironment:
     @torch.no_grad()
     def step(
         self, ads_actions: np.ndarray | torch.Tensor, ego_valid: np.ndarray | torch.Tensor | None = None,
-    ) -> torch.Tensor:
+    ) -> dict[str, Any]:
         """Advance every batch row by one 0.04-second joint physical tick.
 
-        Inputs are ADS controls ``[batch, 2]``.  The returned tensor is the
-        joint post-step state ``[batch, 7, 6]``; the controls never enter QR-WM.
+        Inputs are ADS controls ``[batch, 2]``.  The returned observation
+        includes the joint post-step state, applied ego/background controls,
+        active background plan, and the 5 Hz planning boundary flag.  Controls
+        never enter QR-WM.
         """
         if self._states is None or self._valid is None:
             raise RuntimeError("Call reset_from_flow_batch before step")
@@ -516,12 +538,13 @@ class BatchedQRWorldModelEnvironment:
         self._states, self._valid = self._states.clone(), self._valid.clone()
         self._valid[:, 0] = valid_ego
         self._states[:, 0] *= valid_ego[:, None].float()
-        self._plan_if_needed()
+        planner_updated = self._plan_if_needed()
         if self._active_plan is None:
             raise RuntimeError("QR-WM failed to create a background action plan")
+        executed_plan_frame = self._plan_frame_index
         physical = self._states.new_zeros((len(self._states), self._states.shape[1], 2))
         physical[:, 0] = actions
-        physical[:, 1:] = self._active_plan[:, self._plan_frame_index]
+        physical[:, 1:] = self._active_plan[:, executed_plan_frame]
         self._states = self.model.dynamics.step(
             self._states, physical, self._valid, self.model.cfg.simulation_dt_s
         )
@@ -531,13 +554,25 @@ class BatchedQRWorldModelEnvironment:
         self.physics_step_index += 1
         if self._plan_frame_index == self.model.cfg.execute_frames:
             self.response_index += 1
-        return self._states
+        observation = self.observe()
+        observation.update({
+            "applied_ego_action": actions.clone(),
+            "applied_background_actions": physical[:, 1:].clone(),
+            "background_future_actions": self._active_plan.clone(),
+            "planner_updated": planner_updated,
+            "executed_plan_frame": executed_plan_frame,
+        })
+        return observation
 
     @torch.no_grad()
     def advance_response(
         self, ads_actions: np.ndarray | torch.Tensor, ego_valid: np.ndarray | torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        """Advance a response prefix from ``[batch, ticks, 2]`` controls."""
+    ) -> dict[str, Any]:
+        """Advance a response prefix from ``[batch, ticks, 2]`` controls.
+
+        The result is strictly equivalent to repeatedly calling :meth:`step`
+        and additionally stacks the per-tick observation fields.
+        """
         if self._states is None:
             raise RuntimeError("Call reset_from_flow_batch before advance_response")
         if self._active_plan is not None and 0 < self._plan_frame_index < self.model.cfg.execute_frames:
@@ -563,6 +598,20 @@ class BatchedQRWorldModelEnvironment:
                 valid = valid[:, None].expand(-1, ticks_count)
         if tuple(valid.shape) != expected:
             raise ValueError("ego_valid must have shape [batch] or [batch, ticks]")
-        return torch.stack(
-            [self.step(actions[:, index], valid[:, index]) for index in range(ticks_count)], dim=1
-        )
+        ticks = [self.step(actions[:, index], valid[:, index]) for index in range(ticks_count)]
+        observation = ticks[-1]
+        states = torch.stack([tick["agent_states"] for tick in ticks], dim=1)
+        observation.update({
+            "agent_state_frames": states,
+            "background_states": states[:, :, 1:],
+            "applied_ego_actions": torch.stack(
+                [tick["applied_ego_action"] for tick in ticks], dim=1
+            ),
+            "applied_background_action_frames": torch.stack(
+                [tick["applied_background_actions"] for tick in ticks], dim=1
+            ),
+            "planning_updates": torch.as_tensor(
+                [tick["planner_updated"] for tick in ticks], dtype=torch.bool, device=self.device,
+            ),
+        })
+        return observation

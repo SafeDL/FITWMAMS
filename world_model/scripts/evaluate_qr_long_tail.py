@@ -910,12 +910,14 @@ def _probe_worlds(
         states: list[np.ndarray] = []
         initial_plan = next_plan = None
         for tick in range(controls.shape[1]):
-            current = environment.step(controls[:, tick])
-            states.append(current.detach().cpu().numpy())
+            observation = environment.step(controls[:, tick])
+            states.append(observation["agent_states"].cpu().numpy())
             if tick == 0:
-                initial_plan = environment._active_plan.detach().cpu().numpy().copy()
+                initial_plan = observation["background_future_actions"].cpu().numpy()
             if tick == 5:
-                next_plan = environment._active_plan.detach().cpu().numpy().copy()
+                if not observation["planner_updated"]:
+                    raise RuntimeError("ADS probe expected a 5 Hz replan at tick six")
+                next_plan = observation["background_future_actions"].cpu().numpy()
         if initial_plan is None or next_plan is None:
             raise RuntimeError("ADS probe must execute six 25Hz ticks")
         return np.stack(states, axis=1), initial_plan, next_plan
