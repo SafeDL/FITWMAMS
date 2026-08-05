@@ -180,8 +180,9 @@ def test_b0_changes_only_start_initialization_and_flow_rollout() -> None:
         return model.plan_step(
             current[:, None], valid[:, None], current, valid, ego, maps,
             torch.ones(2, 4, 5, dtype=torch.bool), torch.zeros(2, 1, 3, dtype=torch.long),
-            start["behavior_latent"], previous_memory=start["scene_memory"],
-            start_anchor_actions=start["start_anchor_actions"], start_mode=True,
+            previous_memory=start["scene_memory"],
+            start_anchor_actions=start["start_anchor_actions"],
+            start_behavior_seed=start["start_behavior_seed"], start_mode=True,
         )["background_future_actions"]
 
     flow_first = start_actions(feature)
@@ -252,6 +253,7 @@ def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
     assert not hasattr(model, "rollout")
     assert "ego_future_controls" not in inspect.signature(model.rollout_reconstruction).parameters
     assert "ego_future" not in " ".join(inspect.signature(model.plan_step).parameters)
+    assert "behavior_latent" not in inspect.signature(model.plan_step).parameters
     assert "ego" not in " ".join(inspect.signature(model.scene_memory.forward).parameters)
     assert "noise_level" not in inspect.signature(model.joint_refiner.residual).parameters
     assert not hasattr(model.joint_refiner, "noise_embedding")
@@ -275,8 +277,8 @@ def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
 
 def test_qr_explicit_behavior_latent_noise_controls_stochastic_reconstruction() -> None:
     model, batch = _model().eval(), _batch()
-    noise = torch.linspace(-1.0, 1.0, 2 * 7 * model.cfg.behavior_latent_dim).reshape(
-        2, 7, model.cfg.behavior_latent_dim
+    noise = torch.linspace(-1.0, 1.0, 2 * 2 * 7 * model.cfg.behavior_latent_dim).reshape(
+        2, 2, 7, model.cfg.behavior_latent_dim
     )
     torch.manual_seed(11)
     first = model.rollout_reconstruction(
@@ -291,6 +293,98 @@ def test_qr_explicit_behavior_latent_noise_controls_stochastic_reconstruction() 
         batch, response_steps=2, deterministic=False, behavior_standard_normal=-noise
     )
     assert not torch.equal(first["predicted_states"], changed["predicted_states"])
+
+
+def test_qr_samples_a_new_conditional_innovation_for_each_response() -> None:
+    """Changing only z_1 must leave the realised START response unchanged."""
+    model, batch = _model().eval(), _batch()
+    noise = torch.linspace(-1.0, 1.0, 2 * 2 * 7 * model.cfg.behavior_latent_dim).reshape(
+        2, 2, 7, model.cfg.behavior_latent_dim
+    )
+    changed_noise = noise.clone()
+    changed_noise[:, 1] *= -1.0
+    first = model.rollout_reconstruction(
+        batch, response_steps=2, deterministic=False, behavior_standard_normal=noise,
+    )
+    changed = model.rollout_reconstruction(
+        batch, response_steps=2, deterministic=False, behavior_standard_normal=changed_noise,
+    )
+    assert torch.equal(first["behavior_latent"][:, 0], changed["behavior_latent"][:, 0])
+    assert torch.equal(first["background_future_actions"][:, 0], changed["background_future_actions"][:, 0])
+    assert not torch.equal(first["behavior_latent"][:, 1], changed["behavior_latent"][:, 1])
+    assert not torch.equal(first["background_future_actions"][:, 1], changed["background_future_actions"][:, 1])
+
+
+def test_qr_snapshot_restore_and_branch_resampling_are_causal_and_replayable() -> None:
+    """AMS children share a prefix but draw an auditable new ROLL innovation."""
+    model, batch = _model().eval(), _batch()
+    metadata = FlowStartMetadata(
+        slot_valid=torch.ones(6, dtype=torch.bool).numpy(), map_polylines=batch["map_polylines"][0].numpy(),
+        map_polyline_valid=batch["map_polyline_valid"][0].numpy(), lane_graph_edges=batch["lane_graph_edges"][0].numpy(),
+        primary_slot_index=0, event_structure=[1, 0], mask_pattern=63, event_structure_id=0,
+        event_structure_log_prob=-0.2, conditional_log_prob=-1.3, log_prob=-1.5,
+    )
+    c0, b0 = torch.zeros(40), torch.zeros(6, 6)
+    c0[0] = 20.0
+    parent = QRWorldModelEnvironment(model)
+    parent.reset_from_flow(c0, b0, metadata, deterministic=False, world_randomness=WorldRandomness(seed=31))
+    for _ in range(model.cfg.execute_frames):
+        parent.step(torch.zeros(2))
+    snapshot = parent.snapshot()
+    assert snapshot.response_index == 1
+
+    # Plain restore is exact replay under the parent's original innovation stream.
+    replay = QRWorldModelEnvironment(model)
+    replay.restore(snapshot)
+    parent_next, replay_next = parent.step(torch.zeros(2)), replay.step(torch.zeros(2))
+    assert torch.equal(
+        torch.from_numpy(parent_next["background_future_actions"]),
+        torch.from_numpy(replay_next["background_future_actions"]),
+    )
+
+    positive = WorldRandomness(innovation_standard_normal=torch.ones(7, model.cfg.behavior_latent_dim))
+    negative = WorldRandomness(innovation_standard_normal=-torch.ones(7, model.cfg.behavior_latent_dim))
+    left, right, repeated = (QRWorldModelEnvironment(model) for _ in range(3))
+    left.branch_from_snapshot(snapshot, positive)
+    right.branch_from_snapshot(snapshot, negative)
+    repeated.branch_from_snapshot(snapshot, positive)
+    left_next, right_next, repeated_next = (
+        left.step(torch.zeros(2)), right.step(torch.zeros(2)), repeated.step(torch.zeros(2)),
+    )
+    assert torch.equal(
+        torch.from_numpy(left_next["background_future_actions"]),
+        torch.from_numpy(repeated_next["background_future_actions"]),
+    )
+    assert not torch.equal(
+        torch.from_numpy(left_next["background_future_actions"]),
+        torch.from_numpy(right_next["background_future_actions"]),
+    )
+    roll_audit = left_next["trace"]["world_randomness"]["response_innovations"][-1]
+    assert roll_audit["response_index"] == 1 and roll_audit["kind"] == "roll"
+    assert left_next["trace"]["world_randomness"]["branch_resampling"][-1]["response_index"] == 1
+
+    # The vectorized path keeps the same row-wise branch semantics for AMS.
+    features = torch.zeros(2, 76); features[:, 0] = torch.tensor((20.0, 22.0))
+    slots = torch.ones(2, 6, dtype=torch.bool)
+    batched = BatchedQRWorldModelEnvironment(model)
+    batched.reset_from_flow_batch(
+        features, slots, batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
+        deterministic=False, world_randomness=(WorldRandomness(seed=41), WorldRandomness(seed=42)),
+    )
+    for _ in range(model.cfg.execute_frames):
+        batched.step(torch.zeros(2, 2))
+    batched_snapshot = batched.snapshot()
+    batched_child = BatchedQRWorldModelEnvironment(model)
+    batched_child.branch_from_snapshot(
+        batched_snapshot,
+        (
+            WorldRandomness(innovation_standard_normal=torch.ones(7, model.cfg.behavior_latent_dim)),
+            WorldRandomness(innovation_standard_normal=-torch.ones(7, model.cfg.behavior_latent_dim)),
+        ),
+    )
+    batched_next = batched_child.step(torch.zeros(2, 2))
+    assert [row["response_innovations"][-1]["response_index"] for row in batched_next["world_randomness"]] == [1, 1]
+    assert all("branch_resampling" in row for row in batched_next["world_randomness"])
 
 
 def test_observed_ego_token_and_online_environment() -> None:
@@ -598,6 +692,8 @@ def test_qr_evaluation_requires_canonical_checkpoint_training_contract(tmp_path)
         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
         "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "independent_roll_auxiliary": False,
+        "response_conditioned_innovations": True,
+        "innovation_sampling": "one_conditional_behavior_latent_per_5hz_response",
         "flow_schema_sha256": "frozen-flow-schema-for-test",
     }
     torch.save(payload, canonical)

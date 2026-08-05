@@ -157,27 +157,17 @@ class QueryRefineWorldModel(nn.Module):
 
     def _initialize_episode_state(
         self,
-        batch: dict[str, torch.Tensor],
         agents: torch.Tensor,
         scene: torch.Tensor,
         current: torch.Tensor,
         current_valid: torch.Tensor,
         raw_anchor: torch.Tensor | None,
         anchor_valid: torch.Tensor | None,
-        *,
-        deterministic: bool,
-        use_posterior: bool,
-        behavior_standard_normal: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
-        """Initialize B0-derived actions, memory, and behavior once per rollout."""
+    ) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor]:
+        """Initialize B0-derived actions, memory, and the START prior seed."""
         anchor_actions, start_seed = self._start_anchor(current, current_valid, raw_anchor, anchor_valid)
         memory = self.scene_memory(scene, agents, anchor_actions, torch.zeros_like(current), None)
-        behavior, terms = self._behavior_latent(
-            batch, agents, scene, memory, current, current_valid, start_seed,
-            deterministic=deterministic, use_posterior=use_posterior,
-            behavior_standard_normal=behavior_standard_normal,
-        )
-        return anchor_actions, memory, behavior, terms
+        return anchor_actions, memory, start_seed
 
     def initialize_start(
         self,
@@ -189,22 +179,25 @@ class QueryRefineWorldModel(nn.Module):
         lane_graph_edges: torch.Tensor,
         raw_anchor: torch.Tensor,
         anchor_valid: torch.Tensor,
-        *,
-        deterministic: bool = True,
-        behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
-        """Initialize the shared START state once from C0, B0, and map."""
+        """Initialize deterministic START context from C0, B0, and map.
+
+        The START stochastic innovation is sampled by the first ``plan_step``
+        so the same response-level mechanism is used throughout the episode.
+        """
         agents, scene, _, _ = self.encoder.encode_start(
             current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
         )
-        anchor_actions, memory, behavior, _ = self._initialize_episode_state(
-            {}, agents, scene, current, current_valid, raw_anchor, anchor_valid,
-            deterministic=deterministic, use_posterior=False,
-            behavior_standard_normal=behavior_standard_normal,
+        anchor_actions, memory, start_seed = self._initialize_episode_state(
+            agents, scene, current, current_valid, raw_anchor, anchor_valid,
         )
         if anchor_actions is None:
             raise ValueError("START initialization requires B0 actions")
-        return {"scene_memory": memory, "behavior_latent": behavior, "start_anchor_actions": anchor_actions}
+        return {
+            "scene_memory": memory,
+            "start_behavior_seed": start_seed,
+            "start_anchor_actions": anchor_actions,
+        }
 
     @staticmethod
     def _stack_masks(masks: dict[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
@@ -252,15 +245,25 @@ class QueryRefineWorldModel(nn.Module):
         map_polylines: torch.Tensor,
         map_polyline_valid: torch.Tensor,
         lane_graph_edges: torch.Tensor,
-        behavior_latent: torch.Tensor,
         *,
         previous_buffer: torch.Tensor | None = None,
         previous_current: torch.Tensor | None = None,
         previous_memory: torch.Tensor | None = None,
         start_anchor_actions: torch.Tensor | None = None,
+        start_behavior_seed: torch.Tensor | None = None,
         start_mode: bool = False,
+        deterministic: bool = True,
+        use_posterior: bool = False,
+        posterior_future: torch.Tensor | None = None,
+        posterior_future_valid: torch.Tensor | None = None,
+        behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, Any]:
-        """One ROLL step; raw B0 is intentionally absent from this interface."""
+        """Plan one response from its realized prefix and conditional innovation.
+
+        Raw B0 remains absent from the ROLL interface.  Every call constructs
+        its own conditional behavior latent, so a copied prefix cannot reuse
+        a fixed latent to bypass response-level resampling.
+        """
         if start_mode:
             agents, scene, map_tokens, map_valid = self.encoder.encode_start(
                 current, current_valid, ego_mask, map_polylines, map_polyline_valid, lane_graph_edges,
@@ -276,6 +279,16 @@ class QueryRefineWorldModel(nn.Module):
             memory = self.scene_memory(scene, agents, previous_buffer, delta, None)
         elif previous_buffer is not None:
             memory = self.scene_memory(scene, agents, previous_buffer, delta, memory)
+        seed = (
+            current.new_zeros((current.shape[0], current.shape[1], self.cfg.behavior_latent_dim))
+            if start_behavior_seed is None else start_behavior_seed
+        )
+        behavior_latent, behavior_terms, realized_noise = self._behavior_latent(
+            agents, scene, memory, current, current_valid, seed,
+            deterministic=deterministic, use_posterior=use_posterior,
+            posterior_future=posterior_future, posterior_future_valid=posterior_future_valid,
+            behavior_standard_normal=behavior_standard_normal,
+        )
         fresh = self.joint_refiner.fresh_plan(agents, memory, behavior_latent)
         valid_mask = current_valid[:, None, 1:].expand(-1, self.cfg.plan_frames, -1)
         carried_mask = torch.zeros_like(valid_mask)
@@ -297,6 +310,9 @@ class QueryRefineWorldModel(nn.Module):
         return {
             "agent_context": agents, "scene_context": scene, "map_context": map_tokens,
             "map_context_valid": map_valid, "scene_memory": memory,
+            "behavior_latent": behavior_latent,
+            "behavior_terms": behavior_terms,
+            "behavior_standard_normal": realized_noise,
             "background_future_actions_before_refinement": pre_refinement,
             "background_future_actions": refined,
             "initial_background_future_states": initial_states,
@@ -362,7 +378,6 @@ class QueryRefineWorldModel(nn.Module):
 
     def _behavior_latent(
         self,
-        batch: dict[str, torch.Tensor],
         agents: torch.Tensor,
         scene: torch.Tensor,
         memory: torch.Tensor,
@@ -372,14 +387,25 @@ class QueryRefineWorldModel(nn.Module):
         *,
         deterministic: bool,
         use_posterior: bool,
+        posterior_future: torch.Tensor | None = None,
+        posterior_future_valid: torch.Tensor | None = None,
         behavior_standard_normal: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor], torch.Tensor | None]:
+        """Sample one response-conditioned behavior innovation.
+
+        At inference this is exactly the conditional prior
+        ``p(z_k | H_t, S_t, m_t)``.  Training optionally replaces it with the
+        response-local posterior, whose future background states are used only
+        for the VAE objective and never enter the planning interface.
+        """
         prior_mean, prior_log = self.behavior.prior_parameters(agents, scene, memory, start_seed)
         terms = {name: current.new_zeros(()) for name in ("behavior_kl", "behavior_reconstruction", "diversity_floor")}
         mean, log_scale = prior_mean, prior_log
         if use_posterior:
-            future = batch["agent_states"][:, 25:50].clone()
-            future_valid = batch["agent_valid"][:, 25:50].clone()
+            if posterior_future is None or posterior_future_valid is None:
+                raise ValueError("response posterior training requires local future states and validity")
+            future = posterior_future.clone()
+            future_valid = posterior_future_valid.clone()
             future[:, :, 0] = current[:, None, 0]
             future_valid[:, :, 0] = current_valid[:, None, 0]
             posterior_mean, posterior_log, future_feature = self.behavior.posterior_parameters(
@@ -399,16 +425,19 @@ class QueryRefineWorldModel(nn.Module):
             if behavior_standard_normal is not None:
                 raise ValueError("deterministic QR rollout must not receive behavior_standard_normal")
             sample = mean
+            realized_noise = None
         elif behavior_standard_normal is None:
-            sample = mean + torch.randn_like(mean) * torch.exp(log_scale)
+            realized_noise = torch.randn_like(mean)
+            sample = mean + realized_noise * torch.exp(log_scale)
         else:
             if behavior_standard_normal.shape != mean.shape:
                 raise ValueError(
                     "behavior_standard_normal must have shape "
                     "[batch, agents, behavior_latent_dim]"
                 )
-            sample = mean + behavior_standard_normal.to(device=mean.device, dtype=mean.dtype) * torch.exp(log_scale)
-        return sample * current_valid[..., None].float(), terms
+            realized_noise = behavior_standard_normal.to(device=mean.device, dtype=mean.dtype)
+            sample = mean + realized_noise * torch.exp(log_scale)
+        return sample * current_valid[..., None].float(), terms, realized_noise
 
     def _rollout(
         self,
@@ -449,11 +478,9 @@ class QueryRefineWorldModel(nn.Module):
                 history, history_valid, current, current_valid, ego_mask,
                 batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
             )
-        anchor_actions, initial_memory, behavior, behavior_terms = self._initialize_episode_state(
-            batch, initial_agents, initial_scene, current, current_valid,
+        anchor_actions, initial_memory, start_behavior_seed = self._initialize_episode_state(
+            initial_agents, initial_scene, current, current_valid,
             batch.get("behavior_anchor_raw"), batch.get("behavior_anchor_valid"),
-            deterministic=deterministic, use_posterior=use_posterior,
-            behavior_standard_normal=behavior_standard_normal,
         )
         predicted_frames: list[torch.Tensor] = []
         plans: list[torch.Tensor] = []
@@ -462,6 +489,9 @@ class QueryRefineWorldModel(nn.Module):
         initial_future_states: list[torch.Tensor] = []
         masks: dict[str, list[torch.Tensor]] = {name: [] for name in BUFFER_MASK_NAMES}
         term_rows: list[dict[str, torch.Tensor]] = []
+        behavior_term_rows: list[dict[str, torch.Tensor]] = []
+        behavior_latents: list[torch.Tensor] = []
+        behavior_noises: list[torch.Tensor | None] = []
         generated_valid_frames: list[torch.Tensor] = []
         executed_action_masks: list[torch.Tensor] = []
         previous_buffer = previous_current = None
@@ -469,12 +499,29 @@ class QueryRefineWorldModel(nn.Module):
         for response in range(steps):
             target, target_valid, target_actions, target_action_valid = self._target_plan(batch, response)
             step_current = current
+            response_noise = None
+            if behavior_standard_normal is not None:
+                expected_noise_shape = (
+                    current.shape[0], steps, current.shape[1], self.cfg.behavior_latent_dim,
+                )
+                if tuple(behavior_standard_normal.shape) != expected_noise_shape:
+                    raise ValueError(
+                        "behavior_standard_normal must have shape "
+                        "[batch, response_steps, agents, behavior_latent_dim]"
+                    )
+                response_noise = behavior_standard_normal[:, response]
             out = self.plan_step(
                 history, history_valid, current, current_valid, ego_mask,
-                batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"], behavior,
+                batch["map_polylines"], batch["map_polyline_valid"], batch["lane_graph_edges"],
                 previous_buffer=previous_buffer, previous_current=previous_current, previous_memory=previous_memory,
                 start_anchor_actions=anchor_actions if response == 0 else None,
+                start_behavior_seed=start_behavior_seed if response == 0 else None,
                 start_mode=start_mode and response == 0,
+                deterministic=deterministic,
+                use_posterior=use_posterior,
+                posterior_future=target,
+                posterior_future_valid=target_valid,
+                behavior_standard_normal=response_noise,
             )
             plan = out["background_future_actions"]
             execute_count = min(
@@ -507,6 +554,9 @@ class QueryRefineWorldModel(nn.Module):
                 "physical": self._physical_loss(predicted, execute_valid),
                 "refinable_fraction": out["background_future_action_masks"]["refinable"].float().mean(),
             })
+            behavior_term_rows.append(out["behavior_terms"])
+            behavior_latents.append(out["behavior_latent"])
+            behavior_noises.append(out["behavior_standard_normal"])
             predicted_frames.extend(response_frames)
             generated_valid_frames.extend(response_valid)
             plans.append(plan); pre_refinement.append(out["background_future_actions_before_refinement"])
@@ -525,6 +575,10 @@ class QueryRefineWorldModel(nn.Module):
                 history, history_valid, current, previous_buffer, previous_memory = (
                     history.detach(), history_valid.detach(), current.detach(), previous_buffer.detach(), previous_memory.detach()
                 )
+        behavior_terms = {
+            name: torch.stack([terms[name] for terms in behavior_term_rows]).mean()
+            for name in ("behavior_kl", "behavior_reconstruction", "diversity_floor")
+        }
         start_summary = current.new_zeros(())
         if start_mode and batch.get("behavior_anchor_raw") is not None and len(predicted_frames) >= self.cfg.plan_frames:
             prefix = torch.cat((states[:, 24:25], torch.stack(predicted_frames[: self.cfg.plan_frames], dim=1)), dim=1)
@@ -543,7 +597,12 @@ class QueryRefineWorldModel(nn.Module):
             "initial_background_future_states": torch.stack(initial_future_states, dim=1),
             "background_future_action_masks": self._stack_masks(masks),
             "executed_background_action_masks": torch.stack(executed_action_masks, dim=1),
-            "behavior_latent": behavior, "behavior_terms": behavior_terms, "loss_terms": term_rows,
+            "behavior_latent": torch.stack(behavior_latents, dim=1),
+            "behavior_standard_normal": (
+                None if all(noise is None for noise in behavior_noises)
+                else torch.stack([noise for noise in behavior_noises if noise is not None], dim=1)
+            ),
+            "behavior_terms": behavior_terms, "loss_terms": term_rows,
             "start_summary": start_summary, "start_mode": start_mode,
             "start_reconstruction_frames": min(int(self.cfg.start_reconstruction_frames), total_frames),
             "roll_frames": max(0, total_frames - int(self.cfg.start_reconstruction_frames)),
@@ -625,8 +684,9 @@ class QueryRefineWorldModel(nn.Module):
             "model_type": self.model_type, "model_config": asdict(self.cfg), "state_dict": self.state_dict(),
             "flow_interface": {
                 "input_dim": 76, "layout": "ego[vx,vy,ax,ay]+background_relative[6,6]+B0[6,6]",
-                "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes latent, scene memory, and first background future-action sequence",
+                "scene_tensor_shape": [7, 6], "b0_lifecycle": "START-only: initializes behavior seed, scene memory, and first background future-action sequence",
                 "start_encoder": "C0 plus map only; no synthetic history", "ego_condition": "observed ego state/history only; no ADS action input",
+                "behavior_randomness": "one conditional latent innovation per 5 Hz response; B0 seed is used only at START",
                 "flow_schema_sha256": self.flow_schema_sha256,
             },
         }

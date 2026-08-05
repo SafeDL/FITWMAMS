@@ -214,6 +214,7 @@ def evaluate_qr_world_model(
             "ego_condition": "logged ego replay is used only by this reconstruction protocol",
             "flow_interface": "76-D C0+B0 reconstructs the first 1.00 s; raw B0 is absent during the following 4.96 s ROLL",
             "initialization": "encode_start(C0,map) for every held-out deterministic and stochastic rollout; temporal ROLL begins only after generated history exists",
+            "stochasticity": "one conditional behavior innovation at every 5 Hz response; deterministic evaluation takes the corresponding prior means",
             "start_semantics": "segment-start behavior reconstruction; it does not assert that the natural-window anchor is a risk-event onset",
             "flow_schema_sha256": schema.schema_sha256,
         },

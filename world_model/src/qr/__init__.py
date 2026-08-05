@@ -2,8 +2,10 @@
 
 from .config import QRWorldModelConfig
 from .environment import (
+    BatchedQRWorldSnapshot,
     BatchedQRWorldModelEnvironment,
     FlowStartMetadata,
+    QRWorldSnapshot,
     QRWorldModelEnvironment,
     WorldRandomness,
 )
@@ -11,5 +13,6 @@ from .model import QueryRefineWorldModel
 
 __all__ = (
     "QRWorldModelConfig", "QueryRefineWorldModel", "FlowStartMetadata",
-    "QRWorldModelEnvironment", "BatchedQRWorldModelEnvironment", "WorldRandomness",
+    "QRWorldModelEnvironment", "BatchedQRWorldModelEnvironment", "QRWorldSnapshot",
+    "BatchedQRWorldSnapshot", "WorldRandomness",
 )

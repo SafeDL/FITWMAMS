@@ -174,6 +174,19 @@ def evaluate_flow_composition(
                 environment.advance_response(ego_controls[:, frame:stop_frame])["agent_state_frames"]
             )
         joint_frames = torch.cat(frames, dim=1)
+        response_count = (rollout_frames + model.cfg.execute_frames - 1) // model.cfg.execute_frames
+        response_innovations = np.asarray([
+            [row["standard_normal"] for row in audit["response_innovations"]]
+            for audit in environment.world_randomness_audit
+        ], dtype=np.float32)
+        expected_innovation_shape = (
+            len(features), response_count, 7, model.cfg.behavior_latent_dim,
+        )
+        if response_innovations.shape != expected_innovation_shape:
+            raise RuntimeError(
+                "Flow × QR-WM audit did not retain one realized innovation for every response "
+                f"({response_innovations.shape} != {expected_innovation_shape})"
+            )
         generated_rows.append(joint_frames[:, :, 1:].cpu().numpy())
         ego_rows.append(joint_frames[:, :, 0].cpu().numpy())
         valid_rows.append(np.repeat(slots[:, None], rollout_frames, axis=1))
@@ -183,6 +196,10 @@ def evaluate_flow_composition(
         for key, value in flow_metadata.items():
             audit_rows.setdefault(key, []).append(np.asarray(value))
         audit_rows.setdefault("flow_condition", []).append(features)
+        audit_rows.setdefault("qr_response_standard_normal", []).append(response_innovations)
+        audit_rows.setdefault("qr_response_index", []).append(
+            np.broadcast_to(np.arange(response_count, dtype=np.int64), (len(features), response_count)).copy()
+        )
         print(f"Flow x QR-WM starts {stop}/{len(donors)}", flush=True)
     generated, ego, valid = map(np.concatenate, (generated_rows, ego_rows, valid_rows))
     target, target_ego, target_valid = map(np.concatenate, (target_rows, target_ego_rows, target_valid_rows))
@@ -215,7 +232,11 @@ def evaluate_flow_composition(
             "ego_control_reconstruction": "acceleration=speed_difference/dt; yaw_rate=signed_heading_difference/dt",
             "world_randomness": (
                 "each inner QR world receives an auditable derived world_seed that controls "
-                "only its START behavior-standard-normal latent"
+                "its START and every subsequent 5 Hz conditional behavior innovation"
+            ),
+            "innovation_audit": (
+                "flow_start_audit.npz stores qr_response_standard_normal[world,response,agent,latent] "
+                "and qr_response_index for exact response-level replay"
             ),
             "replay_matching": {
                 "event_structure": "exact Flow slot mask and primary risk slot",

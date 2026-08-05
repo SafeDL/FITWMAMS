@@ -20,16 +20,17 @@ def _as_numpy(value: Any, dtype) -> np.ndarray:
 
 @dataclass(frozen=True)
 class WorldRandomness:
-    """Explicit START latent randomness for one independent QR world.
+    """Explicit response-innovation randomness for one independent QR world.
 
-    QR-WM samples only its behavior latent at START.  All later response
-    updates are deterministic conditional on that latent, the current world
-    state, and the ego state actually observed at that response.  Supplying a
-    seed or a standard-normal tensor therefore fully controls one world trace.
+    ``behavior_standard_normal`` controls the START innovation.  Later 5 Hz
+    response innovations derive from the same explicit seed, or can be
+    supplied directly when creating an AMS branch.  No environment path uses
+    the process-global random-number generator.
     """
 
     seed: int | None = None
     behavior_standard_normal: np.ndarray | torch.Tensor | None = None
+    innovation_standard_normal: np.ndarray | torch.Tensor | None = None
 
     @classmethod
     def from_value(cls, value: "WorldRandomness | Mapping[str, Any] | int") -> "WorldRandomness":
@@ -61,6 +62,37 @@ class WorldRandomness:
         generator = torch.Generator(device=device).manual_seed(int(self.seed))
         return torch.randn((agents, latent_dim), generator=generator, device=device, dtype=dtype)
 
+    def resolve_innovation(
+        self,
+        *,
+        response_index: int,
+        agents: int,
+        latent_dim: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> torch.Tensor:
+        """Return the independent innovation for one non-START response."""
+        if int(response_index) < 1:
+            raise ValueError("response innovations begin after the START response")
+        if self.innovation_standard_normal is not None:
+            value = torch.as_tensor(
+                _as_numpy(self.innovation_standard_normal, np.float32), device=device, dtype=dtype,
+            )
+            if value.shape != (agents, latent_dim):
+                raise ValueError(
+                    "innovation_standard_normal must have shape "
+                    "[agents, behavior_latent_dim] for one QR response"
+                )
+            return value
+        if self.seed is None:
+            raise ValueError(
+                "a stochastic QR response requires WorldRandomness(seed=...) or "
+                "innovation_standard_normal"
+            )
+        response_seed = int(self.seed) + 1_000_003 * int(response_index)
+        generator = torch.Generator(device=device).manual_seed(response_seed)
+        return torch.randn((agents, latent_dim), generator=generator, device=device, dtype=dtype)
+
     def audit_dict(self, realised_noise: torch.Tensor) -> dict[str, Any]:
         """Preserve both the user control and realised noise for exact replay."""
         return {
@@ -77,11 +109,11 @@ def _single_world_noise(
     latent_dim: int,
     device: torch.device,
     dtype: torch.dtype,
-) -> tuple[torch.Tensor | None, dict[str, Any]]:
+) -> tuple[torch.Tensor | None, dict[str, Any], WorldRandomness | None]:
     if deterministic:
         if randomness is not None:
             raise ValueError("deterministic QR world must not receive stochastic WorldRandomness")
-        return None, {"mode": "deterministic_prior_mean"}
+        return None, {"mode": "deterministic_prior_mean"}, None
     if randomness is None:
         raise ValueError(
             "stochastic QR world requires an explicit WorldRandomness; "
@@ -89,7 +121,7 @@ def _single_world_noise(
         )
     control = WorldRandomness.from_value(randomness)
     noise = control.resolve(agents=agents, latent_dim=latent_dim, device=device, dtype=dtype)
-    return noise, control.audit_dict(noise)
+    return noise, control.audit_dict(noise), control
 
 
 def _batched_world_noise(
@@ -101,11 +133,11 @@ def _batched_world_noise(
     latent_dim: int,
     device: torch.device,
     dtype: torch.dtype,
-) -> tuple[torch.Tensor | None, list[dict[str, Any]]]:
+) -> tuple[torch.Tensor | None, list[dict[str, Any]], list[WorldRandomness] | None]:
     if deterministic:
         if randomness is not None:
             raise ValueError("deterministic QR batch must not receive stochastic WorldRandomness")
-        return None, [{"mode": "deterministic_prior_mean"} for _ in range(batch_size)]
+        return None, [{"mode": "deterministic_prior_mean"} for _ in range(batch_size)], None
     if randomness is None or len(randomness) != batch_size:
         raise ValueError(
             "stochastic QR batch requires one explicit WorldRandomness per independent world row"
@@ -118,7 +150,7 @@ def _batched_world_noise(
         ],
         dim=0,
     )
-    return noise, [control.audit_dict(row) for control, row in zip(controls, noise)]
+    return noise, [control.audit_dict(row) for control, row in zip(controls, noise)], controls
 
 
 @dataclass(frozen=True)
@@ -176,6 +208,73 @@ class FlowStartMetadata:
         }
 
 
+@dataclass(frozen=True)
+class QRWorldSnapshot:
+    """Immutable-by-convention causal state at a QR 5 Hz branch boundary.
+
+    A snapshot contains only realized state, history, memory, planning buffer,
+    explicit random controls, and static Flow/map metadata.  It contains no
+    ADS plan or future ego state, so restoring it cannot leak a branch's
+    future into another AMS child world.
+    """
+
+    metadata: FlowStartMetadata
+    states: torch.Tensor
+    valid: torch.Tensor
+    history: torch.Tensor
+    history_valid: torch.Tensor
+    start_behavior_seed: torch.Tensor
+    start_behavior_noise: torch.Tensor | None
+    randomness_control: WorldRandomness | None
+    pending_innovation_noise: torch.Tensor | None
+    deterministic: bool
+    memory: torch.Tensor
+    anchor_actions: torch.Tensor
+    previous_buffer: torch.Tensor | None
+    previous_current: torch.Tensor | None
+    map_inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+    active_plan: torch.Tensor | None
+    plan_frame_index: int
+    has_planned: bool
+    physics_step_index: int
+    response_index: int
+    trace: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class BatchedQRWorldSnapshot:
+    """Immutable-by-convention causal state for a batch of QR worlds.
+
+    It has the same branch-boundary semantics as :class:`QRWorldSnapshot`,
+    while retaining a separate random-control stream and state for each row.
+    """
+
+    states: torch.Tensor
+    valid: torch.Tensor
+    history: torch.Tensor
+    history_valid: torch.Tensor
+    start_behavior_seed: torch.Tensor
+    start_behavior_noise: torch.Tensor | None
+    randomness_controls: tuple[WorldRandomness, ...] | None
+    pending_innovation_noise: torch.Tensor | None
+    deterministic: bool
+    memory: torch.Tensor
+    anchor_actions: torch.Tensor
+    previous_buffer: torch.Tensor | None
+    previous_current: torch.Tensor | None
+    map_inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+    active_plan: torch.Tensor | None
+    plan_frame_index: int
+    has_planned: bool
+    physics_step_index: int
+    response_index: int
+    world_randomness_audit: list[dict[str, Any]]
+
+
+def _clone_tensor(value: torch.Tensor | None) -> torch.Tensor | None:
+    return None if value is None else value.detach().clone()
+
+
 class QRWorldModelEnvironment:
     """25 Hz joint environment with 5 Hz QR-WM background replanning.
 
@@ -193,7 +292,11 @@ class QRWorldModelEnvironment:
         self._valid: torch.Tensor | None = None
         self._history: torch.Tensor | None = None
         self._history_valid: torch.Tensor | None = None
-        self._behavior: torch.Tensor | None = None
+        self._start_behavior_seed: torch.Tensor | None = None
+        self._start_behavior_noise: torch.Tensor | None = None
+        self._randomness_control: WorldRandomness | None = None
+        self._pending_innovation_noise: torch.Tensor | None = None
+        self._deterministic = True
         self._memory: torch.Tensor | None = None
         self._anchor_actions: torch.Tensor | None = None
         self._previous_buffer: torch.Tensor | None = None
@@ -228,7 +331,7 @@ class QRWorldModelEnvironment:
             torch.as_tensor(_as_numpy(self._metadata.map_polyline_valid, bool)[None], device=self.device),
             torch.as_tensor(_as_numpy(self._metadata.lane_graph_edges, np.int64)[None], device=self.device),
         )
-        behavior_noise, randomness_audit = _single_world_noise(
+        behavior_noise, randomness_audit, randomness_control = _single_world_noise(
             world_randomness,
             deterministic=deterministic,
             agents=7,
@@ -241,13 +344,14 @@ class QRWorldModelEnvironment:
             ego_mask = torch.zeros_like(valid); ego_mask[:, 0] = True
             start = self.model.initialize_start(
                 current, valid, ego_mask, *self._map_inputs, raw_anchor, slot_valid,
-                deterministic=deterministic, behavior_standard_normal=(
-                    None if behavior_noise is None else behavior_noise[None]
-                ),
             )
         self._states, self._valid = current, valid
         self._history, self._history_valid = current[:, None], valid[:, None]
-        self._behavior = start["behavior_latent"]
+        self._start_behavior_seed = start["start_behavior_seed"]
+        self._start_behavior_noise = None if behavior_noise is None else behavior_noise[None]
+        self._randomness_control = randomness_control
+        self._pending_innovation_noise = None
+        self._deterministic = bool(deterministic)
         self._memory = start["scene_memory"]
         self._anchor_actions = start["start_anchor_actions"]
         self._previous_buffer = self._previous_current = None
@@ -260,7 +364,7 @@ class QRWorldModelEnvironment:
             "flow_metadata": self._metadata.audit_dict(), "b0_lifecycle": "START-only",
             "ego_condition": "25 Hz ADS actions applied only by environment ego dynamics",
             "response_steps": 0, "physics_steps": 0, "planning_steps": 0,
-            "world_randomness": randomness_audit,
+            "world_randomness": {**randomness_audit, "response_innovations": []},
         }
         return self.observe()
 
@@ -275,12 +379,105 @@ class QRWorldModelEnvironment:
             "world_randomness": deepcopy(self.trace["world_randomness"]),
         }
 
+    def snapshot(self) -> QRWorldSnapshot:
+        """Capture a complete causal world state at a 5 Hz branch boundary."""
+        required = (
+            self._metadata, self._states, self._valid, self._history,
+            self._history_valid, self._start_behavior_seed, self._memory,
+            self._anchor_actions, self._map_inputs,
+        )
+        if any(value is None for value in required):
+            raise RuntimeError("Call reset_from_flow before snapshot")
+        if self._active_plan is not None and self._plan_frame_index not in (0, self.model.cfg.execute_frames):
+            raise RuntimeError("QR snapshots are valid only at 5 Hz response boundaries")
+        assert self._metadata is not None
+        assert self._states is not None and self._valid is not None
+        assert self._history is not None and self._history_valid is not None
+        assert self._start_behavior_seed is not None and self._memory is not None
+        assert self._anchor_actions is not None and self._map_inputs is not None
+        return QRWorldSnapshot(
+            metadata=deepcopy(self._metadata),
+            states=self._states.detach().clone(), valid=self._valid.detach().clone(),
+            history=self._history.detach().clone(), history_valid=self._history_valid.detach().clone(),
+            start_behavior_seed=self._start_behavior_seed.detach().clone(),
+            start_behavior_noise=_clone_tensor(self._start_behavior_noise),
+            randomness_control=deepcopy(self._randomness_control),
+            pending_innovation_noise=_clone_tensor(self._pending_innovation_noise),
+            deterministic=self._deterministic,
+            memory=self._memory.detach().clone(), anchor_actions=self._anchor_actions.detach().clone(),
+            previous_buffer=_clone_tensor(self._previous_buffer),
+            previous_current=_clone_tensor(self._previous_current),
+            map_inputs=tuple(value.detach().clone() for value in self._map_inputs),
+            active_plan=_clone_tensor(self._active_plan),
+            plan_frame_index=self._plan_frame_index, has_planned=self._has_planned,
+            physics_step_index=self.physics_step_index, response_index=self.response_index,
+            trace=deepcopy(self.trace),
+        )
+
+    def restore(self, snapshot: QRWorldSnapshot) -> dict[str, Any]:
+        """Restore a snapshot without changing its random innovation history."""
+        if not isinstance(snapshot, QRWorldSnapshot):
+            raise TypeError("restore requires a QRWorldSnapshot")
+        if snapshot.states.device != self.device:
+            raise ValueError("QRWorldSnapshot device must match the destination environment device")
+        self._metadata = deepcopy(snapshot.metadata)
+        self._states, self._valid = snapshot.states.detach().clone(), snapshot.valid.detach().clone()
+        self._history, self._history_valid = snapshot.history.detach().clone(), snapshot.history_valid.detach().clone()
+        self._start_behavior_seed = snapshot.start_behavior_seed.detach().clone()
+        self._start_behavior_noise = _clone_tensor(snapshot.start_behavior_noise)
+        self._randomness_control = deepcopy(snapshot.randomness_control)
+        self._pending_innovation_noise = _clone_tensor(snapshot.pending_innovation_noise)
+        self._deterministic = bool(snapshot.deterministic)
+        self._memory, self._anchor_actions = snapshot.memory.detach().clone(), snapshot.anchor_actions.detach().clone()
+        self._previous_buffer, self._previous_current = (
+            _clone_tensor(snapshot.previous_buffer), _clone_tensor(snapshot.previous_current),
+        )
+        self._map_inputs = tuple(value.detach().clone() for value in snapshot.map_inputs)
+        self._active_plan = _clone_tensor(snapshot.active_plan)
+        self._plan_frame_index, self._has_planned = snapshot.plan_frame_index, bool(snapshot.has_planned)
+        self.physics_step_index, self.response_index = snapshot.physics_step_index, snapshot.response_index
+        self.trace = deepcopy(snapshot.trace)
+        return self.observe()
+
+    def resample_next_innovation(
+        self, randomness: WorldRandomness | Mapping[str, Any] | int,
+    ) -> dict[str, Any]:
+        """Replace only the next ROLL innovation after copying a branch prefix."""
+        if self._states is None or self._active_plan is None:
+            raise RuntimeError("resample_next_innovation requires an executed START response boundary")
+        if self._deterministic:
+            raise RuntimeError("deterministic QR worlds have no stochastic future to resample")
+        if self._plan_frame_index != self.model.cfg.execute_frames or self.response_index < 1:
+            raise RuntimeError("resample_next_innovation is valid only between completed 5 Hz responses")
+        control = WorldRandomness.from_value(randomness)
+        noise = control.resolve_innovation(
+            response_index=self.response_index,
+            agents=self._states.shape[1], latent_dim=self.model.cfg.behavior_latent_dim,
+            device=self.device, dtype=self._states.dtype,
+        )
+        self._pending_innovation_noise = noise[None]
+        self.trace["world_randomness"].setdefault("branch_resampling", []).append({
+            "response_index": self.response_index,
+            "seed": None if control.seed is None else int(control.seed),
+            "standard_normal": noise.detach().cpu().numpy().tolist(),
+        })
+        return self.observe()
+
+    def branch_from_snapshot(
+        self,
+        snapshot: QRWorldSnapshot,
+        randomness: WorldRandomness | Mapping[str, Any] | int,
+    ) -> dict[str, Any]:
+        """Restore a copied prefix and schedule a fresh conditional ROLL draw."""
+        self.restore(snapshot)
+        return self.resample_next_innovation(randomness)
+
     @torch.no_grad()
     def _plan_if_needed(self) -> bool:
         """Create the next background plan exactly at a 5 Hz response boundary."""
         required = (
             self._states, self._valid, self._history, self._history_valid,
-            self._behavior, self._memory, self._metadata,
+            self._start_behavior_seed, self._memory, self._metadata,
         )
         if any(value is None for value in required):
             raise RuntimeError("Call reset_from_flow before step")
@@ -289,12 +486,29 @@ class QRWorldModelEnvironment:
         if self._active_plan is not None and self._plan_frame_index < self.model.cfg.execute_frames:
             return False
         ego_mask = torch.zeros_like(self._valid); ego_mask[:, 0] = True
+        is_start = not self._has_planned
+        if is_start:
+            innovation = self._start_behavior_noise
+        elif self._pending_innovation_noise is not None:
+            innovation, self._pending_innovation_noise = self._pending_innovation_noise, None
+        elif self._deterministic:
+            innovation = None
+        elif self._randomness_control is not None:
+            innovation = self._randomness_control.resolve_innovation(
+                response_index=self.response_index,
+                agents=self._states.shape[1], latent_dim=self.model.cfg.behavior_latent_dim,
+                device=self.device, dtype=self._states.dtype,
+            )[None]
+        else:
+            raise RuntimeError("stochastic QR world is missing its explicit response-innovation control")
         out = self.model.plan_step(
             self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs,
-            self._behavior, previous_buffer=self._previous_buffer,
+            previous_buffer=self._previous_buffer,
             previous_current=self._previous_current, previous_memory=self._memory,
-            start_anchor_actions=self._anchor_actions if not self._has_planned else None,
-            start_mode=not self._has_planned,
+            start_anchor_actions=self._anchor_actions if is_start else None,
+            start_behavior_seed=self._start_behavior_seed if is_start else None,
+            start_mode=is_start, deterministic=self._deterministic,
+            behavior_standard_normal=innovation,
         )
         self._active_plan = out["background_future_actions"]
         self._plan_frame_index = 0
@@ -302,6 +516,12 @@ class QRWorldModelEnvironment:
         self._memory = out["scene_memory"]
         self._has_planned = True
         self.trace["planning_steps"] += 1
+        if out["behavior_standard_normal"] is not None:
+            self.trace["world_randomness"]["response_innovations"].append({
+                "response_index": self.response_index,
+                "kind": "start" if is_start else "roll",
+                "standard_normal": out["behavior_standard_normal"][0].detach().cpu().numpy().tolist(),
+            })
         return True
 
     @torch.no_grad()
@@ -410,7 +630,11 @@ class BatchedQRWorldModelEnvironment:
         self._valid: torch.Tensor | None = None
         self._history: torch.Tensor | None = None
         self._history_valid: torch.Tensor | None = None
-        self._behavior: torch.Tensor | None = None
+        self._start_behavior_seed: torch.Tensor | None = None
+        self._start_behavior_noise: torch.Tensor | None = None
+        self._randomness_controls: list[WorldRandomness] | None = None
+        self._pending_innovation_noise: torch.Tensor | None = None
+        self._deterministic = True
         self._memory: torch.Tensor | None = None
         self._anchor_actions: torch.Tensor | None = None
         self._previous_buffer: torch.Tensor | None = None
@@ -447,7 +671,7 @@ class BatchedQRWorldModelEnvironment:
             raise ValueError("batched Flow map tensors must align with the Flow batch")
         if edges.ndim != 3 or edges.shape[0] != len(flow) or edges.shape[-1] != 3:
             raise ValueError("batched Flow lane_graph_edges must be [batch, edges, 3]")
-        behavior_noise, randomness_audit = _batched_world_noise(
+        behavior_noise, randomness_audit, randomness_controls = _batched_world_noise(
             world_randomness,
             batch_size=len(flow),
             deterministic=deterministic,
@@ -460,11 +684,14 @@ class BatchedQRWorldModelEnvironment:
         ego_mask = torch.zeros_like(valid); ego_mask[:, 0] = True
         start = self.model.initialize_start(
             current, valid, ego_mask, maps, map_valid, edges, raw_anchor, slots,
-            deterministic=deterministic, behavior_standard_normal=behavior_noise,
         )
         self._states, self._valid = current, valid
         self._history, self._history_valid = current[:, None], valid[:, None]
-        self._behavior, self._memory = start["behavior_latent"], start["scene_memory"]
+        self._start_behavior_seed, self._memory = start["start_behavior_seed"], start["scene_memory"]
+        self._start_behavior_noise = behavior_noise
+        self._randomness_controls = randomness_controls
+        self._pending_innovation_noise = None
+        self._deterministic = bool(deterministic)
         self._anchor_actions = start["start_anchor_actions"]
         self._previous_buffer = self._previous_current = None
         self._active_plan = None
@@ -472,7 +699,9 @@ class BatchedQRWorldModelEnvironment:
         self._has_planned = False
         self.physics_step_index = 0
         self._map_inputs = (maps, map_valid, edges)
-        self.world_randomness_audit = randomness_audit
+        self.world_randomness_audit = [
+            {**audit, "response_innovations": []} for audit in randomness_audit
+        ]
         self.response_index = 0
 
     def observe(self) -> dict[str, Any]:
@@ -491,25 +720,152 @@ class BatchedQRWorldModelEnvironment:
             "world_randomness": deepcopy(self.world_randomness_audit),
         }
 
+    def snapshot(self) -> BatchedQRWorldSnapshot:
+        """Capture all independent worlds at one common 5 Hz branch boundary."""
+        required = (
+            self._states, self._valid, self._history, self._history_valid,
+            self._start_behavior_seed, self._memory, self._anchor_actions, self._map_inputs,
+        )
+        if any(value is None for value in required):
+            raise RuntimeError("Call reset_from_flow_batch before snapshot")
+        if self._active_plan is not None and self._plan_frame_index not in (0, self.model.cfg.execute_frames):
+            raise RuntimeError("QR snapshots are valid only at 5 Hz response boundaries")
+        assert self._states is not None and self._valid is not None
+        assert self._history is not None and self._history_valid is not None
+        assert self._start_behavior_seed is not None and self._memory is not None
+        assert self._anchor_actions is not None and self._map_inputs is not None
+        return BatchedQRWorldSnapshot(
+            states=self._states.detach().clone(), valid=self._valid.detach().clone(),
+            history=self._history.detach().clone(), history_valid=self._history_valid.detach().clone(),
+            start_behavior_seed=self._start_behavior_seed.detach().clone(),
+            start_behavior_noise=_clone_tensor(self._start_behavior_noise),
+            randomness_controls=None if self._randomness_controls is None else tuple(deepcopy(self._randomness_controls)),
+            pending_innovation_noise=_clone_tensor(self._pending_innovation_noise),
+            deterministic=self._deterministic,
+            memory=self._memory.detach().clone(), anchor_actions=self._anchor_actions.detach().clone(),
+            previous_buffer=_clone_tensor(self._previous_buffer),
+            previous_current=_clone_tensor(self._previous_current),
+            map_inputs=tuple(value.detach().clone() for value in self._map_inputs),
+            active_plan=_clone_tensor(self._active_plan),
+            plan_frame_index=self._plan_frame_index, has_planned=self._has_planned,
+            physics_step_index=self.physics_step_index, response_index=self.response_index,
+            world_randomness_audit=deepcopy(self.world_randomness_audit),
+        )
+
+    def restore(self, snapshot: BatchedQRWorldSnapshot) -> dict[str, Any]:
+        """Restore a batched causal snapshot without changing its innovation streams."""
+        if not isinstance(snapshot, BatchedQRWorldSnapshot):
+            raise TypeError("restore requires a BatchedQRWorldSnapshot")
+        if snapshot.states.device != self.device:
+            raise ValueError("BatchedQRWorldSnapshot device must match the destination environment device")
+        self._states, self._valid = snapshot.states.detach().clone(), snapshot.valid.detach().clone()
+        self._history, self._history_valid = snapshot.history.detach().clone(), snapshot.history_valid.detach().clone()
+        self._start_behavior_seed = snapshot.start_behavior_seed.detach().clone()
+        self._start_behavior_noise = _clone_tensor(snapshot.start_behavior_noise)
+        self._randomness_controls = (
+            None if snapshot.randomness_controls is None else list(deepcopy(snapshot.randomness_controls))
+        )
+        self._pending_innovation_noise = _clone_tensor(snapshot.pending_innovation_noise)
+        self._deterministic = bool(snapshot.deterministic)
+        self._memory, self._anchor_actions = snapshot.memory.detach().clone(), snapshot.anchor_actions.detach().clone()
+        self._previous_buffer, self._previous_current = (
+            _clone_tensor(snapshot.previous_buffer), _clone_tensor(snapshot.previous_current),
+        )
+        self._map_inputs = tuple(value.detach().clone() for value in snapshot.map_inputs)
+        self._active_plan = _clone_tensor(snapshot.active_plan)
+        self._plan_frame_index, self._has_planned = snapshot.plan_frame_index, bool(snapshot.has_planned)
+        self.physics_step_index, self.response_index = snapshot.physics_step_index, snapshot.response_index
+        self.world_randomness_audit = deepcopy(snapshot.world_randomness_audit)
+        return self.observe()
+
+    def resample_next_innovations(
+        self, randomness: Sequence[WorldRandomness | Mapping[str, Any] | int],
+    ) -> dict[str, Any]:
+        """Replace the next ROLL innovation independently for every batch row."""
+        if self._states is None or self._active_plan is None:
+            raise RuntimeError("resample_next_innovations requires an executed START response boundary")
+        if self._deterministic:
+            raise RuntimeError("deterministic QR worlds have no stochastic future to resample")
+        if self._plan_frame_index != self.model.cfg.execute_frames or self.response_index < 1:
+            raise RuntimeError("resample_next_innovations is valid only between completed 5 Hz responses")
+        if len(randomness) != len(self._states):
+            raise ValueError("resample_next_innovations requires one WorldRandomness per batch row")
+        controls = [WorldRandomness.from_value(value) for value in randomness]
+        noise = torch.stack([
+            control.resolve_innovation(
+                response_index=self.response_index,
+                agents=self._states.shape[1], latent_dim=self.model.cfg.behavior_latent_dim,
+                device=self.device, dtype=self._states.dtype,
+            )
+            for control in controls
+        ])
+        self._pending_innovation_noise = noise
+        for audit, control, row in zip(self.world_randomness_audit, controls, noise):
+            audit.setdefault("branch_resampling", []).append({
+                "response_index": self.response_index,
+                "seed": None if control.seed is None else int(control.seed),
+                "standard_normal": row.detach().cpu().numpy().tolist(),
+            })
+        return self.observe()
+
+    def branch_from_snapshot(
+        self,
+        snapshot: BatchedQRWorldSnapshot,
+        randomness: Sequence[WorldRandomness | Mapping[str, Any] | int],
+    ) -> dict[str, Any]:
+        """Restore a batch prefix and schedule row-wise fresh ROLL draws."""
+        self.restore(snapshot)
+        return self.resample_next_innovations(randomness)
+
     @torch.no_grad()
     def _plan_if_needed(self) -> bool:
         """Create a shared-tensor background plan when the 5 Hz boundary is due."""
-        required = (self._states, self._valid, self._history, self._history_valid, self._behavior, self._memory)
+        required = (
+            self._states, self._valid, self._history, self._history_valid,
+            self._start_behavior_seed, self._memory,
+        )
         if any(value is None for value in required) or self._map_inputs is None:
             raise RuntimeError("Call reset_from_flow_batch before step")
         if self._active_plan is not None and self._plan_frame_index < self.model.cfg.execute_frames:
             return False
         ego_mask = torch.zeros_like(self._valid); ego_mask[:, 0] = True
+        is_start = not self._has_planned
+        if is_start:
+            innovation = self._start_behavior_noise
+        elif self._pending_innovation_noise is not None:
+            innovation, self._pending_innovation_noise = self._pending_innovation_noise, None
+        elif self._deterministic:
+            innovation = None
+        elif self._randomness_controls is not None:
+            innovation = torch.stack([
+                control.resolve_innovation(
+                    response_index=self.response_index,
+                    agents=self._states.shape[1], latent_dim=self.model.cfg.behavior_latent_dim,
+                    device=self.device, dtype=self._states.dtype,
+                )
+                for control in self._randomness_controls
+            ])
+        else:
+            raise RuntimeError("stochastic QR batch is missing explicit response-innovation controls")
         out = self.model.plan_step(
-            self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs, self._behavior,
+            self._history, self._history_valid, self._states, self._valid, ego_mask, *self._map_inputs,
             previous_buffer=self._previous_buffer, previous_current=self._previous_current,
-            previous_memory=self._memory, start_anchor_actions=self._anchor_actions if not self._has_planned else None,
-            start_mode=not self._has_planned,
+            previous_memory=self._memory, start_anchor_actions=self._anchor_actions if is_start else None,
+            start_behavior_seed=self._start_behavior_seed if is_start else None,
+            start_mode=is_start, deterministic=self._deterministic,
+            behavior_standard_normal=innovation,
         )
         self._active_plan = out["background_future_actions"]
         self._plan_frame_index = 0
         self._previous_buffer, self._previous_current, self._memory = self._active_plan, self._states, out["scene_memory"]
         self._has_planned = True
+        if out["behavior_standard_normal"] is not None:
+            for audit, noise in zip(self.world_randomness_audit, out["behavior_standard_normal"]):
+                audit["response_innovations"].append({
+                    "response_index": self.response_index,
+                    "kind": "start" if is_start else "roll",
+                    "standard_normal": noise.detach().cpu().numpy().tolist(),
+                })
         return True
 
     @torch.no_grad()

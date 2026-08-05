@@ -20,11 +20,11 @@ RAMP、FIRM、Semi-Markov 和 CAT-TopK 各自使用其正式配置中的数据�
 
 ### 实现与输入约束
 
-当前 QR-WM 只维护一套实现与一份正式 checkpoint；加载时以 `model_type`、完整模型配置和严格 state-dict 形状校验兼容性，不使用历史版本编号。该实现由 relation-aware scene encoder、persistent scene memory、行为 prior、START 行为锚定控制器和 joint agent-time refiner 组成：编码器读取车辆、地图折线与车道图；行为 prior 在 START 采样 16 维背景行为 latent；refiner 生成并两次细化 25 帧背景动作计划。动作被限制在配置的纵向加速度 `[-8, 4] m/s²` 与横摆角速度 `[-0.6, 0.6] rad/s` 范围内，再由运动学模型积分为背景车辆状态。
+当前 QR-WM 只维护一套实现与一份正式 checkpoint；加载时以 `model_type`、完整模型配置和严格 state-dict 形状校验兼容性，不使用历史版本编号。该实现由 relation-aware scene encoder、persistent scene memory、行为 prior、START 行为锚定控制器和 joint agent-time refiner 组成：编码器读取车辆、地图折线与车道图；行为 prior 在每个 5 Hz 响应采样 16 维、以当前已发生历史和 memory 为条件的背景行为 innovation；refiner 生成并两次细化 25 帧背景动作计划。动作被限制在配置的纵向加速度 `[-8, 4] m/s²` 与横摆角速度 `[-0.6, 0.6] rad/s` 范围内，再由运动学模型积分为背景车辆状态。
 
 默认配置采用 25 帧（1 秒）计划、每次执行 5 帧（0.2 秒）、仿真步长 0.04 秒。每个训练、验证、checkpoint 选择和 held-out 轨迹都从真正的 `encode_start(C0,map)` 开始：`START 25 tick = 1.00 s`，随后在已生成的 25 Hz 联合历史上进入 `ROLL 124 tick = 4.96 s`；最后一个 5 Hz 响应只执行 4 tick，绝不补造 `S150`。训练分为 8 epoch 的 `buffer_warmup`、12 epoch 的 `closed_loop` 和 20 epoch 的 `full_refinement`，共 40 epoch。最佳 checkpoint 只会从完整 5.96 秒阶段按验证 FDE 选出。
 
-`B0` 只在 START 使用一次：它初始化行为 latent 的锚定、场景记忆和首段动作计划；后续 ROLL 只依赖已实现的世界状态、计划缓冲区、场景记忆与当前 ego 观测。主训练不再使用无真实历史的伪 ROLL 半批；若将来加入独立 ROLL 辅助目标，必须从片段内部采样切点并提供其前 25 帧真实历史。这里的 START 严格指“片段起始行为重建”，不等同于 EVT 风险事件的起始时刻。离线重建评测中的 ego 轨迹来自日志回放；在线环境每 0.04 秒将 ADS 动作仅用于 ego 动力学，并每 0.2 秒以已发生的联合历史重规划背景。推理不接受 ADS 动作、未来 ego 控制或交通灯输入。训练时的 posterior 仅用于学习行为 latent；推理与在线环境使用 prior。
+`B0` 只在 START 使用一次：它初始化第一个响应的 behavior seed、场景记忆和首段动作计划；后续 ROLL 只依赖已实现的世界状态、计划缓冲区、场景记忆与当前 ego 观测，并在每个响应取新的条件 innovation。主训练不再使用无真实历史的伪 ROLL 半批；若将来加入独立 ROLL 辅助目标，必须从片段内部采样切点并提供其前 25 帧真实历史。这里的 START 严格指“片段起始行为重建”，不等同于 EVT 风险事件的起始时刻。离线重建评测中的 ego 轨迹来自日志回放；在线环境每 0.04 秒将 ADS 动作仅用于 ego 动力学，并每 0.2 秒以已发生的联合历史重规划背景。推理不接受 ADS 动作、未来 ego 控制或交通灯输入。训练时的 posterior 仅用于学习每个响应的 behavior latent；推理与在线环境使用 prior。
 
 ### 训练与恢复
 
@@ -106,11 +106,24 @@ environment.reset_from_flow(
 )
 ```
 
-该 seed（或等价的 `behavior_standard_normal`）只控制 START 行为 latent；给定它、已发生的 ego 与当前状态，后续背景计划是确定的。单体和批量环境的 `step()` 都返回一个物理 tick 的联合状态、已执行 ego/背景动作、最新未来背景计划、`planner_updated`、物理 tick 与已完成响应计数；批量输出只是在这些字段前加 batch 维。批量场景使用 `BatchedQRWorldModelEnvironment`，只向量化网络与动力学计算；每行仍是互不共享状态、latent、记忆、计划或 ego 的独立世界。
+该 seed 控制可审计的完整响应 innovation 流：START 使用第 0 个扰动，随后每个 ROLL 响应使用按 response index 派生的独立扰动。单体环境 trace 会记录每次实际扰动；`behavior_standard_normal` 可显式控制 START，`innovation_standard_normal` 用于指定一个 AMS 子分支的下一响应扰动。单体和批量环境的 `step()` 都返回一个物理 tick 的联合状态、已执行 ego/背景动作、最新未来背景计划、`planner_updated`、物理 tick 与已完成响应计数；批量输出只是在这些字段前加 batch 维。批量场景使用 `BatchedQRWorldModelEnvironment`，只向量化网络与动力学计算；每行仍是互不共享状态、latent、记忆、计划或 ego 的独立世界。
+
+path-level AMS 在至少完成 START 后的 0.2 秒响应边界复制前缀：
+
+```python
+prefix = environment.snapshot()
+child = QRWorldModelEnvironment(model)
+child.branch_from_snapshot(prefix, WorldRandomness(seed=20260730))
+child_observation = child.step(ads_action)
+```
+
+`branch_from_snapshot` 只重新采样下一 ROLL innovation；它不会引入 ADS 未来计划或 ego 未来状态。相同分支随机控制严格复现，不同控制给出条件于同一前缀的不同背景未来。
+
+`BatchedQRWorldModelEnvironment` 也提供同名的 snapshot/restore/branch 接口；其 `branch_from_snapshot` 接收每个 batch row 一个 `WorldRandomness`，以便并行执行 AMS 子分支。
 
 ### QR 正式产物
 
-完成当前协议训练后，`results/highd_world_model/qr_world_model/` 保存唯一 checkpoint、训练记录和 held-out 评测；`long_tail_reproduction/` 保存 Flow×QR 的分布报告、审计和图表。checkpoint 的 `training_protocol` 记录 QR cache format、149 个总转移、25 个 START 转移和 124 个 ROLL 转移；评测会核验这些字段。
+完成当前协议训练后，`results/highd_world_model/qr_world_model/` 保存唯一 checkpoint、训练记录和 held-out 评测；`long_tail_reproduction/` 保存 Flow×QR 的分布报告、审计和图表。checkpoint 的 `training_protocol` 记录 QR cache format、149 个总转移、25 个 START 转移、124 个 ROLL 转移和“每 5 Hz 响应的条件 innovation”；评测会核验这些字段，并拒绝旧的仅 START 随机 checkpoint。
 
 ## 对比基线
 
@@ -127,7 +140,7 @@ environment.reset_from_flow(
 
 ## 全 EVT-tail Flow×QR 端到端生成
 
-`results/highd_world_model/long_tail_reproduction/` 不存放上述条件重建基线；它专门用于冻结 Flow + QR 的端到端尾部交通生成分布评测。该目录的正式运行输出 5.96 秒、30 个因果响应（最后一个为 4 tick）的结果。每次 `QRWorldModelEnvironment.reset_from_flow` 表示一个独立世界：`deterministic=True` 使用先验均值；随机世界必须显式传入 `WorldRandomness(seed=...)` 或 `behavior_standard_normal`，以控制并审计 START 行为 latent。给定该 latent、已实现 ego 和当前状态后，后续响应是确定的。`BatchedQRWorldModelEnvironment` 的默认执行批次为 96 个 Flow 起点及其 4 条独立世界（384 条）；它要求每行都有自己的随机控制量，绝不共享状态、latent、记忆、计划或 ego。
+`results/highd_world_model/long_tail_reproduction/` 不存放上述条件重建基线；它专门用于冻结 Flow + QR 的端到端尾部交通生成分布评测。该目录的正式运行输出 5.96 秒、30 个因果响应（最后一个为 4 tick）的结果。每次 `QRWorldModelEnvironment.reset_from_flow` 表示一个独立世界：`deterministic=True` 在每个响应使用 prior 均值；随机世界必须显式传入 `WorldRandomness(seed=...)`，以控制并审计 START 与全部 ROLL innovation。`BatchedQRWorldModelEnvironment` 的默认执行批次为 96 个 Flow 起点及其 4 条独立世界（384 条）；它要求每行都有自己的随机控制量，绝不共享状态、latent、记忆、计划或 ego。
 
 子集模拟应复用这一批量环境、逐批规约失效指标，并在 audit 中保留 Flow 条件、world seed 和 failure indicator；不要在每个 level 调用完整 `evaluate_qr_long_tail.py`，因为该唯一正式入口还会保存全量轨迹并计算离线 FFD/MMD 分布报告。
 

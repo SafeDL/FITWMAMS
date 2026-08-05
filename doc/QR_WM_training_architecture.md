@@ -29,11 +29,12 @@ QR-WM 使用固定 highD 场景布局 `[ego, six background slots]`。单车状�
 响应时刻 `t` 的推理分布为：
 
 \[
-p_\theta(A_t^{bg}\mid H_t,S_t,M,m_t,A_{t-1}^{bg},z),
+p_\theta(z_k\mid H_{t_k},S_{t_k},M,m_{t_k})\,
+p_\theta(A_k^{bg}\mid H_{t_k},S_{t_k},M,m_{t_k},A_{k-1}^{bg},z_k),
 \qquad A_t^{bg}\in\mathbb{R}^{H\times6\times2}.
 \]
 
-其中 `H_t` 是已发生历史，`S_t` 是当前状态，`M` 是地图，`m_t` 是唯一场景记忆，`A_{t-1}^{bg}` 是未执行背景动作序列，`z` 是行为 latent。推理和动作生成路径不接收 ADS 当前动作、ADS 内部计划、ego 未来动作、ego 未来状态、traffic light 或未来背景标签，也不加载 RAMP/FIRM checkpoint。ADS 的影响只能在其动作已形成新的 ego 观测状态，并进入 `H_{t+1}` 后被模型感知。
+其中 `H_{t_k}` 是已发生历史，`S_{t_k}` 是当前状态，`M` 是地图，`m_{t_k}` 是唯一场景记忆，`A_{k-1}^{bg}` 是未执行背景动作序列，`z_k` 是本响应的行为 latent。推理和动作生成路径不接收 ADS 当前动作、ADS 内部计划、ego 未来动作、ego 未来状态、traffic light 或未来背景标签，也不加载 RAMP/FIRM checkpoint。ADS 的影响只能在其动作已形成新的 ego 观测状态，并进入 `H_{t+1}` 后被模型感知。
 
 代码有两条互补运行路径：
 
@@ -79,8 +80,8 @@ v_y^{bg}=v_y^{ego}+\Delta v_y.
 2. 将 B0 投影为平滑的 25 帧背景动作锚点；
 3. 将 B0 投影为逐车 behavior seed；
 4. 用动作锚点和零状态变化初始化唯一 `PersistentSceneMemory`；
-5. 从条件行为先验取样或选取均值；
-6. 返回 `scene_memory`、`behavior_latent` 和 `start_anchor_actions`。
+5. 返回 `scene_memory`、B0-derived `start_behavior_seed` 和 `start_anchor_actions`；
+6. 第一次 `plan_step` 才从以该 seed 为条件的 prior 取样（或在确定性评测中取均值）。
 
 第一次 `plan_step` 中，fresh 动作与 B0 锚点采用随时间衰减的凸组合：
 
@@ -112,7 +113,14 @@ m_t=f(m_{t-1},s_t,\operatorname{pool}(E_t),A_{t-1}^{bg},\Delta S_t).
 
 ### Behavior prior 与训练 posterior
 
-`BehaviorPrior` 为每个 agent 提供以 agent token、scene token 和 memory 为条件的 Gaussian prior。START 时 B0 behavior seed 会平移 prior 均值。推理中，`deterministic=True` 取 prior 均值；否则从该 Gaussian 取样，它是 rollout 的唯一随机来源。
+`BehaviorPrior` 为每个 agent 提供以 agent token、scene token 和 memory 为条件的 Gaussian prior。START 时 B0 behavior seed 只平移第一个响应的 prior 均值；之后不再读取原始 B0。每个 5 Hz 响应都重新采样一个条件 innovation：
+
+\[
+z_k\sim p_\theta(z_k\mid H_{t_k},S_{t_k},m_{t_k}),\qquad
+A_k^{bg}\sim p_\theta(A_k^{bg}\mid H_{t_k},S_{t_k},m_{t_k},A_{k-1}^{bg},z_k).
+\]
+
+因此 `deterministic=True` 在每个响应都取对应 prior 均值；随机推理在每个响应都取独立标准正态扰动，并由条件 prior 的均值/尺度变换。训练期的 posterior 也按响应局部 future target 计算，故 checkpoint 学到的是同一条 START→ROLL 随机过程，而不是只在 START 采样一次的过程。
 
 训练期额外使用 posterior 及 KL/重建损失。posterior 的特征只从未来背景状态监督中提取：实现先将 ego 未来状态替换为当前 ego 状态，再在所有 behavior loss 中排除 ego 槽位。因此，未来 ego 标签不会条件化背景动作；未来背景监督只用于训练期 latent 后验，不进入推理接口。
 
@@ -177,7 +185,7 @@ A^{(i+1)}=\operatorname{clip}\left(A^{(i)}-R_\theta(A^{(i)},\widehat S^{bg},E_t,
 - behavior KL、behavior reconstruction、diversity floor；
 - `start_summary_weight=0.10` 乘以有效槽位上的 `L1(\widehat B0,B0)` 摘要损失。
 
-TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5.96 秒 stage 中按真正 START 初始化的验证 FDE 选择，并写入 cache format、149/25/124 帧、START 初始化和无独立 ROLL 辅助训练的协议字段。
+TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5.96 秒 stage 中按真正 START 初始化的验证 FDE 选择，并写入 cache format、149/25/124 帧、START 初始化、每响应条件 innovation 和无独立 ROLL 辅助训练的协议字段。由于参数形状未变，旧 checkpoint 在技术上仍可载入；正式评测会拒绝它，避免把“只在 START 随机”的权重误报为支持 path-level AMS 的权重。
 
 ## 8. 评测、Flow 组合与 checkpoint
 
@@ -185,7 +193,9 @@ TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入�
 
 `evaluate_flow_composition` 从全部 highD EVT-tail replay 中匹配固定 Flow tail starts。冻结 Flow 按 slot mask 和主风险槽位采样；在高D唯一的直道路型 cohort 内，以 Flow 初始 ego 纵向速度最近邻匹配 replay，并将其平移到 Flow 起点。评测从相邻 25 Hz replay 速度状态恢复 ego 的 `[a,yaw_rate]`，仅由环境动力学应用，绝不输入 QR-WM；它按 149 个 tick 输出 `1.00 s START + 4.96 s ROLL` 的生成分布，不是任意 ADS 的配对重建。
 
-一个 `QRWorldModelEnvironment` 只维护一个世界。该世界的随机变量是 START 行为 latent 的标准正态扰动：用 `WorldRandomness(seed=...)` 可重现地生成，或直接以 `behavior_standard_normal` 注入；给定它以后，后续响应没有隐式随机数。`BatchedQRWorldModelEnvironment` 一次推进 96 个 Flow 起点的 4 条独立世界（384 条），只共享张量计算；每行有独立 seed/latent，绝不共享场景状态、latent、记忆、计划或 ego。它的 `step`/`advance_response` 与单世界接口使用同名审计字段并只增加 batch 维，因此不会再读取私有计划缓存。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据、速度匹配误差、world seed 与哈希。
+一个 `QRWorldModelEnvironment` 只维护一个世界。`WorldRandomness(seed=...)` 以确定的响应索引派生 START 和每一个后续 ROLL innovation；因此同一 seed 可完整复现，而不同世界不共享随机流。`behavior_standard_normal` 可显式注入 START 扰动，`innovation_standard_normal` 可显式注入一个待分支的下一 ROLL 扰动；trace 逐响应记录实际 standard normal、response index 和任何 branch-resampling 请求。没有环境路径读取进程全局随机数。
+
+单世界公开 `snapshot()`、`restore(snapshot)` 与 `branch_from_snapshot(snapshot, randomness)`；批量环境提供同名的 `snapshot()`/`restore()`/`branch_from_snapshot()`，后者逐行接收新的随机控制量。快照只允许在初始时刻或 0.2 秒响应边界建立，保存已发生的联合状态/历史、memory、背景计划缓冲区和随机审计，但不含 ADS 未来计划或 ego 未来状态。AMS 的分支重采样要求至少完成 START 响应；随后复制高风险前缀并为每个 child 调用 `branch_from_snapshot`，它只替换下一 `z_k`，从而产生条件于相同已发生前缀的不同背景未来。`BatchedQRWorldModelEnvironment` 一次推进 96 个 Flow 起点的 4 条独立世界（384 条），只共享张量计算；每行有独立 seed/innovation，绝不共享场景状态、latent、记忆、计划或 ego。它的 `step`/`advance_response` 与单世界接口使用同名审计字段并只增加 batch 维，因此不会再读取私有计划缓存。它写出 `flow_start_audit.npz` 和 `flow_composition_evaluation.json`，保留 Flow 元数据、速度匹配误差、world seed 与哈希。
 
 checkpoint 保存模型名 `query_refine_world_model`、model config、state dict 和 Flow schema hash。
 

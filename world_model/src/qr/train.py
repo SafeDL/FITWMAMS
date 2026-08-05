@@ -289,6 +289,8 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
                         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
                         "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
                         "independent_roll_auxiliary": False,
+                        "response_conditioned_innovations": True,
+                        "innovation_sampling": "one_conditional_behavior_latent_per_5hz_response",
                         "flow_schema_sha256": schema.schema_sha256,
                     },
                 }
@@ -335,6 +337,8 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
         "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "independent_roll_auxiliary": False,
+        "response_conditioned_innovations": True,
+        "innovation_sampling": "one_conditional_behavior_latent_per_5hz_response",
         "tensorboard_log_dir": str(tensorboard_dir) if tensorboard_dir is not None else None,
     }
     save_json(report, output / "training_summary.json")
@@ -382,6 +386,8 @@ def require_canonical_qr_checkpoint(model: QueryRefineWorldModel) -> None:
         "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
         "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "independent_roll_auxiliary": False,
+        "response_conditioned_innovations": True,
+        "innovation_sampling": "one_conditional_behavior_latent_per_5hz_response",
     }
     if any(protocol.get(key) != value for key, value in required.items()):
         raise RuntimeError(

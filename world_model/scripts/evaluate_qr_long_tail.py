@@ -2,7 +2,8 @@
 """Run the complete Flow×QR-WM long-tail study without conflating protocols.
 
 This is the sole formal entry point.  It first runs the end-to-end Flow study,
-which draws new ``C0+B0`` samples and is evaluated as a distribution, then
+which draws new ``C0+B0`` samples and one conditional QR innovation per 5 Hz
+response, and is evaluated as a distribution, then
 runs the START/ROLL study on held-out logged EVT-tail conditions and ego
 replay, where per-trajectory errors are meaningful.
 
@@ -1106,6 +1107,7 @@ def main() -> None:
             "timeline": "START [0,1s] + ROLL (1s,5.96s] = 1 second conditional reconstruction plus 4.96 seconds subsequent roll",
             "raw_window_limit": "150 observed 25 Hz state points provide 149 transitions; no S150 is fabricated.",
             "paired_vs_unpaired": "START/ROLL ADE/FDE use paired logged C0+B0 and ego replay. Flow×QR synthetic worlds use distribution metrics only because Flow samples have no paired target future.",
+            "stochasticity": "QR draws one conditional behavior innovation per 5 Hz response; Flow composition audits the realized response innovations alongside world seeds.",
             "start_semantics": "segment-start behavior reconstruction, not a claim that the anchor is a risk-event onset.",
         },
         "flow_initial_distribution": flow_report,
