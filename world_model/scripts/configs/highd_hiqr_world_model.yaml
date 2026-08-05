@@ -1,0 +1,54 @@
+# Independent HiQR-WM configuration.  QR files and results are not reused for writes.
+paths:
+  output_dir: "../../../results/highd_world_model/hiqr_world_model"
+  sequence_cache_dir: "../../../results/highd_world_model/training_data/qr_sequence_cache"
+  source_dataset_dir: "../../../results/highd_world_model/training_data/cat_topk_start_roll_cache"
+  flow_schema: "../../../results/highd_tail_flow/dataset_schema.json"
+
+dataset:
+  sequence_protocol: "start_roll_5p96"
+  max_sequences: 0
+
+model:
+  hidden_dim: 128
+  scene_latent_dim: 16
+  agent_residual_dim: 16
+  temporal_layers: 1
+  attention_layers: 2
+  decoder_layers: 2
+  num_heads: 4
+  dropout: 0.10
+  plan_frames: 25
+  execute_frames: 5
+  rollout_frames: 149
+  start_reconstruction_frames: 25
+  response_interval_s: 0.20
+  simulation_dt_s: 0.04
+  lane_width_m: 3.6
+  min_acceleration: -8.0
+  max_acceleration: 4.0
+  max_yaw_rate: 0.60
+
+training:
+  seed: 20260805
+  device: auto
+  epochs: 40
+  batch_size: 96
+  num_workers: 4
+  learning_rate: 0.00008
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  tbptt_response_steps: 5
+  tensorboard: true
+  tensorboard_dir: tensorboard
+  stages:
+    - {name: start_warmup, epochs: 8, rollout_seconds: 1.0, learning_rate: 0.00010}
+    - {name: closed_loop, epochs: 12, rollout_seconds: 3.0, learning_rate: 0.00005}
+    - {name: full_hierarchical, epochs: 20, rollout_seconds: 5.96, learning_rate: 0.00003, batch_size: 64, val_batch_size: 64}
+
+evaluation:
+  seed: 20260805
+  device: auto
+  batch_size: 96
+  num_workers: 4
+  max_sequences: 0

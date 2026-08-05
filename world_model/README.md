@@ -1,6 +1,6 @@
 # highD 背景交通世界模型
 
-本目录包含当前 QR-WM（Query-Refine World Model）及四个可复现的对比基线：RAMP-WM、FIRM-WM、Semi-Markov WM 和 CAT-TopK。所有模型以 highD 的固定槽位场景表示为输入：1 辆 ego 加 6 个背景车辆槽位，每辆车状态为 `[x, y, vx, vy, ax, ay]`。
+本目录包含当前 QR-WM（Query-Refine World Model）、独立演化的 HiQR-WM（Hierarchical Interaction Query-Refine World Model）及四个可复现的对比基线：RAMP-WM、FIRM-WM、Semi-Markov WM 和 CAT-TopK。所有模型以 highD 的固定槽位场景表示为输入：1 辆 ego 加 6 个背景车辆槽位，每辆车状态为 `[x, y, vx, vy, ax, ay]`。
 
 QR-WM 是当前正式模型；RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK 是保留的对比基线，不能用 QR 结果替换。CAT-TopK 的条件信息不同，见“完整测试集条件重建”的说明。
 
@@ -8,6 +8,7 @@ QR-WM 是当前正式模型；RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK �
 
 - `src/core/`：共享的数据加载、批处理、动力学、关系特征、Flow START 解码、指标和 Flow 组合评测。
 - `src/qr/`：QR-WM 的模型、训练、离线评测、Flow×QR 评测和单世界/批量在线环境。
+- `src/hiqr/`：HiQR-WM 的独立层次交互状态、训练、评测、Flow×HiQR 评测和在线环境；它不会写入 QR 的源码、checkpoint、结果或缓存。
 - `src/ramp/`、`src/firm/`、`src/semi_markov/`、`src/cat_topk/`：四个基线的独立实现。
 - `scripts/configs/`：各模型的正式配置。
 - `tests/`：共享功能及模型行为的回归测试。
