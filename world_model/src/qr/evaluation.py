@@ -73,7 +73,7 @@ def evaluate_qr_world_model(
     with torch.no_grad():
         for values in loader:
             batch = to_device_batch(values, loader.field_names, device)
-            deterministic = model.rollout_reconstruction(batch, deterministic=True)
+            deterministic = model.rollout_reconstruction(batch, deterministic=True, start_mode=True)
             pred = deterministic["predicted_states"][:, :, 1:]
             target = deterministic["target_states"][:, :, 1:]
             valid = deterministic["target_valid"][:, :, 1:]
@@ -147,7 +147,10 @@ def evaluate_qr_world_model(
                 tail_counts["sequences"] += int(tail.sum().cpu())
                 tail_counts["ade"] += float((distance[tail] * weight[tail]).sum().cpu()); tail_counts["ade_count"] += float(weight[tail].sum().cpu())
                 tail_counts["fde"] += float((distance[tail, -1] * final_valid[tail].float()).sum().cpu()); tail_counts["fde_count"] += float(final_valid[tail].sum().cpu())
-            generated = [model.rollout_reconstruction(batch, deterministic=False)["predicted_states"][:, :, 1:] for _ in range(samples)]
+            generated = [
+                model.rollout_reconstruction(batch, deterministic=False, start_mode=True)["predicted_states"][:, :, 1:]
+                for _ in range(samples)
+            ]
             sample_tensor = torch.stack(generated)
             sample_distance = torch.linalg.vector_norm(sample_tensor[..., :2] - target[None, ..., :2], dim=-1)
             denom = weight.sum(dim=(1, 2)).clamp_min(1.0)
@@ -211,6 +214,8 @@ def evaluate_qr_world_model(
             "traffic_light_inputs": False, "future_encoder_at_inference": False,
             "ego_condition": "logged ego replay is used only by this reconstruction protocol",
             "flow_interface": "76-D C0+B0 reconstructs the first 1.00 s; raw B0 is absent during the following 4.96 s ROLL",
+            "initialization": "encode_start(C0,map) for every held-out deterministic and stochastic rollout; temporal ROLL begins only after generated history exists",
+            "start_semantics": "segment-start behavior reconstruction; it does not assert that the natural-window anchor is a risk-event onset",
             "flow_schema_sha256": schema.schema_sha256,
         },
     }

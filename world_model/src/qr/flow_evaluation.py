@@ -53,11 +53,21 @@ def evaluate_flow_composition(
     output_dir: Path,
     flow_start_batch_size: int = 96,
     sequence_cache_owner: Path | None = None,
+    model: Any | None = None,
+    prepared_starts: dict[str, np.ndarray] | None = None,
+    prepared_cache: dict[str, np.ndarray] | None = None,
+    prepared_donors: np.ndarray | None = None,
+    device: torch.device | None = None,
 ) -> dict[str, Any]:
-    """Evaluate Flow STARTs with 25 Hz replay-derived ego controls."""
+    """Evaluate Flow STARTs with 25 Hz replay-derived ego controls.
+
+    The optional prepared inputs let the complete long-tail audit reuse the
+    same Flow starts, replay cache, QR model, and device for its paired and
+    unpaired studies.  Supplying one prepared input requires supplying all.
+    """
     if int(flow_start_batch_size) < 1:
         raise ValueError("flow_start_batch_size must be positive")
-    device = select_device("auto")
+    device = select_device("auto") if device is None else device
     repo_root = Path(__file__).resolve().parents[3]
     cache_owner = sequence_cache_owner or (
         repo_root / "results/highd_world_model/training_data/qr_sequence_cache"
@@ -69,11 +79,17 @@ def evaluate_flow_composition(
             "Flow × QR-WM evaluation requires the QR raw-150-state cache "
             "(1.00 s START + 4.96 s ROLL); refusing a different replay cache."
         )
+    prepared = (prepared_starts, prepared_cache, prepared_donors)
+    if any(item is not None for item in prepared) and not all(item is not None for item in prepared):
+        raise ValueError("prepared_starts, prepared_cache, and prepared_donors must be supplied together")
     preparation_started = time.perf_counter()
-    starts, cache, donors = load_flow_tail_starts(
-        repo_root, device=device, replay_scope="all_evt_tail", sequence_cache_owner=cache_owner,
-    )
-    model = load_qr_checkpoint(checkpoint, device=device)
+    if prepared_starts is None:
+        starts, cache, donors = load_flow_tail_starts(
+            repo_root, device=device, replay_scope="all_evt_tail", sequence_cache_owner=cache_owner,
+        )
+    else:
+        starts, cache, donors = prepared_starts, prepared_cache, np.asarray(prepared_donors, np.int64)
+    model = load_qr_checkpoint(checkpoint, device=device) if model is None else model
     require_canonical_qr_checkpoint(model)
     rollout_frames = min(
         int(model.cfg.rollout_frames),
@@ -184,6 +200,8 @@ def evaluate_flow_composition(
             "supported_evt_tail_replays": int(len(np.unique(donors))), "flow_initial_conditions": int(len(donors)),
             "generated_world_futures": int(len(donors) * INNER_WORLD_SAMPLES), "not_a_paired_reconstruction": True,
             "seed": FLOW_COMPOSITION_SEED, "b0_lifecycle": "START-only",
+            "initialization": "encode_start(C0,map) at the first response; later responses use realized joint history",
+            "start_semantics": "segment-start behavior reconstruction; a Flow start is not claimed to be a risk-event onset",
             "ego_condition": (
                 "25 Hz controls reconstructed from consecutive translated replay velocity states; "
                 "applied only by environment ego dynamics"

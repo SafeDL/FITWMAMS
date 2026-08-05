@@ -69,7 +69,8 @@ def _roll_fde(model: QueryRefineWorldModel, loader, device: torch.device, *, res
     with torch.no_grad():
         for values in loader:
             rollout = model.rollout_reconstruction(
-                to_device_batch(values, loader.field_names, device), response_steps=response_steps, deterministic=True
+                to_device_batch(values, loader.field_names, device), response_steps=response_steps,
+                deterministic=True, start_mode=True,
             )
             predicted, target, valid = rollout["predicted_states"], rollout["target_states"], rollout["target_valid"]
             distance = torch.linalg.vector_norm(predicted[:, -1, 1:, :2] - target[:, -1, 1:, :2], dim=-1)
@@ -89,12 +90,9 @@ def _mean_training_terms(
     with torch.no_grad():
         for values in loader:
             batch = to_device_batch(values, loader.field_names, device)
-            start = model.supervised_terms(batch, response_steps=response_steps, start_mode=True)
-            roll = model.supervised_terms(batch, response_steps=response_steps, start_mode=False)
-            for key in roll:
-                totals[key] = totals.get(key, 0.0) + 0.5 * float(start[key].cpu() + roll[key].cpu())
-                totals[f"start_{key}"] = totals.get(f"start_{key}", 0.0) + float(start[key].cpu())
-                totals[f"roll_{key}"] = totals.get(f"roll_{key}", 0.0) + float(roll[key].cpu())
+            terms = model.supervised_terms(batch, response_steps=response_steps, start_mode=True)
+            for key, value in terms.items():
+                totals[key] = totals.get(key, 0.0) + float(value.cpu())
             batches += 1
     return {key: value / max(batches, 1) for key, value in totals.items()}
 
@@ -282,6 +280,9 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
                         "future_encoder_training_only": True,
                         "flow_b0_start_only": True,
                         "start_encoder": "C0_plus_map_without_synthetic_history",
+                        "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+                        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
+                        "independent_roll_auxiliary": False,
                         "flow_schema_sha256": schema.schema_sha256,
                     },
                 }
@@ -325,6 +326,9 @@ def train_qr_world_model(config: dict[str, Any], *, config_dir: Path, resume: bo
         "roll_transition_frames": int(manifest["roll_transition_frames"]),
         "flow_b0_start_only": True,
         "start_encoder": "C0_plus_map_without_synthetic_history",
+        "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
+        "independent_roll_auxiliary": False,
         "tensorboard_log_dir": str(tensorboard_dir) if tensorboard_dir is not None else None,
     }
     save_json(report, output / "training_summary.json")
@@ -367,6 +371,8 @@ def require_canonical_qr_checkpoint(model: QueryRefineWorldModel) -> None:
         "total_transition_frames": 149,
         "start_reconstruction_frames": 25,
         "roll_transition_frames": 124,
+        "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+        "independent_roll_auxiliary": False,
     }
     if any(protocol.get(key) != value for key, value in required.items()):
         raise RuntimeError(

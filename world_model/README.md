@@ -22,9 +22,9 @@ RAMP、FIRM、Semi-Markov 和 CAT-TopK 各自使用其正式配置中的数据�
 
 当前 QR-WM 只维护一套实现与一份正式 checkpoint；加载时以 `model_type`、完整模型配置和严格 state-dict 形状校验兼容性，不使用历史版本编号。该实现由 relation-aware scene encoder、persistent scene memory、行为 prior、START 行为锚定控制器和 joint agent-time refiner 组成：编码器读取车辆、地图折线与车道图；行为 prior 在 START 采样 16 维背景行为 latent；refiner 生成并两次细化 25 帧背景动作计划。动作被限制在配置的纵向加速度 `[-8, 4] m/s²` 与横摆角速度 `[-0.6, 0.6] rad/s` 范围内，再由运动学模型积分为背景车辆状态。
 
-默认配置采用 25 帧（1 秒）计划、每次执行 5 帧（0.2 秒）、仿真步长 0.04 秒。完整训练协议是 `START 25 tick = 1.00 s`，随后 `ROLL 124 tick = 4.96 s`；最后一个 5 Hz 响应只执行 4 tick，绝不补造 `S150`。训练分为 8 epoch 的 `buffer_warmup`、12 epoch 的 `closed_loop` 和 20 epoch 的 `full_refinement`，共 40 epoch。最佳 checkpoint 只会从完整 5.96 秒阶段按验证 FDE 选出。
+默认配置采用 25 帧（1 秒）计划、每次执行 5 帧（0.2 秒）、仿真步长 0.04 秒。每个训练、验证、checkpoint 选择和 held-out 轨迹都从真正的 `encode_start(C0,map)` 开始：`START 25 tick = 1.00 s`，随后在已生成的 25 Hz 联合历史上进入 `ROLL 124 tick = 4.96 s`；最后一个 5 Hz 响应只执行 4 tick，绝不补造 `S150`。训练分为 8 epoch 的 `buffer_warmup`、12 epoch 的 `closed_loop` 和 20 epoch 的 `full_refinement`，共 40 epoch。最佳 checkpoint 只会从完整 5.96 秒阶段按验证 FDE 选出。
 
-`B0` 只在 START 使用一次：它初始化行为 latent 的锚定、场景记忆和首段动作计划；后续 ROLL 只依赖已实现的世界状态、计划缓冲区、场景记忆与当前 ego 观测。离线重建评测中的 ego 轨迹来自日志回放；在线环境每 0.04 秒将 ADS 动作仅用于 ego 动力学，并每 0.2 秒以已发生的联合历史重规划背景。推理不接受 ADS 动作、未来 ego 控制或交通灯输入。训练时的 posterior 仅用于学习行为 latent；推理与在线环境使用 prior。
+`B0` 只在 START 使用一次：它初始化行为 latent 的锚定、场景记忆和首段动作计划；后续 ROLL 只依赖已实现的世界状态、计划缓冲区、场景记忆与当前 ego 观测。主训练不再使用无真实历史的伪 ROLL 半批；若将来加入独立 ROLL 辅助目标，必须从片段内部采样切点并提供其前 25 帧真实历史。这里的 START 严格指“片段起始行为重建”，不等同于 EVT 风险事件的起始时刻。离线重建评测中的 ego 轨迹来自日志回放；在线环境每 0.04 秒将 ADS 动作仅用于 ego 动力学，并每 0.2 秒以已发生的联合历史重规划背景。推理不接受 ADS 动作、未来 ego 控制或交通灯输入。训练时的 posterior 仅用于学习行为 latent；推理与在线环境使用 prior。
 
 ### 训练与恢复
 
@@ -75,14 +75,14 @@ python world_model/scripts/test_qr_world_model.py
 ### Flow 组合评测与在线接口
 
 ```bash
-python world_model/scripts/evaluate_qr_flow_tail_composition.py
+python world_model/scripts/evaluate_qr_long_tail.py
 ```
 
-Flow START 条件由 76 维 `C0+B0` 组成，其中 `C0` 为 40 维场景条件，`B0` 为 `6×6` 背景行为锚定。专用脚本读取冻结 Flow、从完整 highD EVT-tail replay 中选取条件兼容的回放，并写入端到端报告与图表。
+这是唯一的正式 Flow×QR 长尾评测入口。它先执行非配对的端到端 Flow×QR 分布评测并绘图，再执行成对的 START/ROLL 重建审计。Flow START 条件由 76 维 `C0+B0` 组成，其中 `C0` 为 40 维场景条件，`B0` 为 `6×6` 背景行为锚定。
 
 该端到端研究专用输出为 `results/highd_world_model/long_tail_reproduction/`。冻结 Flow 的事件结构从其训练 split 支持的 slot mask 与主风险槽位中采样；回放参照覆盖 highD 的全部 EVT-tail 序列，并在唯一的直道路型 cohort 内，以相同事件结构和最近的初始 ego 纵向速度进行匹配，再平移到 Flow 起点。回放 ego 的连续 25 Hz 状态用于恢复环境动作，QR 每 0.2 秒只读取已经发生的联合历史。评测使用 149 tick，并将审计字段标为 `25hz_replay_velocity_transition`；ADS 动作绝不进入 QR 网络。
 
-完成训练后，使用同一命令将报告、审计和图表写入该目录。
+完成训练后，使用同一命令将端到端报告、成对审计和图表写入该目录。二者文件分别保存，避免把分布比较误解释为成对轨迹误差。
 
 在线集成使用单世界的 `QRWorldModelEnvironment`。`metadata` 必须包含 slot mask、地图折线、车道边、主风险槽位与 Flow 对数概率审计字段：
 
@@ -129,7 +129,7 @@ environment.reset_from_flow(
 
 `results/highd_world_model/long_tail_reproduction/` 不存放上述条件重建基线；它专门用于冻结 Flow + QR 的端到端尾部交通生成分布评测。该目录的正式运行输出 5.96 秒、30 个因果响应（最后一个为 4 tick）的结果。每次 `QRWorldModelEnvironment.reset_from_flow` 表示一个独立世界：`deterministic=True` 使用先验均值；随机世界必须显式传入 `WorldRandomness(seed=...)` 或 `behavior_standard_normal`，以控制并审计 START 行为 latent。给定该 latent、已实现 ego 和当前状态后，后续响应是确定的。`BatchedQRWorldModelEnvironment` 的默认执行批次为 96 个 Flow 起点及其 4 条独立世界（384 条）；它要求每行都有自己的随机控制量，绝不共享状态、latent、记忆、计划或 ego。
 
-子集模拟应复用这一批量环境、逐批规约失效指标，并在 audit 中保留 Flow 条件、world seed 和 failure indicator；不要在每个 level 调用完整 `evaluate_qr_flow_tail_composition.py`，因为后者还会保存全量轨迹并计算离线 FFD/MMD 分布报告。
+子集模拟应复用这一批量环境、逐批规约失效指标，并在 audit 中保留 Flow 条件、world seed 和 failure indicator；不要在每个 level 调用完整 `evaluate_qr_long_tail.py`，因为该唯一正式入口还会保存全量轨迹并计算离线 FFD/MMD 分布报告。
 
 ## 回归测试
 

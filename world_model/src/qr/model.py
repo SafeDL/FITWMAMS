@@ -558,10 +558,17 @@ class QueryRefineWorldModel(nn.Module):
         deterministic: bool = True,
         use_posterior: bool = False,
         tbptt_steps: int = 0,
-        start_mode: bool = False,
+        start_mode: bool = True,
         behavior_standard_normal: torch.Tensor | None = None,
     ) -> dict[str, Any]:
-        """Logged-state reconstruction; future ego states never enter planning."""
+        """Logged-state reconstruction from true START, then closed-loop ROLL.
+
+        ``start_mode=True`` is the canonical and default formal protocol:
+        response zero uses ``encode_start(C0, map)`` and only subsequent
+        responses consume the realized rollout history.  Callers that request
+        ``False`` must supply a genuine history-bearing continuation state.
+        Future ego states never enter background planning.
+        """
         return self._rollout(
             batch, response_steps=response_steps, deterministic=deterministic, use_posterior=use_posterior,
             tbptt_steps=tbptt_steps, start_mode=start_mode,
@@ -583,20 +590,12 @@ class QueryRefineWorldModel(nn.Module):
         )
         return {"loss": loss, **terms, **behavior, "start_summary": rollout["start_summary"]}
 
-    @staticmethod
-    def _select_batch(batch: dict[str, torch.Tensor], index: torch.Tensor) -> dict[str, torch.Tensor]:
-        batch_size = batch["agent_states"].shape[0]
-        return {
-            key: value.index_select(0, index) if isinstance(value, torch.Tensor) and value.ndim and value.shape[0] == batch_size else value
-            for key, value in batch.items()
-        }
-
     def supervised_terms(
         self,
         batch: dict[str, torch.Tensor],
         *,
         response_steps: int | None = None,
-        start_mode: bool,
+        start_mode: bool = True,
         training: bool = False,
         tbptt_steps: int = 0,
     ) -> dict[str, torch.Tensor]:
@@ -607,25 +606,19 @@ class QueryRefineWorldModel(nn.Module):
         return self._objective(rollout)
 
     def forward_training(self, batch: dict[str, torch.Tensor], *, response_steps: int | None = None, tbptt_steps: int = 5) -> dict[str, torch.Tensor]:
-        """Balance no-history START and history-aware ROLL samples in every batch."""
-        batch_size = batch["agent_states"].shape[0]
-        if batch_size < 2:
-            return self.supervised_terms(
-                batch, response_steps=response_steps, start_mode=True, training=True, tbptt_steps=tbptt_steps,
-            )
-        start_count = min(batch_size - 1, max(1, round(batch_size * float(self.cfg.start_training_fraction))))
-        order = torch.randperm(batch_size, device=batch["agent_states"].device)
-        start = self.supervised_terms(
-            self._select_batch(batch, order[:start_count]), response_steps=response_steps,
-            start_mode=True, training=True, tbptt_steps=tbptt_steps,
+        """Train every natural segment from its true START initialization.
+
+        The first response uses ``encode_start(C0, map)`` and raw ``B0``.
+        Later responses in this same closed-loop rollout use the generated
+        25 Hz history, and therefore exercise the temporal ROLL path without
+        fabricating a history from repeated ``C0`` frames.  An independent
+        history-conditioned ROLL objective is intentionally not used here:
+        it must be introduced only with real interior cutpoints and their
+        preceding 25-frame histories.
+        """
+        return self.supervised_terms(
+            batch, response_steps=response_steps, start_mode=True, training=True, tbptt_steps=tbptt_steps,
         )
-        roll = self.supervised_terms(
-            self._select_batch(batch, order[start_count:]), response_steps=response_steps,
-            start_mode=False, training=True, tbptt_steps=tbptt_steps,
-        )
-        out = {key: 0.5 * (start[key] + roll[key]) for key in start}
-        out.update({"start_loss": start["loss"], "roll_loss": roll["loss"], "start_fraction": out["loss"].new_tensor(start_count / batch_size)})
-        return out
 
     def checkpoint_payload(self) -> dict[str, Any]:
         return {

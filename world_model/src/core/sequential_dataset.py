@@ -454,6 +454,7 @@ def _prepare_qr_sequence_dataset(
         "start_reconstruction_seconds": START_RECONSTRUCTION_FRAMES / 25.0,
         "roll_seconds": ROLL_TRANSITION_FRAMES / 25.0,
         "total_rollout_seconds": FUTURE_TRANSITION_FRAMES / 25.0,
+        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
         "fps": 25.0,
         "source_dataset": str(source_dir), "adapter": adapter.version,
         "uses_recording_lane_metadata": use_recording_lane_metadata,

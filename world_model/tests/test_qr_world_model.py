@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+from unittest.mock import patch
 
 import torch
 from torch import nn
@@ -18,6 +19,7 @@ from world_model.src.qr.environment import (
 )
 from world_model.src.qr.model import QueryRefineWorldModel
 from world_model.src.qr.train import (
+    _roll_fde,
     _tensorboard_writer,
     _write_tensorboard_epoch,
     load_qr_checkpoint,
@@ -95,6 +97,37 @@ def test_qr_full_protocol_is_one_second_start_plus_4p96_second_roll() -> None:
     # The final 5 Hz response contains only the four recorded highD transitions
     # S145->S146 through S148->S149; it must not supervise a fabricated fifth.
     assert rollout["executed_background_action_masks"][:, -1, 4].sum() == 0
+
+
+def test_formal_rollouts_and_checkpoint_selection_use_true_start_initialization() -> None:
+    model, batch = _model().eval(), _batch()
+    with patch.object(model.encoder, "encode_start", wraps=model.encoder.encode_start) as encode_start:
+        model.rollout_reconstruction(batch, response_steps=2, deterministic=True)
+    # One call initializes latent/memory and one encodes the first plan; the
+    # second 5 Hz response must instead use the temporal history route.
+    assert encode_start.call_count == 2
+
+    class OneBatchLoader:
+        def __init__(self, values: dict[str, torch.Tensor]) -> None:
+            self.values = values
+            self.field_names = tuple(values)
+
+        def __iter__(self):
+            yield tuple(self.values[name] for name in self.field_names)
+
+    with patch.object(model, "rollout_reconstruction", wraps=model.rollout_reconstruction) as rollout:
+        _roll_fde(model, OneBatchLoader(batch), torch.device("cpu"), response_steps=2)
+    assert rollout.call_args.kwargs["start_mode"] is True
+
+
+def test_training_uses_one_complete_start_to_roll_path_per_batch() -> None:
+    model, batch = _model(), _batch()
+    with patch.object(model, "supervised_terms", wraps=model.supervised_terms) as terms:
+        result = model.forward_training(batch, response_steps=2, tbptt_steps=1)
+    assert terms.call_count == 1
+    assert terms.call_args.kwargs["start_mode"] is True
+    assert terms.call_args.kwargs["training"] is True
+    assert torch.isfinite(result["loss"])
 
 
 def test_qr_inference_does_not_read_background_future() -> None:
@@ -209,10 +242,11 @@ def test_start_mix_is_convex_decaying_and_start_loss_is_trained() -> None:
     batch["behavior_anchor_valid"] = torch.ones(2, 6, dtype=torch.bool)
     start = model.supervised_terms(batch, response_steps=5, start_mode=True, training=True)
     assert torch.isfinite(start["start_summary"])
-    mixed_terms = model.forward_training(batch, response_steps=2, tbptt_steps=1)
-    assert mixed_terms["start_fraction"] == 0.5
-    assert torch.isfinite(mixed_terms["start_loss"])
-    assert torch.isfinite(mixed_terms["roll_loss"])
+    terms = model.forward_training(batch, response_steps=2, tbptt_steps=1)
+    assert "start_fraction" not in terms
+    assert "start_loss" not in terms
+    assert "roll_loss" not in terms
+    assert torch.isfinite(terms["loss"])
 
 
 def test_qr_does_not_read_future_ego_before_it_is_observed() -> None:
@@ -545,6 +579,8 @@ def test_qr_evaluation_requires_canonical_checkpoint_training_contract(tmp_path)
         "total_transition_frames": 149,
         "start_reconstruction_frames": 25,
         "roll_transition_frames": 124,
+        "canonical_rollout_initialization": "encode_start_for_train_validation_selection_and_held_out",
+        "independent_roll_auxiliary": False,
     }
     torch.save(payload, canonical)
     require_canonical_qr_checkpoint(load_qr_checkpoint(canonical))

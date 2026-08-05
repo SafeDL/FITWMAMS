@@ -9,6 +9,8 @@ paths:
 
 dataset:
   sequence_protocol: "start_roll_5p96"
+  # START means natural segment-start behavior reconstruction; it is not
+  # asserted to coincide with an EVT risk-event onset.
   # Formal training is intentionally over every immutable highD train sequence.
   max_sequences: 0
 
@@ -35,7 +37,6 @@ model:
   # across the first one-second background future-action sequence.
   start_anchor_mix: 0.75
   start_summary_weight: 0.10
-  start_training_fraction: 0.50
   position_weight: 1.0
   velocity_weight: 0.25
   action_weight: 0.20

@@ -41,7 +41,6 @@ class QRWorldModelConfig:
     buffer_carry_mix: float = 0.35
     start_anchor_mix: float = 0.75
     start_summary_weight: float = 0.10
-    start_training_fraction: float = 0.50
     position_weight: float = 1.0
     velocity_weight: float = 0.25
     action_weight: float = 0.20

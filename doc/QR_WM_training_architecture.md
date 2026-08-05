@@ -16,7 +16,9 @@ highD 的“6 秒”自然片段实际保存 150 个 25 Hz 状态点 `S0..S149`�
 \underbrace{S_{25}\to\cdots\to S_{149}}_{124\ \text{ROLL transitions}=4.96\ \mathrm{s}}.
 \]
 
-训练的完整阶段、held-out 重建和 Flow×QR/ADS 评测都采用这一相同定义。`B0` 只直接约束 START；ROLL 不再读取原始 `B0`。没有虚构 `S150`，因而不能把它宣称为完整 5.00 s 的自由 ROLL；若需要该定义，原始窗口必须至少提供 151 个状态点。
+训练的完整阶段、held-out 重建和 Flow×QR/ADS 评测都采用这一相同定义，并且每条轨迹均由 `encode_start(C0,map)` 启动。`B0` 只直接约束 START；ROLL 不再读取原始 `B0`。没有虚构 `S150`，因而不能把它宣称为完整 5.00 s 的自由 ROLL；若需要该定义，原始窗口必须至少提供 151 个状态点。
+
+`anchor_frame` 是自然驾驶片段的起点。因此 START 的严格含义是 **segment-start behavior reconstruction（片段起始行为重建）**，并不自动表示 EVT 风险事件起始；风险峰值可能在窗口更晚的时刻发生。所有论文、报告与图表均应使用此前者表述，除非另行按风险事件起始重锚定数据。
 
 该缓存位于 `results/highd_world_model/training_data/qr_sequence_cache`。
 
@@ -162,9 +164,11 @@ A^{(i+1)}=\operatorname{clip}\left(A^{(i)}-R_\theta(A^{(i)},\widehat S^{bg},E_t,
 
 ## 7. 训练目标与记录
 
-正式配置使用完整 immutable cache、40 个 epoch（`8 + 12 + 20`）：前两个阶段的 train/validation batch size 为 96，5.96 秒精炼阶段为 64；每 5 个 response 进行一次 truncated backpropagation。完整阶段有 30 个 5 Hz 响应，其中最后一个只监督 4 个物理 tick。`forward_training` 以 50/50 为目标拆分 START/ROLL；奇数 batch 使用最接近的非空比例。
+正式配置使用完整 immutable cache、40 个 epoch（`8 + 12 + 20`）：前两个阶段的 train/validation batch size 为 96，5.96 秒精炼阶段为 64；每 5 个 response 进行一次 truncated backpropagation。完整阶段有 30 个 5 Hz 响应，其中最后一个只监督 4 个物理 tick。`forward_training` 对每个自然片段执行一次完整 START→ROLL rollout：第一个响应走 `encode_start(C0,map)`，其后响应使用此前已生成的 25 Hz 历史自然进入 temporal ROLL。训练、验证、checkpoint FDE 选择和正式 held-out 评测均使用这个相同路径。
 
-START/ROLL 的等权目标包含：
+不存在 50/50 的伪历史 ROLL 半批。独立的 history-conditioned ROLL 辅助训练当前未启用；若将来启用，必须从片段内部的真实切点（例如 1/2/3 秒）取样，并提供切点前真实或明确生成的 25 帧历史。
+
+完整 START→ROLL rollout 的目标包含：
 
 - 已执行响应段的背景位置、速度、动作误差；
 - 完整 1 秒背景状态和动作误差；
@@ -173,11 +177,11 @@ START/ROLL 的等权目标包含：
 - behavior KL、behavior reconstruction、diversity floor；
 - `start_summary_weight=0.10` 乘以有效槽位上的 `L1(\widehat B0,B0)` 摘要损失。
 
-TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5.96 秒 stage 中按验证 FDE 选择，并写入 cache format、149/25/124 帧协议字段。
+TensorBoard 每个优化 batch 写入 `batch/train/loss`；每个 epoch 写入全部有限的 `train_*`、`val_*` 标量、rollout 时长与 `selection/validation_fde_m`。最优 checkpoint 只在完整 5.96 秒 stage 中按真正 START 初始化的验证 FDE 选择，并写入 cache format、149/25/124 帧、START 初始化和无独立 ROLL 辅助训练的协议字段。
 
 ## 8. 评测、Flow 组合与 checkpoint
 
-`evaluate_qr_world_model` 在 held-out 重建集上使用确定性和采样 behavior latent，报告轨迹误差、minADE/minFDE、多样性、collision/gap/TTC/DRAC、速度/加速度/jerk 分布 KL、精炼位置增益及 `background_future_action_overlap_l1`。
+`evaluate_qr_world_model` 在 held-out 重建集上使用确定性和采样 behavior latent；两者都明确以 `start_mode=True` 进入 `encode_start`，随后才使用 temporal ROLL。它报告轨迹误差、minADE/minFDE、多样性、collision/gap/TTC/DRAC、速度/加速度/jerk 分布 KL、精炼位置增益及 `background_future_action_overlap_l1`。
 
 `evaluate_flow_composition` 从全部 highD EVT-tail replay 中匹配固定 Flow tail starts。冻结 Flow 按 slot mask 和主风险槽位采样；在高D唯一的直道路型 cohort 内，以 Flow 初始 ego 纵向速度最近邻匹配 replay，并将其平移到 Flow 起点。评测从相邻 25 Hz replay 速度状态恢复 ego 的 `[a,yaw_rate]`，仅由环境动力学应用，绝不输入 QR-WM；它按 149 个 tick 输出 `1.00 s START + 4.96 s ROLL` 的生成分布，不是任意 ADS 的配对重建。
 
@@ -199,7 +203,8 @@ checkpoint 保存模型名 `query_refine_world_model`、model config、state dic
 python world_model/scripts/train_qr_world_model.py
 python world_model/scripts/train_qr_world_model.py --resume
 python world_model/scripts/test_qr_world_model.py
-python world_model/scripts/evaluate_qr_flow_tail_composition.py
+python world_model/scripts/evaluate_qr_long_tail.py
 python world_model/scripts/plot_qr_training_curves.py
-python world_model/scripts/plot_qr_flow_results.py
 ```
+
+`evaluate_qr_long_tail.py` 是唯一的正式长尾入口：它先执行非配对 Flow×QR 分布评测并生成图表，再执行成对 START/ROLL 重建审计。两类结果仍分别写入 `flow_composition_evaluation.json` 与 `reconstruction_validation_audit.json`，不可互相替代。

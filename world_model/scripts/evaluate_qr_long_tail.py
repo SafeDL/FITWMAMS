@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Audit Flow×QR-WM long-tail reconstruction without conflating two protocols.
+"""Run the complete Flow×QR-WM long-tail study without conflating protocols.
 
-The end-to-end Flow study draws new ``C0+B0`` samples, so it has no paired
-ground-truth trajectory and must be evaluated as a distribution.  The START
-and ROLL reconstruction study below instead uses held-out logged EVT-tail
-conditions and ego replay, which makes per-trajectory errors meaningful.
+This is the sole formal entry point.  It first runs the end-to-end Flow study,
+which draws new ``C0+B0`` samples and is evaluated as a distribution, then
+runs the START/ROLL study on held-out logged EVT-tail conditions and ego
+replay, where per-trajectory errors are meaningful.
 
 The resulting JSON records the raw highD limit precisely: ``START [0, 1 s]``
 plus ``ROLL (1, 5.96 s]``.  That is 1.00 s of B0-conditioned reconstruction
@@ -74,10 +74,124 @@ from world_model.src.core.utils import (  # noqa: E402
     save_json,
     select_device,
     set_seed,
+    setup_logging,
 )
 from world_model.src.qr.environment import BatchedQRWorldModelEnvironment  # noqa: E402
-from world_model.src.qr.flow_evaluation import replay_states_to_ego_controls  # noqa: E402
+from world_model.src.qr.flow_evaluation import evaluate_flow_composition, replay_states_to_ego_controls  # noqa: E402
 from world_model.src.qr.train import load_qr_checkpoint, require_canonical_qr_checkpoint  # noqa: E402
+
+
+RISK_STYLE = {
+    "ttc_s": ("TTC", "s"),
+    "drac_mps2": ("DRAC", "m/s²"),
+    "gap_m": ("Following gap", "m"),
+    "relative_speed_mps": ("Closing speed", "m/s"),
+}
+
+
+def _plt():
+    """Load Matplotlib lazily so non-plotting imports remain lightweight."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.rcParams.update({
+        "font.family": "DejaVu Sans", "axes.spines.top": False,
+        "axes.spines.right": False, "axes.grid": True, "grid.alpha": 0.22,
+    })
+    return plt
+
+
+def _save_figure(figure: Any, path: Path) -> Path:
+    figure.tight_layout(rect=(0, 0.035, 1, 0.95))
+    figure.savefig(path, dpi=300, bbox_inches="tight")
+    _plt().close(figure)
+    return path
+
+
+def _bar_labels(axis: Any, values: list[float], *, fmt: str = ".3f") -> None:
+    maximum = max(values, default=0.0)
+    for index, value in enumerate(values):
+        axis.text(index, value + max(maximum * 0.025, 1e-4), format(value, fmt), ha="center", va="bottom", fontsize=7.5)
+
+
+def _risk_quantile_panel(axis: Any, name: str, report: dict[str, Any]) -> None:
+    label, unit = RISK_STYLE[name]
+    values = report["closed_loop_distribution"]["risk_variable_distribution"][name]
+    levels = ("q90", "q95", "q99")
+    x, width = np.arange(len(levels)), 0.36
+    real = [float(values["quantiles"][level]["real"]) for level in levels]
+    generated = [float(values["quantiles"][level]["generated"]) for level in levels]
+    axis.bar(x - width / 2, real, width, color="#333333", label="EVT-tail highD")
+    axis.bar(x + width / 2, generated, width, color="#4e79a7", label="Flow × QR-WM")
+    axis.set_xticks(x, ("P90", "P95", "P99"))
+    axis.set_title(f"{label} upper quantiles")
+    axis.set_ylabel(unit)
+    if name == "ttc_s":
+        axis.text(0.5, 0.08, "Capped at 10 s", transform=axis.transAxes, ha="center", fontsize=8)
+
+
+def _plot_tail_interaction_distribution(output_dir: Path) -> Path:
+    """Plot real-versus-synthetic tail interaction distributions."""
+    output_dir = Path(output_dir).resolve()
+    report = load_json(output_dir / "flow_composition_evaluation.json")
+    risk = report["closed_loop_distribution"]["risk_variable_distribution"]
+    plt = _plt()
+    figure, axes = plt.subplots(2, 3, figsize=(15.2, 8.2))
+    for axis, name in zip(axes.flat[:4], RISK_STYLE):
+        _risk_quantile_panel(axis, name, report)
+    axes[0, 0].legend(fontsize=8, loc="best")
+    labels = [RISK_STYLE[name][0] for name in RISK_STYLE]
+    ks = [float(risk[name]["ks"]) for name in RISK_STYLE]
+    wasserstein = [float(risk[name]["wasserstein_1"]) for name in RISK_STYLE]
+    axes[1, 1].bar(np.arange(len(labels)), ks, color="#f28e2b")
+    axes[1, 1].set_xticks(np.arange(len(labels)), labels, rotation=18, ha="right")
+    axes[1, 1].set_title("Kolmogorov–Smirnov distance")
+    axes[1, 1].set_ylabel("lower is better")
+    _bar_labels(axes[1, 1], ks)
+    axes[1, 2].bar(np.arange(len(labels)), wasserstein, color="#e15759")
+    axes[1, 2].set_xticks(np.arange(len(labels)), labels, rotation=18, ha="right")
+    axes[1, 2].set_title("Wasserstein-1 distance")
+    axes[1, 2].set_ylabel("native feature unit; lower is better")
+    _bar_labels(axes[1, 2], wasserstein)
+    metrics, protocol = report["closed_loop_distribution"], report["protocol"]
+    figure.suptitle(
+        "highD EVT-tail: Flow × QR-WM interaction-feature distribution agreement\n"
+        f"{protocol['horizon_seconds']:.2f} s; traffic-feature Fréchet = {metrics['traffic_feature_frechet_distance']:.4f}; "
+        f"RBF-MMD = {metrics['mmd_rbf']:.5f}",
+        fontsize=13, y=0.99,
+    )
+    figure.text(0.5, 0.012, "Pooled real EVT-tail states versus pooled Flow × QR-WM futures; not paired trajectory reconstruction.", ha="center", fontsize=8.3)
+    return _save_figure(figure, ensure_dir(output_dir / "figures") / "01_tail_interaction_distribution.png")
+
+
+def _plot_tail_sampling_and_runtime(output_dir: Path) -> Path:
+    """Plot Flow-start matching, physical validity, and runtime."""
+    output_dir = Path(output_dir).resolve()
+    report = load_json(output_dir / "flow_composition_evaluation.json")
+    audit = np.load(output_dir / "flow_start_audit.npz", allow_pickle=False)
+    plt = _plt()
+    figure, axes = plt.subplots(1, 3, figsize=(15.0, 4.75))
+    speed_error = np.asarray(audit["matched_replay_ego_vx_abs_error_mps"], dtype=float)
+    cutoff = float(np.quantile(speed_error, 0.995))
+    axes[0].hist(speed_error, bins=48, range=(0.0, max(cutoff, 0.1)), density=True, color="#59a14f", alpha=0.8)
+    axes[0].axvline(np.quantile(speed_error, 0.5), color="#222222", ls="--", label=f"P50={np.quantile(speed_error, 0.5):.3f} m/s")
+    axes[0].axvline(np.quantile(speed_error, 0.95), color="#e15759", ls="--", label=f"P95={np.quantile(speed_error, 0.95):.3f} m/s")
+    axes[0].set(title="Matched ego-replay speed error", xlabel="absolute error (m/s)", ylabel="density")
+    axes[0].legend(fontsize=8)
+    slot_names, slot_counts = np.unique(np.asarray(audit["primary_slot_name"]), return_counts=True)
+    axes[1].bar(np.arange(len(slot_names)), slot_counts / slot_counts.sum(), color="#4e79a7")
+    axes[1].set_xticks(np.arange(len(slot_names)), slot_names, rotation=22, ha="right")
+    axes[1].set(title="Sampled primary-risk slot", ylabel="share of QR futures")
+    physical, performance = report["closed_loop_distribution"]["physical_validity"], report["performance"]
+    axes[2].bar((0, 1), (physical["collision_episode_rate"], physical["collision_pair_point_rate"]), color=("#e15759", "#f28e2b"))
+    axes[2].set_xticks((0, 1), ("episode", "pair-point"))
+    axes[2].set(title="Generated physical-validity diagnostics", ylabel="collision rate", ylim=(0.0, max(0.13, physical["collision_episode_rate"] * 1.22)))
+    axes[2].text(0.03, 0.93, f"Flow matching: {performance['flow_sampling_and_replay_matching_seconds']:.1f} s\nQR evolution: {performance['batched_qr_evolution_seconds']:.1f} s\nThroughput: {performance['evolution_world_futures_per_second']:.1f} futures/s\nBatch: {performance['independent_worlds_per_qr_batch']} worlds", transform=axes[2].transAxes, va="top", fontsize=8.4)
+    protocol = report["protocol"]
+    figure.suptitle(f"Flow × QR-WM composition: {protocol['flow_initial_conditions']:,} Flow starts → {protocol['generated_world_futures']:,} independently seeded {protocol['horizon_seconds']:.2f} s worlds", fontsize=13, y=0.99)
+    return _save_figure(figure, ensure_dir(output_dir / "figures") / "02_flow_sampling_and_runtime.png")
 
 
 def _json_float(value: Any) -> float:
@@ -672,6 +786,7 @@ def _paired_reconstruction_report(
             "generated_horizon_seconds": float(target.shape[1] * DT_S),
             "timeline": "START [0,1s] reconstructed from true C0+B0; ROLL (1s,5.96s] is 4.96 seconds under logged ego replay",
             "start_interface": "QR START encoder plus raw B0 consumed at initialization only; later plans receive only realised joint history and B0-derived state",
+            "start_semantics": "segment-start behavior reconstruction; the highD natural-window anchor is not asserted to be the risk-event onset",
             "not_an_ads_free_roll_benchmark": True,
         },
         "b0_start_summary_reconstruction": b0,
@@ -909,13 +1024,19 @@ def main() -> None:
         help="Canonical raw-150-state QR cache.",
     )
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument(
+        "--flow-start-batch-size", type=int, default=96,
+        help="Independent Flow starts evaluated together in the end-to-end distribution study.",
+    )
     parser.add_argument("--multimodal-samples", type=int, default=8)
     parser.add_argument("--ads-probe-worlds", type=int, default=32)
     parser.add_argument("--max-paired-sequences", type=int, default=0, help="development-only deterministic cap; 0 evaluates all held-out EVT-tail sequences")
     parser.add_argument("--seed", type=int, default=20260805)
+    parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     if args.multimodal_samples < 2:
         raise ValueError("--multimodal-samples must be at least two")
+    setup_logging(args.log_level)
     set_seed(args.seed)
     device = select_device("auto")
     checkpoint, output_dir = Path(args.checkpoint).resolve(), ensure_dir(Path(args.output_dir).resolve())
@@ -932,6 +1053,23 @@ def main() -> None:
         torch.cuda.empty_cache()
     model = load_qr_checkpoint(checkpoint, device=device)
     require_canonical_qr_checkpoint(model)
+    # The complete study uses the exact same sampled Flow starts and matched
+    # replay donors for its unpaired distribution result and paired audit.
+    end_to_end_source = evaluate_flow_composition(
+        checkpoint=checkpoint,
+        output_dir=output_dir,
+        flow_start_batch_size=args.flow_start_batch_size,
+        sequence_cache_owner=cache_owner,
+        model=model,
+        prepared_starts=starts,
+        prepared_cache=cache,
+        prepared_donors=donors,
+        device=device,
+    )
+    figures = [
+        _plot_tail_interaction_distribution(output_dir),
+        _plot_tail_sampling_and_runtime(output_dir),
+    ]
     flow_schema = FrozenLegacyFlowSchema.load(ROOT / "results/highd_tail_flow/dataset_schema.json")
     arrays.update(ensure_frozen_flow_behavior_anchor_cache(
         cache_owner, arrays, manifest, flow_schema,
@@ -950,8 +1088,7 @@ def main() -> None:
         model, starts, cache, donors, device=device, count=args.ads_probe_worlds,
     )
     end_to_end_path = output_dir / "flow_composition_evaluation.json"
-    end_to_end_source = load_json(end_to_end_path) if end_to_end_path.is_file() else None
-    end_to_end = {} if end_to_end_source is None else {
+    end_to_end = {
         "source": {"path": str(end_to_end_path), "sha256": file_sha256(end_to_end_path)},
         "traffic_feature_frechet_distance": end_to_end_source["closed_loop_distribution"]["traffic_feature_frechet_distance"],
         "mmd_rbf": end_to_end_source["closed_loop_distribution"]["mmd_rbf"],
@@ -967,6 +1104,7 @@ def main() -> None:
             "timeline": "START [0,1s] + ROLL (1s,5.96s] = 1 second conditional reconstruction plus 4.96 seconds subsequent roll",
             "raw_window_limit": "150 observed 25 Hz state points provide 149 transitions; no S150 is fabricated.",
             "paired_vs_unpaired": "START/ROLL ADE/FDE use paired logged C0+B0 and ego replay. Flow×QR synthetic worlds use distribution metrics only because Flow samples have no paired target future.",
+            "start_semantics": "segment-start behavior reconstruction, not a claim that the anchor is a risk-event onset.",
         },
         "flow_initial_distribution": flow_report,
         "paired_start_roll_reconstruction": paired,
@@ -988,8 +1126,11 @@ def main() -> None:
     summary_path = output_dir / "reconstruction_validation_summary.md"
     summary_path.write_text(_markdown_summary(report), encoding="utf-8")
     manifest_path = output_dir / "study_manifest.json"
-    study_manifest = load_json(manifest_path) if manifest_path.is_file() else {"study": report["study"], "artifacts": {}}
+    study_manifest = {"study": report["study"], "artifacts": {}}
     study_manifest.setdefault("artifacts", {}).update({
+        "flow_composition_evaluation": end_to_end_path.name,
+        "flow_start_audit": "flow_start_audit.npz",
+        "figures": [str(path.relative_to(output_dir)) for path in figures],
         "reconstruction_validation_audit": report_path.name,
         "reconstruction_validation_details": details_path.name,
         "reconstruction_validation_summary": summary_path.name,
