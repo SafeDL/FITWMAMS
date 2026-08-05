@@ -25,7 +25,7 @@ class HierarchicalStochasticInteractionState(nn.Module):
             int(cfg.scene_latent_dim),
             int(cfg.agent_residual_dim),
         )
-        self.event = nn.Sequential(nn.Linear(12, h), nn.SiLU(), nn.Linear(h, h))
+        self.event = nn.Sequential(nn.Linear(6, h), nn.SiLU(), nn.Linear(h, h))
         self.b0 = nn.Sequential(nn.Linear(36, h), nn.SiLU(), nn.Linear(h, h))
         self.initializer = nn.Sequential(
             nn.Linear(h * 3, h), nn.SiLU(), nn.Linear(h, h)
@@ -47,24 +47,11 @@ class HierarchicalStochasticInteractionState(nn.Module):
         self.transition = nn.GRUCell(h * 2 + g + z, h)
 
     @staticmethod
-    def event_features(
-        slot_valid: torch.Tensor, primary_slot_index: torch.Tensor
-    ) -> torch.Tensor:
-        """Encode Flow's discrete event structure: mask plus primary-risk slot."""
+    def event_features(slot_valid: torch.Tensor) -> torch.Tensor:
+        """Encode only the t0-observable Flow slot mask."""
         if slot_valid.ndim != 2 or slot_valid.shape[1] != 6:
             raise ValueError("slot_valid must have shape [batch, 6]")
-        batch = slot_valid.shape[0]
-        if primary_slot_index.shape != (batch,):
-            raise ValueError("primary_slot_index must have shape [batch]")
-        primary_index = primary_slot_index.long()
-        if torch.any(primary_index < 0) or torch.any(primary_index >= 6):
-            raise ValueError("primary_slot_index must be in [0, 5]")
-        if torch.any(
-            ~slot_valid[torch.arange(batch, device=slot_valid.device), primary_index]
-        ):
-            raise ValueError("primary_slot_index must identify a valid event slot")
-        primary = functional.one_hot(primary_index, 6).to(slot_valid.dtype)
-        return torch.cat((slot_valid.float(), primary), dim=-1)
+        return slot_valid.float()
 
     @staticmethod
     def distribution_parameters(
@@ -93,7 +80,6 @@ class HierarchicalStochasticInteractionState(nn.Module):
         raw_b0: torch.Tensor,
         behavior_anchor_valid: torch.Tensor,
         event_slot_valid: torch.Tensor,
-        primary_slot_index: torch.Tensor,
     ) -> torch.Tensor:
         """Use B0 exactly once, as a Flow-conditioned interaction-state seed."""
         if raw_b0.ndim != 3 or raw_b0.shape[1:] != (6, 6):
@@ -108,9 +94,7 @@ class HierarchicalStochasticInteractionState(nn.Module):
                 (
                     scene,
                     self.b0(masked_b0.flatten(1)),
-                    self.event(
-                        self.event_features(event_slot_valid, primary_slot_index)
-                    ),
+                    self.event(self.event_features(event_slot_valid)),
                 ),
                 dim=-1,
             )

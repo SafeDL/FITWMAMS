@@ -22,6 +22,7 @@ from world_model.src.hiqr import (
 )
 from world_model.src.hiqr.data import (
     HIQR_SEQUENCE_FIELDS,
+    HIQR_TRAINING_SIDECAR_ARRAYS,
     _validate_flow_tail_alignment,
     to_hiqr_batch,
 )
@@ -30,7 +31,11 @@ from world_model.src.hiqr.flow_evaluation import (
     compare_flow_rollouts,
     replay_states_to_ego_controls,
 )
-from world_model.src.hiqr.train import _write_tensorboard_epoch
+from world_model.src.hiqr.train import (
+    _load_training_state,
+    _save_training_state,
+    _write_tensorboard_epoch,
+)
 
 
 def _model() -> HierarchicalInteractionQueryRefineWorldModel:
@@ -69,7 +74,6 @@ def _batch(batch: int = 2, frames: int = 42) -> dict[str, torch.Tensor]:
         "actions_highd": torch.randn(batch, frames - 25, 6, 2),
         "behavior_anchor_raw": torch.randn(batch, 6, 6),
         "behavior_anchor_valid": valid[:, 24, 1:].clone(),
-        "primary_slot_index": torch.zeros(batch, dtype=torch.long),
     }
 
 
@@ -152,7 +156,6 @@ def test_b0_validity_is_independent_from_the_flow_event_slot_mask() -> None:
         batch["map_polyline_valid"],
         raw,
         anchor_valid,
-        batch["primary_slot_index"],
     )
     second = model.initialize_start(
         current,
@@ -162,9 +165,17 @@ def test_b0_validity_is_independent_from_the_flow_event_slot_mask() -> None:
         batch["map_polyline_valid"],
         masked_raw,
         anchor_valid,
-        batch["primary_slot_index"],
     )
     assert torch.allclose(first, second)
+
+
+def test_primary_risk_slot_is_audit_only_not_an_h0_feature() -> None:
+    model = _model()
+    assert (
+        "primary_slot_index" not in inspect.signature(model.initialize_start).parameters
+    )
+    assert "primary_slot_index" not in HIQR_TRAINING_SIDECAR_ARRAYS
+    assert model.interaction_state.event[0].in_features == 6
 
 
 def test_hierarchy_and_adaptive_continuation_are_joint_and_mask_aware() -> None:
@@ -180,13 +191,39 @@ def test_hierarchy_and_adaptive_continuation_are_joint_and_mask_aware() -> None:
         and not masks["carried"][:, 1, :, -1].any()
     )
     assert not masks["carried"][:, 1, 20:].any()
+    expected_revised = (rollout["continuation_gate"].amax(dim=-1) > 1.0e-4) & masks[
+        "valid"
+    ]
+    assert torch.equal(masks["revised"], expected_revised)
+    assert not masks["revised"][:, 0].any()
+    assert masks["revised"][:, 1, :20, :5].all()
+    assert not masks["revised"][:, 1, 20:].any()
     assert not hasattr(model, "joint_refiner") and not hasattr(model, "scene_memory")
     assert "raw_b0" not in inspect.signature(model.plan_step).parameters
     assert "lane_graph_edges" not in inspect.signature(model.plan_step).parameters
 
 
+def test_roll_gates_read_only_their_matching_carry_actions() -> None:
+    model, batch = _model().eval(), _batch(batch=1)
+    previous = torch.randn(1, 25, 6, 2, requires_grad=True)
+    output = model.decoder(
+        torch.randn(1, 7, model.cfg.hidden_dim),
+        torch.randn(1, model.cfg.hidden_dim),
+        torch.randn(1, model.cfg.scene_latent_dim),
+        torch.randn(1, 7, model.cfg.agent_residual_dim),
+        batch["agent_valid"][:, 24],
+        previous,
+    )
+    output["continuation_gate"][:, :20].sum().backward()
+    assert previous.grad is not None
+    assert not previous.grad[:, :5].any()
+    assert previous.grad[:, 5:].abs().sum() > 0
+    assert model.decoder.new_tail_token.shape == (1, 5, 1, model.cfg.hidden_dim)
+
+
 def test_hiqr_batching_avoids_qr_aliases_and_lane_graph_data() -> None:
     assert "lane_graph_edges" not in HIQR_SEQUENCE_FIELDS
+    assert "primary_slot_index" not in HIQR_TRAINING_SIDECAR_ARRAYS
     batch = to_hiqr_batch(
         (torch.ones(1, 6, 6),), ("behavior_anchor_raw",), torch.device("cpu")
     )
@@ -218,6 +255,28 @@ def test_decoder_uses_the_complete_configured_acceleration_range() -> None:
     assert torch.allclose(high[..., 1], torch.full_like(high[..., 1], 0.6), atol=1.0e-4)
 
 
+def test_gap_ttc_loss_only_supervises_same_lane_front_followers() -> None:
+    model = _model()
+    target = torch.zeros(1, 1, 7, 6)
+    target[:, :, 0, 2] = 20.0
+    target[:, :, 1, 0], target[:, :, 1, 2] = 30.0, 10.0
+    target[:, :, 2, 0], target[:, :, 2, 1] = 30.0, 3.6
+    target[:, :, 3, 0], target[:, :, 3, 2] = -20.0, 5.0
+    valid = torch.zeros(1, 1, 6, dtype=torch.bool)
+    valid[:, :, :3] = True
+    baseline = model._gap_ttc_loss(target.clone(), target, valid)
+    outside = target.clone()
+    outside[:, :, 2, 0] = -100.0
+    outside[:, :, 2, 2] = 80.0
+    outside[:, :, 3, 0] = 100.0
+    outside[:, :, 3, 2] = -80.0
+    assert torch.allclose(model._gap_ttc_loss(outside, target, valid), baseline)
+    follower = target.clone()
+    follower[:, :, 1, 0] = 45.0
+    follower[:, :, 1, 2] = 0.0
+    assert model._gap_ttc_loss(follower, target, valid) > baseline
+
+
 def test_explicit_response_noise_stream_never_reuses_an_innovation() -> None:
     control = HiQRWorldRandomness(
         scene_standard_normal=np.stack((np.zeros(8), np.ones(8))),
@@ -241,6 +300,19 @@ def test_explicit_response_noise_stream_never_reuses_an_innovation() -> None:
     )
     assert not torch.equal(first[0], second[0])
     assert not torch.equal(first[1], second[1])
+    one_response = HiQRWorldRandomness(
+        scene_standard_normal=np.zeros(8),
+        agent_standard_normal=np.zeros((7, 8)),
+    )
+    with pytest.raises(ValueError, match="requires a seed or explicit response noise"):
+        one_response.resolve_response(
+            response_index=2,
+            scene_dim=8,
+            agents=7,
+            residual_dim=8,
+            device=torch.device("cpu"),
+            dtype=torch.float32,
+        )
 
 
 def test_sidecar_b0_is_checked_against_the_frozen_flow_tail(tmp_path) -> None:
@@ -301,6 +373,52 @@ def test_tensorboard_epoch_records_training_and_validation_scalars() -> None:
     assert ("selection/validation_fde_m", 1.25, 3) in writer.scalars
 
 
+def test_training_state_restores_model_optimizer_scheduler_and_progress(
+    tmp_path,
+) -> None:
+    model = _model()
+    model.flow_schema_sha256 = "frozen-schema"
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1.0e-3)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    parameter = next(model.parameters())
+    parameter.sum().backward()
+    optimizer.step()
+    scheduler.step(1.0)
+    expected = parameter.detach().clone()
+    path = tmp_path / "last_training_state.pt"
+    _save_training_state(
+        path,
+        model=model,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        epoch=9,
+        stage_index=1,
+        stage_epoch=3,
+        global_step=27,
+        best_validation_fde=4.5,
+        training_protocol={"h0_event_structure": "slot_mask_only_causal"},
+    )
+    with torch.no_grad():
+        parameter.add_(1.0)
+    optimizer.param_groups[0]["lr"] = 0.5
+    restored = _load_training_state(
+        path,
+        model=model,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        flow_schema_sha256="frozen-schema",
+    )
+    assert restored == {
+        "epoch": 9,
+        "stage_index": 1,
+        "stage_epoch": 3,
+        "global_step": 27,
+        "best_validation_fde": 4.5,
+    }
+    assert torch.allclose(parameter, expected)
+    assert optimizer.state and optimizer.param_groups[0]["lr"] == 1.0e-3
+
+
 def test_posterior_excludes_future_ego_and_has_trainable_kl() -> None:
     model, batch = _model(), _batch()
     result = model.forward_training(batch, response_steps=2)
@@ -319,7 +437,6 @@ def test_posterior_excludes_future_ego_and_has_trainable_kl() -> None:
         batch["map_polyline_valid"],
         batch["behavior_anchor_raw"],
         batch["behavior_anchor_valid"],
-        batch["primary_slot_index"],
     )
     agents, scene, _, _ = model.encoder(
         None,
@@ -398,6 +515,42 @@ def test_snapshot_restore_and_scene_vs_residual_branching_are_replayable() -> No
         residual_next["trace"]["world_randomness"]["branch_resampling"][-1]["level"]
         == "residual"
     )
+    for _ in range(4):
+        scene_child.step(np.zeros(2, np.float32))
+        residual_child.step(np.zeros(2, np.float32))
+    scene_child.step(np.zeros(2, np.float32))
+    residual_child.step(np.zeros(2, np.float32))
+
+    def roll_innovations(environment: HiQRWorldModelEnvironment) -> list[dict]:
+        return [
+            row
+            for row in environment.trace["world_randomness"]["response_innovations"]
+            if row["kind"] == "roll"
+        ]
+
+    def response_noise(seed: int, response_index: int) -> tuple[np.ndarray, np.ndarray]:
+        scene, agent = HiQRWorldRandomness(seed=seed).resolve_response(
+            response_index=response_index,
+            scene_dim=model.cfg.scene_latent_dim,
+            agents=7,
+            residual_dim=model.cfg.agent_residual_dim,
+            device=torch.device("cpu"),
+            dtype=torch.float32,
+        )
+        return scene.numpy(), agent.numpy()
+
+    scene_rolls, residual_rolls = roll_innovations(scene_child), roll_innovations(
+        residual_child
+    )
+    assert [row["response_index"] for row in scene_rolls] == [1, 2]
+    assert [row["response_index"] for row in residual_rolls] == [1, 2]
+    for index, response_index in enumerate((1, 2)):
+        child_scene, child_agent = response_noise(31, response_index)
+        parent_scene, _ = response_noise(13, response_index)
+        assert np.allclose(scene_rolls[index]["scene_standard_normal"], child_scene)
+        assert np.allclose(scene_rolls[index]["agent_standard_normal"], child_agent)
+        assert np.allclose(residual_rolls[index]["scene_standard_normal"], parent_scene)
+        assert np.allclose(residual_rolls[index]["agent_standard_normal"], child_agent)
     replay = HiQRWorldModelEnvironment(model)
     replay.restore(snapshot)
     restored = replay.observe()

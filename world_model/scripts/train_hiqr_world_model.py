@@ -25,6 +25,12 @@ def main() -> None:
     parser.add_argument(
         "--output-dir", default=str(ROOT / "results/highd_world_model/hiqr_world_model")
     )
+    parser.add_argument(
+        "--resume",
+        nargs="?",
+        const="last",
+        help="resume from a training state, or omit the path to use this run's last state",
+    )
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -34,7 +40,14 @@ def main() -> None:
         config_name=Path(args.config).name,
         resolve_path_keys=("sequence_cache_dir", "flow_schema", "source_dataset_dir"),
     )
-    train_hiqr_world_model(config, config_dir=path.parent)
+    resume = None
+    if args.resume == "last":
+        resume = (
+            Path(config["paths"]["output_dir"]) / "checkpoints/last_training_state.pt"
+        )
+    elif args.resume:
+        resume = Path(args.resume).resolve()
+    train_hiqr_world_model(config, config_dir=path.parent, resume=resume)
 
 
 if __name__ == "__main__":

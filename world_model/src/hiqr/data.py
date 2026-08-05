@@ -22,11 +22,15 @@ from world_model.src.core.sequential_dataset import (
 )
 from world_model.src.core.utils import ensure_dir, load_json, save_json
 
-SIDECAR_VERSION = "hiqr_start_context_v2"
+SIDECAR_VERSION = "hiqr_start_context_v3"
 SIDECAR_ARRAYS = (
     "behavior_anchor_raw",
     "behavior_anchor_valid",
     "primary_slot_index",
+)
+HIQR_TRAINING_SIDECAR_ARRAYS = (
+    "behavior_anchor_raw",
+    "behavior_anchor_valid",
 )
 HIQR_SEQUENCE_FIELDS = tuple(
     name for name in SEQUENCE_FIELDS if name != "lane_graph_edges"
@@ -145,7 +149,7 @@ def build_hiqr_start_sidecar(
     flow_schema: FrozenLegacyFlowSchema,
     source_dataset_dir: str | Path,
 ) -> dict[str, Any]:
-    """Materialize only HiQR's B0/primary-slot data outside the QR cache.
+    """Materialize HiQR's B0 inputs and Flow-only primary-slot audit data.
 
     The QR cache is opened read-only.  The resulting sidecar is content-bound
     to its source manifest and Flow schema so stale B0 coordinates cannot be
@@ -227,6 +231,7 @@ def build_hiqr_start_sidecar(
             "source_cache_format": manifest.get("cache_format"),
             "b0_summary": "26_observed_states_S0_through_S25",
             "event_structure": "slot_mask_plus_primary_risk_slot",
+            "hiqr_h0_event_structure": "slot_mask_only_causal",
             **_validate_flow_tail_alignment(arrays, flow_schema, raw, valid),
         }
     )
@@ -257,6 +262,7 @@ def load_hiqr_training_arrays(
         "flow_schema_sha256": flow_schema.schema_sha256,
         "num_sequences": int(len(arrays["sequence_id"])),
         "source_primary_slots_sha256": _primary_slot_mapping_sha256(primary_by_id),
+        "hiqr_h0_event_structure": "slot_mask_only_causal",
     }
     if any(metadata.get(key) != value for key, value in required.items()):
         raise RuntimeError(
@@ -300,7 +306,7 @@ def make_hiqr_loader(
     indices = select_sequence_indices(arrays, split, maximum, seed)
     if not len(indices):
         raise RuntimeError(f"No HiQR sequences in split={split}")
-    fields = (*HIQR_SEQUENCE_FIELDS, *SIDECAR_ARRAYS)
+    fields = (*HIQR_SEQUENCE_FIELDS, *HIQR_TRAINING_SIDECAR_ARRAYS)
 
     class _Dataset(Dataset):
         def __len__(self) -> int:

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
@@ -24,8 +26,136 @@ from world_model.src.core.utils import (
 )
 
 from .config import HiQRWorldModelConfig
-from .data import load_hiqr_training_arrays, make_hiqr_loader, to_hiqr_batch
+from .data import (
+    hiqr_sidecar_root,
+    load_hiqr_training_arrays,
+    make_hiqr_loader,
+    to_hiqr_batch,
+)
 from .model import HierarchicalInteractionQueryRefineWorldModel
+
+LAST_TRAINING_STATE_NAME = "last_training_state.pt"
+
+
+def _training_protocol(
+    manifest: dict[str, Any], schema: FrozenLegacyFlowSchema
+) -> dict[str, Any]:
+    return {
+        "from_scratch": True,
+        "sequence_cache_format": manifest["cache_format"],
+        "total_transition_frames": 149,
+        "start_reconstruction_frames": 25,
+        "roll_transition_frames": 124,
+        "unified_start_roll_encoder": True,
+        "flow_b0_usage": "interaction_state_initialization_only",
+        "hierarchical_response_innovations": True,
+        "h0_event_structure": "slot_mask_only_causal",
+        "flow_schema_sha256": schema.schema_sha256,
+    }
+
+
+def _capture_rng_state() -> dict[str, Any]:
+    state: dict[str, Any] = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch": torch.get_rng_state(),
+    }
+    if torch.cuda.is_available():
+        state["cuda"] = torch.cuda.get_rng_state_all()
+    return state
+
+
+def _restore_rng_state(state: dict[str, Any]) -> None:
+    required = {"python", "numpy", "torch"}
+    if not required <= state.keys():
+        raise ValueError("training state is missing Python, NumPy, or Torch RNG")
+    random.setstate(state["python"])
+    np.random.set_state(state["numpy"])
+    torch.set_rng_state(state["torch"])
+    if "cuda" in state:
+        if not torch.cuda.is_available():
+            raise ValueError("training state requires CUDA RNG restoration")
+        torch.cuda.set_rng_state_all(state["cuda"])
+
+
+def _save_training_state(
+    path: Path,
+    *,
+    model: HierarchicalInteractionQueryRefineWorldModel,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau,
+    epoch: int,
+    stage_index: int,
+    stage_epoch: int,
+    global_step: int,
+    best_validation_fde: float,
+    training_protocol: dict[str, Any],
+) -> None:
+    payload = {
+        **model.checkpoint_payload(),
+        "training_state_version": 1,
+        "training_protocol": training_protocol,
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict(),
+        "epoch": int(epoch),
+        "stage_index": int(stage_index),
+        "stage_epoch": int(stage_epoch),
+        "global_step": int(global_step),
+        "best_validation_fde": float(best_validation_fde),
+        "rng_state": _capture_rng_state(),
+    }
+    torch.save(payload, path)
+
+
+def _load_training_state(
+    path: Path,
+    *,
+    model: HierarchicalInteractionQueryRefineWorldModel,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau,
+    flow_schema_sha256: str,
+) -> dict[str, int | float]:
+    device = next(model.parameters()).device
+    payload = torch.load(path, map_location=device, weights_only=False)
+    if payload.get("training_state_version") != 1:
+        raise ValueError(f"unsupported HiQR training state: {path}")
+    if payload.get("model_type") != model.model_type:
+        raise ValueError(f"training state has an incompatible model type: {path}")
+    if payload.get("model_config") != asdict(model.cfg):
+        raise ValueError("training state model configuration does not match this run")
+    if (
+        payload.get("flow_interface", {}).get("flow_schema_sha256")
+        != flow_schema_sha256
+    ):
+        raise ValueError("training state Flow schema hash does not match this run")
+    if payload.get("training_protocol", {}).get("h0_event_structure") != (
+        "slot_mask_only_causal"
+    ):
+        raise ValueError("training state predates HiQR's causal h0 protocol")
+    required = {
+        "state_dict",
+        "optimizer_state_dict",
+        "scheduler_state_dict",
+        "epoch",
+        "stage_index",
+        "stage_epoch",
+        "global_step",
+        "best_validation_fde",
+        "rng_state",
+    }
+    if not required <= payload.keys():
+        raise ValueError("training state is incomplete")
+    model.load_state_dict(payload["state_dict"], strict=True)
+    optimizer.load_state_dict(payload["optimizer_state_dict"])
+    scheduler.load_state_dict(payload["scheduler_state_dict"])
+    _restore_rng_state(payload["rng_state"])
+    return {
+        "epoch": int(payload["epoch"]),
+        "stage_index": int(payload["stage_index"]),
+        "stage_epoch": int(payload["stage_epoch"]),
+        "global_step": int(payload["global_step"]),
+        "best_validation_fde": float(payload["best_validation_fde"]),
+    }
 
 
 def _config(source: dict[str, Any]) -> HiQRWorldModelConfig:
@@ -115,7 +245,7 @@ def _write_tensorboard_epoch(writer: Any, row: dict[str, Any]) -> None:
 
 
 def train_hiqr_world_model(
-    config: dict[str, Any], *, config_dir: Path
+    config: dict[str, Any], *, config_dir: Path, resume: Path | None = None
 ) -> dict[str, Any]:
     """Train HiQR without mutating QR data, code, checkpoints or results."""
     paths, training = config["paths"], config.get("training", {})
@@ -172,16 +302,64 @@ def train_hiqr_world_model(
         )
     checkpoint_dir = ensure_dir(output / "checkpoints")
     best_path = checkpoint_dir / "best_hiqr_world_model.pt"
+    last_state_path = checkpoint_dir / LAST_TRAINING_STATE_NAME
     tensorboard_writer, tensorboard_dir = _tensorboard_writer(output, training)
     if tensorboard_writer is not None:
         tensorboard_writer.add_text("run/model_type", model.model_type, 0)
         tensorboard_writer.add_scalar(
             "training/configured_epochs", configured_epochs, 0
         )
-    best = float("inf")
-    epoch = 0
-    global_step = 0
-    for stage in stages:
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(stages[0].get("learning_rate", training.get("learning_rate", 8e-5))),
+        weight_decay=float(training.get("weight_decay", 1e-4)),
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=float(training.get("scheduler_factor", 0.5)),
+        patience=int(training.get("scheduler_patience", 4)),
+        min_lr=float(training.get("scheduler_min_lr", 1e-6)),
+    )
+    protocol = _training_protocol(manifest, schema)
+    best, epoch, global_step = float("inf"), 0, 0
+    start_stage, start_stage_epoch = 0, 0
+    resumed_from = None
+    if resume is not None:
+        resume = Path(resume).resolve()
+        state = _load_training_state(
+            resume,
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            flow_schema_sha256=schema.schema_sha256,
+        )
+        best = float(state["best_validation_fde"])
+        epoch = int(state["epoch"])
+        global_step = int(state["global_step"])
+        start_stage = int(state["stage_index"])
+        start_stage_epoch = int(state["stage_epoch"])
+        resumed_from = str(resume)
+        if tensorboard_writer is not None:
+            tensorboard_writer.add_text("run/resumed_from", resumed_from, epoch)
+    if not 0 <= start_stage < len(stages):
+        raise ValueError("training state has an invalid curriculum stage")
+
+    for stage_index, stage in enumerate(stages):
+        if stage_index < start_stage:
+            continue
+        stage_epochs = int(stage["epochs"])
+        completed_epochs = start_stage_epoch if stage_index == start_stage else 0
+        if not 0 <= completed_epochs <= stage_epochs:
+            raise ValueError("training state has an invalid stage epoch")
+        if completed_epochs == stage_epochs:
+            continue
+        if stage_index != start_stage or completed_epochs == 0:
+            learning_rate = float(
+                stage.get("learning_rate", training.get("learning_rate", 8e-5))
+            )
+            for group in optimizer.param_groups:
+                group["lr"] = learning_rate
         response_steps = min(
             model.cfg.response_steps,
             max(
@@ -210,12 +388,7 @@ def train_hiqr_world_model(
             seed=int(training.get("seed", 42)) + 1,
             num_workers=workers,
         )
-        optimizer = torch.optim.AdamW(
-            model.parameters(),
-            lr=float(stage.get("learning_rate", training.get("learning_rate", 8e-5))),
-            weight_decay=float(training.get("weight_decay", 1e-4)),
-        )
-        for stage_epoch in range(int(stage["epochs"])):
+        for stage_epoch in range(completed_epochs, stage_epochs):
             epoch += 1
             model.train()
             totals: dict[str, float] = {}
@@ -248,6 +421,7 @@ def train_hiqr_world_model(
                 "epoch": epoch,
                 "stage": str(stage["name"]),
                 "stage_epoch": stage_epoch + 1,
+                "learning_rate": float(optimizer.param_groups[0]["lr"]),
                 "rollout_seconds": model.cfg.rollout_seconds_for_responses(
                     response_steps
                 ),
@@ -260,6 +434,9 @@ def train_hiqr_world_model(
             }
             if tensorboard_writer is not None:
                 _write_tensorboard_epoch(tensorboard_writer, row)
+                tensorboard_writer.add_scalar(
+                    "training/learning_rate", row["learning_rate"], epoch
+                )
             if response_steps == model.cfg.response_steps and fde < best:
                 best = fde
                 payload = {
@@ -267,20 +444,22 @@ def train_hiqr_world_model(
                     "epoch": epoch,
                     "stage": stage["name"],
                     "selection_metric": fde,
-                    "training_protocol": {
-                        "from_scratch": True,
-                        "sequence_cache_format": manifest["cache_format"],
-                        "total_transition_frames": 149,
-                        "start_reconstruction_frames": 25,
-                        "roll_transition_frames": 124,
-                        "unified_start_roll_encoder": True,
-                        "flow_b0_usage": "interaction_state_initialization_only",
-                        "hierarchical_response_innovations": True,
-                        "event_structure": "slot_mask_plus_primary_risk_slot",
-                        "flow_schema_sha256": schema.schema_sha256,
-                    },
+                    "training_protocol": protocol,
                 }
                 torch.save(payload, best_path)
+            scheduler.step(fde)
+            _save_training_state(
+                last_state_path,
+                model=model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                epoch=epoch,
+                stage_index=stage_index,
+                stage_epoch=stage_epoch + 1,
+                global_step=global_step,
+                best_validation_fde=best,
+                training_protocol=protocol,
+            )
     if not best_path.exists():
         if tensorboard_writer is not None:
             tensorboard_writer.close()
@@ -288,17 +467,19 @@ def train_hiqr_world_model(
     report = {
         "model_type": model.model_type,
         "best_checkpoint": str(best_path),
+        "last_training_state": str(last_state_path),
         "best_validation_fde": best,
         "epochs_completed": epoch,
         "model_config": asdict(model.cfg),
         "checkpoint_sha256": file_sha256(best_path),
         "flow_schema_sha256": schema.schema_sha256,
         "sequence_cache": manifest,
-        "hiqr_sidecar": str(Path(output) / "hiqr_start_sidecar"),
+        "hiqr_sidecar": str(hiqr_sidecar_root(output, cache_owner)),
         "tensorboard_log_dir": (
             None if tensorboard_dir is None else str(tensorboard_dir)
         ),
         "from_scratch": True,
+        "resumed_from": resumed_from,
     }
     save_json(report, output / "training_summary.json")
     if tensorboard_writer is not None:
@@ -343,7 +524,7 @@ def require_canonical_hiqr_checkpoint(
         "unified_start_roll_encoder": True,
         "flow_b0_usage": "interaction_state_initialization_only",
         "hierarchical_response_innovations": True,
-        "event_structure": "slot_mask_plus_primary_risk_slot",
+        "h0_event_structure": "slot_mask_only_causal",
     }
     if any(protocol.get(key) != value for key, value in required.items()):
         raise RuntimeError(

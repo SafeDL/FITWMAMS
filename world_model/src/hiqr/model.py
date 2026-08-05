@@ -17,7 +17,7 @@ from .decoder import AdaptiveJointPlanContinuationDecoder
 from .encoder import UnifiedRelationalQueryEncoder
 from .interaction_state import HierarchicalStochasticInteractionState, masked_mean
 
-BUFFER_MASK_NAMES = ("carried", "appended", "refinable", "valid")
+BUFFER_MASK_NAMES = ("carried", "appended", "revised", "valid")
 
 
 class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
@@ -63,7 +63,6 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
         map_polyline_valid: torch.Tensor,
         raw_b0: torch.Tensor,
         behavior_anchor_valid: torch.Tensor,
-        primary_slot_index: torch.Tensor,
     ) -> torch.Tensor:
         """Create h0; B0 does not appear in the plan decoder or ROLL API."""
         _, scene, _, _ = self.encoder(
@@ -82,24 +81,8 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
             raise ValueError("behavior_anchor_valid must have shape [batch, 6]")
         if torch.any(anchor_valid & ~event_slot_valid):
             raise ValueError("behavior_anchor_valid cannot exceed current valid slots")
-        primary = primary_slot_index.long()
-        if primary.shape != (current.shape[0],):
-            raise ValueError("primary_slot_index must have shape [batch]")
-        if (
-            torch.any(primary < 0)
-            or torch.any(primary >= 6)
-            or torch.any(
-                ~event_slot_valid[
-                    torch.arange(
-                        event_slot_valid.shape[0], device=current_valid.device
-                    ),
-                    primary,
-                ]
-            )
-        ):
-            raise ValueError("primary_slot_index must identify a valid event slot")
         return self.interaction_state.initialize(
-            scene, raw_b0, anchor_valid, event_slot_valid, primary
+            scene, raw_b0, anchor_valid, event_slot_valid
         )
 
     def _integrate_background_actions(
@@ -258,41 +241,49 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
         pair_valid = valid[..., :, None] & valid[..., None, :] & upper
         return masked_mean(ego_barrier, valid) + masked_mean(pair_barrier, pair_valid)
 
-    @staticmethod
     def _gap_ttc_loss(
-        predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor
+        self, predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor
     ) -> torch.Tensor:
-        background, ego = predicted[:, :, 1:], predicted[:, :, :1]
+        background = predicted[:, :, 1:]
         target_bg, target_ego = target[:, :, 1:], target[:, :, :1]
-        pred_gap = (background[..., 0] - ego[..., 0]).abs().clamp_min(0.5)
-        target_gap = (target_bg[..., 0] - target_ego[..., 0]).abs().clamp_min(0.5)
-        pred_closing = (ego[..., 2] - background[..., 2]).clamp_min(0.0)
+        target_dx = target_bg[..., 0] - target_ego[..., 0]
+        same_lane = (target_bg[..., 1] - target_ego[..., 1]).abs() < (
+            0.5 * float(self.cfg.lane_width_m)
+        )
+        following = valid.bool() & same_lane & (target_dx > 0.0)
+        pred_gap = (background[..., 0] - target_ego[..., 0] - 4.8).clamp_min(0.0)
+        target_gap = (target_dx - 4.8).clamp_min(0.0)
+        pred_closing = (target_ego[..., 2] - background[..., 2]).clamp_min(0.0)
         target_closing = (target_ego[..., 2] - target_bg[..., 2]).clamp_min(0.0)
+        closing = following & (target_closing > 1.0e-3)
         pred_ttc = torch.where(
-            pred_closing > 1.0e-3,
+            closing,
             pred_gap / pred_closing.clamp_min(1.0e-3),
             pred_gap.new_full(pred_gap.shape, 10.0),
         ).clamp_max(10.0)
         target_ttc = torch.where(
-            target_closing > 1.0e-3,
+            closing,
             target_gap / target_closing.clamp_min(1.0e-3),
             target_gap.new_full(target_gap.shape, 10.0),
         ).clamp_max(10.0)
+        ego_speed = torch.linalg.vector_norm(target_ego[..., 2:4], dim=-1)
+        pred_thw = pred_gap / ego_speed.clamp_min(1.0e-3)
+        target_thw = target_gap / ego_speed.clamp_min(1.0e-3)
         pred_drac = torch.where(
-            pred_closing > 1.0e-3,
+            closing,
             pred_closing.square() / (2.0 * pred_gap).clamp_min(0.1),
             pred_gap.new_zeros(pred_gap.shape),
         )
         target_drac = torch.where(
-            target_closing > 1.0e-3,
+            closing,
             target_closing.square() / (2.0 * target_gap).clamp_min(0.1),
             target_gap.new_zeros(target_gap.shape),
         )
-        return masked_mean(
-            (pred_gap - target_gap).abs() / 10.0
-            + (pred_ttc - target_ttc).abs() / 10.0
-            + (pred_drac - target_drac).abs() / 8.0,
-            valid,
+        return (
+            masked_mean((pred_gap - target_gap).abs() / 10.0, following)
+            + masked_mean((pred_ttc - target_ttc).abs() / 10.0, closing)
+            + masked_mean((pred_thw - target_thw).abs() / 5.0, following)
+            + masked_mean((pred_drac - target_drac).abs() / 8.0, closing)
         )
 
     def _lane_consistency_loss(
@@ -359,7 +350,6 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
             batch["map_polyline_valid"],
             batch["behavior_anchor_raw"],
             batch["behavior_anchor_valid"],
-            batch["primary_slot_index"],
         )
         history = history_valid = None
         previous_buffer = previous_current = None
@@ -650,6 +640,6 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
                 "flow_schema_sha256": self.flow_schema_sha256,
                 "flow_coordinate_dim": 76,
                 "b0_usage": "interaction_state_initialization_only",
-                "event_structure": "slot_mask_plus_primary_risk_slot",
+                "h0_event_structure": "slot_mask_only_causal",
             },
         }

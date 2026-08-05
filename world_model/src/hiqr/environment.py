@@ -30,10 +30,10 @@ def _tensor(value: Any, *, device: torch.device, dtype: torch.dtype) -> torch.Te
 class HiQRWorldRandomness:
     """Explicit START and response-level hierarchy innovations.
 
-    ``scene_standard_normal`` and ``agent_standard_normal`` may hold either
-    one response's innovation or a stream whose leading dimension is the
-    one-based ROLL response index.  A seed derives the same independent stream
-    without storing all samples.
+    ``scene_standard_normal`` and ``agent_standard_normal`` may hold the first
+    ROLL innovation or a stream whose leading dimension is the one-based ROLL
+    response index.  A seed derives the complete independent stream without
+    storing all samples.
     """
 
     seed: int | None = None
@@ -90,7 +90,7 @@ class HiQRWorldRandomness:
             return None
         resolved = _tensor(value, device=device, dtype=dtype)
         if tuple(resolved.shape) == shape:
-            return resolved
+            return resolved if response_index == 1 else None
         if resolved.ndim == len(shape) + 1 and tuple(resolved.shape[1:]) == shape:
             if response_index > resolved.shape[0]:
                 raise ValueError(
@@ -195,7 +195,7 @@ class HiQRWorldRandomness:
 
 @dataclass(frozen=True)
 class HiQRFlowStartMetadata:
-    """Static Flow event and map metadata for one HiQR world."""
+    """Static Flow/map metadata; primary risk remains audit-only for HiQR."""
 
     slot_valid: np.ndarray
     map_polylines: np.ndarray
@@ -249,9 +249,8 @@ class BatchedHiQRWorldSnapshot:
     plan_frame_index: int
     has_planned: bool
     deterministic: bool
-    randomness_controls: tuple[HiQRWorldRandomness, ...] | None
-    pending_scene_noise: torch.Tensor | None
-    pending_agent_noise: torch.Tensor | None
+    scene_randomness_controls: tuple[HiQRWorldRandomness, ...] | None
+    agent_randomness_controls: tuple[HiQRWorldRandomness, ...] | None
     physics_step_index: int
     response_index: int
     traces: tuple[dict[str, Any], ...]
@@ -297,9 +296,8 @@ class BatchedHiQRWorldModelEnvironment:
         self._previous_current: torch.Tensor | None = None
         self._map_inputs: tuple[torch.Tensor, torch.Tensor] | None = None
         self._active_plan: torch.Tensor | None = None
-        self._randomness_controls: tuple[HiQRWorldRandomness, ...] | None = None
-        self._pending_scene_noise: torch.Tensor | None = None
-        self._pending_agent_noise: torch.Tensor | None = None
+        self._scene_randomness_controls: tuple[HiQRWorldRandomness, ...] | None = None
+        self._agent_randomness_controls: tuple[HiQRWorldRandomness, ...] | None = None
         self._traces: list[dict[str, Any]] = []
         self._deterministic = True
         self._has_planned = False
@@ -425,7 +423,6 @@ class BatchedHiQRWorldModelEnvironment:
             map_valid,
             raw_b0,
             valid[:, 1:],
-            primary,
         )
         self._metadata = metadata
         self._states, self._valid = current, valid
@@ -440,15 +437,15 @@ class BatchedHiQRWorldModelEnvironment:
         self._plan_frame_index = 0
         self.physics_step_index = 0
         self.response_index = 0
-        self._pending_scene_noise = None
-        self._pending_agent_noise = None
-        self._randomness_controls = (
+        controls = (
             None
             if deterministic
             else tuple(
                 HiQRWorldRandomness.from_value(item) for item in world_randomness
             )
         )
+        self._scene_randomness_controls = controls
+        self._agent_randomness_controls = controls
         self._traces = [
             {
                 "flow_metadata": item.audit_dict(),
@@ -457,7 +454,8 @@ class BatchedHiQRWorldModelEnvironment:
                     {"mode": "deterministic_prior_mean"}
                     if deterministic
                     else {
-                        "seed": self._randomness_controls[row].seed,
+                        "scene_seed": self._scene_randomness_controls[row].seed,
+                        "agent_seed": self._agent_randomness_controls[row].seed,
                         "response_innovations": [],
                     }
                 ),
@@ -508,9 +506,8 @@ class BatchedHiQRWorldModelEnvironment:
             plan_frame_index=self._plan_frame_index,
             has_planned=self._has_planned,
             deterministic=self._deterministic,
-            randomness_controls=deepcopy(self._randomness_controls),
-            pending_scene_noise=_clone(self._pending_scene_noise),
-            pending_agent_noise=_clone(self._pending_agent_noise),
+            scene_randomness_controls=deepcopy(self._scene_randomness_controls),
+            agent_randomness_controls=deepcopy(self._agent_randomness_controls),
             physics_step_index=self.physics_step_index,
             response_index=self.response_index,
             traces=tuple(deepcopy(self._traces)),
@@ -540,9 +537,8 @@ class BatchedHiQRWorldModelEnvironment:
         self._plan_frame_index = int(snapshot.plan_frame_index)
         self._has_planned = bool(snapshot.has_planned)
         self._deterministic = bool(snapshot.deterministic)
-        self._randomness_controls = deepcopy(snapshot.randomness_controls)
-        self._pending_scene_noise = _clone(snapshot.pending_scene_noise)
-        self._pending_agent_noise = _clone(snapshot.pending_agent_noise)
+        self._scene_randomness_controls = deepcopy(snapshot.scene_randomness_controls)
+        self._agent_randomness_controls = deepcopy(snapshot.agent_randomness_controls)
         self.physics_step_index = int(snapshot.physics_step_index)
         self.response_index = int(snapshot.response_index)
         self._traces = list(deepcopy(snapshot.traces))
@@ -550,26 +546,35 @@ class BatchedHiQRWorldModelEnvironment:
 
     def _stack_start_noise(self) -> tuple[torch.Tensor, torch.Tensor]:
         states, _, _ = self._require_state()
-        assert self._randomness_controls is not None
-        samples = [
+        assert self._scene_randomness_controls is not None
+        assert self._agent_randomness_controls is not None
+        scene = [
             control.resolve_start(
                 scene_dim=self.model.cfg.scene_latent_dim,
                 agents=states.shape[1],
                 residual_dim=self.model.cfg.agent_residual_dim,
                 device=self.device,
                 dtype=states.dtype,
-            )
-            for control in self._randomness_controls
+            )[0]
+            for control in self._scene_randomness_controls
         ]
-        return torch.stack([sample[0] for sample in samples]), torch.stack(
-            [sample[1] for sample in samples]
-        )
+        agent = [
+            control.resolve_start(
+                scene_dim=self.model.cfg.scene_latent_dim,
+                agents=states.shape[1],
+                residual_dim=self.model.cfg.agent_residual_dim,
+                device=self.device,
+                dtype=states.dtype,
+            )[1]
+            for control in self._agent_randomness_controls
+        ]
+        return torch.stack(scene), torch.stack(agent)
 
-    def _stack_response_noise(
-        self, controls: Sequence[HiQRWorldRandomness]
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _stack_response_noise(self) -> tuple[torch.Tensor, torch.Tensor]:
         states, _, _ = self._require_state()
-        samples = [
+        assert self._scene_randomness_controls is not None
+        assert self._agent_randomness_controls is not None
+        scene = [
             control.resolve_response(
                 response_index=self.response_index,
                 scene_dim=self.model.cfg.scene_latent_dim,
@@ -577,19 +582,29 @@ class BatchedHiQRWorldModelEnvironment:
                 residual_dim=self.model.cfg.agent_residual_dim,
                 device=self.device,
                 dtype=states.dtype,
-            )
-            for control in controls
+            )[0]
+            for control in self._scene_randomness_controls
         ]
-        return torch.stack([sample[0] for sample in samples]), torch.stack(
-            [sample[1] for sample in samples]
-        )
+        agent = [
+            control.resolve_response(
+                response_index=self.response_index,
+                scene_dim=self.model.cfg.scene_latent_dim,
+                agents=states.shape[1],
+                residual_dim=self.model.cfg.agent_residual_dim,
+                device=self.device,
+                dtype=states.dtype,
+            )[1]
+            for control in self._agent_randomness_controls
+        ]
+        return torch.stack(scene), torch.stack(agent)
 
-    def resample_next_innovations(
+    def resample_future_innovations(
         self,
         randomness: Sequence[HiQRWorldRandomness | Mapping[str, Any] | int],
         *,
         level: Literal["scene", "residual"] = "scene",
     ) -> dict[str, Any]:
+        """Replace every unexecuted hierarchy stream from this response onward."""
         states, _, _ = self._require_state()
         if self._deterministic or self._active_plan is None:
             raise RuntimeError(
@@ -605,11 +620,10 @@ class BatchedHiQRWorldModelEnvironment:
         if len(randomness) != states.shape[0]:
             raise ValueError("one random control is required for each batch row")
         controls = tuple(HiQRWorldRandomness.from_value(item) for item in randomness)
-        scene, agent = self._stack_response_noise(controls)
-        if level == "residual":
-            assert self._randomness_controls is not None
-            scene, _ = self._stack_response_noise(self._randomness_controls)
-        self._pending_scene_noise, self._pending_agent_noise = scene, agent
+        if level == "scene":
+            self._scene_randomness_controls = controls
+        self._agent_randomness_controls = controls
+        scene, agent = self._stack_response_noise()
         for row, control in enumerate(controls):
             self._traces[row]["world_randomness"].setdefault(
                 "branch_resampling", []
@@ -617,7 +631,8 @@ class BatchedHiQRWorldModelEnvironment:
                 {
                     "response_index": self.response_index,
                     "level": level,
-                    "seed": control.seed,
+                    "scene_seed": self._scene_randomness_controls[row].seed,
+                    "agent_seed": self._agent_randomness_controls[row].seed,
                     "scene_standard_normal": scene[row].detach().cpu().tolist(),
                     "agent_standard_normal": agent[row].detach().cpu().tolist(),
                 }
@@ -632,7 +647,7 @@ class BatchedHiQRWorldModelEnvironment:
         level: Literal["scene", "residual"] = "scene",
     ) -> dict[str, Any]:
         self.restore(snapshot)
-        return self.resample_next_innovations(randomness, level=level)
+        return self.resample_future_innovations(randomness, level=level)
 
     @torch.no_grad()
     def _plan_if_needed(self) -> bool:
@@ -649,21 +664,8 @@ class BatchedHiQRWorldModelEnvironment:
         if not self._deterministic:
             if start_mode:
                 scene_noise, agent_noise = self._stack_start_noise()
-            elif (
-                self._pending_scene_noise is not None
-                and self._pending_agent_noise is not None
-            ):
-                scene_noise, agent_noise = (
-                    self._pending_scene_noise,
-                    self._pending_agent_noise,
-                )
-                self._pending_scene_noise = None
-                self._pending_agent_noise = None
             else:
-                assert self._randomness_controls is not None
-                scene_noise, agent_noise = self._stack_response_noise(
-                    self._randomness_controls
-                )
+                scene_noise, agent_noise = self._stack_response_noise()
         ego_mask = torch.zeros_like(valid)
         ego_mask[:, 0] = True
         out = self.model.plan_step(
@@ -892,13 +894,13 @@ class HiQRWorldModelEnvironment:
         self._batch.restore(snapshot.batch_snapshot)
         return self.observe()
 
-    def resample_next_innovation(
+    def resample_future_innovation(
         self,
         randomness: HiQRWorldRandomness | Mapping[str, Any] | int,
         *,
         level: Literal["scene", "residual"] = "scene",
     ) -> dict[str, Any]:
-        self._batch.resample_next_innovations([randomness], level=level)
+        self._batch.resample_future_innovations([randomness], level=level)
         return self.observe()
 
     def branch_from_snapshot(
@@ -909,7 +911,7 @@ class HiQRWorldModelEnvironment:
         level: Literal["scene", "residual"] = "scene",
     ) -> dict[str, Any]:
         self.restore(snapshot)
-        return self.resample_next_innovation(randomness, level=level)
+        return self.resample_future_innovation(randomness, level=level)
 
     @torch.no_grad()
     def step(
