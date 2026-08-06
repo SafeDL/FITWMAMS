@@ -37,6 +37,7 @@ class HiQRWorldModelConfig:
     plan_position_weight: float = 0.25
     plan_action_weight: float = 0.10
     continuation_weight: float = 0.10
+    gate_weight: float = 0.01
     interaction_weight: float = 0.12
     physical_weight: float = 0.03
     jerk_weight: float = 0.02

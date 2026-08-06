@@ -77,17 +77,49 @@ def _batch(batch: int = 2, frames: int = 42) -> dict[str, torch.Tensor]:
     }
 
 
-def _metadata() -> HiQRFlowStartMetadata:
-    maps = np.zeros((2, 4, 6), np.float32)
-    maps[..., 0] = np.arange(4)
-    maps[1, :, 1] = 3.6
-    maps[..., 2] = 1.0
-    maps[..., 4] = 3.6
+def _metadata(
+    slot_valid: np.ndarray | None = None,
+    maps: np.ndarray | None = None,
+    map_valid: np.ndarray | None = None,
+    primary_slot_index: int = 0,
+) -> HiQRFlowStartMetadata:
+    if maps is None:
+        maps = np.zeros((2, 4, 6), np.float32)
+        maps[..., 0] = np.arange(4)
+        maps[1, :, 1] = 3.6
+        maps[..., 2] = 1.0
+        maps[..., 4] = 3.6
+    if slot_valid is None:
+        slot_valid = np.ones(6, bool)
+    if map_valid is None:
+        map_valid = np.ones(maps.shape[:2], bool)
+    event_structure = np.zeros(12, np.float32)
+    event_structure[:6] = slot_valid
+    event_structure[6 + primary_slot_index] = 1.0
+    mask_pattern = sum(int(value) << index for index, value in enumerate(slot_valid))
     return HiQRFlowStartMetadata(
-        slot_valid=np.ones(6, bool),
+        slot_valid=slot_valid,
         map_polylines=maps,
-        map_polyline_valid=np.ones((2, 4), bool),
-        primary_slot_index=0,
+        map_polyline_valid=map_valid,
+        primary_slot_index=primary_slot_index,
+        event_structure=event_structure,
+        mask_pattern=mask_pattern,
+        event_structure_id=0,
+        event_structure_log_prob=-0.2,
+        conditional_log_prob=-1.3,
+        log_prob=-1.5,
+        flow_checkpoint_sha256="a" * 64,
+        flow_schema_sha256="b" * 64,
+        sampling_seed=41,
+        sampling_temperature=1.0,
+        sampling_rejection={
+            "reject_invalid": True,
+            "max_rounds": 8,
+            "oversample_factor": 1,
+            "min_draw": 1,
+            "num_rejected": 0,
+            "rejection_rate": 0.0,
+        },
     )
 
 
@@ -133,9 +165,30 @@ def test_signed_headings_and_lane_relations_preserve_the_design_inputs() -> None
     )
     assert features[0, 0, 7] < -0.99 and features[0, 1, 7] > 0.99
     relation = _model().encoder._relation_features(
-        states, torch.zeros(1, 2, 6), torch.zeros(1, 2, dtype=torch.bool)
+        states, torch.zeros(1, 2, dtype=torch.long), torch.zeros(1, 2, dtype=torch.bool)
     )
     assert not relation[..., 7:].any()
+
+
+def test_lane_relation_uses_nearest_polyline_index_not_lateral_offset() -> None:
+    encoder = _model().encoder
+    states = torch.zeros(1, 2, 6)
+    states[0, 1, 1] = 3.6
+    maps = torch.zeros(1, 2, 1, 6)
+    maps[0, 1, 0, 1] = 3.6
+    maps[..., 2] = 1.0
+    maps[..., 4] = 3.6
+    lane, lane_valid, lane_index = encoder._compact_lane_context(
+        states,
+        torch.ones(1, 2, dtype=torch.bool),
+        maps,
+        torch.ones(1, 2, 1, dtype=torch.bool),
+    )
+    assert torch.allclose(lane[..., 0], torch.zeros_like(lane[..., 0]))
+    assert torch.equal(lane_index, torch.tensor([[0, 1]]))
+    relation = encoder._relation_features(states, lane_index, lane_valid)
+    assert relation[0, 0, 1, 7] == 0.0
+    assert relation[0, 0, 1, 8] == 1.0
 
 
 def test_b0_validity_is_independent_from_the_flow_event_slot_mask() -> None:
@@ -178,6 +231,25 @@ def test_primary_risk_slot_is_audit_only_not_an_h0_feature() -> None:
     assert model.interaction_state.event[0].in_features == 6
 
 
+def test_flow_audit_metadata_is_complete_and_validated() -> None:
+    audit = _metadata().audit_dict()
+    assert {
+        "event_structure",
+        "event_structure_log_prob",
+        "conditional_log_prob",
+        "log_prob",
+        "flow_checkpoint_sha256",
+        "flow_schema_sha256",
+        "sampling_seed",
+        "sampling_temperature",
+        "sampling_rejection",
+    }.issubset(audit)
+    broken = dict(_metadata().__dict__)
+    broken["log_prob"] = 0.0
+    with pytest.raises(ValueError, match="log_prob"):
+        HiQRFlowStartMetadata.from_value(broken).validate()
+
+
 def test_hierarchy_and_adaptive_continuation_are_joint_and_mask_aware() -> None:
     model, batch = _model(), _batch()
     rollout = model.rollout_reconstruction(batch, response_steps=3, deterministic=True)
@@ -191,13 +263,22 @@ def test_hierarchy_and_adaptive_continuation_are_joint_and_mask_aware() -> None:
         and not masks["carried"][:, 1, :, -1].any()
     )
     assert not masks["carried"][:, 1, 20:].any()
-    expected_revised = (rollout["continuation_gate"].amax(dim=-1) > 1.0e-4) & masks[
-        "valid"
-    ]
+    expected_revised = torch.zeros_like(masks["valid"])
+    expected_revised[:, 1:, :20] = (
+        (
+            rollout["background_future_actions"][:, 1:, :20]
+            - rollout["background_future_actions"][:, :-1, 5:]
+        )
+        .abs()
+        .amax(dim=-1)
+        > 1.0e-4
+    ) & masks["valid"][:, 1:, :20]
     assert torch.equal(masks["revised"], expected_revised)
     assert not masks["revised"][:, 0].any()
-    assert masks["revised"][:, 1, :20, :5].all()
     assert not masks["revised"][:, 1, 20:].any()
+    assert rollout["continuation_gate"].shape[-1] == 1
+    assert model.decoder.gate.bias.item() == pytest.approx(-2.5)
+    assert not hasattr(model.decoder, "delta")
     assert not hasattr(model, "joint_refiner") and not hasattr(model, "scene_memory")
     assert "raw_b0" not in inspect.signature(model.plan_step).parameters
     assert "lane_graph_edges" not in inspect.signature(model.plan_step).parameters
@@ -244,6 +325,10 @@ def test_decoder_uses_the_complete_configured_acceleration_range() -> None:
     model = _model()
     with torch.no_grad():
         model.decoder.action.weight.zero_()
+        model.decoder.action.bias.zero_()
+    zero = model.decoder._direct_actions(torch.zeros(1, 1, 1, model.cfg.hidden_dim))
+    assert torch.equal(zero, torch.zeros_like(zero))
+    with torch.no_grad():
         model.decoder.action.bias.copy_(torch.tensor((-20.0, -20.0)))
     low = model.decoder._direct_actions(torch.zeros(1, 1, 1, model.cfg.hidden_dim))
     with torch.no_grad():
@@ -494,6 +579,9 @@ def test_snapshot_restore_and_scene_vs_residual_branching_are_replayable() -> No
     for _ in range(5):
         parent.step(np.zeros(2, np.float32))
     snapshot = parent.snapshot()
+    audit = parent.failure_report()["flow_metadata"]
+    assert audit["flow_checkpoint_sha256"] == "a" * 64
+    assert audit["sampling_rejection"]["max_rounds"] == 8
     scene_child, residual_child = HiQRWorldModelEnvironment(
         model
     ), HiQRWorldModelEnvironment(model)
@@ -555,6 +643,7 @@ def test_snapshot_restore_and_scene_vs_residual_branching_are_replayable() -> No
     replay.restore(snapshot)
     restored = replay.observe()
     assert np.array_equal(restored["agent_states"], parent.observe()["agent_states"])
+    assert replay.failure_report()["flow_metadata"]["log_prob"] == -1.5
 
 
 def test_batched_worlds_keep_independent_random_streams() -> None:
@@ -572,6 +661,9 @@ def test_batched_worlds_keep_independent_random_streams() -> None:
         maps,
         np.ones((2, 2, 4), bool),
         primary_slot_index=np.zeros(2, np.int64),
+        flow_metadata=[
+            _metadata(slots[row], maps[row], np.ones((2, 4), bool)) for row in range(2)
+        ],
         deterministic=False,
         world_randomness=[HiQRWorldRandomness(seed=101), HiQRWorldRandomness(seed=202)],
     )

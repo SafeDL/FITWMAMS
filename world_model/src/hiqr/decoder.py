@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from .config import HiQRWorldModelConfig
 
-REVISED_GATE_EPS = 1.0e-4
+REVISED_ACTION_EPS = 1.0e-4
 
 
 class AdaptiveJointPlanContinuationDecoder(nn.Module):
@@ -15,7 +15,7 @@ class AdaptiveJointPlanContinuationDecoder(nn.Module):
 
     A single agent-time Transformer produces direct START actions and, for a
     ROLL response, encodes each carry action before predicting its correction
-    gate and residual.  The new tail has its own token and no direct carry
+    gate and proposal.  The new tail has its own token and no direct carry
     action input.  It intentionally has no fresh-plan/refiner cascade.
     """
 
@@ -45,10 +45,11 @@ class AdaptiveJointPlanContinuationDecoder(nn.Module):
             layer, num_layers=max(1, int(cfg.decoder_layers))
         )
         self.action = nn.Linear(h, 2)
-        self.gate = nn.Linear(h, 2)
-        self.delta = nn.Linear(h, 2)
+        self.gate = nn.Linear(h, 1)
         nn.init.normal_(self.time, std=0.02)
         nn.init.normal_(self.new_tail_token, std=0.02)
+        nn.init.zeros_(self.action.bias)
+        nn.init.constant_(self.gate.bias, -2.5)
 
     def _clamp(self, actions: torch.Tensor) -> torch.Tensor:
         return torch.stack(
@@ -64,16 +65,15 @@ class AdaptiveJointPlanContinuationDecoder(nn.Module):
         )
 
     def _direct_actions(self, tokens: torch.Tensor) -> torch.Tensor:
-        """Map unconstrained logits onto the configured physical action range."""
-        acceleration_midpoint = 0.5 * (
-            float(self.cfg.min_acceleration) + float(self.cfg.max_acceleration)
+        """Map zero logits to zero action despite asymmetric acceleration limits."""
+        logits = self.action(tokens)
+        acceleration = torch.where(
+            logits[..., 0] >= 0.0,
+            float(self.cfg.max_acceleration) * torch.tanh(logits[..., 0]),
+            -float(self.cfg.min_acceleration) * torch.tanh(logits[..., 0]),
         )
-        acceleration_radius = 0.5 * (
-            float(self.cfg.max_acceleration) - float(self.cfg.min_acceleration)
-        )
-        scale = tokens.new_tensor((acceleration_radius, float(self.cfg.max_yaw_rate)))
-        offset = tokens.new_tensor((acceleration_midpoint, 0.0))
-        return self._clamp(torch.tanh(self.action(tokens)) * scale + offset)
+        yaw_rate = float(self.cfg.max_yaw_rate) * torch.tanh(logits[..., 1])
+        return self._clamp(torch.stack((acceleration, yaw_rate), dim=-1))
 
     def _decode_tokens(
         self,
@@ -154,8 +154,7 @@ class AdaptiveJointPlanContinuationDecoder(nn.Module):
         valid = background_valid[:, None].expand(-1, int(self.cfg.plan_frames), -1)
         carried = torch.zeros_like(valid)
         appended = torch.ones_like(valid)
-        gate = torch.zeros_like(direct)
-        correction = torch.zeros_like(direct)
+        gate = direct.new_zeros((*direct.shape[:-1], 1))
         if previous_buffer is None:
             actions = direct
         else:
@@ -163,16 +162,20 @@ class AdaptiveJointPlanContinuationDecoder(nn.Module):
             remain = int(self.cfg.plan_frames) - execute
             carry = previous_buffer[:, execute:]
             gate[:, :remain] = torch.sigmoid(self.gate(tokens[:, :remain]))
-            scale = tokens.new_tensor((2.0, 0.12))
-            correction[:, :remain] = torch.tanh(self.delta(tokens[:, :remain])) * scale
-            corrected_carry = self._clamp(
-                carry + gate[:, :remain] * correction[:, :remain]
+            mixed_carry = (
+                (1.0 - gate[:, :remain]) * carry
+                + gate[:, :remain] * direct[:, :remain]
             )
-            actions = torch.cat((corrected_carry, direct[:, remain:]), dim=1)
+            revised_carry = self._clamp(mixed_carry)
+            actions = torch.cat((revised_carry, direct[:, remain:]), dim=1)
             carried[:, :remain] = valid[:, :remain]
             appended[:, :remain] = False
         actions = actions * valid[..., None].float()
-        revised = valid & (gate.amax(dim=-1) > REVISED_GATE_EPS)
+        revised = torch.zeros_like(valid)
+        if previous_buffer is not None:
+            revised[:, :remain] = valid[:, :remain] & (
+                (actions[:, :remain] - carry).abs().amax(dim=-1) > REVISED_ACTION_EPS
+            )
         return {
             "background_future_actions": actions,
             "continuation_gate": gate,

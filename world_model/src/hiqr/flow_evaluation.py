@@ -121,6 +121,27 @@ def evaluate_hiqr_flow_composition(
             map_polylines=maps[index],
             map_polyline_valid=map_valid[index],
             primary_slot_index=int(primary[index]),
+            event_structure=np.asarray(starts["event_structure"][index], np.float32),
+            mask_pattern=int(starts["mask_pattern"][index]),
+            event_structure_id=int(starts["event_structure_id"][index]),
+            event_structure_log_prob=float(starts["event_structure_log_prob"][index]),
+            conditional_log_prob=float(starts["conditional_log_prob"][index]),
+            log_prob=float(starts["log_prob"][index]),
+            flow_checkpoint_sha256=str(starts["flow_checkpoint_sha256"][index]),
+            flow_schema_sha256=str(starts["flow_schema_sha256"][index]),
+            sampling_seed=int(starts["sampling_seed"][index]),
+            sampling_temperature=float(starts["sampling_temperature"][index]),
+            sampling_rejection={
+                "event_structure_sampling": str(
+                    starts["sampling_event_structure"][index]
+                ),
+                "reject_invalid": bool(starts["sampling_reject_invalid"][index]),
+                "max_rounds": int(starts["sampling_max_rounds"][index]),
+                "oversample_factor": int(starts["sampling_oversample_factor"][index]),
+                "min_draw": int(starts["sampling_min_draw"][index]),
+                "num_rejected": int(starts["sampling_num_rejected"][index]),
+                "rejection_rate": float(starts["sampling_rejection_rate"][index]),
+            },
         )
         for index in range(take)
     ]
@@ -167,12 +188,42 @@ def evaluate_hiqr_flow_composition(
         replay_states[:, 1:],
         replay_valid[:, 1:],
     )
+    destination = ensure_dir(output_dir)
+    audit_path = destination / "flow_start_audit.npz"
+    np.savez_compressed(
+        audit_path,
+        flow_condition=features,
+        donor_sequence_index=donors[:take],
+        slot_mask=slots,
+        event_structure=np.asarray(starts["event_structure"][:take]),
+        mask_pattern=np.asarray(starts["mask_pattern"][:take]),
+        primary_slot_index=primary,
+        event_structure_id=np.asarray(starts["event_structure_id"][:take]),
+        event_structure_log_prob=np.asarray(starts["event_structure_log_prob"][:take]),
+        conditional_log_prob=np.asarray(starts["conditional_log_prob"][:take]),
+        log_prob=np.asarray(starts["log_prob"][:take]),
+        flow_checkpoint_sha256=np.asarray(starts["flow_checkpoint_sha256"][:take]),
+        flow_schema_sha256=np.asarray(starts["flow_schema_sha256"][:take]),
+        sampling_seed=np.asarray(starts["sampling_seed"][:take]),
+        sampling_temperature=np.asarray(starts["sampling_temperature"][:take]),
+        sampling_event_structure=np.asarray(starts["sampling_event_structure"][:take]),
+        sampling_reject_invalid=np.asarray(starts["sampling_reject_invalid"][:take]),
+        sampling_max_rounds=np.asarray(starts["sampling_max_rounds"][:take]),
+        sampling_oversample_factor=np.asarray(
+            starts["sampling_oversample_factor"][:take]
+        ),
+        sampling_min_draw=np.asarray(starts["sampling_min_draw"][:take]),
+        sampling_num_rejected=np.asarray(starts["sampling_num_rejected"][:take]),
+        sampling_rejection_rate=np.asarray(starts["sampling_rejection_rate"][:take]),
+    )
     report: dict[str, Any] = {
         "model_type": model.model_type,
         "num_flow_starts": take,
         "deterministic": deterministic,
         "flow_schema_sha256": model.flow_schema_sha256,
         "event_structure": "slot_mask_plus_primary_risk_slot",
+        "hiqr_h0_event_structure": "slot_mask_only_causal",
+        "flow_start_audit": str(audit_path),
         "executed_ticks": int(controls.shape[1]),
         "scheduled_response_count": int(
             (controls.shape[1] + model.cfg.execute_frames - 1)
@@ -183,6 +234,5 @@ def evaluate_hiqr_flow_composition(
         "ego_control_source": "adjacent_25hz_replay_velocity_transition",
         "closed_loop_metrics": closed_loop_metrics,
     }
-    ensure_dir(output_dir)
-    save_json(report, output_dir / "hiqr_flow_composition_evaluation.json")
+    save_json(report, destination / "hiqr_flow_composition_evaluation.json")
     return report

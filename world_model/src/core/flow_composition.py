@@ -232,9 +232,12 @@ def load_flow_tail_starts(
     """
     device = select_device("auto") if device is None else device
     flow_checkpoint = repo_root / "results/highd_tail_flow/checkpoints/best_tail_conditional_maf.pt"
+    flow_schema_path = repo_root / "results/highd_tail_flow/dataset_schema.json"
     flow, flow_arrays, flow_schema, _ = load_checkpoint_and_dataset(
         flow_checkpoint, repo_root / "results/highd_tail_flow", repo_root=repo_root, device=device
     )
+    flow_checkpoint_sha256 = file_sha256(flow_checkpoint)
+    flow_schema_sha256 = file_sha256(flow_schema_path)
     # Baseline model families retain their own default.  QR passes its
     # raw-150-state cache explicitly, so its 5.96 s protocol cannot read a
     # different model's replay cache.
@@ -256,18 +259,50 @@ def load_flow_tail_starts(
     supported = {(int(flow_arrays["mask_pattern"][row]), int(flow_arrays["primary_slot_index"][row])) for row in trained}
     pieces: dict[str, list[np.ndarray]] = defaultdict(list)
     donors: list[np.ndarray] = []
+    sample_fields = (
+        "features",
+        "features_normalized",
+        "feature_valid",
+        "contexts",
+        "event_structure",
+        "slot_mask",
+        "mask_pattern",
+        "primary_slot_index",
+        "primary_slot_name",
+        "event_structure_id",
+        "event_structure_log_prob",
+        "conditional_log_prob",
+        "log_prob",
+    )
     for offset, (key, rows) in enumerate(sorted(groups.items())):
         if key not in supported:
             continue
+        sampling_seed = FLOW_COMPOSITION_SEED + 1009 * offset
         sampled = sample_tail_c0(
             flow, flow_arrays, flow_schema, num_samples=len(rows) * OUTER_FLOW_SAMPLES,
-            device=device, seed=FLOW_COMPOSITION_SEED + 1009 * offset,
+            device=device, seed=sampling_seed,
             mask_pattern=key[0], primary_slot=key[1], event_structure_split="train",
             event_structure_sampling="quota", reject_invalid=True, max_rounds=80,
             oversample_factor=1, min_draw=1, temperature=1.0295,
         )
-        for name, value in sampled.items():
-            pieces[name].append(np.asarray(value))
+        sample_count = len(sampled["features"])
+        for name in sample_fields:
+            pieces[name].append(np.asarray(sampled[name]))
+        audit_values = {
+            "flow_checkpoint_sha256": flow_checkpoint_sha256,
+            "flow_schema_sha256": flow_schema_sha256,
+            "sampling_seed": np.int64(sampling_seed),
+            "sampling_temperature": np.float32(1.0295),
+            "sampling_event_structure": "quota",
+            "sampling_reject_invalid": True,
+            "sampling_max_rounds": np.int64(80),
+            "sampling_oversample_factor": np.int64(1),
+            "sampling_min_draw": np.int64(1),
+            "sampling_num_rejected": np.int64(sampled["num_rejected"][0]),
+            "sampling_rejection_rate": np.float32(sampled["rejection_rate"][0]),
+        }
+        for name, value in audit_values.items():
+            pieces[name].append(np.full(sample_count, value))
         matched_rows, matched_speed, speed_error = _match_reference_replays(
             cache, rows, np.asarray(sampled["features"], np.float32)
         )

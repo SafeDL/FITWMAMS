@@ -470,6 +470,10 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
             lane = self._lane_consistency_loss(
                 out["background_future_states"], step_current, full_valid
             )
+            gate = masked_mean(
+                out["continuation_gate"].squeeze(-1),
+                out["background_future_action_masks"]["carried"],
+            )
             target_all = target[:, :execute_count]
             term_rows.append(
                 {
@@ -479,6 +483,7 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
                     "plan_position": plan_position,
                     "plan_action": plan_action,
                     "continuation": overlap,
+                    "gate": gate,
                     "interaction": self._interaction_loss(
                         predicted, target_all, execute_valid
                     ),
@@ -619,6 +624,7 @@ class HierarchicalInteractionQueryRefineWorldModel(nn.Module):
             "plan_position": self.cfg.plan_position_weight,
             "plan_action": self.cfg.plan_action_weight,
             "continuation": self.cfg.continuation_weight,
+            "gate": self.cfg.gate_weight,
             "interaction": self.cfg.interaction_weight,
             "physical": self.cfg.physical_weight,
             "jerk": self.cfg.jerk_weight,

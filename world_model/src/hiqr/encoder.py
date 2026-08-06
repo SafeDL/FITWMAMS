@@ -63,14 +63,13 @@ class _RelationAttention(nn.Module):
             .reshape(batch * self.heads, agents, agents)
         )
         key_padding = _safe_padding_mask(valid)
-        key_padding_bias = torch.zeros(
-            key_padding.shape, dtype=tokens.dtype, device=tokens.device
-        ).masked_fill(key_padding, float("-inf"))
         attended, _ = self.attention(
             tokens,
             tokens,
             tokens,
-            key_padding_mask=key_padding_bias,
+            # ``MultiheadAttention`` expects this mask itself to remain bool.
+            # The relation bias is the (separate) floating-point attention mask.
+            key_padding_mask=key_padding,
             attn_mask=bias,
             need_weights=False,
         )
@@ -195,7 +194,7 @@ class UnifiedRelationalQueryEncoder(nn.Module):
         current_valid: torch.Tensor,
         map_polylines: torch.Tensor,
         map_polyline_valid: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Associate each vehicle with its nearest valid centreline point.
 
         Only local geometry is consumed.  Lane graph edges deliberately never
@@ -213,8 +212,10 @@ class UnifiedRelationalQueryEncoder(nn.Module):
         maps, points = map_polylines.shape[1:3]
         if maps == 0 or points == 0:
             empty = current.new_zeros((batch, agents, self.lane_feature_dim))
-            return empty, torch.zeros(
-                (batch, agents), dtype=torch.bool, device=current.device
+            return (
+                empty,
+                torch.zeros((batch, agents), dtype=torch.bool, device=current.device),
+                torch.zeros((batch, agents), dtype=torch.long, device=current.device),
             )
         geometry = map_polylines[..., :2].reshape(batch, maps * points, 2)
         point_valid = map_polyline_valid.reshape(batch, maps * points).bool()
@@ -224,6 +225,7 @@ class UnifiedRelationalQueryEncoder(nn.Module):
         )
         distance, index = squared.min(dim=-1)
         found = torch.isfinite(distance) & current_valid
+        lane_index = torch.div(index, points, rounding_mode="floor")
         gather = index[..., None, None].expand(-1, -1, 1, 6)
         source = map_polylines.reshape(batch, maps * points, 6)[:, None].expand(
             -1, agents, -1, -1
@@ -251,10 +253,17 @@ class UnifiedRelationalQueryEncoder(nn.Module):
             ),
             dim=-1,
         )
-        return features * found[..., None].float(), found
+        return (
+            features * found[..., None].float(),
+            found,
+            lane_index * found.long(),
+        )
 
     def _relation_features(
-        self, states: torch.Tensor, lane: torch.Tensor, lane_valid: torch.Tensor
+        self,
+        states: torch.Tensor,
+        lane_index: torch.Tensor,
+        lane_valid: torch.Tensor,
     ) -> torch.Tensor:
         position, velocity = states[..., :2], states[..., 2:4]
         delta_position = position[:, None] - position[:, :, None]
@@ -262,8 +271,8 @@ class UnifiedRelationalQueryEncoder(nn.Module):
         heading = _heading(states[..., 2], states[..., 3])
         heading_delta = heading[:, None] - heading[:, :, None]
         lane_pair_valid = lane_valid[:, None, :] & lane_valid[:, :, None]
-        lane_delta = (
-            lane[:, None, :, 0] - lane[:, :, None, 0]
+        lane_delta = (lane_index[:, None, :] - lane_index[:, :, None]).to(
+            dtype=states.dtype
         ) * lane_pair_valid.float()
         return torch.stack(
             (
@@ -274,8 +283,8 @@ class UnifiedRelationalQueryEncoder(nn.Module):
                 torch.sin(heading_delta),
                 torch.cos(heading_delta),
                 lane_delta.clamp(-2.0, 2.0) / 2.0,
-                ((lane_delta.abs() < 0.25) & lane_pair_valid).float(),
-                ((lane_delta.abs() < 1.25) & lane_pair_valid).float(),
+                ((lane_delta == 0.0) & lane_pair_valid).float(),
+                ((lane_delta.abs() == 1.0) & lane_pair_valid).float(),
             ),
             dim=-1,
         )
@@ -303,7 +312,7 @@ class UnifiedRelationalQueryEncoder(nn.Module):
         temporal = self._temporal_tokens(
             history, history_valid, current_valid, ego_mask, mode
         )
-        lane, lane_valid = self._compact_lane_context(
+        lane, lane_valid, lane_index = self._compact_lane_context(
             current, current_valid, map_polylines, map_polyline_valid
         )
         base = self.state_mlp(self._state_features(current, current_valid, ego_mask))
@@ -311,7 +320,7 @@ class UnifiedRelationalQueryEncoder(nn.Module):
             self.merge_norm(base + temporal + self.lane_mlp(lane))
             * current_valid[..., None].float()
         )
-        relation = self._relation_features(current, lane, lane_valid)
+        relation = self._relation_features(current, lane_index, lane_valid)
         for layer in self.relation_layers:
             tokens = layer(tokens, relation, current_valid)
         denominator = current_valid.float().sum(dim=1, keepdim=True).clamp_min(1.0)

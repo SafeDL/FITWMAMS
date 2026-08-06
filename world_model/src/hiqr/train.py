@@ -71,11 +71,16 @@ def _restore_rng_state(state: dict[str, Any]) -> None:
         raise ValueError("training state is missing Python, NumPy, or Torch RNG")
     random.setstate(state["python"])
     np.random.set_state(state["numpy"])
-    torch.set_rng_state(state["torch"])
+    # The training-state payload is loaded with ``map_location=device``.
+    # When resuming on CUDA this also maps the CPU generator state to CUDA,
+    # but ``set_rng_state`` specifically requires a CPU ByteTensor.
+    torch.set_rng_state(state["torch"].cpu())
     if "cuda" in state:
         if not torch.cuda.is_available():
             raise ValueError("training state requires CUDA RNG restoration")
-        torch.cuda.set_rng_state_all(state["cuda"])
+        # CUDA's RNG setter likewise expects CPU ByteTensors even when the
+        # checkpoint was loaded with a CUDA map location.
+        torch.cuda.set_rng_state_all([value.cpu() for value in state["cuda"]])
 
 
 def _save_training_state(

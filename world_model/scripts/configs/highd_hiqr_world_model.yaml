@@ -28,6 +28,7 @@ model:
   min_acceleration: -8.0
   max_acceleration: 4.0
   max_yaw_rate: 0.60
+  gate_weight: 0.01
 
 training:
   seed: 20260805

@@ -1,0 +1,18 @@
+{
+  "arrays": [
+    "behavior_anchor_raw",
+    "behavior_anchor_valid",
+    "primary_slot_index"
+  ],
+  "b0_summary": "26_observed_states_S0_through_S25",
+  "event_structure": "slot_mask_plus_primary_risk_slot",
+  "flow_schema_sha256": "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a",
+  "flow_tail_max_abs_error": 3.6656856536865234e-06,
+  "hiqr_h0_event_structure": "slot_mask_only_causal",
+  "matched_flow_tail_sequences": 2209,
+  "num_sequences": 161314,
+  "sidecar_version": "hiqr_start_context_v3",
+  "source_cache_format": "qr_start_roll_raw150",
+  "source_primary_slots_sha256": "d66133c08784bb7144acba793871a76665ac2bbfa98534f9539c77da6d82ef16",
+  "source_sequence_manifest_sha256": "a1f84aa9b231a6190181db43810b31e12c7e1d0c7bcc2fa8bdd95ef02b61cf62"
+}

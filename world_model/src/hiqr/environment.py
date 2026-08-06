@@ -195,12 +195,23 @@ class HiQRWorldRandomness:
 
 @dataclass(frozen=True)
 class HiQRFlowStartMetadata:
-    """Static Flow/map metadata; primary risk remains audit-only for HiQR."""
+    """Static Flow/map and probability audit data, never model inputs."""
 
     slot_valid: np.ndarray
     map_polylines: np.ndarray
     map_polyline_valid: np.ndarray
     primary_slot_index: int
+    event_structure: np.ndarray
+    mask_pattern: int
+    event_structure_id: int
+    event_structure_log_prob: float
+    conditional_log_prob: float
+    log_prob: float
+    flow_checkpoint_sha256: str
+    flow_schema_sha256: str
+    sampling_seed: int
+    sampling_temperature: float
+    sampling_rejection: Mapping[str, Any]
 
     @classmethod
     def from_value(
@@ -224,11 +235,69 @@ class HiQRFlowStartMetadata:
             or not slots[int(self.primary_slot_index)]
         ):
             raise ValueError("primary_slot_index must identify a valid background slot")
+        event = _as_numpy(self.event_structure, np.float32)
+        expected_event = np.zeros(12, np.float32)
+        expected_event[:6] = slots
+        expected_event[6 + int(self.primary_slot_index)] = 1.0
+        if event.shape != (12,) or not np.array_equal(event, expected_event):
+            raise ValueError(
+                "event_structure must be Flow's [slot mask, primary-risk slot]"
+            )
+        mask_pattern = sum(int(value) << index for index, value in enumerate(slots))
+        if int(self.mask_pattern) != mask_pattern:
+            raise ValueError("mask_pattern must match slot_valid")
+        if int(self.event_structure_id) < 0:
+            raise ValueError("event_structure_id must be non-negative")
+        density = np.asarray(
+            (
+                self.event_structure_log_prob,
+                self.conditional_log_prob,
+                self.log_prob,
+            ),
+            np.float32,
+        )
+        if not np.isfinite(density).all() or not np.isclose(
+            density[2], density[0] + density[1], atol=1.0e-4
+        ):
+            raise ValueError(
+                "Flow metadata must retain log_prob="
+                "event_structure_log_prob+conditional_log_prob"
+            )
+        for name, value in (
+            ("flow_checkpoint_sha256", self.flow_checkpoint_sha256),
+            ("flow_schema_sha256", self.flow_schema_sha256),
+        ):
+            if len(str(value)) != 64 or any(
+                char not in "0123456789abcdef" for char in str(value).lower()
+            ):
+                raise ValueError(f"{name} must be a SHA256 digest")
+        if float(self.sampling_temperature) <= 0.0:
+            raise ValueError("sampling_temperature must be positive")
+        rejection = dict(self.sampling_rejection)
+        required = {
+            "reject_invalid",
+            "max_rounds",
+            "oversample_factor",
+            "min_draw",
+            "num_rejected",
+            "rejection_rate",
+        }
+        if not required.issubset(rejection):
+            raise ValueError("sampling_rejection is missing sampler audit fields")
+        if (
+            int(rejection["max_rounds"]) < 1
+            or int(rejection["oversample_factor"]) < 1
+            or int(rejection["min_draw"]) < 1
+            or int(rejection["num_rejected"]) < 0
+            or not 0.0 <= float(rejection["rejection_rate"]) <= 1.0
+        ):
+            raise ValueError("sampling_rejection contains invalid values")
 
     def audit_dict(self) -> dict[str, Any]:
         return {
-            "slot_valid": _as_numpy(self.slot_valid, np.bool_).copy(),
-            "primary_slot_index": int(self.primary_slot_index),
+            key: deepcopy(value)
+            for key, value in self.__dict__.items()
+            if key not in {"map_polylines", "map_polyline_valid"}
         }
 
 
@@ -320,20 +389,6 @@ class BatchedHiQRWorldModelEnvironment:
             raise RuntimeError("Call reset_from_flow_batch before stepping")
         return self._states, self._valid, self._interaction_state
 
-    @staticmethod
-    def _default_metadata(
-        slots: np.ndarray,
-        maps: np.ndarray,
-        map_valid: np.ndarray,
-        primary: int,
-    ) -> HiQRFlowStartMetadata:
-        return HiQRFlowStartMetadata(
-            slot_valid=slots,
-            map_polylines=maps,
-            map_polyline_valid=map_valid,
-            primary_slot_index=primary,
-        )
-
     @torch.no_grad()
     def reset_from_flow_batch(
         self,
@@ -343,9 +398,7 @@ class BatchedHiQRWorldModelEnvironment:
         map_polyline_valid: np.ndarray | torch.Tensor,
         *,
         primary_slot_index: np.ndarray | torch.Tensor,
-        flow_metadata: (
-            Sequence[HiQRFlowStartMetadata | Mapping[str, Any]] | None
-        ) = None,
+        flow_metadata: Sequence[HiQRFlowStartMetadata | Mapping[str, Any]],
         deterministic: bool = False,
         world_randomness: (
             Sequence[HiQRWorldRandomness | Mapping[str, Any] | int] | None
@@ -372,7 +425,7 @@ class BatchedHiQRWorldModelEnvironment:
         primary = _tensor(primary_slot_index, device=self.device, dtype=torch.long)
         if primary.shape != (features.shape[0],):
             raise ValueError("primary_slot_index must have shape [batch]")
-        if flow_metadata is not None and len(flow_metadata) != features.shape[0]:
+        if len(flow_metadata) != features.shape[0]:
             raise ValueError(
                 "flow_metadata must contain one metadata object per Flow row"
             )
@@ -387,20 +440,27 @@ class BatchedHiQRWorldModelEnvironment:
         maps_np = maps.detach().cpu().numpy()
         map_valid_np = map_valid.detach().cpu().numpy()
         metadata = tuple(
-            (
-                HiQRFlowStartMetadata.from_value(flow_metadata[row])
-                if flow_metadata is not None
-                else self._default_metadata(
-                    slots_np[row],
-                    maps_np[row],
-                    map_valid_np[row],
-                    int(primary[row]),
-                )
-            )
+            HiQRFlowStartMetadata.from_value(flow_metadata[row])
             for row in range(features.shape[0])
         )
-        for item in metadata:
+        for row, item in enumerate(metadata):
             item.validate()
+            if (
+                not np.array_equal(_as_numpy(item.slot_valid, np.bool_), slots_np[row])
+                or not np.array_equal(
+                    _as_numpy(item.map_polylines, np.float32), maps_np[row]
+                )
+                or not np.array_equal(
+                    _as_numpy(item.map_polyline_valid, np.bool_), map_valid_np[row]
+                )
+                or int(item.primary_slot_index) != int(primary[row])
+            ):
+                raise ValueError("Flow tensors do not match their audit metadata")
+            if (
+                self.model.flow_schema_sha256 is not None
+                and item.flow_schema_sha256 != self.model.flow_schema_sha256
+            ):
+                raise ValueError("Flow metadata schema hash differs from HiQR")
         if (
             torch.any(primary < 0)
             or torch.any(primary >= 6)
@@ -478,6 +538,16 @@ class BatchedHiQRWorldModelEnvironment:
             "world_randomness": [
                 deepcopy(trace["world_randomness"]) for trace in self._traces
             ],
+        }
+
+    def failure_report(self) -> dict[str, Any]:
+        """Return the retained causal state and Flow audit for failure analysis."""
+        observation = self.observe()
+        return {
+            "flow_metadata": observation["flow_metadata"],
+            "world_randomness": observation["world_randomness"],
+            "response_index": observation["response_index"],
+            "physics_step_index": observation["physics_step_index"],
         }
 
     def snapshot(self) -> BatchedHiQRWorldSnapshot:
@@ -883,6 +953,15 @@ class HiQRWorldModelEnvironment:
             "physics_step_index": observation["physics_step_index"],
             "flow_metadata": observation["flow_metadata"][0],
             "world_randomness": observation["world_randomness"][0],
+        }
+
+    def failure_report(self) -> dict[str, Any]:
+        report = self._batch.failure_report()
+        return {
+            "flow_metadata": report["flow_metadata"][0],
+            "world_randomness": report["world_randomness"][0],
+            "response_index": report["response_index"],
+            "physics_step_index": report["physics_step_index"],
         }
 
     def snapshot(self) -> HiQRWorldSnapshot:
