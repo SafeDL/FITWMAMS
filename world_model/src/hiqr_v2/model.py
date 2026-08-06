@@ -100,6 +100,30 @@ class HiQRV2WorldModel(torch.nn.Module):
         )
         return expected
 
+    def _logged_ego_controls(
+        self,
+        source: torch.Tensor,
+        target: torch.Tensor,
+        valid: torch.Tensor,
+    ) -> torch.Tensor:
+        """Recover exogenous ego controls from adjacent logged states.
+
+        These controls are consumed only by the physics loop at their realized
+        25 Hz tick.  They are never inputs to the response planner.
+        """
+        source_speed = torch.linalg.vector_norm(source[..., 2:4], dim=-1)
+        target_speed = torch.linalg.vector_norm(target[..., 2:4], dim=-1)
+        acceleration = (target_speed - source_speed) / float(self.cfg.simulation_dt_s)
+        source_heading = self.dynamics._safe_heading(source[..., 3], source[..., 2])
+        target_heading = self.dynamics._safe_heading(target[..., 3], target[..., 2])
+        heading_delta = torch.atan2(
+            torch.sin(target_heading - source_heading),
+            torch.cos(target_heading - source_heading),
+        )
+        yaw_rate = heading_delta / float(self.cfg.simulation_dt_s)
+        controls = torch.stack((acceleration, yaw_rate), dim=-1)
+        return controls * valid[..., None].float()
+
     def plan_step(
         self,
         history: torch.Tensor | None,
@@ -133,8 +157,17 @@ class HiQRV2WorldModel(torch.nn.Module):
             map_polyline_valid,
             mode=mode,
         )
-        observed = self.filter.observe(
-            filter_state, agents, scene, current, previous_current, current_valid
+        observed = (
+            filter_state
+            if previous_buffer is None
+            else self.filter.observe(
+                filter_state,
+                agents,
+                scene,
+                current,
+                previous_current,
+                current_valid,
+            )
         )
         prior_scene = self.filter.prior_scene(observed, scene)
         refresh = (
@@ -301,6 +334,227 @@ class HiQRV2WorldModel(torch.nn.Module):
             functional.relu(lateral - 1.25 * float(self.cfg.lane_width_m)), valid
         )
 
+    def _execute_logged_response(
+        self,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        plan: torch.Tensor,
+        ego_controls: torch.Tensor,
+        ego_control_valid: torch.Tensor,
+        *,
+        first_frame: int,
+        frame_count: int,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Execute one response with causal logged ego controls."""
+        generated = current.clone()
+        frames: list[torch.Tensor] = []
+        valid_frames: list[torch.Tensor] = []
+        for frame in range(frame_count):
+            rollout_frame = first_frame + frame
+            physical = current.new_zeros((current.shape[0], current.shape[1], 2))
+            physical[:, 0] = ego_controls[:, rollout_frame]
+            physical[:, 1:] = plan[:, frame]
+            current_valid = current_valid.clone()
+            current_valid[:, 0] &= ego_control_valid[:, rollout_frame]
+            generated = self.dynamics.step(
+                generated, physical, current_valid, self.cfg.simulation_dt_s
+            )
+            # Logged ego control is an exogenous current-tick environment input.
+            # Logged states and future background labels never enter the rollout.
+            generated = generated * current_valid[..., None].float()
+            frames.append(generated)
+            valid_frames.append(current_valid)
+        return (
+            torch.stack(frames, dim=1),
+            torch.stack(valid_frames, dim=1),
+            current_valid,
+        )
+
+    def _posterior_auxiliary_terms(
+        self,
+        *,
+        enabled: bool,
+        filter_state: FilterState,
+        agents: torch.Tensor,
+        scene: torch.Tensor,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        target: torch.Tensor,
+        target_valid: torch.Tensor,
+        target_actions: torch.Tensor,
+        target_action_valid: torch.Tensor,
+        prior_scene: tuple[torch.Tensor, torch.Tensor],
+        scene_refresh: bool,
+        posterior_slow_scene: torch.Tensor | None,
+        previous_buffer: torch.Tensor | None,
+        previous_states: torch.Tensor | None,
+        previous_expected_ego: torch.Tensor | None,
+        execute_count: int,
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor | None]:
+        zero = current.new_zeros(())
+        terms = {
+            "posterior_position": zero,
+            "posterior_action": zero,
+            "scene_kl": zero,
+            "agent_kl": zero,
+            "prior_distillation": zero,
+            "diversity_floor": zero,
+            "posterior_scene_std": zero,
+            "posterior_agent_std": zero,
+        }
+        if not enabled:
+            return terms, posterior_slow_scene
+
+        qg, qz, posterior = self.filter.posterior(
+            filter_state,
+            agents,
+            scene,
+            current,
+            current_valid,
+            target,
+            target_valid,
+            prior_scene,
+            fixed_scene_latent=None if scene_refresh else posterior_slow_scene,
+        )
+        if scene_refresh:
+            posterior_slow_scene = qg
+        q_plan = self.decoder(
+            agents,
+            filter_state.global_hidden,
+            filter_state.agent_hidden,
+            qg,
+            qz,
+            current,
+            current_valid,
+            previous_buffer,
+            previous_states,
+            previous_expected_ego,
+        )["background_future_actions"]
+        q_states = self._integrate_background_actions(current, q_plan, current_valid)
+        execute_valid = target_valid[:, :execute_count, 1:]
+        terms.update(posterior)
+        terms.update(
+            {
+                "posterior_position": masked_mean(
+                    (
+                        q_states[:, :execute_count, :, :2]
+                        - target[:, :execute_count, 1:, :2]
+                    )
+                    .abs()
+                    .mean(dim=-1),
+                    execute_valid,
+                ),
+                "posterior_action": masked_mean(
+                    (q_plan[:, :execute_count] - target_actions[:, :execute_count])
+                    .abs()
+                    .mean(dim=-1),
+                    target_action_valid[:, :execute_count],
+                ),
+            }
+        )
+        return terms, posterior_slow_scene
+
+    def _response_terms(
+        self,
+        *,
+        predicted: torch.Tensor,
+        target: torch.Tensor,
+        target_valid: torch.Tensor,
+        plan: torch.Tensor,
+        plan_states: torch.Tensor,
+        target_actions: torch.Tensor,
+        target_action_valid: torch.Tensor,
+        current: torch.Tensor,
+        decoded: dict[str, Any],
+        prior_scene_log_std: torch.Tensor,
+        prior_agent_log_std: torch.Tensor,
+        background: torch.Tensor,
+        posterior: dict[str, torch.Tensor],
+        execute_count: int,
+    ) -> dict[str, torch.Tensor]:
+        execute_valid = target_valid[:, :execute_count, 1:]
+        full_valid = target_valid[:, :, 1:]
+        target_executed = target[:, :execute_count]
+        masks = decoded["background_future_action_masks"]
+        carried = masks["carried"]
+        return {
+            "position": masked_mean(
+                (predicted[:, :, 1:, :2] - target_executed[:, :, 1:, :2])
+                .abs()
+                .mean(dim=-1),
+                execute_valid,
+            ),
+            "velocity": masked_mean(
+                (predicted[:, :, 1:, 2:4] - target_executed[:, :, 1:, 2:4])
+                .abs()
+                .mean(dim=-1),
+                execute_valid,
+            ),
+            "action": masked_mean(
+                (plan[:, :execute_count] - target_actions[:, :execute_count])
+                .abs()
+                .mean(dim=-1),
+                target_action_valid[:, :execute_count],
+            ),
+            "plan_position": masked_mean(
+                (plan_states[..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1),
+                full_valid,
+            ),
+            "plan_action": masked_mean(
+                (plan - target_actions).abs().mean(dim=-1), target_action_valid
+            ),
+            "interaction": self._interaction_loss(
+                predicted, target_executed, execute_valid
+            ),
+            "physical": (
+                self._target_aware_physical_loss(
+                    predicted, target_executed, execute_valid
+                )
+                if self.cfg.physical_mode == "target_aware"
+                else current.new_zeros(())
+            ),
+            "jerk": (
+                plan.new_zeros(())
+                if plan.shape[1] < 2
+                else (plan[:, 1:] - plan[:, :-1]).abs().mean()
+            ),
+            "lane": self._lane_loss(plan_states, current, full_valid),
+            "gap_ttc": self._gap_ttc_loss(predicted, target_executed, execute_valid),
+            "gate": masked_mean(decoded["continuation_gate"].squeeze(-1), carried),
+            "revision_rate": masked_mean(masks["revised"].float(), carried),
+            "emergency_rate": masked_mean(masks["emergency"].float(), carried),
+            "prior_scene_std": torch.exp(prior_scene_log_std).mean(),
+            "prior_agent_std": masked_mean(
+                torch.exp(prior_agent_log_std).mean(dim=-1), background
+            ),
+            **posterior,
+        }
+
+    def _b0_summary_loss(
+        self,
+        batch: dict[str, torch.Tensor],
+        initial_current: torch.Tensor,
+        initial_valid: torch.Tensor,
+        plan_states: torch.Tensor,
+        target_valid: torch.Tensor,
+    ) -> torch.Tensor:
+        prefix_states = torch.cat((initial_current[:, None, 1:], plan_states), dim=1)
+        prefix_valid = torch.cat(
+            (
+                initial_valid[:, None, 1:],
+                target_valid[:, : int(self.cfg.plan_frames), 1:],
+            ),
+            dim=1,
+        )
+        summary, summary_valid = summarize_first_second_states(
+            prefix_states, prefix_valid
+        )
+        summary_valid &= batch["behavior_anchor_valid"].bool()
+        return masked_mean(
+            (summary - batch["behavior_anchor_raw"]).abs().mean(dim=-1),
+            summary_valid,
+        )
+
     def _available_frames(self, batch: dict[str, torch.Tensor]) -> int:
         return min(
             int(self.cfg.rollout_frames),
@@ -347,6 +601,34 @@ class HiQRV2WorldModel(torch.nn.Module):
             batch["behavior_anchor_raw"],
             batch["behavior_anchor_valid"],
         )
+        ego_source = states[
+            :,
+            self.cfg.anchor_state_index : self.cfg.anchor_state_index + total_frames,
+            0,
+        ]
+        ego_target = states[
+            :,
+            self.cfg.first_future_state_index : self.cfg.first_future_state_index
+            + total_frames,
+            0,
+        ]
+        ego_control_valid = (
+            valid[
+                :,
+                self.cfg.anchor_state_index : self.cfg.anchor_state_index
+                + total_frames,
+                0,
+            ]
+            & valid[
+                :,
+                self.cfg.first_future_state_index : self.cfg.first_future_state_index
+                + total_frames,
+                0,
+            ]
+        )
+        ego_controls = self._logged_ego_controls(
+            ego_source, ego_target, ego_control_valid
+        )
         history = history_valid = None
         previous_buffer = previous_current = previous_states = previous_expected_ego = (
             None
@@ -382,9 +664,15 @@ class HiQRV2WorldModel(torch.nn.Module):
                 batch["map_polyline_valid"],
                 mode=mode,
             )
-            filter_state = self.filter.observe(
-                filter_state, agents, scene, current, previous_current, current_valid
-            )
+            if response > 0:
+                filter_state = self.filter.observe(
+                    filter_state,
+                    agents,
+                    scene,
+                    current,
+                    previous_current,
+                    current_valid,
+                )
             prior_scene = self.filter.prior_scene(filter_state, scene)
             scene_refresh = (
                 slow_scene is None or response % int(self.cfg.scene_mode_responses) == 0
@@ -431,189 +719,61 @@ class HiQRV2WorldModel(torch.nn.Module):
                 int(self.cfg.execute_frames),
                 total_frames - response * int(self.cfg.execute_frames),
             )
-            generated = current.clone()
-            frames: list[torch.Tensor] = []
-            frame_valid: list[torch.Tensor] = []
-            for frame in range(execute_count):
-                physical = current.new_zeros((current.shape[0], current.shape[1], 2))
-                physical[:, 1:] = plan[:, frame]
-                generated = self.dynamics.step(
-                    generated, physical, current_valid, self.cfg.simulation_dt_s
-                )
-                # The prior rollout is a genuine causal rollout.  Future labels
-                # are targets only: neither recorded ego states nor future
-                # validity may re-enter the persistent filter/history here.
-                generated = generated * current_valid[..., None].float()
-                frames.append(generated)
-                frame_valid.append(current_valid)
-            predicted = torch.stack(frames, dim=1)
-            generated_valid = torch.stack(frame_valid, dim=1)
-            execute_valid, full_valid = (
-                target_valid[:, :execute_count, 1:],
-                target_valid[:, :, 1:],
+            predicted, generated_valid, current_valid = self._execute_logged_response(
+                current,
+                current_valid,
+                plan,
+                ego_controls,
+                ego_control_valid,
+                first_frame=response * int(self.cfg.execute_frames),
+                frame_count=execute_count,
             )
-            position = masked_mean(
-                (predicted[:, :, 1:, :2] - target[:, :execute_count, 1:, :2])
-                .abs()
-                .mean(dim=-1),
-                execute_valid,
+            posterior_terms, posterior_slow_scene = self._posterior_auxiliary_terms(
+                enabled=posterior_auxiliary,
+                filter_state=filter_state,
+                agents=agents,
+                scene=scene,
+                current=step_current,
+                current_valid=step_valid,
+                target=target,
+                target_valid=target_valid,
+                target_actions=target_actions,
+                target_action_valid=target_action_valid,
+                prior_scene=prior_scene,
+                scene_refresh=scene_refresh,
+                posterior_slow_scene=posterior_slow_scene,
+                previous_buffer=previous_buffer,
+                previous_states=previous_states,
+                previous_expected_ego=previous_expected_ego,
+                execute_count=execute_count,
             )
-            velocity = masked_mean(
-                (predicted[:, :, 1:, 2:4] - target[:, :execute_count, 1:, 2:4])
-                .abs()
-                .mean(dim=-1),
-                execute_valid,
-            )
-            action = masked_mean(
-                (plan[:, :execute_count] - target_actions[:, :execute_count])
-                .abs()
-                .mean(dim=-1),
-                target_action_valid[:, :execute_count],
-            )
-            plan_position = masked_mean(
-                (plan_states[..., :2] - target[:, :, 1:, :2]).abs().mean(dim=-1),
-                full_valid,
-            )
-            plan_action = masked_mean(
-                (plan - target_actions).abs().mean(dim=-1), target_action_valid
-            )
-            posterior_position = posterior_action = scene_kl = agent_kl = (
-                prior_distillation
-            ) = diversity = current.new_zeros(())
-            posterior_scene_std = posterior_agent_std = current.new_zeros(())
-            if posterior_auxiliary:
-                qg, qz, posterior_terms = self.filter.posterior(
-                    filter_state,
-                    agents,
-                    scene,
-                    step_current,
-                    step_valid,
-                    target,
-                    target_valid,
-                    prior_scene,
-                    prior_agent,
-                    slow_scene,
-                    fixed_scene_latent=(
-                        None if scene_refresh else posterior_slow_scene
-                    ),
-                )
-                if scene_refresh:
-                    posterior_slow_scene = qg
-                q_decoded = self.decoder(
-                    agents,
-                    filter_state.global_hidden,
-                    filter_state.agent_hidden,
-                    qg,
-                    qz,
-                    step_current,
-                    step_valid,
-                    previous_buffer,
-                    previous_states,
-                    previous_expected_ego,
-                )
-                q_plan = q_decoded["background_future_actions"]
-                q_states = self._integrate_background_actions(
-                    step_current, q_plan, step_valid
-                )
-                posterior_position = masked_mean(
-                    (
-                        q_states[:, :execute_count, :, :2]
-                        - target[:, :execute_count, 1:, :2]
-                    )
-                    .abs()
-                    .mean(dim=-1),
-                    execute_valid,
-                )
-                posterior_action = masked_mean(
-                    (q_plan[:, :execute_count] - target_actions[:, :execute_count])
-                    .abs()
-                    .mean(dim=-1),
-                    target_action_valid[:, :execute_count],
-                )
-                scene_kl, agent_kl = (
-                    posterior_terms["scene_kl"],
-                    posterior_terms["agent_kl"],
-                )
-                prior_distillation, diversity = (
-                    posterior_terms["prior_distillation"],
-                    posterior_terms["diversity_floor"],
-                )
-                posterior_scene_std, posterior_agent_std = (
-                    posterior_terms["posterior_scene_std"],
-                    posterior_terms["posterior_agent_std"],
-                )
             if response == 0:
-                prefix_states = torch.cat(
-                    (initial_current[:, None, 1:], plan_states), dim=1
-                )
-                prefix_valid = torch.cat(
-                    (
-                        initial_valid[:, None, 1:],
-                        target_valid[:, : int(self.cfg.plan_frames), 1:],
-                    ),
-                    dim=1,
-                )
-                summary, summary_valid = summarize_first_second_states(
-                    prefix_states, prefix_valid
-                )
-                b0_valid = summary_valid & batch["behavior_anchor_valid"].bool()
-                b0_summary = masked_mean(
-                    (summary - batch["behavior_anchor_raw"]).abs().mean(dim=-1),
-                    b0_valid,
+                b0_summary = self._b0_summary_loss(
+                    batch,
+                    initial_current,
+                    initial_valid,
+                    plan_states,
+                    target_valid,
                 )
             term_rows.append(
-                {
-                    "position": position,
-                    "velocity": velocity,
-                    "action": action,
-                    "plan_position": plan_position,
-                    "plan_action": plan_action,
-                    "interaction": self._interaction_loss(
-                        predicted, target[:, :execute_count], execute_valid
-                    ),
-                    "physical": (
-                        self._target_aware_physical_loss(
-                            predicted, target[:, :execute_count], execute_valid
-                        )
-                        if self.cfg.physical_mode == "target_aware"
-                        else current.new_zeros(())
-                    ),
-                    "jerk": (
-                        plan.new_zeros(())
-                        if plan.shape[1] < 2
-                        else (plan[:, 1:] - plan[:, :-1]).abs().mean()
-                    ),
-                    "lane": self._lane_loss(plan_states, current, full_valid),
-                    "gap_ttc": self._gap_ttc_loss(
-                        predicted, target[:, :execute_count], execute_valid
-                    ),
-                    "gate": masked_mean(
-                        decoded["continuation_gate"].squeeze(-1),
-                        decoded["background_future_action_masks"]["carried"],
-                    ),
-                    "revision_rate": masked_mean(
-                        decoded["background_future_action_masks"]["revised"].float(),
-                        decoded["background_future_action_masks"]["carried"],
-                    ),
-                    "emergency_rate": masked_mean(
-                        decoded["background_future_action_masks"]["emergency"].float(),
-                        decoded["background_future_action_masks"]["carried"],
-                    ),
-                    "posterior_position": posterior_position,
-                    "posterior_action": posterior_action,
-                    "scene_kl": scene_kl,
-                    "agent_kl": agent_kl,
-                    "prior_distillation": prior_distillation,
-                    "diversity_floor": diversity,
-                    "prior_scene_std": torch.exp(prior_scene[1]).mean(),
-                    "prior_agent_std": masked_mean(
-                        torch.exp(log_z).mean(dim=-1), background
-                    ),
-                    "posterior_scene_std": posterior_scene_std,
-                    "posterior_agent_std": posterior_agent_std,
-                }
+                self._response_terms(
+                    predicted=predicted,
+                    target=target,
+                    target_valid=target_valid,
+                    plan=plan,
+                    plan_states=plan_states,
+                    target_actions=target_actions,
+                    target_action_valid=target_action_valid,
+                    current=current,
+                    decoded=decoded,
+                    prior_scene_log_std=prior_scene[1],
+                    prior_agent_log_std=log_z,
+                    background=background,
+                    posterior=posterior_terms,
+                    execute_count=execute_count,
+                )
             )
-            predicted_frames.extend(frames)
+            predicted_frames.extend(predicted.unbind(dim=1))
             plans.append(plan)
             scene_latents.append(slow_scene)
             residuals.append(z)
@@ -691,6 +851,8 @@ class HiQRV2WorldModel(torch.nn.Module):
             "scene_latent": torch.stack(scene_latents, dim=1),
             "agent_residual": torch.stack(residuals, dim=1),
             "continuation_gate": torch.stack(gate_values, dim=1),
+            "applied_ego_controls": ego_controls,
+            "applied_ego_control_valid": ego_control_valid,
             "background_future_action_masks": {
                 name: torch.stack(values, dim=1) for name, values in masks.items()
             },
@@ -819,6 +981,7 @@ class HiQRV2WorldModel(torch.nn.Module):
                 "b0_lifecycle": "per-agent filter initialization plus first-second summary consistency",
                 "persistent_state": "observation-only global and per-agent filter; no posterior/prior latent intent",
                 "scene_latent": "sampled every five 5 Hz responses and held within its one-second mode",
+                "supervised_ego_control": "adjacent logged state transitions executed only by 25 Hz physics",
                 "flow_schema_sha256": self.flow_schema_sha256,
             },
         }

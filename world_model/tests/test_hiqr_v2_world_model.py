@@ -107,11 +107,46 @@ def _metadata() -> HiQRFlowStartMetadata:
 def test_prior_rollout_is_insensitive_to_future_labels() -> None:
     model, batch = _model(), _batch(1)
     changed = copy.deepcopy(batch)
-    changed["agent_states"][:, 25:] += 10_000.0
+    changed["agent_states"][:, 25:, 1:] += 10_000.0
     changed["actions_highd"] += 10_000.0
     left = model.rollout_reconstruction(batch, response_steps=3, deterministic=True)
     right = model.rollout_reconstruction(changed, response_steps=3, deterministic=True)
     assert torch.equal(left["predicted_states"], right["predicted_states"])
+
+
+def test_logged_ego_controls_are_exogenous_to_each_response_plan() -> None:
+    model, batch = _model(), _batch(1)
+    changed = copy.deepcopy(batch)
+    changed["agent_states"][:, 25:, 0, 2] += 5.0
+    left = model.rollout_reconstruction(batch, response_steps=2, deterministic=True)
+    right = model.rollout_reconstruction(changed, response_steps=2, deterministic=True)
+    assert torch.equal(
+        left["background_future_actions"][:, 0],
+        right["background_future_actions"][:, 0],
+    )
+    assert torch.equal(
+        left["predicted_states"][:, :5, 1:],
+        right["predicted_states"][:, :5, 1:],
+    )
+    assert not torch.equal(
+        left["predicted_states"][:, :5, 0],
+        right["predicted_states"][:, :5, 0],
+    )
+
+
+def test_logged_ego_control_recovery_matches_speed_and_heading_change() -> None:
+    model = _model()
+    source = torch.zeros(1, 1, 6)
+    target = torch.zeros_like(source)
+    source[..., 2] = 10.0
+    target_speed = 10.04
+    target_heading = 0.004
+    target[..., 2] = target_speed * torch.cos(torch.tensor(target_heading))
+    target[..., 3] = target_speed * torch.sin(torch.tensor(target_heading))
+    controls = model._logged_ego_controls(
+        source, target, torch.ones(1, 1, dtype=torch.bool)
+    )
+    assert torch.allclose(controls, torch.tensor([[[1.0, 0.1]]]), atol=1.0e-4)
 
 
 def test_posterior_cannot_mutate_filter_state() -> None:
@@ -144,7 +179,6 @@ def test_posterior_cannot_mutate_filter_state() -> None:
         observed.agent_hidden.clone(),
     )
     prior_scene = model.filter.prior_scene(observed, scene)
-    prior_agent = model.filter.prior_agents(observed, agents, prior_scene[0])
     model.filter.posterior(
         observed,
         agents,
@@ -154,8 +188,6 @@ def test_posterior_cannot_mutate_filter_state() -> None:
         batch["agent_states"][:, 25:50],
         batch["agent_valid"][:, 25:50],
         prior_scene,
-        prior_agent,
-        prior_scene[0],
     )
     assert torch.equal(observed.global_hidden, before_global)
     assert torch.equal(observed.agent_hidden, before_agent)
@@ -204,10 +236,9 @@ def test_posterior_scene_is_local_and_held_within_slow_scene_group() -> None:
     )
     state = model.filter.observe(state, agents, scene, current, None, valid)
     prior_scene = model.filter.prior_scene(state, scene)
-    prior_agent = model.filter.prior_agents(state, agents, prior_scene[0])
     future = batch["agent_states"][:, 25:50]
     future_valid = batch["agent_valid"][:, 25:50]
-    first_scene, _, _ = model.filter.posterior(
+    first_scene, first_agent, first_terms = model.filter.posterior(
         state,
         agents,
         scene,
@@ -216,9 +247,56 @@ def test_posterior_scene_is_local_and_held_within_slow_scene_group() -> None:
         future,
         future_valid,
         prior_scene,
-        prior_agent,
-        prior_scene[0],
     )
+    conditional_prior_agent = model.filter.prior_agents(state, agents, first_scene)[0]
+    background = valid.clone()
+    background[:, 0] = False
+    expected_distillation = (first_scene - prior_scene[0]).square().mean()
+    expected_distillation = expected_distillation + (
+        (first_agent - conditional_prior_agent).square().mean(dim=-1)
+        * background.float()
+    ).sum() / background.float().sum().clamp_min(1.0)
+    assert torch.allclose(first_terms["prior_distillation"], expected_distillation)
+    posterior_future = future.clone()
+    posterior_valid = future_valid.clone()
+    posterior_future[:, :, 0] = current[:, None, 0]
+    posterior_valid[:, :, 0] = valid[:, None, 0]
+    future_agent = model.filter.future(
+        model.filter._future_features(current, posterior_future, posterior_valid)
+    )
+    pooled = model.filter._pool(future_agent, background)
+    inferred_scene, _ = model.filter.distribution_parameters(
+        model.filter.scene_posterior(
+            torch.cat((scene, state.global_hidden, pooled), dim=-1)
+        )
+    )
+    shared = torch.cat((state.global_hidden, inferred_scene), dim=-1)[:, None].expand(
+        -1, agents.shape[1], -1
+    )
+    inferred_agent, inferred_agent_log = model.filter.distribution_parameters(
+        model.filter.agent_posterior(
+            torch.cat((agents, state.agent_hidden, future_agent, shared), dim=-1)
+        )
+    )
+    conditional_prior, conditional_prior_log = model.filter.prior_agents(
+        state, agents, inferred_scene
+    )
+    ratio = torch.exp(2.0 * (inferred_agent_log - conditional_prior_log))
+    expected_agent_kl = (
+        conditional_prior_log
+        - inferred_agent_log
+        + 0.5
+        * (
+            ratio
+            + (inferred_agent - conditional_prior).square()
+            * torch.exp(-2.0 * conditional_prior_log)
+            - 1.0
+        )
+    ).mean(dim=-1)
+    expected_agent_kl = (
+        expected_agent_kl * background.float()
+    ).sum() / background.float().sum().clamp_min(1.0)
+    assert torch.allclose(first_terms["agent_kl"], expected_agent_kl)
     held_scene, _, terms = model.filter.posterior(
         state,
         agents,
@@ -228,13 +306,40 @@ def test_posterior_scene_is_local_and_held_within_slow_scene_group() -> None:
         future + 1000.0,
         future_valid,
         prior_scene,
-        prior_agent,
-        prior_scene[0],
         fixed_scene_latent=first_scene,
     )
     assert torch.equal(held_scene, first_scene)
     assert terms["scene_kl"].item() == 0.0
     assert terms["posterior_scene_std"].item() == 0.0
+
+
+def test_start_uses_initialized_filter_without_duplicate_observe() -> None:
+    model, batch = _model(), _batch(1)
+    current, valid = batch["agent_states"][:, 24], batch["agent_valid"][:, 24]
+    ego = torch.zeros_like(valid)
+    ego[:, 0] = True
+    initial = model.initialize_start(
+        current,
+        valid,
+        ego,
+        batch["map_polylines"],
+        batch["map_polyline_valid"],
+        batch["behavior_anchor_raw"],
+        batch["behavior_anchor_valid"],
+    )
+    output = model.plan_step(
+        None,
+        None,
+        current,
+        valid,
+        ego,
+        batch["map_polylines"],
+        batch["map_polyline_valid"],
+        filter_state=initial,
+        deterministic=True,
+    )
+    assert torch.equal(output["filter_state"].global_hidden, initial.global_hidden)
+    assert torch.equal(output["filter_state"].agent_hidden, initial.agent_hidden)
 
 
 def test_decoder_enforces_five_fifteen_five_continuation() -> None:

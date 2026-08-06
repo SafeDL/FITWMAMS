@@ -177,8 +177,6 @@ class ObservedHierarchicalInteractionFilter(nn.Module):
         future: torch.Tensor,
         future_valid: torch.Tensor,
         prior_scene: tuple[torch.Tensor, torch.Tensor],
-        prior_agent: tuple[torch.Tensor, torch.Tensor],
-        scene_latent_prior: torch.Tensor,
         fixed_scene_latent: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Return a local posterior; callers must not put it back into FilterState."""
@@ -207,7 +205,7 @@ class ObservedHierarchicalInteractionFilter(nn.Module):
             )
         )
         prior_g, prior_g_log = prior_scene
-        prior_z, prior_z_log = prior_agent
+        prior_z, prior_z_log = self.prior_agents(state, agents, mean_g)
         scene_ratio = torch.exp(2.0 * (log_g - prior_g_log))
         scene_kl = (
             prior_g_log
@@ -234,7 +232,7 @@ class ObservedHierarchicalInteractionFilter(nn.Module):
         )
         agent_kl = masked_mean(agent_kl.mean(dim=-1), background)
         scene_distillation = (
-            (mean_g - scene_latent_prior).square().mean()
+            (mean_g - prior_g).square().mean()
             if scene_refresh
             else mean_g.new_zeros(())
         )
