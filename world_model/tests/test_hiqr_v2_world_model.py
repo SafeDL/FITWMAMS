@@ -8,10 +8,14 @@ import numpy as np
 import pytest
 import torch
 
+from normalizing_flow.src.features import EGO_FEATURES, SLOT_NAMES, slot_feature_index, trajectory_feature_index
 from world_model.src.hiqr.environment import HiQRFlowStartMetadata, HiQRWorldRandomness
 from world_model.src.hiqr_v2 import HiQRV2Config, HiQRV2WorldModel
 from world_model.src.hiqr_v2.data import cohort_manifest, stable_slot_mask
-from world_model.src.hiqr_v2.diagnostics import decision_from_bootstrap
+from world_model.src.hiqr_v2.diagnostics import (
+    continuation_decision,
+    decision_from_bootstrap,
+)
 from world_model.src.hiqr_v2.environment import HiQRV2WorldModelEnvironment
 from world_model.src.hiqr_v2.evaluation import (
     _aggregate_risk,
@@ -104,6 +108,40 @@ def _metadata() -> HiQRFlowStartMetadata:
     )
 
 
+def _flow_start_from_scene(
+    current: torch.Tensor, raw_b0: torch.Tensor, valid: torch.Tensor
+) -> np.ndarray:
+    """Encode one ego-relative test scene in the frozen C0+B0 layout."""
+    assert current.shape == (1, 7, 6)
+    assert torch.equal(current[:, 0, :2], torch.zeros_like(current[:, 0, :2]))
+    feature = np.zeros(76, np.float32)
+    feature[: len(EGO_FEATURES)] = current[0, 0, 2:].cpu().numpy()
+    for index, slot in enumerate(SLOT_NAMES):
+        if not valid[0, index + 1]:
+            continue
+        background = current[0, index + 1]
+        values = (
+            background[0],
+            background[1],
+            background[2] - current[0, 0, 2],
+            background[3] - current[0, 0, 3],
+            background[4],
+            background[5],
+        )
+        for name, value in zip(
+            ("rel_x_m", "rel_y_left_m", "rel_vx_mps", "rel_vy_left_mps", "other_ax_mps2", "other_ay_left_mps2"),
+            values,
+            strict=True,
+        ):
+            feature[slot_feature_index(slot, name)] = float(value)
+        for column, value in enumerate(raw_b0[0, index]):
+            feature[trajectory_feature_index(slot, (
+                "delta_vx_1s_mps", "delta_vy_left_1s_mps", "mean_ax_1s_mps2",
+                "min_ax_1s_mps2", "final_ax_1s_mps2", "mean_ay_left_1s_mps2",
+            )[column])] = float(value)
+    return feature
+
+
 def test_prior_rollout_is_insensitive_to_future_labels() -> None:
     model, batch = _model(), _batch(1)
     changed = copy.deepcopy(batch)
@@ -112,6 +150,96 @@ def test_prior_rollout_is_insensitive_to_future_labels() -> None:
     left = model.rollout_reconstruction(batch, response_steps=3, deterministic=True)
     right = model.rollout_reconstruction(changed, response_steps=3, deterministic=True)
     assert torch.equal(left["predicted_states"], right["predicted_states"])
+
+
+def test_plan_step_and_rollout_use_the_same_response_core() -> None:
+    model, batch = _model(), _batch(1)
+    current = batch["agent_states"][:, model.cfg.anchor_state_index]
+    current_valid = batch["agent_valid"][:, model.cfg.anchor_state_index]
+    ego_mask = model._ego_mask(batch)
+    filter_state = model.initialize_start(
+        current,
+        current_valid,
+        ego_mask,
+        batch["map_polylines"],
+        batch["map_polyline_valid"],
+        batch["behavior_anchor_raw"],
+        batch["behavior_anchor_valid"],
+    )
+    online = model.plan_step(
+        None,
+        None,
+        current,
+        current_valid,
+        ego_mask,
+        batch["map_polylines"],
+        batch["map_polyline_valid"],
+        filter_state=filter_state,
+        deterministic=True,
+    )
+    offline = model.rollout_reconstruction(batch, response_steps=1, deterministic=True)
+
+    assert torch.equal(
+        online["background_future_actions"],
+        offline["background_future_actions"][:, 0],
+    )
+    assert torch.equal(online["scene_latent"], offline["scene_latent"][:, 0])
+    assert torch.equal(online["agent_residual"], offline["agent_residual"][:, 0])
+
+
+def test_offline_rollout_and_online_environment_are_strictly_consistent() -> None:
+    """Logged ego controls must produce the same prior world in both paths."""
+    model, batch = _model(), _batch(1)
+    # Use a fixed nonzero plan to avoid amplifying sub-ULP Flow adapter
+    # rounding through an untrained random decoder.  This still exercises all
+    # 149 physical ticks and response-boundary continuation plumbing.
+    torch.nn.init.zeros_(model.decoder.action.weight)
+    model.decoder.action.bias.data.copy_(torch.tensor((0.2, 0.1)))
+    anchor = model.cfg.anchor_state_index
+    # Use exactly representable C0 values so the test detects a path mismatch,
+    # not harmless add/subtract rounding in Flow's relative-velocity adapter.
+    batch["agent_states"][:, anchor] = 0.0
+    batch["agent_states"][:, anchor, :, 2] = 20.0
+    batch["agent_states"][:, anchor, 1:, 0] = torch.arange(1, 7) * 5.0
+    ticks = torch.arange(150, dtype=batch["agent_states"].dtype)
+    batch["agent_states"][:, anchor : anchor + 150, 0] = 0.0
+    batch["agent_states"][:, anchor : anchor + 150, 0, 0] = ticks * 0.8
+    batch["agent_states"][:, anchor : anchor + 150, 0, 2] = 20.0
+    current, valid = batch["agent_states"][:, anchor], batch["agent_valid"][:, anchor]
+    feature = _flow_start_from_scene(current, batch["behavior_anchor_raw"], valid)
+    reconstructed, _, _ = model.flow_condition_to_scene(
+        torch.from_numpy(feature)[None], valid[:, 1:]
+    )
+    batch["agent_states"][:, anchor] = reconstructed
+    current = batch["agent_states"][:, anchor]
+    metadata = _metadata()
+    event = np.zeros(12, np.float32)
+    event[:6] = valid[0, 1:].cpu().numpy()
+    event[6] = 1.0
+    metadata = HiQRFlowStartMetadata(
+        **{
+            **metadata.__dict__,
+            "slot_valid": valid[0, 1:].cpu().numpy(),
+            "event_structure": event,
+            "mask_pattern": 31,
+        }
+    )
+    offline = model.rollout_reconstruction(batch, deterministic=True)
+    controls = offline["applied_ego_controls"][0].cpu().numpy()
+    control_valid = offline["applied_ego_control_valid"][0].cpu().numpy()
+    environment = HiQRV2WorldModelEnvironment(model)
+    environment.reset_from_flow(feature[:40], feature[40:].reshape(6, 6), metadata)
+    online = []
+    for action, ego_valid in zip(controls, control_valid, strict=True):
+        online.append(environment.step(action, bool(ego_valid))["agent_states"])
+    online_states = np.stack(online)
+    offline_states = offline["predicted_states"][0].detach().cpu().numpy()
+    error = np.abs(online_states - offline_states)
+    mismatch = np.flatnonzero(error.max(axis=(1, 2)) > 1.0e-5)
+    assert error.max() < 1.0e-5, (
+        "first mismatch at 25 Hz tick "
+        f"{None if not len(mismatch) else int(mismatch[0])}"
+    )
 
 
 def test_logged_ego_controls_are_exogenous_to_each_response_plan() -> None:
@@ -647,6 +775,30 @@ def test_bootstrap_admission_requires_significant_ten_percent_gain() -> None:
     comparison = _bootstrap_difference(candidate, baseline, samples=100, seed=9)
     decision = decision_from_bootstrap({"bootstrap_vs_baseline": comparison})
     assert decision["eligible_for_v2_default"]
+
+
+def test_adaptive_continuation_uses_smoothness_and_safety_gate() -> None:
+    baseline = {
+        "deterministic_prior_mean": {
+            "fde_5p96s_m": 1.0,
+            "jerk": 1.0,
+            "plan_discontinuity": 1.0,
+            "emergency_rate": 0.0,
+        },
+        "interaction_metrics": {
+            "collision_episode_rate": 0.0,
+            "gap_mae_m": 1.0,
+            "ttc_mae_s": 1.0,
+            "drac_mae_mps2": 1.0,
+        },
+    }
+    candidate = copy.deepcopy(baseline)
+    candidate["deterministic_prior_mean"].update(
+        {"fde_5p96s_m": 1.04, "jerk": 0.8, "plan_discontinuity": 0.5}
+    )
+    assert continuation_decision(candidate, baseline)["eligible_for_v2_default"]
+    candidate["deterministic_prior_mean"]["fde_5p96s_m"] = 1.06
+    assert not continuation_decision(candidate, baseline)["eligible_for_v2_default"]
 
 
 def test_environment_runs_the_complete_149_transition_protocol() -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import torch
@@ -18,6 +18,18 @@ from world_model.src.hiqr.encoder import UnifiedRelationalQueryEncoder
 from .config import HiQRV2Config
 from .decoder import StateAwarePlanContinuationDecoder
 from .filter import FilterState, ObservedHierarchicalInteractionFilter, masked_mean
+
+
+@dataclass
+class _ResponseCoreResult:
+    """Public plan output plus training-only distributions and encodings."""
+
+    output: dict[str, Any]
+    agents: torch.Tensor
+    scene: torch.Tensor
+    prior_scene: tuple[torch.Tensor, torch.Tensor]
+    prior_agent_log_std: torch.Tensor
+    background_valid: torch.Tensor
 
 
 class HiQRV2WorldModel(torch.nn.Module):
@@ -124,7 +136,7 @@ class HiQRV2WorldModel(torch.nn.Module):
         controls = torch.stack((acceleration, yaw_rate), dim=-1)
         return controls * valid[..., None].float()
 
-    def plan_step(
+    def _response_core(
         self,
         history: torch.Tensor | None,
         history_valid: torch.Tensor | None,
@@ -144,8 +156,8 @@ class HiQRV2WorldModel(torch.nn.Module):
         deterministic: bool = True,
         scene_standard_normal: torch.Tensor | None = None,
         agent_standard_normal: torch.Tensor | None = None,
-    ) -> dict[str, Any]:
-        """Plan one causal V2 response without letting latent intent mutate state."""
+    ) -> _ResponseCoreResult:
+        """Run the single causal response implementation used online and offline."""
         mode = "start" if previous_buffer is None else "roll"
         agents, scene, _, _ = self.encoder(
             history,
@@ -212,18 +224,67 @@ class HiQRV2WorldModel(torch.nn.Module):
             previous_expected_ego,
         )
         plan = decoded["background_future_actions"]
-        return {
-            **decoded,
-            "filter_state": observed,
-            "slow_scene": slow_scene,
-            "scene_latent": slow_scene,
-            "agent_residual": z,
-            "background_future_states": self._integrate_background_actions(
-                current, plan, current_valid
-            ),
-            "expected_ego_states": self._expected_ego(current),
-            "scene_refreshed": refresh,
-        }
+        return _ResponseCoreResult(
+            output={
+                **decoded,
+                "filter_state": observed,
+                "slow_scene": slow_scene,
+                "scene_latent": slow_scene,
+                "agent_residual": z,
+                "background_future_states": self._integrate_background_actions(
+                    current, plan, current_valid
+                ),
+                "expected_ego_states": self._expected_ego(current),
+                "scene_refreshed": refresh,
+            },
+            agents=agents,
+            scene=scene,
+            prior_scene=prior_scene,
+            prior_agent_log_std=log_z,
+            background_valid=background,
+        )
+
+    def plan_step(
+        self,
+        history: torch.Tensor | None,
+        history_valid: torch.Tensor | None,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        ego_mask: torch.Tensor,
+        map_polylines: torch.Tensor,
+        map_polyline_valid: torch.Tensor,
+        *,
+        filter_state: FilterState,
+        previous_buffer: torch.Tensor | None = None,
+        previous_current: torch.Tensor | None = None,
+        previous_background_states: torch.Tensor | None = None,
+        previous_expected_ego: torch.Tensor | None = None,
+        slow_scene: torch.Tensor | None = None,
+        response_index: int = 0,
+        deterministic: bool = True,
+        scene_standard_normal: torch.Tensor | None = None,
+        agent_standard_normal: torch.Tensor | None = None,
+    ) -> dict[str, Any]:
+        """Plan one causal V2 response without exposing training-only context."""
+        return self._response_core(
+            history,
+            history_valid,
+            current,
+            current_valid,
+            ego_mask,
+            map_polylines,
+            map_polyline_valid,
+            filter_state=filter_state,
+            previous_buffer=previous_buffer,
+            previous_current=previous_current,
+            previous_background_states=previous_background_states,
+            previous_expected_ego=previous_expected_ego,
+            slow_scene=slow_scene,
+            response_index=response_index,
+            deterministic=deterministic,
+            scene_standard_normal=scene_standard_normal,
+            agent_standard_normal=agent_standard_normal,
+        ).output
 
     def _target_plan(
         self, batch: dict[str, torch.Tensor], response: int
@@ -653,8 +714,7 @@ class HiQRV2WorldModel(torch.nn.Module):
                 self._target_plan(batch, response)
             )
             step_current, step_valid = current, current_valid
-            mode = "start" if previous_buffer is None else "roll"
-            agents, scene, _, _ = self.encoder(
+            core = self._response_core(
                 history,
                 history_valid,
                 current,
@@ -662,59 +722,23 @@ class HiQRV2WorldModel(torch.nn.Module):
                 ego_mask,
                 batch["map_polylines"],
                 batch["map_polyline_valid"],
-                mode=mode,
+                filter_state=filter_state,
+                previous_buffer=previous_buffer,
+                previous_current=previous_current,
+                previous_background_states=previous_states,
+                previous_expected_ego=previous_expected_ego,
+                slow_scene=slow_scene,
+                response_index=response,
+                deterministic=deterministic,
             )
-            if response > 0:
-                filter_state = self.filter.observe(
-                    filter_state,
-                    agents,
-                    scene,
-                    current,
-                    previous_current,
-                    current_valid,
-                )
-            prior_scene = self.filter.prior_scene(filter_state, scene)
-            scene_refresh = (
-                slow_scene is None or response % int(self.cfg.scene_mode_responses) == 0
-            )
-            if scene_refresh:
-                mean_g, log_g = prior_scene
-                slow_scene = (
-                    mean_g
-                    if deterministic
-                    else mean_g + torch.randn_like(mean_g) * torch.exp(log_g)
-                )
-            assert slow_scene is not None
-            prior_agent = self.filter.prior_agents(filter_state, agents, slow_scene)
-            mean_z, log_z = prior_agent
-            z = (
-                mean_z
-                if deterministic
-                else mean_z
-                + torch.randn_like(mean_z)
-                * torch.exp(log_z)
-                * float(self.cfg.residual_noise_scale)
-            )
-            background = current_valid.clone()
-            background[:, 0] = False
-            z = z * background[..., None].float()
-            decoded = self.decoder(
-                agents,
-                filter_state.global_hidden,
-                filter_state.agent_hidden,
-                slow_scene,
-                z,
-                current,
-                current_valid,
-                previous_buffer,
-                previous_states,
-                previous_expected_ego,
-            )
+            decoded = core.output
+            filter_state = decoded["filter_state"]
+            slow_scene = decoded["slow_scene"]
+            z = decoded["agent_residual"]
             plan = decoded["background_future_actions"]
-            plan_states = self._integrate_background_actions(
-                current, plan, current_valid
-            )
-            expected_ego = self._expected_ego(current)
+            plan_states = decoded["background_future_states"]
+            expected_ego = decoded["expected_ego_states"]
+            scene_refresh = decoded["scene_refreshed"]
             execute_count = min(
                 int(self.cfg.execute_frames),
                 total_frames - response * int(self.cfg.execute_frames),
@@ -731,15 +755,15 @@ class HiQRV2WorldModel(torch.nn.Module):
             posterior_terms, posterior_slow_scene = self._posterior_auxiliary_terms(
                 enabled=posterior_auxiliary,
                 filter_state=filter_state,
-                agents=agents,
-                scene=scene,
+                agents=core.agents,
+                scene=core.scene,
                 current=step_current,
                 current_valid=step_valid,
                 target=target,
                 target_valid=target_valid,
                 target_actions=target_actions,
                 target_action_valid=target_action_valid,
-                prior_scene=prior_scene,
+                prior_scene=core.prior_scene,
                 scene_refresh=scene_refresh,
                 posterior_slow_scene=posterior_slow_scene,
                 previous_buffer=previous_buffer,
@@ -766,9 +790,9 @@ class HiQRV2WorldModel(torch.nn.Module):
                     target_action_valid=target_action_valid,
                     current=current,
                     decoded=decoded,
-                    prior_scene_log_std=prior_scene[1],
-                    prior_agent_log_std=log_z,
-                    background=background,
+                    prior_scene_log_std=core.prior_scene[1],
+                    prior_agent_log_std=core.prior_agent_log_std,
+                    background=core.background_valid,
                     posterior=posterior_terms,
                     execute_count=execute_count,
                 )
@@ -955,12 +979,14 @@ class HiQRV2WorldModel(torch.nn.Module):
         posterior_scale: float = 1.0,
         kl_scale: float = 1.0,
         diversity_scale: float = 1.0,
+        deterministic_prior: bool = False,
+        posterior_auxiliary: bool = True,
     ) -> dict[str, torch.Tensor]:
         rollout = self._rollout(
             batch,
             response_steps=response_steps,
-            deterministic=False,
-            posterior_auxiliary=True,
+            deterministic=deterministic_prior,
+            posterior_auxiliary=posterior_auxiliary,
             tbptt_steps=tbptt_steps,
         )
         return self._objective(

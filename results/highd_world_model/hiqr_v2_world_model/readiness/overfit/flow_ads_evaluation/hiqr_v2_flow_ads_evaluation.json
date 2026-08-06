@@ -1,0 +1,140 @@
+{
+  "b0_summary_consistency_mae": 0.06025184690952301,
+  "causal_ads_contract": "current_state_only_no_future_ads_actions",
+  "closed_loop_metrics": {
+    "following_error": {
+      "drac_mae_mps2": 0.06772343845698452,
+      "gap_mae_m": 4.3552833083491995,
+      "relative_speed_mae_mps": 1.656262429768607,
+      "ttc_mae_s": 0.7741933566983602
+    },
+    "generated_collision": {
+      "collision_episode_rate": 0.0,
+      "collision_pair_point_rate": 0.0
+    },
+    "replay_collision": {
+      "collision_episode_rate": 0.0,
+      "collision_pair_point_rate": 0.0
+    },
+    "risk_variable_distribution": {
+      "drac_mps2": {
+        "available": true,
+        "ks": 0.4295302013422819,
+        "num_generated": 112,
+        "num_real": 298,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.21243901574492066,
+            "generated": 0.024193673782969438,
+            "real": 0.2366326895278901
+          },
+          "q95": {
+            "absolute_error": 0.24051729851097592,
+            "generated": 0.02732481570694272,
+            "real": 0.26784211421791865
+          },
+          "q99": {
+            "absolute_error": 0.2601692571427639,
+            "generated": 0.030409186607191763,
+            "real": 0.2905784437499557
+          }
+        },
+        "wasserstein_1": 0.06266683108443642
+      },
+      "gap_m": {
+        "available": true,
+        "ks": 0.8523489932885906,
+        "num_generated": 112,
+        "num_real": 298,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.08953619003295898,
+            "generated": 21.982463550567626,
+            "real": 22.071999740600585
+          },
+          "q95": {
+            "absolute_error": 1.0387321949005148,
+            "generated": 22.091268110275266,
+            "real": 23.13000030517578
+          },
+          "q99": {
+            "absolute_error": 1.7384716796874997,
+            "generated": 22.20152952194214,
+            "real": 23.940001201629638
+          }
+        },
+        "wasserstein_1": 2.8676746713464913
+      },
+      "relative_speed_mps": {
+        "available": true,
+        "ks": 0.4093959731543624,
+        "num_generated": 112,
+        "num_real": 298,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 2.200675201416016,
+            "generated": 1.0313262939453127,
+            "real": 3.2320014953613287
+          },
+          "q95": {
+            "absolute_error": 2.421299552917481,
+            "generated": 1.0986970901489255,
+            "real": 3.5199966430664062
+          },
+          "q99": {
+            "absolute_error": 2.5680134582519534,
+            "generated": 1.161986083984375,
+            "real": 3.729999542236328
+          }
+        },
+        "wasserstein_1": 0.9697480939203923
+      },
+      "ttc_s": {
+        "available": true,
+        "ks": 0.3087248322147651,
+        "num_generated": 112,
+        "num_real": 298,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q95": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q99": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          }
+        },
+        "wasserstein_1": 0.771721265875576
+      }
+    }
+  },
+  "completed_response_count": 29,
+  "composition": "normalizing_flow_x_logged_ads_x_hiqr_v2",
+  "deterministic": false,
+  "ego_control_source": "adjacent_25hz_replay_velocity_transition",
+  "executed_ticks": 149,
+  "finite_rollout_rate": 1.0,
+  "flow_audit_complete": true,
+  "flow_schema_sha256": "b4091005a5fb562946af419513df027c049096423dfd63e4674a1e704b99ff8a",
+  "flow_start_audit": "/home/hp/FITWMAMS/results/highd_world_model/hiqr_v2_world_model/readiness/overfit/flow_ads_evaluation/hiqr_v2_flow_start_audit.npz",
+  "model_type": "prior_driven_hierarchical_interaction_query_world_model_v2",
+  "num_flow_starts": 1,
+  "paired_ads_brake_intervention": {
+    "brake_delta_mps2": -5.0,
+    "current_response_is_action_causal": true,
+    "current_response_plan_max_abs_delta": 0.0,
+    "next_response_plan_max_abs_delta": 0.3354525566101074,
+    "next_response_responds_to_executed_brake": true
+  },
+  "scene_agent_branch_diversity_m": 2.5402135848999023,
+  "scheduled_response_count": 30,
+  "total_worlds": 2,
+  "worlds_per_start": 2
+}

@@ -19,6 +19,7 @@ from world_model.src.core.sequential_dataset import (
 from world_model.src.core.utils import (
     ensure_dir,
     file_sha256,
+    load_json,
     save_json,
     select_device,
     set_seed,
@@ -285,6 +286,7 @@ def train_hiqr_v2_world_model(
         checkpoint_dir / LAST_TRAINING_STATE_NAME,
         checkpoint_dir / "best_hiqr_v2_world_model.pt",
     )
+    last_model_path = checkpoint_dir / "last_hiqr_v2_world_model.pt"
     writer, tensorboard_dir = _writer(output, training)
     stages = list(training["stages"])
     configured_epochs = int(training["epochs"])
@@ -295,6 +297,10 @@ def train_hiqr_v2_world_model(
         writer.add_text("hiqr_v2/run/cohort", str(cohort), 0)
     epoch = global_step = stage_start = stage_epoch_start = 0
     best = float("inf")
+    history_path = output / "training_history.json"
+    history: list[dict[str, Any]] = (
+        list(load_json(history_path)) if resume is not None and history_path.exists() else []
+    )
     if resume is not None:
         state = _load_state(
             resume,
@@ -361,6 +367,22 @@ def train_hiqr_v2_world_model(
                 epoch
                 >= int(training.get("diversity_start_epoch", configured_epochs + 1))
             )
+            deterministic_prior = bool(
+                stage.get(
+                    "deterministic_prior_mean",
+                    training.get("deterministic_prior_mean", False),
+                )
+            )
+            posterior_auxiliary = bool(
+                stage.get(
+                    "posterior_auxiliary",
+                    training.get("posterior_auxiliary", True),
+                )
+            )
+            if not posterior_auxiliary:
+                posterior_scale = kl_scale = 0.0
+            if bool(stage.get("diversity", training.get("diversity", True))) is False:
+                diversity_scale = 0.0
             for batch_index, values in enumerate(train_loader, start=1):
                 result = model.forward_training(
                     to_hiqr_v2_batch(values, train_loader.field_names, device),
@@ -369,6 +391,8 @@ def train_hiqr_v2_world_model(
                     posterior_scale=posterior_scale,
                     kl_scale=kl_scale,
                     diversity_scale=diversity_scale,
+                    deterministic_prior=deterministic_prior,
+                    posterior_auxiliary=posterior_auxiliary,
                 )
                 (result["loss"] / accumulation).backward()
                 if batch_index % accumulation == 0 or batch_index == len(train_loader):
@@ -421,6 +445,27 @@ def train_hiqr_v2_world_model(
                     },
                     best_path,
                 )
+            torch.save(
+                {
+                    **model.checkpoint_payload(),
+                    "epoch": epoch,
+                    "stage": stage["name"],
+                    "selection_metric": fde,
+                    "cohort": cohort,
+                },
+                last_model_path,
+            )
+            if local_epoch + 1 == int(stage["epochs"]):
+                torch.save(
+                    {
+                        **model.checkpoint_payload(),
+                        "epoch": epoch,
+                        "stage": stage["name"],
+                        "selection_metric": fde,
+                        "cohort": cohort,
+                    },
+                    checkpoint_dir / f"{stage['name']}_hiqr_v2_world_model.pt",
+                )
             scheduler.step(fde)
             _save_state(
                 state_path,
@@ -434,10 +479,13 @@ def train_hiqr_v2_world_model(
                 best_fde=best,
                 cohort=cohort,
             )
+            history.append(row)
+            save_json(history, history_path)
     report = {
         "model_type": model.model_type,
         "best_checkpoint": str(best_path),
         "last_training_state": str(state_path),
+        "last_model_checkpoint": str(last_model_path),
         "best_validation_fde": best,
         "epochs_completed": epoch,
         "model_config": asdict(model_cfg),

@@ -24,45 +24,39 @@ from .evaluation import (
 )
 from .train import train_hiqr_v2_world_model
 
-# The six 12-epoch runs form a causal ladder.  ``control`` removes the
-# persistent observed filter; every candidate is selected against this common
-# control, while the named combinations preserve interpretable interventions.
+# The five 12-epoch runs form a cumulative causal ladder.  Each row changes
+# exactly one decision from its predecessor, so the paired bootstrap answers
+# the intended question instead of comparing unrelated combinations.
 DIAGNOSTIC_VARIANTS: dict[str, dict[str, Any]] = {
-    "control": {
-        "filter_update_mode": "stateless",
-        "continuation_mode": "adaptive_5_15_5",
-        "scene_mode_responses": 1,
-        "physical_mode": "target_aware",
-    },
-    "prior_state": {
-        "filter_update_mode": "observed",
-        "continuation_mode": "adaptive_5_15_5",
-        "scene_mode_responses": 1,
-        "physical_mode": "target_aware",
-    },
-    "full_replan": {
+    "R0": {
         "filter_update_mode": "stateless",
         "continuation_mode": "full_replan",
         "scene_mode_responses": 1,
-        "physical_mode": "target_aware",
+        "physical_mode": "off",
     },
-    "prior_state_full_replan": {
+    "R1": {
         "filter_update_mode": "observed",
         "continuation_mode": "full_replan",
         "scene_mode_responses": 1,
-        "physical_mode": "target_aware",
+        "physical_mode": "off",
     },
-    "slow_scene": {
-        "filter_update_mode": "observed",
-        "continuation_mode": "full_replan",
-        "scene_mode_responses": 5,
-        "physical_mode": "target_aware",
-    },
-    "no_physical": {
+    "R2": {
         "filter_update_mode": "observed",
         "continuation_mode": "full_replan",
         "scene_mode_responses": 5,
         "physical_mode": "off",
+    },
+    "R3": {
+        "filter_update_mode": "observed",
+        "continuation_mode": "adaptive_5_15_5",
+        "scene_mode_responses": 5,
+        "physical_mode": "off",
+    },
+    "R4": {
+        "filter_update_mode": "observed",
+        "continuation_mode": "adaptive_5_15_5",
+        "scene_mode_responses": 5,
+        "physical_mode": "target_aware",
     },
 }
 
@@ -148,6 +142,40 @@ def decision_from_bootstrap(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def continuation_decision(
+    candidate: dict[str, Any], baseline: dict[str, Any]
+) -> dict[str, Any]:
+    """Admit adaptive continuation on smoothness/safety, not just FDE gain."""
+    current = candidate["deterministic_prior_mean"]
+    reference = baseline["deterministic_prior_mean"]
+    risk, reference_risk = candidate["interaction_metrics"], baseline["interaction_metrics"]
+    fde_ratio = float(current["fde_5p96s_m"]) / max(
+        float(reference["fde_5p96s_m"]), 1.0e-12
+    )
+    checks = {
+        "fde_within_5_percent": fde_ratio <= 1.05,
+        "jerk_not_higher": float(current["jerk"]) <= float(reference["jerk"]),
+        "plan_discontinuity_lower": float(current["plan_discontinuity"])
+        <= float(reference["plan_discontinuity"]),
+        "emergency_not_higher": float(current.get("emergency_rate", 0.0))
+        <= float(reference.get("emergency_rate", 0.0)) + 0.01,
+        "collision_not_higher": float(risk["collision_episode_rate"])
+        <= float(reference_risk["collision_episode_rate"]),
+        "gap_not_worse": float(risk["gap_mae_m"])
+        <= float(reference_risk["gap_mae_m"]) * 1.05,
+        "ttc_not_worse": float(risk["ttc_mae_s"])
+        <= float(reference_risk["ttc_mae_s"]) * 1.05,
+        "drac_not_worse": float(risk["drac_mae_mps2"])
+        <= float(reference_risk["drac_mae_mps2"]) * 1.05,
+    }
+    return {
+        "eligible_for_v2_default": bool(all(checks.values())),
+        "fde_ratio": fde_ratio,
+        "checks": checks,
+        "rule": "FDE <= 1.05× full-replan plus lower jerk/discontinuity and no risk regression",
+    }
+
+
 def run_hiqr_v2_diagnostics(
     config: dict[str, Any],
     *,
@@ -157,16 +185,15 @@ def run_hiqr_v2_diagnostics(
     max_sequences: int = 0,
     train_variants: bool = False,
 ) -> dict[str, Any]:
-    """Write the experiment plan and optionally execute its six isolated runs."""
+    """Write the plan or execute the five fixed-cohort causal runs."""
     output = Path(config["paths"]["output_dir"])
     output = output if output.is_absolute() else (config_dir / output).resolve()
     root = ensure_dir(output / "diagnostics")
     requested = diagnostic_variant_names(variants)
     selected = list(requested)
-    if train_variants and any(name != "control" for name in selected):
-        selected = ["control", *[name for name in selected if name != "control"]]
-    if train_variants and "no_physical" in selected and "slow_scene" not in selected:
-        selected.insert(selected.index("no_physical"), "slow_scene")
+    if train_variants:
+        final_index = max(list(DIAGNOSTIC_VARIANTS).index(name) for name in selected)
+        selected = list(DIAGNOSTIC_VARIANTS)[: final_index + 1]
     baseline = evaluate_hiqr_v1_fixed_cohort(
         config,
         config_dir=config_dir,
@@ -176,7 +203,7 @@ def run_hiqr_v2_diagnostics(
         split="val",
     )
     v1_metrics = Path(baseline["per_sequence_metrics"])
-    control_metrics: Path | None = None
+    predecessor_metrics: Path | None = None
     runs: dict[str, Any] = {}
     for variant in selected:
         variant_output = root / "runs" / variant
@@ -193,9 +220,7 @@ def run_hiqr_v2_diagnostics(
         }
         if train_variants:
             training = train_hiqr_v2_world_model(run_config, config_dir=config_dir)
-            comparison = v1_metrics if variant == "control" else control_metrics
-            if comparison is None:
-                raise RuntimeError("diagnostic control must complete before candidates")
+            comparison = v1_metrics if predecessor_metrics is None else predecessor_metrics
             report = evaluate_hiqr_v2_world_model(
                 run_config,
                 config_dir=config_dir,
@@ -203,7 +228,7 @@ def run_hiqr_v2_diagnostics(
                 max_sequences=max_sequences,
                 baseline_metrics=comparison,
                 baseline_label=(
-                    "v1_epoch32" if variant == "control" else "diagnostic_control"
+                    "v1_epoch32" if predecessor_metrics is None else f"previous_{selected[selected.index(variant) - 1]}"
                 ),
                 split="val",
                 allow_diagnostic_ablation=True,
@@ -211,21 +236,24 @@ def run_hiqr_v2_diagnostics(
             item.update(
                 {"status": "completed", "training": training, "evaluation": report}
             )
-            if variant == "control":
-                control_metrics = Path(report["per_sequence_metrics"])
+            if predecessor_metrics is None:
                 item["reference_vs_v1_epoch32"] = report["bootstrap_vs_baseline"]
+            elif variant == "R3":
+                previous = runs[selected[selected.index(variant) - 1]]["evaluation"]
+                item["decision"] = continuation_decision(report, previous)
             else:
                 item["decision"] = decision_from_bootstrap(report)
+            predecessor_metrics = Path(report["per_sequence_metrics"])
         runs[variant] = item
     physical_decision: dict[str, Any] = {
         "eligible_for_v2_default": False,
-        "reason": "slow_scene and no_physical pair not both executed",
+        "reason": "R3 and R4 pair not both executed",
     }
-    if train_variants and {"slow_scene", "no_physical"} <= runs.keys():
-        slow = runs["slow_scene"]
-        no_physical = runs["no_physical"]
-        if slow["status"] == no_physical["status"] == "completed":
-            with np.load(slow["evaluation"]["per_sequence_metrics"]) as physical_rows:
+    if train_variants and {"R3", "R4"} <= runs.keys():
+        no_physical = runs["R3"]
+        physical = runs["R4"]
+        if no_physical["status"] == physical["status"] == "completed":
+            with np.load(physical["evaluation"]["per_sequence_metrics"]) as physical_rows:
                 physical_fde = np.asarray(physical_rows["fde_5p96s"])
             with np.load(
                 no_physical["evaluation"]["per_sequence_metrics"]
@@ -250,7 +278,7 @@ def run_hiqr_v2_diagnostics(
         "v1_fixed_cohort_baseline": baseline,
         "fixed_seed": int(config["training"].get("seed", 42)),
         "selection_split": "val",
-        "decision_baseline": "diagnostic_control",
+        "decision_baseline": "cumulative predecessor (R1−R0, R2−R1, R3−R2, R4−R3)",
         "physical_constraint_decision": physical_decision,
         "requested_variants": requested,
         "max_sequences": int(max_sequences),

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan or run fixed-cohort, 12-epoch HiQR-v2 causal ablations."""
+"""Plan or run the cumulative R0--R4 HiQR-v2 causal ablation ladder."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def main() -> None:
     parser.add_argument(
         "--run-training",
         action="store_true",
-        help="execute the six isolated 12-epoch runs; omitted means plan and V1 baseline only",
+        help="execute the cumulative five-run, 12-epoch ladder; omitted means plan and V1 baseline only",
     )
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()

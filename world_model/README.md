@@ -25,7 +25,7 @@ HiQR-v2 保留 HiQR 的关系查询编码、scene/agent 两级随机变量和滚
 ```bash
 python world_model/scripts/train_hiqr_v2_world_model.py
 python world_model/scripts/test_hiqr_v2_world_model.py
-python world_model/scripts/evaluate_hiqr_v2_flow_ads.py --max-starts 128
+python world_model/scripts/evaluate_hiqr_v2_flow_ads.py --max-starts 128 --stochastic --worlds-per-start 4
 ```
 
 最后一项使用冻结 Normalizing Flow 起点、日志 ADS 控制和 HiQR-v2 在线环境完成 149-tick 因果闭环，并保存 Flow 起点审计。当前只提供可重放 snapshot 与 scene/residual 随机分支基础，不包含 path-level AMS 搜索实现。

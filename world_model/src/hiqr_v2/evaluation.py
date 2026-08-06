@@ -168,6 +168,8 @@ def _summary_from_rollout(
         "posterior_agent_std",
         "position",
         "posterior_position",
+        "jerk",
+        "gap_ttc",
     ):
         if name in terms:
             metrics[name] = float(terms[name].detach().cpu())
@@ -191,6 +193,14 @@ def _summary_from_rollout(
             .sum()
             .div(carried.float().sum().clamp_min(1.0))
             .cpu()
+        )
+    plans = rollout.get("background_future_actions")
+    if plans is not None and plans.shape[1] > 1:
+        # At a response boundary, compare the fresh horizon with the remaining
+        # 20 frames of the prior horizon.  Lower values mean less replanning
+        # discontinuity; adaptive carry need not win absolute FDE to be useful.
+        metrics["plan_discontinuity"] = float(
+            (plans[:, 1:, :20] - plans[:, :-1, 5:]).abs().mean().cpu()
         )
     return metrics, per_sequence, risk
 

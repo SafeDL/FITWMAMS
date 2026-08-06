@@ -15,7 +15,7 @@ from world_model.src.core.cli_config import materialize_config  # noqa: E402
 from world_model.src.core.sequential_dataset import (  # noqa: E402
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import setup_logging  # noqa: E402
+from world_model.src.core.utils import select_device, setup_logging  # noqa: E402
 from world_model.src.hiqr_v2.flow_evaluation import (  # noqa: E402
     evaluate_hiqr_v2_flow_ads,
 )
@@ -38,6 +38,7 @@ def main() -> None:
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--max-starts", type=int, default=0)
     parser.add_argument("--stochastic", action="store_true")
+    parser.add_argument("--worlds-per-start", type=int, default=1)
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -55,7 +56,9 @@ def main() -> None:
     )
     output = Path(config["paths"]["output_dir"])
     checkpoint = args.checkpoint or (output / "checkpoints/best_hiqr_v2_world_model.pt")
-    model = load_hiqr_v2_checkpoint(checkpoint.resolve())
+    model = load_hiqr_v2_checkpoint(
+        checkpoint.resolve(), device=select_device(str(config["evaluation"].get("device", "auto")))
+    )
     require_canonical_hiqr_v2_checkpoint(model)
     evaluate_hiqr_v2_flow_ads(
         model,
@@ -64,6 +67,7 @@ def main() -> None:
         output_dir=output / "flow_ads_evaluation",
         max_starts=args.max_starts,
         deterministic=not args.stochastic,
+        worlds_per_start=args.worlds_per_start,
     )
 
 

@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 
 from world_model.src.core.flow_composition import load_flow_tail_starts
+from world_model.src.core.initial_behavior_anchor import summarize_first_second_states
 from world_model.src.core.utils import ensure_dir, save_json
 from world_model.src.hiqr.environment import HiQRFlowStartMetadata, HiQRWorldRandomness
 from world_model.src.hiqr.flow_evaluation import (
@@ -86,6 +88,62 @@ def _flow_metadata(
     return rows
 
 
+def _paired_ads_intervention(
+    model,
+    *,
+    feature: np.ndarray,
+    slots: np.ndarray,
+    maps: np.ndarray,
+    map_valid: np.ndarray,
+    primary: int,
+    metadata: HiQRFlowStartMetadata,
+    controls: np.ndarray,
+    ego_valid: np.ndarray,
+    deterministic: bool,
+) -> dict[str, Any]:
+    """Verify a brake changes only the *next* causal response plan."""
+    environment = BatchedHiQRV2WorldModelEnvironment(
+        model, device=next(model.parameters()).device
+    )
+    pair_features = np.repeat(feature[None], 2, axis=0)
+    pair_slots = np.repeat(slots[None], 2, axis=0)
+    pair_maps = np.repeat(maps[None], 2, axis=0)
+    pair_map_valid = np.repeat(map_valid[None], 2, axis=0)
+    randomness = None
+    if not deterministic:
+        # Identical streams isolate the effect of the executed ADS action.
+        randomness = [HiQRWorldRandomness(seed=99_001)] * 2
+    environment.reset_from_flow_batch(
+        pair_features,
+        pair_slots,
+        pair_maps,
+        pair_map_valid,
+        primary_slot_index=np.asarray((primary, primary)),
+        flow_metadata=[metadata, metadata],
+        deterministic=deterministic,
+        world_randomness=randomness,
+    )
+    first_delta = next_delta = 0.0
+    for tick in range(int(model.cfg.execute_frames) + 1):
+        action = np.repeat(controls[tick : tick + 1], 2, axis=0)
+        if tick < int(model.cfg.execute_frames):
+            action[1, 0] -= 5.0
+        output = environment.step(action, np.full(2, ego_valid[tick], bool))
+        plans = output["background_future_actions"].detach().cpu().numpy()
+        delta = float(np.abs(plans[0] - plans[1]).max())
+        if tick == 0:
+            first_delta = delta
+        elif tick == int(model.cfg.execute_frames):
+            next_delta = delta
+    return {
+        "brake_delta_mps2": -5.0,
+        "current_response_plan_max_abs_delta": first_delta,
+        "next_response_plan_max_abs_delta": next_delta,
+        "current_response_is_action_causal": first_delta < 1.0e-6,
+        "next_response_responds_to_executed_brake": next_delta > 1.0e-6,
+    }
+
+
 def evaluate_hiqr_v2_flow_ads(
     model,
     *,
@@ -94,6 +152,7 @@ def evaluate_hiqr_v2_flow_ads(
     output_dir: Path,
     max_starts: int = 0,
     deterministic: bool = True,
+    worlds_per_start: int = 1,
 ) -> dict[str, Any]:
     """Replay logged ADS controls against Normalizing-Flow starts in HiQR-v2.
 
@@ -105,23 +164,36 @@ def evaluate_hiqr_v2_flow_ads(
         repo_root, sequence_cache_owner=cache_owner
     )
     count = len(donors) if max_starts <= 0 else min(int(max_starts), len(donors))
+    worlds = max(1, int(worlds_per_start))
     if count < 1:
         raise ValueError("Flow×ADS evaluation requires at least one start")
 
-    donor_rows = np.asarray(donors[:count], np.int64)
-    features = np.asarray(starts["features"][:count], np.float32)
-    slots = np.asarray(starts["slot_mask"][:count], bool)
-    maps = np.asarray(cache["map_polylines"][donor_rows], np.float32)
-    map_valid = np.asarray(cache["map_polyline_valid"][donor_rows], bool)
-    primary = np.asarray(starts["primary_slot_index"][:count], np.int64)
-    metadata = _flow_metadata(starts, slots, maps, map_valid, primary, count)
+    base_donors = np.asarray(donors[:count], np.int64)
+    base_features = np.asarray(starts["features"][:count], np.float32)
+    base_slots = np.asarray(starts["slot_mask"][:count], bool)
+    base_maps = np.asarray(cache["map_polylines"][base_donors], np.float32)
+    base_map_valid = np.asarray(cache["map_polyline_valid"][base_donors], bool)
+    base_primary = np.asarray(starts["primary_slot_index"][:count], np.int64)
+    base_metadata = _flow_metadata(
+        starts, base_slots, base_maps, base_map_valid, base_primary, count
+    )
+    donor_rows = np.repeat(base_donors, worlds)
+    features = np.repeat(base_features, worlds, axis=0)
+    slots = np.repeat(base_slots, worlds, axis=0)
+    maps = np.repeat(base_maps, worlds, axis=0)
+    map_valid = np.repeat(base_map_valid, worlds, axis=0)
+    primary = np.repeat(base_primary, worlds, axis=0)
+    metadata = [base_metadata[index] for index in range(count) for _ in range(worlds)]
 
     environment = BatchedHiQRV2WorldModelEnvironment(
         model, device=next(model.parameters()).device
     )
     randomness = None
     if not deterministic:
-        randomness = [HiQRWorldRandomness(seed=81_001 + row) for row in range(count)]
+        randomness = [
+            HiQRWorldRandomness(seed=81_001 + row)
+            for row in range(len(donor_rows))
+        ]
     environment.reset_from_flow_batch(
         features,
         slots,
@@ -142,6 +214,18 @@ def evaluate_hiqr_v2_flow_ads(
     controls, ego_valid = replay_states_to_ego_controls(
         replay_states, replay_valid, dt_s=float(model.cfg.simulation_dt_s)
     )
+    intervention = _paired_ads_intervention(
+        model,
+        feature=base_features[0],
+        slots=base_slots[0],
+        maps=base_maps[0],
+        map_valid=base_map_valid[0],
+        primary=int(base_primary[0]),
+        metadata=base_metadata[0],
+        controls=controls[:worlds][0],
+        ego_valid=ego_valid[:worlds][0],
+        deterministic=deterministic,
+    )
 
     generated_states: list[np.ndarray] = []
     generated_valid: list[np.ndarray] = []
@@ -154,15 +238,55 @@ def evaluate_hiqr_v2_flow_ads(
         generated_valid.append(observation["agent_valid"].detach().cpu().numpy().copy())
     assert observation is not None
 
+    generated = np.stack(generated_states, axis=1)
+    generated_mask = np.stack(generated_valid, axis=1)
     metrics = compare_flow_rollouts(
-        np.stack(generated_states, axis=1),
-        np.stack(generated_valid, axis=1),
+        generated,
+        generated_mask,
         replay_states[:, 1:],
         replay_valid[:, 1:],
     )
     destination = ensure_dir(output_dir)
     audit_path = destination / "hiqr_v2_flow_start_audit.npz"
-    audit = {name: np.asarray(starts[name][:count]) for name in _AUDIT_FIELDS}
+    audit = {
+        name: np.repeat(np.asarray(starts[name][:count]), worlds, axis=0)
+        for name in _AUDIT_FIELDS
+    }
+    with torch.no_grad():
+        initial, initial_valid, raw_b0 = model.flow_condition_to_scene(
+            torch.as_tensor(features, device=next(model.parameters()).device),
+            torch.as_tensor(slots, device=next(model.parameters()).device),
+        )
+        first_second = torch.cat(
+            (
+                initial[:, None, 1:],
+                torch.as_tensor(generated[:, :25, 1:], device=initial.device),
+            ),
+            dim=1,
+        )
+        first_second_valid = torch.cat(
+            (
+                initial_valid[:, None, 1:],
+                torch.as_tensor(generated_mask[:, :25, 1:], device=initial.device),
+            ),
+            dim=1,
+        )
+        generated_b0, b0_valid = summarize_first_second_states(
+            first_second, first_second_valid
+        )
+        b0_valid &= torch.as_tensor(slots, device=initial.device)
+        b0_error = (generated_b0 - raw_b0).abs().mean(dim=-1)
+        b0_mae = float(
+            (b0_error * b0_valid.float()).sum().div(b0_valid.float().sum().clamp_min(1)).cpu()
+        )
+    trajectory = generated[:, :, 1:, :2].reshape(count, worlds, -1)
+    diversity: list[float] = []
+    for left in range(worlds):
+        for right in range(left + 1, worlds):
+            diversity.append(
+                float(np.linalg.norm(trajectory[:, left] - trajectory[:, right], axis=-1).mean())
+            )
+    finite = np.isfinite(generated).all(axis=(1, 2, 3))
     np.savez_compressed(
         audit_path,
         flow_condition=features,
@@ -175,6 +299,8 @@ def evaluate_hiqr_v2_flow_ads(
         "model_type": model.model_type,
         "composition": "normalizing_flow_x_logged_ads_x_hiqr_v2",
         "num_flow_starts": count,
+        "worlds_per_start": worlds,
+        "total_worlds": int(len(donor_rows)),
         "deterministic": deterministic,
         "flow_schema_sha256": model.flow_schema_sha256,
         "flow_start_audit": str(audit_path),
@@ -186,6 +312,11 @@ def evaluate_hiqr_v2_flow_ads(
         "completed_response_count": int(observation["response_index"]),
         "ego_control_source": "adjacent_25hz_replay_velocity_transition",
         "causal_ads_contract": "current_state_only_no_future_ads_actions",
+        "finite_rollout_rate": float(finite.mean()),
+        "b0_summary_consistency_mae": b0_mae,
+        "scene_agent_branch_diversity_m": float(np.mean(diversity)) if diversity else 0.0,
+        "flow_audit_complete": bool(set(_AUDIT_FIELDS) <= audit.keys()),
+        "paired_ads_brake_intervention": intervention,
         "closed_loop_metrics": metrics,
     }
     save_json(report, destination / "hiqr_v2_flow_ads_evaluation.json")

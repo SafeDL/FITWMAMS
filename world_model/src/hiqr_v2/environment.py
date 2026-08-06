@@ -478,10 +478,11 @@ class BatchedHiQRV2WorldModelEnvironment:
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
         )
+        next_plan = out["background_future_actions"]
         self._filter_state, self._slow_scene = out["filter_state"], out["slow_scene"]
-        self._active_plan, self._plan_frame_index = out["background_future_actions"], 0
+        self._active_plan, self._plan_frame_index = next_plan, 0
         self._previous_buffer, self._previous_current = (
-            self._active_plan,
+            next_plan,
             states.detach().clone(),
         )
         self._previous_background_states, self._previous_expected_ego = (

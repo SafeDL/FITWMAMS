@@ -1,0 +1,55 @@
+{
+  "b0": {
+    "correct": {
+      "fde_1s_m": 0.19551201164722443,
+      "original_b0_summary_loss": 0.21166553845008215
+    },
+    "shuffle": {
+      "fde_1s_m": 0.20911721885204315,
+      "original_b0_summary_loss": 0.2308544913927714
+    },
+    "zero": {
+      "fde_1s_m": 0.21900969247023264,
+      "original_b0_summary_loss": 0.2336107517282168
+    }
+  },
+  "checkpoint": "results/highd_world_model/hiqr_v2_world_model/readiness/causal_ladder_v2/diagnostics/runs/R4/checkpoints/best_hiqr_v2_world_model.pt",
+  "continuation": [
+    {
+      "ego_offset_m": 0.0,
+      "emergency_rate_first_5": 0.0,
+      "first_5_plan_change": 0.0,
+      "middle_gate_mean": 0.21668824553489685
+    },
+    {
+      "ego_offset_m": 0.5,
+      "emergency_rate_first_5": 0.0,
+      "first_5_plan_change": 0.0,
+      "middle_gate_mean": 0.2156059294939041
+    },
+    {
+      "ego_offset_m": 1.0,
+      "emergency_rate_first_5": 0.0,
+      "first_5_plan_change": 1.1562988220248371e-06,
+      "middle_gate_mean": 0.21439898014068604
+    },
+    {
+      "ego_offset_m": 2.0,
+      "emergency_rate_first_5": 0.4583333432674408,
+      "first_5_plan_change": 1.143087387084961,
+      "middle_gate_mean": 0.21162080764770508
+    },
+    {
+      "ego_offset_m": 4.0,
+      "emergency_rate_first_5": 0.4583333432674408,
+      "first_5_plan_change": 1.199413776397705,
+      "middle_gate_mean": 0.20472991466522217
+    }
+  ],
+  "latent": {
+    "changed_scene_joint_distance_m": 0.0072044997359625995,
+    "fixed_scene_residual_distance_m": 0.0032361294724978507,
+    "samples": 8
+  },
+  "sequences": 256
+}
