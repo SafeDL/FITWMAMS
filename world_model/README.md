@@ -9,6 +9,7 @@ QR-WM 是当前正式模型；RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK �
 - `src/core/`：共享的数据加载、批处理、动力学、关系特征、Flow START 解码、指标和 Flow 组合评测。
 - `src/qr/`：QR-WM 的模型、训练、离线评测、Flow×QR 评测和单世界/批量在线环境。
 - `src/hiqr/`：HiQR-WM 的独立层次交互状态、训练、评测、Flow×HiQR 评测和在线环境；它不会写入 QR 的源码、checkpoint、结果或缓存。
+- `src/hiqr_v2/`：诊断优先的 HiQR-v2；使用独立配置、checkpoint schema、评测和结果目录，原 HiQR 仅作为只读基线。
 - `src/ramp/`、`src/firm/`、`src/semi_markov/`、`src/cat_topk/`：四个基线的独立实现。
 - `scripts/configs/`：各模型的正式配置。
 - `tests/`：共享功能及模型行为的回归测试。
@@ -16,6 +17,18 @@ QR-WM 是当前正式模型；RAMP-WM、FIRM-WM、Semi-Markov WM 与 CAT-TopK �
 RAMP、FIRM、Semi-Markov 和 CAT-TopK 各自使用其正式配置中的数据缓存。QR 使用唯一的
 `results/highd_world_model/training_data/qr_sequence_cache`：每个 natural highD 片段保留 150 个记录状态 `S0..S149`，即 149 个转移（5.96 秒）。正式 QR 训练要求完整、不可截断的该缓存，并校验冻结 Flow schema：
 `results/highd_tail_flow/dataset_schema.json`。
+
+## HiQR-v2
+
+HiQR-v2 保留 HiQR 的关系查询编码、scene/agent 两级随机变量和滚动计划续接三项核心结构，但修正其因果边界：持久 filter 只吸收已发生状态，prior 驱动整个闭环，posterior 仅承担当前响应辅助重建、KL 和蒸馏。scene latent 每 5 个响应更新一次；续接器执行 5/15/5 规则，并在 ADS 实际状态显著偏离旧计划时允许近端 carry 紧急失效。训练和主评测只使用 C0 活跃背景槽位在全部 149 个转移中保持有效的固定 cohort。
+
+```bash
+python world_model/scripts/train_hiqr_v2_world_model.py
+python world_model/scripts/test_hiqr_v2_world_model.py
+python world_model/scripts/evaluate_hiqr_v2_flow_ads.py --max-starts 128
+```
+
+最后一项使用冻结 Normalizing Flow 起点、日志 ADS 控制和 HiQR-v2 在线环境完成 149-tick 因果闭环，并保存 Flow 起点审计。当前只提供可重放 snapshot 与 scene/residual 随机分支基础，不包含 path-level AMS 搜索实现。
 
 ## QR-WM
 
