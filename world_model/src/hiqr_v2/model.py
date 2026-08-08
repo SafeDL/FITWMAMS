@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any
 
 import torch
@@ -16,33 +16,21 @@ from world_model.src.core.initial_behavior_anchor import (
 from world_model.src.hiqr.encoder import UnifiedRelationalQueryEncoder
 
 from .config import HiQRV2Config
-from .decoder import StateAwarePlanContinuationDecoder
+from .decoder import JerkResidualDecoder
 from .filter import FilterState, ObservedHierarchicalInteractionFilter, masked_mean
 
 
-@dataclass
-class _ResponseCoreResult:
-    """Public plan output plus training-only distributions and encodings."""
-
-    output: dict[str, Any]
-    agents: torch.Tensor
-    scene: torch.Tensor
-    prior_scene: tuple[torch.Tensor, torch.Tensor]
-    prior_agent_log_std: torch.Tensor
-    background_valid: torch.Tensor
-
-
 class HiQRV2WorldModel(torch.nn.Module):
-    """HiQR-v2 with prior-driven closed-loop state and local posterior auxiliary."""
+    """Observed hierarchy with slow scene modes and physical jerk plans."""
 
-    model_type = "prior_driven_hierarchical_interaction_query_world_model_v2"
+    model_type = "observed_hierarchical_jerk_residual_world_model_v2"
 
     def __init__(self, cfg: HiQRV2Config | None = None) -> None:
         super().__init__()
         self.cfg = cfg or HiQRV2Config()
         self.encoder = UnifiedRelationalQueryEncoder(self.cfg)
         self.filter = ObservedHierarchicalInteractionFilter(self.cfg)
-        self.decoder = StateAwarePlanContinuationDecoder(self.cfg)
+        self.decoder = JerkResidualDecoder(self.cfg)
         self.dynamics = KinematicTrafficDynamics(
             DynamicsConfig(
                 acceleration_min_mps2=self.cfg.min_acceleration,
@@ -98,20 +86,6 @@ class HiQRV2WorldModel(torch.nn.Module):
             values.append(state)
         return torch.stack(values, dim=1)
 
-    def _expected_ego(self, current: torch.Tensor) -> torch.Tensor:
-        times = torch.arange(
-            1, int(self.cfg.plan_frames) + 1, dtype=current.dtype, device=current.device
-        )[:, None] * float(self.cfg.simulation_dt_s)
-        current_ego = current[:, :1]
-        expected = (
-            current_ego[:, None].expand(-1, int(self.cfg.plan_frames), -1, -1).clone()
-        )
-        expected[..., :2] = (
-            current_ego[:, None, :, :2]
-            + times[None, :, None] * current_ego[:, None, :, 2:4]
-        )
-        return expected
-
     def _logged_ego_controls(
         self,
         source: torch.Tensor,
@@ -147,18 +121,15 @@ class HiQRV2WorldModel(torch.nn.Module):
         map_polyline_valid: torch.Tensor,
         *,
         filter_state: FilterState,
-        previous_buffer: torch.Tensor | None = None,
         previous_current: torch.Tensor | None = None,
-        previous_background_states: torch.Tensor | None = None,
-        previous_expected_ego: torch.Tensor | None = None,
         slow_scene: torch.Tensor | None = None,
         response_index: int = 0,
         deterministic: bool = True,
         scene_standard_normal: torch.Tensor | None = None,
         agent_standard_normal: torch.Tensor | None = None,
-    ) -> _ResponseCoreResult:
+    ) -> dict[str, Any]:
         """Run the single causal response implementation used online and offline."""
-        mode = "start" if previous_buffer is None else "roll"
+        mode = "start" if previous_current is None else "roll"
         agents, scene, _, _ = self.encoder(
             history,
             history_valid,
@@ -171,7 +142,7 @@ class HiQRV2WorldModel(torch.nn.Module):
         )
         observed = (
             filter_state
-            if previous_buffer is None
+            if previous_current is None
             else self.filter.observe(
                 filter_state,
                 agents,
@@ -181,24 +152,23 @@ class HiQRV2WorldModel(torch.nn.Module):
                 current_valid,
             )
         )
-        prior_scene = self.filter.prior_scene(observed, scene)
+        scene_mean = self.filter.prior_scene(observed, scene)
         refresh = (
             slow_scene is None
             or int(response_index) % int(self.cfg.scene_mode_responses) == 0
         )
         if refresh:
-            mean_g, log_g = prior_scene
             if deterministic:
-                slow_scene = mean_g
+                slow_scene = scene_mean
             else:
                 noise = (
-                    torch.randn_like(mean_g)
+                    torch.randn_like(scene_mean)
                     if scene_standard_normal is None
-                    else scene_standard_normal.to(mean_g)
+                    else scene_standard_normal.to(scene_mean)
                 )
-                slow_scene = mean_g + noise * torch.exp(log_g)
+                slow_scene = scene_mean + noise * float(self.cfg.scene_noise_scale)
         assert slow_scene is not None
-        mean_z, log_z = self.filter.prior_agents(observed, agents, slow_scene)
+        mean_z = self.filter.prior_agents(observed, agents, slow_scene)
         if deterministic:
             z = mean_z
         else:
@@ -207,11 +177,11 @@ class HiQRV2WorldModel(torch.nn.Module):
                 if agent_standard_normal is None
                 else agent_standard_normal.to(mean_z)
             )
-            z = mean_z + noise * torch.exp(log_z) * float(self.cfg.residual_noise_scale)
+            z = mean_z + noise * float(self.cfg.residual_noise_scale)
         background = current_valid.clone()
         background[:, 0] = False
         z = z * background[..., None].float()
-        decoded = self.decoder(
+        plan = self.decoder(
             agents,
             observed.global_hidden,
             observed.agent_hidden,
@@ -219,30 +189,18 @@ class HiQRV2WorldModel(torch.nn.Module):
             z,
             current,
             current_valid,
-            previous_buffer,
-            previous_background_states,
-            previous_expected_ego,
         )
-        plan = decoded["background_future_actions"]
-        return _ResponseCoreResult(
-            output={
-                **decoded,
-                "filter_state": observed,
-                "slow_scene": slow_scene,
-                "scene_latent": slow_scene,
-                "agent_residual": z,
-                "background_future_states": self._integrate_background_actions(
-                    current, plan, current_valid
-                ),
-                "expected_ego_states": self._expected_ego(current),
-                "scene_refreshed": refresh,
-            },
-            agents=agents,
-            scene=scene,
-            prior_scene=prior_scene,
-            prior_agent_log_std=log_z,
-            background_valid=background,
-        )
+        return {
+            "background_future_actions": plan,
+            "filter_state": observed,
+            "slow_scene": slow_scene,
+            "scene_latent": slow_scene,
+            "agent_residual": z,
+            "background_future_states": self._integrate_background_actions(
+                current, plan, current_valid
+            ),
+            "scene_refreshed": refresh,
+        }
 
     def plan_step(
         self,
@@ -255,10 +213,7 @@ class HiQRV2WorldModel(torch.nn.Module):
         map_polyline_valid: torch.Tensor,
         *,
         filter_state: FilterState,
-        previous_buffer: torch.Tensor | None = None,
         previous_current: torch.Tensor | None = None,
-        previous_background_states: torch.Tensor | None = None,
-        previous_expected_ego: torch.Tensor | None = None,
         slow_scene: torch.Tensor | None = None,
         response_index: int = 0,
         deterministic: bool = True,
@@ -275,16 +230,13 @@ class HiQRV2WorldModel(torch.nn.Module):
             map_polylines,
             map_polyline_valid,
             filter_state=filter_state,
-            previous_buffer=previous_buffer,
             previous_current=previous_current,
-            previous_background_states=previous_background_states,
-            previous_expected_ego=previous_expected_ego,
             slow_scene=slow_scene,
             response_index=response_index,
             deterministic=deterministic,
             scene_standard_normal=scene_standard_normal,
             agent_standard_normal=agent_standard_normal,
-        ).output
+        )
 
     def _target_plan(
         self, batch: dict[str, torch.Tensor], response: int
@@ -340,20 +292,6 @@ class HiQRV2WorldModel(torch.nn.Module):
             - (target_bg[..., 2] - target_ego[..., 2])
         ).abs()
         return masked_mean(gap + 0.25 * velocity, valid)
-
-    @staticmethod
-    def _target_aware_physical_loss(
-        predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor
-    ) -> torch.Tensor:
-        def barrier(values: torch.Tensor) -> torch.Tensor:
-            background, ego = values[:, :, 1:], values[:, :, :1]
-            dx = (background[..., 0] - ego[..., 0]).abs()
-            dy = (background[..., 1] - ego[..., 1]).abs()
-            return functional.softplus((4.5 - dx) / 0.75) * functional.softplus(
-                (1.0 - dy) / 0.25
-            )
-
-        return masked_mean(functional.relu(barrier(predicted) - barrier(target)), valid)
 
     def _gap_ttc_loss(
         self, predicted: torch.Tensor, target: torch.Tensor, valid: torch.Tensor
@@ -431,90 +369,6 @@ class HiQRV2WorldModel(torch.nn.Module):
             current_valid,
         )
 
-    def _posterior_auxiliary_terms(
-        self,
-        *,
-        enabled: bool,
-        filter_state: FilterState,
-        agents: torch.Tensor,
-        scene: torch.Tensor,
-        current: torch.Tensor,
-        current_valid: torch.Tensor,
-        target: torch.Tensor,
-        target_valid: torch.Tensor,
-        target_actions: torch.Tensor,
-        target_action_valid: torch.Tensor,
-        prior_scene: tuple[torch.Tensor, torch.Tensor],
-        scene_refresh: bool,
-        posterior_slow_scene: torch.Tensor | None,
-        previous_buffer: torch.Tensor | None,
-        previous_states: torch.Tensor | None,
-        previous_expected_ego: torch.Tensor | None,
-        execute_count: int,
-    ) -> tuple[dict[str, torch.Tensor], torch.Tensor | None]:
-        zero = current.new_zeros(())
-        terms = {
-            "posterior_position": zero,
-            "posterior_action": zero,
-            "scene_kl": zero,
-            "agent_kl": zero,
-            "prior_distillation": zero,
-            "diversity_floor": zero,
-            "posterior_scene_std": zero,
-            "posterior_agent_std": zero,
-        }
-        if not enabled:
-            return terms, posterior_slow_scene
-
-        qg, qz, posterior = self.filter.posterior(
-            filter_state,
-            agents,
-            scene,
-            current,
-            current_valid,
-            target,
-            target_valid,
-            prior_scene,
-            fixed_scene_latent=None if scene_refresh else posterior_slow_scene,
-        )
-        if scene_refresh:
-            posterior_slow_scene = qg
-        q_plan = self.decoder(
-            agents,
-            filter_state.global_hidden,
-            filter_state.agent_hidden,
-            qg,
-            qz,
-            current,
-            current_valid,
-            previous_buffer,
-            previous_states,
-            previous_expected_ego,
-        )["background_future_actions"]
-        q_states = self._integrate_background_actions(current, q_plan, current_valid)
-        execute_valid = target_valid[:, :execute_count, 1:]
-        terms.update(posterior)
-        terms.update(
-            {
-                "posterior_position": masked_mean(
-                    (
-                        q_states[:, :execute_count, :, :2]
-                        - target[:, :execute_count, 1:, :2]
-                    )
-                    .abs()
-                    .mean(dim=-1),
-                    execute_valid,
-                ),
-                "posterior_action": masked_mean(
-                    (q_plan[:, :execute_count] - target_actions[:, :execute_count])
-                    .abs()
-                    .mean(dim=-1),
-                    target_action_valid[:, :execute_count],
-                ),
-            }
-        )
-        return terms, posterior_slow_scene
-
     def _response_terms(
         self,
         *,
@@ -526,18 +380,11 @@ class HiQRV2WorldModel(torch.nn.Module):
         target_actions: torch.Tensor,
         target_action_valid: torch.Tensor,
         current: torch.Tensor,
-        decoded: dict[str, Any],
-        prior_scene_log_std: torch.Tensor,
-        prior_agent_log_std: torch.Tensor,
-        background: torch.Tensor,
-        posterior: dict[str, torch.Tensor],
         execute_count: int,
     ) -> dict[str, torch.Tensor]:
         execute_valid = target_valid[:, :execute_count, 1:]
         full_valid = target_valid[:, :, 1:]
         target_executed = target[:, :execute_count]
-        masks = decoded["background_future_action_masks"]
-        carried = masks["carried"]
         return {
             "position": masked_mean(
                 (predicted[:, :, 1:, :2] - target_executed[:, :, 1:, :2])
@@ -567,13 +414,6 @@ class HiQRV2WorldModel(torch.nn.Module):
             "interaction": self._interaction_loss(
                 predicted, target_executed, execute_valid
             ),
-            "physical": (
-                self._target_aware_physical_loss(
-                    predicted, target_executed, execute_valid
-                )
-                if self.cfg.physical_mode == "target_aware"
-                else current.new_zeros(())
-            ),
             "jerk": (
                 plan.new_zeros(())
                 if plan.shape[1] < 2
@@ -581,14 +421,8 @@ class HiQRV2WorldModel(torch.nn.Module):
             ),
             "lane": self._lane_loss(plan_states, current, full_valid),
             "gap_ttc": self._gap_ttc_loss(predicted, target_executed, execute_valid),
-            "gate": masked_mean(decoded["continuation_gate"].squeeze(-1), carried),
-            "revision_rate": masked_mean(masks["revised"].float(), carried),
-            "emergency_rate": masked_mean(masks["emergency"].float(), carried),
-            "prior_scene_std": torch.exp(prior_scene_log_std).mean(),
-            "prior_agent_std": masked_mean(
-                torch.exp(prior_agent_log_std).mean(dim=-1), background
-            ),
-            **posterior,
+            "scene_noise_scale": current.new_tensor(self.cfg.scene_noise_scale),
+            "residual_noise_scale": current.new_tensor(self.cfg.residual_noise_scale),
         }
 
     def _b0_summary_loss(
@@ -629,7 +463,6 @@ class HiQRV2WorldModel(torch.nn.Module):
         *,
         response_steps: int | None,
         deterministic: bool,
-        posterior_auxiliary: bool,
         tbptt_steps: int = 0,
     ) -> dict[str, Any]:
         states, valid = batch["agent_states"], batch["agent_valid"]
@@ -691,22 +524,12 @@ class HiQRV2WorldModel(torch.nn.Module):
             ego_source, ego_target, ego_control_valid
         )
         history = history_valid = None
-        previous_buffer = previous_current = previous_states = previous_expected_ego = (
-            None
-        )
+        previous_current = None
         slow_scene: torch.Tensor | None = None
-        posterior_slow_scene: torch.Tensor | None = None
         predicted_frames: list[torch.Tensor] = []
         plans: list[torch.Tensor] = []
         scene_latents: list[torch.Tensor] = []
         residuals: list[torch.Tensor] = []
-        gate_values: list[torch.Tensor] = []
-        masks: dict[str, list[torch.Tensor]] = {
-            "carried": [],
-            "revised": [],
-            "emergency": [],
-            "valid": [],
-        }
         term_rows: list[dict[str, torch.Tensor]] = []
         b0_summary = current.new_zeros(())
         for response in range(steps):
@@ -723,22 +546,16 @@ class HiQRV2WorldModel(torch.nn.Module):
                 batch["map_polylines"],
                 batch["map_polyline_valid"],
                 filter_state=filter_state,
-                previous_buffer=previous_buffer,
                 previous_current=previous_current,
-                previous_background_states=previous_states,
-                previous_expected_ego=previous_expected_ego,
                 slow_scene=slow_scene,
                 response_index=response,
                 deterministic=deterministic,
             )
-            decoded = core.output
-            filter_state = decoded["filter_state"]
-            slow_scene = decoded["slow_scene"]
-            z = decoded["agent_residual"]
-            plan = decoded["background_future_actions"]
-            plan_states = decoded["background_future_states"]
-            expected_ego = decoded["expected_ego_states"]
-            scene_refresh = decoded["scene_refreshed"]
+            filter_state = core["filter_state"]
+            slow_scene = core["slow_scene"]
+            z = core["agent_residual"]
+            plan = core["background_future_actions"]
+            plan_states = core["background_future_states"]
             execute_count = min(
                 int(self.cfg.execute_frames),
                 total_frames - response * int(self.cfg.execute_frames),
@@ -752,25 +569,6 @@ class HiQRV2WorldModel(torch.nn.Module):
                 first_frame=response * int(self.cfg.execute_frames),
                 frame_count=execute_count,
             )
-            posterior_terms, posterior_slow_scene = self._posterior_auxiliary_terms(
-                enabled=posterior_auxiliary,
-                filter_state=filter_state,
-                agents=core.agents,
-                scene=core.scene,
-                current=step_current,
-                current_valid=step_valid,
-                target=target,
-                target_valid=target_valid,
-                target_actions=target_actions,
-                target_action_valid=target_action_valid,
-                prior_scene=core.prior_scene,
-                scene_refresh=scene_refresh,
-                posterior_slow_scene=posterior_slow_scene,
-                previous_buffer=previous_buffer,
-                previous_states=previous_states,
-                previous_expected_ego=previous_expected_ego,
-                execute_count=execute_count,
-            )
             if response == 0:
                 b0_summary = self._b0_summary_loss(
                     batch,
@@ -779,37 +577,23 @@ class HiQRV2WorldModel(torch.nn.Module):
                     plan_states,
                     target_valid,
                 )
-            term_rows.append(
-                self._response_terms(
-                    predicted=predicted,
-                    target=target,
-                    target_valid=target_valid,
-                    plan=plan,
-                    plan_states=plan_states,
-                    target_actions=target_actions,
-                    target_action_valid=target_action_valid,
-                    current=current,
-                    decoded=decoded,
-                    prior_scene_log_std=core.prior_scene[1],
-                    prior_agent_log_std=core.prior_agent_log_std,
-                    background=core.background_valid,
-                    posterior=posterior_terms,
-                    execute_count=execute_count,
-                )
+            response_terms = self._response_terms(
+                predicted=predicted,
+                target=target,
+                target_valid=target_valid,
+                plan=plan,
+                plan_states=plan_states,
+                target_actions=target_actions,
+                target_action_valid=target_action_valid,
+                current=current,
+                execute_count=execute_count,
             )
+            term_rows.append(response_terms)
             predicted_frames.extend(predicted.unbind(dim=1))
             plans.append(plan)
             scene_latents.append(slow_scene)
             residuals.append(z)
-            gate_values.append(decoded["continuation_gate"])
-            for name, value in decoded["background_future_action_masks"].items():
-                masks[name].append(value)
-            (
-                previous_buffer,
-                previous_current,
-                previous_states,
-                previous_expected_ego,
-            ) = (plan, current, plan_states, expected_ego)
+            previous_current = current
             current = predicted[:, -1]
             history = torch.cat(
                 (step_current[:, None] if history is None else history, predicted),
@@ -831,28 +615,16 @@ class HiQRV2WorldModel(torch.nn.Module):
                     history,
                     history_valid,
                     current,
-                    previous_buffer,
                     previous_current,
-                    previous_states,
-                    previous_expected_ego,
                     filter_state,
                     slow_scene,
-                    posterior_slow_scene,
                 ) = (
                     history.detach(),
                     history_valid.detach(),
                     current.detach(),
-                    previous_buffer.detach(),
                     previous_current.detach(),
-                    previous_states.detach(),
-                    previous_expected_ego.detach(),
                     filter_state.detach(),
                     slow_scene.detach(),
-                    (
-                        None
-                        if posterior_slow_scene is None
-                        else posterior_slow_scene.detach()
-                    ),
                 )
         terms = {
             name: torch.stack([row[name] for row in term_rows]).mean()
@@ -874,23 +646,12 @@ class HiQRV2WorldModel(torch.nn.Module):
             "background_future_actions": torch.stack(plans, dim=1),
             "scene_latent": torch.stack(scene_latents, dim=1),
             "agent_residual": torch.stack(residuals, dim=1),
-            "continuation_gate": torch.stack(gate_values, dim=1),
             "applied_ego_controls": ego_controls,
             "applied_ego_control_valid": ego_control_valid,
-            "background_future_action_masks": {
-                name: torch.stack(values, dim=1) for name, values in masks.items()
-            },
             "terms": terms,
         }
 
-    def _objective(
-        self,
-        rollout: dict[str, Any],
-        *,
-        posterior_scale: float,
-        kl_scale: float,
-        diversity_scale: float,
-    ) -> dict[str, torch.Tensor]:
+    def _objective(self, rollout: dict[str, Any]) -> dict[str, torch.Tensor]:
         terms = rollout["terms"]
         loss = (
             self.cfg.position_weight * terms["position"]
@@ -899,26 +660,10 @@ class HiQRV2WorldModel(torch.nn.Module):
             + self.cfg.plan_position_weight * terms["plan_position"]
             + self.cfg.plan_action_weight * terms["plan_action"]
             + self.cfg.interaction_weight * terms["interaction"]
-            + self.cfg.physical_weight * terms["physical"]
             + self.cfg.jerk_weight * terms["jerk"]
             + self.cfg.lane_weight * terms["lane"]
             + self.cfg.gap_ttc_weight * terms["gap_ttc"]
             + self.cfg.b0_summary_weight * terms["b0_summary"]
-            + float(posterior_scale)
-            * self.cfg.posterior_aux_weight
-            * (
-                terms["posterior_position"]
-                + self.cfg.action_weight * terms["posterior_action"]
-            )
-            + float(kl_scale)
-            * (
-                self.cfg.scene_kl_weight * terms["scene_kl"]
-                + self.cfg.agent_kl_weight * terms["agent_kl"]
-                + self.cfg.prior_distillation_weight * terms["prior_distillation"]
-            )
-            + float(diversity_scale)
-            * self.cfg.diversity_weight
-            * terms["diversity_floor"]
         )
         return {"loss": loss, **terms}
 
@@ -933,41 +678,13 @@ class HiQRV2WorldModel(torch.nn.Module):
             batch,
             response_steps=response_steps,
             deterministic=deterministic,
-            posterior_auxiliary=False,
         )
 
     def supervised_terms(
         self, batch: dict[str, torch.Tensor], *, response_steps: int | None = None
     ) -> dict[str, torch.Tensor]:
         return self._objective(
-            self._rollout(
-                batch,
-                response_steps=response_steps,
-                deterministic=True,
-                posterior_auxiliary=False,
-            ),
-            posterior_scale=0.0,
-            kl_scale=0.0,
-            diversity_scale=0.0,
-        )
-
-    def diagnostic_rollout(
-        self,
-        batch: dict[str, torch.Tensor],
-        *,
-        response_steps: int | None = None,
-    ) -> dict[str, Any]:
-        """Return the deterministic prior rollout plus local posterior terms.
-
-        Enabling the auxiliary branch does not alter the trajectory or any
-        state carried to the next response; it only measures the prior/posterior
-        reconstruction gap on the current response.
-        """
-        return self._rollout(
-            batch,
-            response_steps=response_steps,
-            deterministic=True,
-            posterior_auxiliary=True,
+            self._rollout(batch, response_steps=response_steps, deterministic=True)
         )
 
     def forward_training(
@@ -976,25 +693,14 @@ class HiQRV2WorldModel(torch.nn.Module):
         *,
         response_steps: int | None = None,
         tbptt_steps: int = 10,
-        posterior_scale: float = 1.0,
-        kl_scale: float = 1.0,
-        diversity_scale: float = 1.0,
-        deterministic_prior: bool = False,
-        posterior_auxiliary: bool = True,
     ) -> dict[str, torch.Tensor]:
         rollout = self._rollout(
             batch,
             response_steps=response_steps,
-            deterministic=deterministic_prior,
-            posterior_auxiliary=posterior_auxiliary,
+            deterministic=True,
             tbptt_steps=tbptt_steps,
         )
-        return self._objective(
-            rollout,
-            posterior_scale=posterior_scale,
-            kl_scale=kl_scale,
-            diversity_scale=diversity_scale,
-        )
+        return self._objective(rollout)
 
     def checkpoint_payload(self) -> dict[str, Any]:
         return {
@@ -1007,6 +713,7 @@ class HiQRV2WorldModel(torch.nn.Module):
                 "b0_lifecycle": "per-agent filter initialization plus first-second summary consistency",
                 "persistent_state": "observation-only global and per-agent filter; no posterior/prior latent intent",
                 "scene_latent": "sampled every five 5 Hz responses and held within its one-second mode",
+                "plan_parameterization": "five coordinated jerk knots integrated from observed controls",
                 "supervised_ego_control": "adjacent logged state transitions executed only by 25 Hz physics",
                 "flow_schema_sha256": self.flow_schema_sha256,
             },

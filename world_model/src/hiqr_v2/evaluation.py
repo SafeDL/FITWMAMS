@@ -16,11 +16,8 @@ from world_model.src.core.long_tail_metrics import (
 )
 from world_model.src.core.sequential_dataset import sequence_cache_owner_dir
 from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
-from world_model.src.hiqr.train import load_hiqr_checkpoint
-
 from .data import load_hiqr_v2_arrays, make_hiqr_v2_loader, to_hiqr_v2_batch
-from .model import HiQRV2WorldModel
-from .train import load_hiqr_v2_checkpoint, require_canonical_hiqr_v2_checkpoint
+from .train import load_hiqr_v2_checkpoint
 
 RISK_DISTRIBUTION_NAMES = (
     "gap_m",
@@ -159,41 +156,14 @@ def _summary_from_rollout(
         risk[f"target_{name}"] = target_distribution[name]
     terms = rollout.get("terms", {})
     for name in (
-        "gate",
-        "revision_rate",
-        "emergency_rate",
-        "prior_scene_std",
-        "prior_agent_std",
-        "posterior_scene_std",
-        "posterior_agent_std",
+        "scene_noise_scale",
+        "residual_noise_scale",
         "position",
-        "posterior_position",
         "jerk",
         "gap_ttc",
     ):
         if name in terms:
             metrics[name] = float(terms[name].detach().cpu())
-    if "posterior_position" in metrics and "position" in metrics:
-        metrics["prior_posterior_position_gap_m"] = (
-            metrics["position"] - metrics["posterior_position"]
-        )
-    masks = rollout.get("background_future_action_masks")
-    if masks is not None:
-        carried = masks["carried"].bool()
-        revised = masks["revised"].bool()
-        metrics["gate_mean"] = float(
-            (rollout["continuation_gate"].squeeze(-1) * carried.float())
-            .sum()
-            .div(carried.float().sum().clamp_min(1.0))
-            .cpu()
-        )
-        metrics["revision_rate"] = float(
-            (revised & carried)
-            .float()
-            .sum()
-            .div(carried.float().sum().clamp_min(1.0))
-            .cpu()
-        )
     plans = rollout.get("background_future_actions")
     if plans is not None and plans.shape[1] > 1:
         # At a response boundary, compare the fresh horizon with the remaining
@@ -303,16 +273,7 @@ def _evaluate_model(
     model.eval()
     for values in loader:
         batch = to_hiqr_v2_batch(values, loader.field_names, device)
-        if hasattr(model, "diagnostic_rollout"):
-            deterministic = model.diagnostic_rollout(batch)
-        else:
-            deterministic = model.rollout_reconstruction(batch, deterministic=True)
-            # The immutable V1 model has no isolated diagnostic branch.  Its
-            # supervised path is evaluated separately and is never used for
-            # the deterministic prior trajectory or risk metrics.
-            posterior_terms = model.supervised_terms(batch)
-            deterministic["terms"] = dict(deterministic.get("terms", {}))
-            deterministic["terms"]["posterior_position"] = posterior_terms["position"]
+        deterministic = model.rollout_reconstruction(batch, deterministic=True)
         summary, sequence, risk = _summary_from_rollout(deterministic)
         deterministic_rows.append(summary)
         risk_rows.append(risk)
@@ -409,7 +370,6 @@ def evaluate_hiqr_v2_world_model(
     baseline_metrics: Path | None = None,
     baseline_label: str = "baseline",
     split: str = "test",
-    allow_diagnostic_ablation: bool = False,
 ) -> dict[str, Any]:
     paths, evaluation = config["paths"], config.get("evaluation", {})
     output = Path(paths["output_dir"])
@@ -418,9 +378,6 @@ def evaluate_hiqr_v2_world_model(
     set_seed(int(evaluation.get("seed", 42)))
     checkpoint = checkpoint or output / "checkpoints/best_hiqr_v2_world_model.pt"
     model = load_hiqr_v2_checkpoint(checkpoint, device=device)
-    require_canonical_hiqr_v2_checkpoint(
-        model, allow_diagnostic_ablation=allow_diagnostic_ablation
-    )
     schema_path = Path(paths["flow_schema"])
     schema_path = (
         schema_path
@@ -430,7 +387,7 @@ def evaluate_hiqr_v2_world_model(
     schema = FrozenLegacyFlowSchema.load(schema_path)
     arrays, manifest = load_hiqr_v2_arrays(
         cache_owner=sequence_cache_owner_dir(config, config_dir=config_dir),
-        v1_sidecar_output_dir=paths["v1_sidecar_output_dir"],
+        hiqr_sidecar_output_dir=paths["hiqr_sidecar_output_dir"],
         flow_schema=schema,
         source_dataset_dir=paths["source_dataset_dir"],
     )
@@ -472,62 +429,4 @@ def evaluate_hiqr_v2_world_model(
             )
         report["bootstrap_baseline_label"] = str(baseline_label)
     save_json(report, output / f"evaluation/{split}_evaluation_summary.json")
-    return report
-
-
-def evaluate_hiqr_v1_fixed_cohort(
-    config: dict[str, Any],
-    *,
-    config_dir: Path,
-    checkpoint: Path,
-    output: Path,
-    max_sequences: int = 0,
-    split: str = "test",
-) -> dict[str, Any]:
-    """Evaluate the immutable V1 checkpoint on the exact V2 stable test cohort."""
-    paths, evaluation = config["paths"], config.get("evaluation", {})
-    device = select_device(str(evaluation.get("device", "auto")))
-    set_seed(int(evaluation.get("seed", 42)))
-    schema_path = Path(paths["flow_schema"])
-    schema_path = (
-        schema_path
-        if schema_path.is_absolute()
-        else (config_dir / schema_path).resolve()
-    )
-    schema = FrozenLegacyFlowSchema.load(schema_path)
-    arrays, manifest = load_hiqr_v2_arrays(
-        cache_owner=sequence_cache_owner_dir(config, config_dir=config_dir),
-        v1_sidecar_output_dir=paths["v1_sidecar_output_dir"],
-        flow_schema=schema,
-        source_dataset_dir=paths["source_dataset_dir"],
-    )
-    loader = make_hiqr_v2_loader(
-        arrays,
-        split,
-        batch_size=int(evaluation.get("batch_size", 48)),
-        maximum=int(max_sequences or evaluation.get("max_sequences", 0)),
-        shuffle=False,
-        seed=int(evaluation.get("seed", 42)),
-        num_workers=int(evaluation.get("num_workers", 0)),
-    )
-    model = load_hiqr_checkpoint(checkpoint, device=device).eval()
-    results, per_sequence = _evaluate_model(
-        model,
-        loader,
-        device,
-        stochastic_samples=int(evaluation.get("stochastic_samples", 8)),
-    )
-    output = ensure_dir(output)
-    metric_path = output / f"v1_fixed_{split}_cohort_per_sequence_metrics.npz"
-    np.savez_compressed(metric_path, **per_sequence)
-    report = {
-        "model_type": model.model_type,
-        "checkpoint": str(checkpoint),
-        "split": split,
-        "cohort": manifest["hiqr_v2_cohort"],
-        "sequences": int(len(loader.dataset)),
-        "per_sequence_metrics": str(metric_path),
-        **results,
-    }
-    save_json(report, output / f"v1_fixed_{split}_cohort_summary.json")
     return report

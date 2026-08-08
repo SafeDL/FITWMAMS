@@ -31,6 +31,7 @@ def main() -> None:
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--baseline-metrics", type=Path)
     parser.add_argument("--max-sequences", type=int, default=0)
+    parser.add_argument("--split", choices=("train", "val", "test"), default="test")
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -42,7 +43,7 @@ def main() -> None:
             "sequence_cache_dir",
             "flow_schema",
             "source_dataset_dir",
-            "v1_sidecar_output_dir",
+            "hiqr_sidecar_output_dir",
         ),
     )
     evaluate_hiqr_v2_world_model(
@@ -51,6 +52,7 @@ def main() -> None:
         checkpoint=None if args.checkpoint is None else args.checkpoint.resolve(),
         max_sequences=args.max_sequences,
         baseline_metrics=args.baseline_metrics,
+        split=args.split,
     )
 
 

@@ -76,18 +76,18 @@ def cohort_manifest(arrays: dict[str, np.ndarray]) -> dict[str, Any]:
 def load_hiqr_v2_arrays(
     *,
     cache_owner: str | Path,
-    v1_sidecar_output_dir: str | Path,
+    hiqr_sidecar_output_dir: str | Path,
     flow_schema,
     source_dataset_dir: str | Path,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
-    """Load immutable QR arrays and the already materialized V1 B0 sidecar.
+    """Load immutable QR arrays and the content-addressed B0 sidecar.
 
-    The V1 sidecar is content-addressed to the shared canonical cache, so V2
-    can safely consume it without writing anything into the V1 result root.
+    The sidecar belongs to HiQR-v2 but remains bound to the shared cache and
+    frozen Flow schema.
     """
     arrays, manifest = load_hiqr_training_arrays(
         cache_owner=cache_owner,
-        output_dir=v1_sidecar_output_dir,
+        output_dir=hiqr_sidecar_output_dir,
         flow_schema=flow_schema,
         source_dataset_dir=source_dataset_dir,
     )

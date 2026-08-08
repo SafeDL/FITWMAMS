@@ -38,7 +38,7 @@ def main() -> None:
             "sequence_cache_dir",
             "flow_schema",
             "source_dataset_dir",
-            "v1_sidecar_output_dir",
+            "hiqr_sidecar_output_dir",
         ),
     )
     resume = (

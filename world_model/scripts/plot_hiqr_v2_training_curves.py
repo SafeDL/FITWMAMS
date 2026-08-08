@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+
+# TensorBoard optionally imports TensorFlow to read event files.  Suppress its
+# unrelated CPU/CUDA capability notices before that lazy import.
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -118,28 +123,43 @@ def plot(tensorboard: Path, config: Path, output: Path, window: int) -> None:
     _shade(axis, stages)
     fde = _mapping(tensorboard, PREFIX + "selection/validation_fde_m")
     seconds = _mapping(tensorboard, PREFIX + "training/rollout_seconds")
-    full = [
-        (epoch, fde[epoch])
-        for epoch in sorted(fde)
-        if np.isclose(seconds.get(epoch, -1), 5.96)
-    ]
-    if full:
-        x, y = zip(*full, strict=True)
-        axis.plot(x, y, "o-", color="#d35428", label="5.96 s deterministic prior FDE")
-        best = min(full, key=lambda item: item[1])
-        axis.scatter(
-            *best, marker="*", s=220, color="#c0392b", label=f"best {best[1]:.3f} m"
-        )
-    axis.set(xlabel="epoch", ylabel="FDE (m)", title="Fixed-cohort selection metric")
-    axis.legend()
+    horizon_colors = {1.0: "#4c78a8", 3.0: "#f58518", 5.96: "#d35428"}
+    for horizon in sorted(set(seconds.values())):
+        points = [
+            (epoch, fde[epoch])
+            for epoch in sorted(fde)
+            if np.isclose(seconds.get(epoch, -1), horizon)
+        ]
+        if not points:
+            continue
+        x, y = zip(*points, strict=True)
+        label = f"{horizon:.2f} s deterministic prior FDE"
+        color = horizon_colors.get(horizon, "#555555")
+        axis.plot(x, y, "o-", color=color, label=label)
+        if np.isclose(horizon, 5.96):
+            best = min(points, key=lambda item: item[1])
+            axis.scatter(
+                *best,
+                marker="*",
+                s=220,
+                color="#c0392b",
+                label=f"best full rollout {best[1]:.3f} m",
+            )
+    axis.set(
+        xlabel="epoch",
+        ylabel="FDE (m)",
+        title="Fixed-cohort FDE at curriculum horizon",
+    )
+    if fde:
+        axis.legend()
     axis.grid(alpha=0.25)
 
     axis = axes[1, 0]
     for term, label, color in (
-        ("position", "prior position", "#1f77b4"),
-        ("posterior_position", "posterior auxiliary", "#2ca02c"),
-        ("gate", "gate", "#d35428"),
-        ("prior_agent_std", "residual std", "#8f24b9"),
+        ("position", "executed position", "#1f77b4"),
+        ("plan_position", "25-frame plan position", "#2ca02c"),
+        ("interaction", "interaction", "#d35428"),
+        ("gap_ttc", "gap/TTC", "#8f24b9"),
     ):
         _series(axis, tensorboard, PREFIX + f"epoch/validation/{term}", label, color)
     axis.set(xlabel="epoch", ylabel="raw value", title="Attribution diagnostics")

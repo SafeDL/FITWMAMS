@@ -12,10 +12,7 @@ import numpy as np
 import torch
 
 from world_model.src.core.initial_behavior_anchor import FrozenLegacyFlowSchema
-from world_model.src.core.sequential_dataset import (
-    QR_SEQUENCE_CACHE_FORMAT,
-    sequence_cache_owner_dir,
-)
+from world_model.src.core.sequential_dataset import sequence_cache_owner_dir
 from world_model.src.core.utils import (
     ensure_dir,
     file_sha256,
@@ -76,7 +73,6 @@ def _save_state(
 ) -> None:
     payload = {
         **model.checkpoint_payload(),
-        "training_state_version": 2,
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": scheduler.state_dict(),
         "epoch": int(epoch),
@@ -104,7 +100,6 @@ def _load_state(
         path, map_location=next(model.parameters()).device, weights_only=False
     )
     required = {
-        "training_state_version",
         "state_dict",
         "optimizer_state_dict",
         "scheduler_state_dict",
@@ -116,7 +111,7 @@ def _load_state(
         "best_validation_fde",
         "cohort",
     }
-    if not required <= payload.keys() or payload["training_state_version"] != 2:
+    if not required <= payload.keys():
         raise ValueError("incompatible HiQR-v2 training state")
     if payload.get("model_type") != model.model_type or payload.get(
         "model_config"
@@ -212,20 +207,6 @@ def _response_steps(seconds: float, cfg: HiQRV2Config) -> int:
     )
 
 
-def _posterior_scale(
-    epoch: int, configured_epochs: int, training: dict[str, Any]
-) -> float:
-    """Warm the local posterior, then anneal it after the prior is competent."""
-    warmup = max(1, int(training.get("posterior_aux_warmup_epochs", 1)))
-    scale = min(1.0, float(epoch) / warmup)
-    start = int(training.get("posterior_aux_anneal_start_epoch", configured_epochs + 1))
-    final = float(training.get("posterior_aux_final_scale", 1.0))
-    if epoch <= start or start >= configured_epochs:
-        return scale
-    progress = (float(epoch) - start) / max(1.0, float(configured_epochs - start))
-    return scale * ((1.0 - progress) + progress * final)
-
-
 def _set_stage_learning_rate(optimizer, stage: dict[str, Any], completed: int) -> None:
     """Install a stage LR only on first entry, never on a mid-stage resume."""
     if "learning_rate" not in stage or completed != 0:
@@ -239,8 +220,30 @@ def _epoch_shuffle_seed(base_seed: int, epoch: int) -> int:
     return int(base_seed) + int(epoch)
 
 
+def _stale_full_rollout_epochs(
+    history: list[dict[str, Any]], full_rollout_seconds: float
+) -> int:
+    """Count full-horizon epochs since the most recent strict improvement."""
+    best = float("inf")
+    stale = 0
+    for row in history:
+        if not math.isclose(
+            float(row["rollout_seconds"]), full_rollout_seconds, abs_tol=1.0e-9
+        ):
+            continue
+        value = float(row["selection_metric"])
+        if value < best:
+            best, stale = value, 0
+        else:
+            stale += 1
+    return stale
+
+
 def train_hiqr_v2_world_model(
-    config: dict[str, Any], *, config_dir: Path, resume: Path | None = None
+    config: dict[str, Any],
+    *,
+    config_dir: Path,
+    resume: Path | None = None,
 ) -> dict[str, Any]:
     paths, training = config["paths"], config["training"]
     output = Path(paths["output_dir"])
@@ -258,7 +261,7 @@ def train_hiqr_v2_world_model(
     schema = FrozenLegacyFlowSchema.load(schema_path)
     arrays, manifest = load_hiqr_v2_arrays(
         cache_owner=sequence_cache_owner_dir(config, config_dir=config_dir),
-        v1_sidecar_output_dir=paths["v1_sidecar_output_dir"],
+        hiqr_sidecar_output_dir=paths["hiqr_sidecar_output_dir"],
         flow_schema=schema,
         source_dataset_dir=paths["source_dataset_dir"],
     )
@@ -299,7 +302,9 @@ def train_hiqr_v2_world_model(
     best = float("inf")
     history_path = output / "training_history.json"
     history: list[dict[str, Any]] = (
-        list(load_json(history_path)) if resume is not None and history_path.exists() else []
+        list(load_json(history_path))
+        if resume is not None and history_path.exists()
+        else []
     )
     if resume is not None:
         state = _load_state(
@@ -320,7 +325,19 @@ def train_hiqr_v2_world_model(
             raise ValueError("cannot resume HiQR-v2 across cohort contracts")
     accumulation = max(1, int(training.get("gradient_accumulation_steps", 1)))
     max_sequences = int(config.get("dataset", {}).get("max_sequences", 0))
+    full_rollout_seconds = model_cfg.rollout_seconds_for_responses(
+        model_cfg.response_steps
+    )
+    early_stop_patience = max(
+        0, int(training.get("full_rollout_early_stopping_patience", 0))
+    )
+    stale_full_epochs = _stale_full_rollout_epochs(history, full_rollout_seconds)
+    early_stopped = bool(
+        early_stop_patience and stale_full_epochs >= early_stop_patience
+    )
     for stage_index, stage in enumerate(stages):
+        if early_stopped:
+            break
         if stage_index < stage_start:
             continue
         completed = stage_epoch_start if stage_index == stage_start else 0
@@ -359,40 +376,11 @@ def train_hiqr_v2_world_model(
             totals: dict[str, float] = {}
             batches = 0
             optimizer.zero_grad(set_to_none=True)
-            posterior_scale = _posterior_scale(epoch, configured_epochs, training)
-            kl_scale = min(
-                1.0, epoch / max(1, int(training.get("kl_warmup_epochs", 1)))
-            )
-            diversity_scale = float(
-                epoch
-                >= int(training.get("diversity_start_epoch", configured_epochs + 1))
-            )
-            deterministic_prior = bool(
-                stage.get(
-                    "deterministic_prior_mean",
-                    training.get("deterministic_prior_mean", False),
-                )
-            )
-            posterior_auxiliary = bool(
-                stage.get(
-                    "posterior_auxiliary",
-                    training.get("posterior_auxiliary", True),
-                )
-            )
-            if not posterior_auxiliary:
-                posterior_scale = kl_scale = 0.0
-            if bool(stage.get("diversity", training.get("diversity", True))) is False:
-                diversity_scale = 0.0
             for batch_index, values in enumerate(train_loader, start=1):
                 result = model.forward_training(
                     to_hiqr_v2_batch(values, train_loader.field_names, device),
                     response_steps=response_steps,
                     tbptt_steps=int(training.get("tbptt_response_steps", 10)),
-                    posterior_scale=posterior_scale,
-                    kl_scale=kl_scale,
-                    diversity_scale=diversity_scale,
-                    deterministic_prior=deterministic_prior,
-                    posterior_auxiliary=posterior_auxiliary,
                 )
                 (result["loss"] / accumulation).backward()
                 if batch_index % accumulation == 0 or batch_index == len(train_loader):
@@ -481,6 +469,13 @@ def train_hiqr_v2_world_model(
             )
             history.append(row)
             save_json(history, history_path)
+            if response_steps == model_cfg.response_steps:
+                stale_full_epochs = 0 if fde <= best else stale_full_epochs + 1
+                if early_stop_patience and stale_full_epochs >= early_stop_patience:
+                    early_stopped = True
+                    break
+        if early_stopped:
+            break
     report = {
         "model_type": model.model_type,
         "best_checkpoint": str(best_path),
@@ -488,6 +483,8 @@ def train_hiqr_v2_world_model(
         "last_model_checkpoint": str(last_model_path),
         "best_validation_fde": best,
         "epochs_completed": epoch,
+        "early_stopped": early_stopped,
+        "full_rollout_early_stopping_patience": early_stop_patience,
         "model_config": asdict(model_cfg),
         "cohort": cohort,
         "sequence_cache": manifest,
@@ -516,12 +513,3 @@ def load_hiqr_v2_checkpoint(
         "flow_schema_sha256"
     )
     return model.eval()
-
-
-def require_canonical_hiqr_v2_checkpoint(
-    model: HiQRV2WorldModel, *, allow_diagnostic_ablation: bool = False
-) -> None:
-    if model.model_type != HiQRV2WorldModel.model_type:
-        raise ValueError("not a canonical HiQR-v2 checkpoint")
-    if not allow_diagnostic_ablation and model.cfg.scene_mode_responses != 5:
-        raise ValueError("not a canonical HiQR-v2 checkpoint")

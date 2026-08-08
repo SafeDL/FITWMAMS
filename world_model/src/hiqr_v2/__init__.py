@@ -1,9 +1,4 @@
-"""HiQR-v2: prior-driven hierarchical interaction world model.
-
-This package deliberately has an independent checkpoint contract from the
-original :mod:`world_model.src.hiqr` implementation.  V1 remains a read-only
-experiment baseline.
-"""
+"""HiQR-v2: causal hierarchical interaction world model."""
 
 from .config import HiQRV2Config
 from .environment import (

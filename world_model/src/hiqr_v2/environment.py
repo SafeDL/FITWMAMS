@@ -1,10 +1,9 @@
 """Causal, replayable online environments for the isolated HiQR-v2 schema.
 
-The V2 environment deliberately keeps the same Flow START audit contract as
-HiQR-v1, while its learned recurrent state is the observation-only
-``FilterState``.  A replay snapshot also captures the active one-second scene
-mode and action buffer because exact branch replay requires transient planning
-context; neither is written into the learned recurrent filter.
+The environment uses the shared Flow START audit contract while its learned
+recurrent state is the observation-only ``FilterState``.  A replay snapshot
+also captures the active one-second scene mode and action plan because exact
+branch replay requires transient context.
 """
 
 from __future__ import annotations
@@ -52,10 +51,7 @@ class BatchedHiQRV2WorldSnapshot:
     history: torch.Tensor
     history_valid: torch.Tensor
     filter_state: FilterState
-    previous_buffer: torch.Tensor | None
     previous_current: torch.Tensor | None
-    previous_background_states: torch.Tensor | None
-    previous_expected_ego: torch.Tensor | None
     slow_scene: torch.Tensor | None
     map_inputs: tuple[torch.Tensor, torch.Tensor]
     active_plan: torch.Tensor | None
@@ -98,10 +94,7 @@ class BatchedHiQRV2WorldModelEnvironment:
         self._history: torch.Tensor | None = None
         self._history_valid: torch.Tensor | None = None
         self._filter_state: FilterState | None = None
-        self._previous_buffer: torch.Tensor | None = None
         self._previous_current: torch.Tensor | None = None
-        self._previous_background_states: torch.Tensor | None = None
-        self._previous_expected_ego: torch.Tensor | None = None
         self._slow_scene: torch.Tensor | None = None
         self._map_inputs: tuple[torch.Tensor, torch.Tensor] | None = None
         self._active_plan: torch.Tensor | None = None
@@ -214,9 +207,7 @@ class BatchedHiQRV2WorldModelEnvironment:
         self._filter_state = self.model.initialize_start(
             current, valid, ego_mask, maps, map_valid, raw_b0, valid[:, 1:]
         )
-        self._previous_buffer = self._previous_current = (
-            self._previous_background_states
-        ) = self._previous_expected_ego = self._slow_scene = None
+        self._previous_current = self._slow_scene = None
         self._map_inputs, self._active_plan = (maps, map_valid), None
         controls = (
             None
@@ -301,10 +292,7 @@ class BatchedHiQRV2WorldModelEnvironment:
             history=self._history.detach().clone(),
             history_valid=self._history_valid.detach().clone(),
             filter_state=_clone_filter(filter_state),
-            previous_buffer=_clone(self._previous_buffer),
             previous_current=_clone(self._previous_current),
-            previous_background_states=_clone(self._previous_background_states),
-            previous_expected_ego=_clone(self._previous_expected_ego),
             slow_scene=_clone(self._slow_scene),
             map_inputs=tuple(item.detach().clone() for item in self._map_inputs),
             active_plan=_clone(self._active_plan),
@@ -335,18 +323,8 @@ class BatchedHiQRV2WorldModelEnvironment:
             snapshot.history_valid.detach().clone(),
             _clone_filter(snapshot.filter_state),
         )
-        self._previous_buffer, self._previous_current = _clone(
-            snapshot.previous_buffer
-        ), _clone(snapshot.previous_current)
-        (
-            self._previous_background_states,
-            self._previous_expected_ego,
-            self._slow_scene,
-        ) = (
-            _clone(snapshot.previous_background_states),
-            _clone(snapshot.previous_expected_ego),
-            _clone(snapshot.slow_scene),
-        )
+        self._previous_current = _clone(snapshot.previous_current)
+        self._slow_scene = _clone(snapshot.slow_scene)
         self._map_inputs, self._active_plan = tuple(
             item.detach().clone() for item in snapshot.map_inputs
         ), _clone(snapshot.active_plan)
@@ -468,10 +446,7 @@ class BatchedHiQRV2WorldModelEnvironment:
             ego_mask,
             *self._map_inputs,
             filter_state=filter_state,
-            previous_buffer=self._previous_buffer,
             previous_current=self._previous_current,
-            previous_background_states=self._previous_background_states,
-            previous_expected_ego=self._previous_expected_ego,
             slow_scene=self._slow_scene,
             response_index=self.response_index,
             deterministic=self._deterministic,
@@ -481,14 +456,7 @@ class BatchedHiQRV2WorldModelEnvironment:
         next_plan = out["background_future_actions"]
         self._filter_state, self._slow_scene = out["filter_state"], out["slow_scene"]
         self._active_plan, self._plan_frame_index = next_plan, 0
-        self._previous_buffer, self._previous_current = (
-            next_plan,
-            states.detach().clone(),
-        )
-        self._previous_background_states, self._previous_expected_ego = (
-            out["background_future_states"],
-            out["expected_ego_states"],
-        )
+        self._previous_current = states.detach().clone()
         self._has_planned = True
         for row, trace in enumerate(self._traces):
             trace["planning_steps"] += 1

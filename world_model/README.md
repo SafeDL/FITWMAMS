@@ -20,7 +20,7 @@ RAMP、FIRM、Semi-Markov 和 CAT-TopK 各自使用其正式配置中的数据�
 
 ## HiQR-v2
 
-HiQR-v2 保留 HiQR 的关系查询编码、scene/agent 两级随机变量和滚动计划续接三项核心结构，但修正其因果边界：持久 filter 只吸收已发生状态，prior 驱动整个闭环，posterior 仅承担当前响应辅助重建、KL 和蒸馏。scene latent 每 5 个响应更新一次；续接器执行 5/15/5 规则，并在 ADS 实际状态显著偏离旧计划时允许近端 carry 紧急失效。训练和主评测只使用 C0 活跃背景槽位在全部 149 个转移中保持有效的固定 cohort。
+HiQR-v2 只保留三项预实验支持的设计：关系查询与 B0 per-agent 初始化的 observation filter；每 5 个响应更新的 scene mode 与每响应更新的 agent residual；从当前观测控制出发积分 5 个协调 jerk knots 的物理计划。prior mean 驱动完整训练闭环，随机评测仅在慢/快两个瞬态层级叠加可重放 innovation。固定 1024 序列预实验中，jerk decoder 将 5.96 秒 FDE 从 3.226 m 降至 2.570 m（改善 20.34%，paired bootstrap 95% CI 为 -0.775～-0.536 m），同时降低碰撞率、jerk 与重规划跳变。训练与主评测只使用 C0 活跃背景槽位在全部 149 个转移中保持有效的固定 cohort。
 
 ```bash
 python world_model/scripts/train_hiqr_v2_world_model.py
@@ -28,7 +28,7 @@ python world_model/scripts/test_hiqr_v2_world_model.py
 python world_model/scripts/evaluate_hiqr_v2_flow_ads.py --max-starts 128 --stochastic --worlds-per-start 4
 ```
 
-最后一项使用冻结 Normalizing Flow 起点、日志 ADS 控制和 HiQR-v2 在线环境完成 149-tick 因果闭环，并保存 Flow 起点审计。当前只提供可重放 snapshot 与 scene/residual 随机分支基础，不包含 path-level AMS 搜索实现。
+正式配置采用 deterministic prior-mean 主训练路径，完整时域连续 6 epoch 无改善时提前停止。B0 sidecar 位于 HiQR-v2 自己的结果根目录，并受共享缓存和冻结 Flow schema 校验。Flow×ADS 评测同时检查日志 ego 控制恢复、冻结 Flow 起点、逐 tick ADS 控制和 149-tick 因果闭环。snapshot/restore 与 scene/residual 显式随机量继续支持将来的 path-level AMS，但当前不包含 AMS 搜索器。
 
 ## QR-WM
 

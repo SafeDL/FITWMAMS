@@ -21,7 +21,6 @@ from world_model.src.hiqr_v2.flow_evaluation import (  # noqa: E402
 )
 from world_model.src.hiqr_v2.train import (  # noqa: E402
     load_hiqr_v2_checkpoint,
-    require_canonical_hiqr_v2_checkpoint,
 )
 
 
@@ -51,15 +50,15 @@ def main() -> None:
             "sequence_cache_dir",
             "flow_schema",
             "source_dataset_dir",
-            "v1_sidecar_output_dir",
+            "hiqr_sidecar_output_dir",
         ),
     )
     output = Path(config["paths"]["output_dir"])
     checkpoint = args.checkpoint or (output / "checkpoints/best_hiqr_v2_world_model.pt")
     model = load_hiqr_v2_checkpoint(
-        checkpoint.resolve(), device=select_device(str(config["evaluation"].get("device", "auto")))
+        checkpoint.resolve(),
+        device=select_device(str(config["evaluation"].get("device", "auto"))),
     )
-    require_canonical_hiqr_v2_checkpoint(model)
     evaluate_hiqr_v2_flow_ads(
         model,
         repo_root=ROOT,

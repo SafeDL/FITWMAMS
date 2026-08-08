@@ -1,13 +1,12 @@
-# Isolated capacity check: 64 fixed stable-slot sequences, not a benchmark run.
 paths:
-  output_dir: /home/hp/FITWMAMS/results/highd_world_model/hiqr_v2_world_model/readiness/overfit
+  output_dir: /home/hp/FITWMAMS/results/highd_world_model/hiqr_v2_world_model/readiness/continuation_safety_probe
   v1_sidecar_output_dir: /home/hp/FITWMAMS/results/highd_world_model/hiqr_world_model
   sequence_cache_dir: /home/hp/FITWMAMS/results/highd_world_model/training_data/qr_sequence_cache
   source_dataset_dir: /home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache
   flow_schema: /home/hp/FITWMAMS/results/highd_tail_flow/dataset_schema.json
 dataset:
   sequence_protocol: start_roll_5p96
-  max_sequences: 64
+  max_sequences: 0
 model:
   hidden_dim: 128
   scene_latent_dim: 16
@@ -16,50 +15,53 @@ model:
   attention_layers: 2
   decoder_layers: 2
   num_heads: 4
-  dropout: 0.0
+  dropout: 0.1
   scene_mode_responses: 5
-  residual_noise_scale: 0.0
-  physical_mode: "off"
+  emergency_ego_position_error_m: 1.0
+  emergency_ego_velocity_error_mps: 2.0
+  emergency_gate_sharpness: 4.0
+  residual_noise_scale: 0.35
+  physical_mode: 'off'
 training:
   seed: 20260805
   device: auto
-  epochs: 130
-  batch_size: 32
-  val_batch_size: 32
-  gradient_accumulation_steps: 1
-  num_workers: 0
-  learning_rate: 3.0e-4
-  weight_decay: 0.0
+  epochs: 40
+  batch_size: 48
+  val_batch_size: 48
+  gradient_accumulation_steps: 2
+  num_workers: 4
+  learning_rate: 8.0e-05
+  weight_decay: 0.0001
   grad_clip: 1.0
   tbptt_response_steps: 10
   scheduler_factor: 0.5
-  scheduler_patience: 20
+  scheduler_patience: 6
   scheduler_min_lr: 1.0e-06
   tensorboard: true
   tensorboard_dir: tensorboard
-  posterior_aux_warmup_epochs: 1
-  kl_warmup_epochs: 1
-  diversity_start_epoch: 999
+  posterior_aux_warmup_epochs: 8
+  posterior_aux_anneal_start_epoch: 20
+  posterior_aux_final_scale: 0.25
+  kl_warmup_epochs: 8
+  diversity_start_epoch: 20
   stages:
-  - name: overfit_start_1s
-    epochs: 30
+  - name: start_warmup
+    epochs: 8
     rollout_seconds: 1.0
-    learning_rate: 3.0e-4
-    deterministic_prior_mean: true
-    posterior_auxiliary: false
-    diversity: false
-  - name: overfit_closed_loop_3s
-    epochs: 100
+    learning_rate: 0.0001
+  - name: closed_loop
+    epochs: 12
     rollout_seconds: 3.0
-    learning_rate: 1.0e-4
-    deterministic_prior_mean: true
-    posterior_auxiliary: false
-    diversity: false
+    learning_rate: 5.0e-05
+  - name: full_prior_rollout
+    epochs: 20
+    rollout_seconds: 5.96
+    learning_rate: 3.0e-05
 evaluation:
   seed: 20260805
   device: auto
-  batch_size: 32
-  num_workers: 0
-  max_sequences: 64
+  batch_size: 48
+  num_workers: 4
+  max_sequences: 0
   stochastic_samples: 8
   bootstrap_samples: 1000

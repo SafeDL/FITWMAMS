@@ -1,0 +1,329 @@
+{
+  "bootstrap_baseline_label": "baseline",
+  "bootstrap_vs_baseline": {
+    "candidate_improvement_fraction": -0.06141372397542,
+    "ci95_high_m": 0.3251572661101818,
+    "ci95_low_m": 0.14230899848043918,
+    "mean_delta_m": 0.22576236724853516
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/hiqr_v2_world_model/readiness/causal_screening/diagnostics/runs/R3/checkpoints/best_hiqr_v2_world_model.pt",
+  "cohort": {
+    "c0_active_background_slots": 508547,
+    "canonical_sequences": 161314,
+    "cohort": "c0_active_backgrounds_valid_through_5p96s",
+    "excluded_sequence_active_background_slots": 176634,
+    "excluded_sequences": 39850,
+    "exiting_background_slots": 62084,
+    "splits": {
+      "test": {
+        "c0_active_background_slots": 76478,
+        "canonical_sequences": 24216,
+        "excluded_sequence_active_background_slots": 26533,
+        "excluded_sequences": 5984,
+        "exiting_background_slots": 9352,
+        "stable_cohort_active_background_slots": 49945,
+        "stable_sequences": 18232
+      },
+      "train": {
+        "c0_active_background_slots": 355988,
+        "canonical_sequences": 112943,
+        "excluded_sequence_active_background_slots": 123781,
+        "excluded_sequences": 27915,
+        "exiting_background_slots": 43543,
+        "stable_cohort_active_background_slots": 232207,
+        "stable_sequences": 85028
+      },
+      "val": {
+        "c0_active_background_slots": 76081,
+        "canonical_sequences": 24155,
+        "excluded_sequence_active_background_slots": 26320,
+        "excluded_sequences": 5951,
+        "exiting_background_slots": 9189,
+        "stable_cohort_active_background_slots": 49761,
+        "stable_sequences": 18204
+      }
+    },
+    "stable_cohort_active_background_slots": 331913,
+    "stable_fraction": 0.7529662645523637,
+    "stable_sequences": 121464
+  },
+  "deterministic_prior_mean": {
+    "ade_1s_m": 0.06276033591711894,
+    "ade_2s_m": 0.1756871270481497,
+    "ade_3s_m": 0.36069617746397853,
+    "ade_4s_m": 0.6249874802306294,
+    "ade_5p96s_m": 1.34644933976233,
+    "ade_5s_m": 0.9608307043090463,
+    "ade_m": 1.346449375152588,
+    "emergency_rate": 0.0007014657651325251,
+    "fde_1s_m": 0.1413392722606659,
+    "fde_2s_m": 0.4540489912033081,
+    "fde_3s_m": 1.0268325805664062,
+    "fde_4s_m": 1.810349702835083,
+    "fde_5p96s_m": 3.9018521308898926,
+    "fde_5s_m": 2.789578676223755,
+    "gap_ttc": 0.11448184528853744,
+    "gate": 0.016919512039748952,
+    "gate_mean": 0.017502942544524558,
+    "jerk": 0.013723039257456549,
+    "plan_discontinuity": 0.0076382539482438006,
+    "position": 0.887059023603797,
+    "posterior_agent_std": 0.17549684806726873,
+    "posterior_position": 0.8870653938502073,
+    "posterior_scene_std": 0.03622532612644136,
+    "prior_agent_std": 0.17576104286126792,
+    "prior_posterior_position_gap_m": -6.370246410369873e-06,
+    "prior_scene_std": 0.1747413284610957,
+    "revision_rate": 0.7453489992767572
+  },
+  "interaction_metrics": {
+    "closed_loop_stability_rate": 0.9560546875,
+    "collision_episode_rate": 0.0439453125,
+    "collision_pair_point_rate": 0.0009123780373227787,
+    "drac_mae_mps2": 0.2607009746782928,
+    "following_pair_frames": 262969,
+    "gap_mae_m": 1.1841877045211004,
+    "relative_speed_mae_mps": 0.6353334073079359,
+    "risk_variable_distribution": {
+      "drac_mps2": {
+        "available": true,
+        "ks": 0.0520407291415283,
+        "num_generated": 257945,
+        "num_real": 262969,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.007961660160014886,
+            "generated": 0.0670704329788182,
+            "real": 0.05910877281880332
+          },
+          "q95": {
+            "absolute_error": 0.03327282043791156,
+            "generated": 0.15192411757089158,
+            "real": 0.11865129713298002
+          },
+          "q99": {
+            "absolute_error": 0.39174441946069327,
+            "generated": 0.7596355904217797,
+            "real": 0.3678911709610865
+          }
+        },
+        "wasserstein_1": 3.514233357555131
+      },
+      "gap_m": {
+        "available": true,
+        "ks": 0.015970444968251146,
+        "num_generated": 257945,
+        "num_real": 262969,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 1.8125427246093864,
+            "generated": 100.66754455566408,
+            "real": 98.8550018310547
+          },
+          "q95": {
+            "absolute_error": 1.1349046707154145,
+            "generated": 120.00290222167966,
+            "real": 118.86799755096425
+          },
+          "q99": {
+            "absolute_error": 1.3991543579101062,
+            "generated": 166.16075103759763,
+            "real": 164.76159667968753
+          }
+        },
+        "wasserstein_1": 1.0267844897356777
+      },
+      "relative_speed_mps": {
+        "available": true,
+        "ks": 0.06222919296225332,
+        "num_generated": 257945,
+        "num_real": 262969,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.03435211181640607,
+            "generated": 2.4243534088134764,
+            "real": 2.3900012969970703
+          },
+          "q95": {
+            "absolute_error": 0.25093269348144087,
+            "generated": 3.8209323883056596,
+            "real": 3.5699996948242188
+          },
+          "q99": {
+            "absolute_error": 0.8884820556640625,
+            "generated": 7.628482437133789,
+            "real": 6.740000381469726
+          }
+        },
+        "wasserstein_1": 0.351694756718663
+      },
+      "ttc_s": {
+        "available": true,
+        "ks": 0.01775385332532978,
+        "num_generated": 257945,
+        "num_real": 262969,
+        "quantiles": {
+          "q90": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q95": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          },
+          "q99": {
+            "absolute_error": 0.0,
+            "generated": 10.0,
+            "real": 10.0
+          }
+        },
+        "wasserstein_1": 0.1116465072616551
+      }
+    },
+    "risk_variable_summary": {
+      "drac_mps2": {
+        "predicted": {
+          "count": 257945,
+          "p50": 0.0,
+          "p95": 0.15192411757089158
+        },
+        "target": {
+          "count": 262969,
+          "p50": 0.0002676186770748494,
+          "p95": 0.11865129713298002
+        }
+      },
+      "gap_m": {
+        "predicted": {
+          "count": 257945,
+          "p50": 41.54952962398529,
+          "p95": 120.00290222167966
+        },
+        "target": {
+          "count": 262969,
+          "p50": 40.929995727539065,
+          "p95": 118.86799755096425
+        }
+      },
+      "relative_speed_mps": {
+        "predicted": {
+          "count": 257945,
+          "p50": -0.02756500244140625,
+          "p95": 3.8209323883056596
+        },
+        "target": {
+          "count": 262969,
+          "p50": 0.1399993896484375,
+          "p95": 3.5699996948242188
+        }
+      },
+      "ttc_s": {
+        "predicted": {
+          "count": 257945,
+          "p50": 10.0,
+          "p95": 10.0
+        },
+        "target": {
+          "count": 262969,
+          "p50": 10.0,
+          "p95": 10.0
+        }
+      }
+    },
+    "target_collision_episode_rate": 0.0009765625,
+    "target_collision_pair_point_rate": 1.846479361248481e-05,
+    "ttc_mae_s": 0.11663678139406583
+  },
+  "model_type": "prior_driven_hierarchical_interaction_query_world_model_v2",
+  "per_sequence_metrics": "/home/hp/FITWMAMS/results/highd_world_model/hiqr_v2_world_model/readiness/continuation_safety_probe/evaluation/val_per_sequence_metrics.npz",
+  "sequence_cache": {
+    "adapter": "highd_straight_lane_v1",
+    "arrays": [
+      "sequence_id",
+      "agent_states",
+      "agent_valid",
+      "ego_index",
+      "map_polylines",
+      "map_polyline_valid",
+      "lane_graph_edges",
+      "actions_highd",
+      "split_index",
+      "is_evt_tail"
+    ],
+    "bounded_development_cache": false,
+    "cache_format": "qr_start_roll_raw150",
+    "evt_tail_sequences": 2209,
+    "fps": 25.0,
+    "frames": 174,
+    "future_transition_frames": 149,
+    "hiqr_v2_cohort": {
+      "c0_active_background_slots": 508547,
+      "canonical_sequences": 161314,
+      "cohort": "c0_active_backgrounds_valid_through_5p96s",
+      "excluded_sequence_active_background_slots": 176634,
+      "excluded_sequences": 39850,
+      "exiting_background_slots": 62084,
+      "splits": {
+        "test": {
+          "c0_active_background_slots": 76478,
+          "canonical_sequences": 24216,
+          "excluded_sequence_active_background_slots": 26533,
+          "excluded_sequences": 5984,
+          "exiting_background_slots": 9352,
+          "stable_cohort_active_background_slots": 49945,
+          "stable_sequences": 18232
+        },
+        "train": {
+          "c0_active_background_slots": 355988,
+          "canonical_sequences": 112943,
+          "excluded_sequence_active_background_slots": 123781,
+          "excluded_sequences": 27915,
+          "exiting_background_slots": 43543,
+          "stable_cohort_active_background_slots": 232207,
+          "stable_sequences": 85028
+        },
+        "val": {
+          "c0_active_background_slots": 76081,
+          "canonical_sequences": 24155,
+          "excluded_sequence_active_background_slots": 26320,
+          "excluded_sequences": 5951,
+          "exiting_background_slots": 9189,
+          "stable_cohort_active_background_slots": 49761,
+          "stable_sequences": 18204
+        }
+      },
+      "stable_cohort_active_background_slots": 331913,
+      "stable_fraction": 0.7529662645523637,
+      "stable_sequences": 121464
+    },
+    "history_frames": 25,
+    "num_sequences": 161314,
+    "raw_window_state_frames": 150,
+    "roll_seconds": 4.96,
+    "roll_transition_frames": 124,
+    "source_dataset": "/home/hp/FITWMAMS/results/highd_world_model/training_data/cat_topk_start_roll_cache",
+    "split_summary": {
+      "test": 24216,
+      "train": 112943,
+      "val": 24155
+    },
+    "start_reconstruction_frames": 25,
+    "start_reconstruction_seconds": 1.0,
+    "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
+    "top_r_lanes": 3,
+    "total_rollout_seconds": 5.96,
+    "uses_recording_lane_metadata": true
+  },
+  "sequences": 1024,
+  "split": "val",
+  "stochastic": {
+    "crps": 0.7457284927368164,
+    "energy_score": 1.181626796722412,
+    "sample_mean_ade_m": 1.3969740867614746,
+    "sample_mean_fde_m": 3.9937222003936768,
+    "sample_min_ade_m": 1.1358816623687744,
+    "sample_min_fde_m": 3.321920871734619
+  }
+}

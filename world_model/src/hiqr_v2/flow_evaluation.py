@@ -38,6 +38,7 @@ _AUDIT_FIELDS = (
     "sampling_num_rejected",
     "sampling_rejection_rate",
 )
+_EGO_CONTROL_MAX_FDE_M = 0.20
 
 
 def _flow_metadata(
@@ -86,6 +87,52 @@ def _flow_metadata(
             )
         )
     return rows
+
+
+@torch.no_grad()
+def _ego_control_recovery(
+    model,
+    replay_states: np.ndarray,
+    controls: np.ndarray,
+    control_valid: np.ndarray,
+) -> dict[str, float | int | bool | str]:
+    """Verify that replay controls reproduce their logged ego transitions."""
+    device = next(model.parameters()).device
+    state = torch.as_tensor(replay_states[:, 0, 0], device=device)
+    target = torch.as_tensor(replay_states[:, 1:, 0], device=device)
+    actions = torch.as_tensor(controls, device=device)
+    valid = torch.as_tensor(control_valid, device=device, dtype=torch.bool)
+    generated = []
+    for frame in range(actions.shape[1]):
+        state = model.dynamics.step(
+            state[:, None],
+            actions[:, frame : frame + 1],
+            valid[:, frame : frame + 1],
+            model.cfg.simulation_dt_s,
+        )[:, 0]
+        generated.append(state)
+    distance = torch.linalg.vector_norm(
+        torch.stack(generated, 1)[..., :2] - target[..., :2], dim=-1
+    )
+    weights = valid.float()
+    per_sequence_ade = (distance * weights).sum(1) / weights.sum(1).clamp_min(1.0)
+    final = valid[:, -1]
+    final_distance = distance[:, -1][final]
+    fde = final_distance.mean() if len(final_distance) else distance.new_zeros(())
+    return {
+        "sequences": int(len(per_sequence_ade)),
+        "horizon_seconds": float(actions.shape[1] * model.cfg.simulation_dt_s),
+        "ade_m": float(per_sequence_ade.mean().cpu()),
+        "fde_m": float(fde.cpu()),
+        "p95_fde_m": (
+            float(torch.quantile(final_distance, 0.95).cpu())
+            if len(final_distance)
+            else 0.0
+        ),
+        "max_fde_m": _EGO_CONTROL_MAX_FDE_M,
+        "acceptance": bool(fde < _EGO_CONTROL_MAX_FDE_M),
+        "acceptance_rule": "5.96 s logged-ego FDE < max_fde_m",
+    }
 
 
 def _paired_ads_intervention(
@@ -191,8 +238,7 @@ def evaluate_hiqr_v2_flow_ads(
     randomness = None
     if not deterministic:
         randomness = [
-            HiQRWorldRandomness(seed=81_001 + row)
-            for row in range(len(donor_rows))
+            HiQRWorldRandomness(seed=81_001 + row) for row in range(len(donor_rows))
         ]
     environment.reset_from_flow_batch(
         features,
@@ -213,6 +259,9 @@ def evaluate_hiqr_v2_flow_ads(
     replay_valid = np.asarray(cache["agent_valid"][donor_rows, anchor:stop], bool)
     controls, ego_valid = replay_states_to_ego_controls(
         replay_states, replay_valid, dt_s=float(model.cfg.simulation_dt_s)
+    )
+    ego_control_recovery = _ego_control_recovery(
+        model, replay_states, controls, ego_valid
     )
     intervention = _paired_ads_intervention(
         model,
@@ -277,14 +326,21 @@ def evaluate_hiqr_v2_flow_ads(
         b0_valid &= torch.as_tensor(slots, device=initial.device)
         b0_error = (generated_b0 - raw_b0).abs().mean(dim=-1)
         b0_mae = float(
-            (b0_error * b0_valid.float()).sum().div(b0_valid.float().sum().clamp_min(1)).cpu()
+            (b0_error * b0_valid.float())
+            .sum()
+            .div(b0_valid.float().sum().clamp_min(1))
+            .cpu()
         )
     trajectory = generated[:, :, 1:, :2].reshape(count, worlds, -1)
     diversity: list[float] = []
     for left in range(worlds):
         for right in range(left + 1, worlds):
             diversity.append(
-                float(np.linalg.norm(trajectory[:, left] - trajectory[:, right], axis=-1).mean())
+                float(
+                    np.linalg.norm(
+                        trajectory[:, left] - trajectory[:, right], axis=-1
+                    ).mean()
+                )
             )
     finite = np.isfinite(generated).all(axis=(1, 2, 3))
     np.savez_compressed(
@@ -311,10 +367,13 @@ def evaluate_hiqr_v2_flow_ads(
         ),
         "completed_response_count": int(observation["response_index"]),
         "ego_control_source": "adjacent_25hz_replay_velocity_transition",
+        "ego_control_recovery": ego_control_recovery,
         "causal_ads_contract": "current_state_only_no_future_ads_actions",
         "finite_rollout_rate": float(finite.mean()),
         "b0_summary_consistency_mae": b0_mae,
-        "scene_agent_branch_diversity_m": float(np.mean(diversity)) if diversity else 0.0,
+        "scene_agent_branch_diversity_m": (
+            float(np.mean(diversity)) if diversity else 0.0
+        ),
         "flow_audit_complete": bool(set(_AUDIT_FIELDS) <= audit.keys()),
         "paired_ads_brake_intervention": intervention,
         "closed_loop_metrics": metrics,
