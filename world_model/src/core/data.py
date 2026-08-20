@@ -21,6 +21,8 @@ from process_highD.src.natural_segments import (
     _position_at,
     _slice_range,
     _values,
+    options_from_config as natural_segment_options,
+    validate_natural_segment_contract,
 )
 from process_highD.src.preprocess import prepare_recording
 
@@ -773,6 +775,12 @@ def build_world_model_dataset(
     schema_path = schema_json_path(output_dir)
     highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
     highd_cfg = load_highd_config(highd_cfg_path)
+    lateral_integrity_required = natural_segment_options(
+        highd_cfg
+    ).require_complete_lateral_events
+    background_slot_stability_required = natural_segment_options(
+        highd_cfg
+    ).require_stable_background_slots
     dataset_cfg = dict(config.get("dataset", {}))
     fps = float(config.get("sampling", {}).get("target_fps", highd_cfg.get("sampling", {}).get("target_fps", 25)))
     history_steps = int(round(float(dataset_cfg.get("history_seconds", 1.0)) * fps))
@@ -808,6 +816,10 @@ def build_world_model_dataset(
                 name: [int(value) for value in offsets]
                 for name, offsets in roll_offsets_by_split.items()
             }
+            and bool(cached.get("lateral_event_integrity_required", False))
+            == bool(lateral_integrity_required)
+            and bool(cached.get("background_slot_stability_required", False))
+            == bool(background_slot_stability_required)
         )
         if cache_matches:
             return cached
@@ -823,6 +835,13 @@ def build_world_model_dataset(
     rows = pd.read_csv(natural_path)
     if rows.empty:
         raise RuntimeError(f"Natural segments CSV is empty: {natural_path}")
+    highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
+    highd_cfg = load_highd_config(highd_cfg_path)
+    validate_natural_segment_contract(
+        rows,
+        options=natural_segment_options(highd_cfg),
+        source=str(natural_path),
+    )
 
     tail_path = _resolve_tail_context_csv(config, config_dir)
     tail_ids: set[str] = set()
@@ -906,6 +925,12 @@ def build_world_model_dataset(
         "raw_dir": str(raw_dir),
         "num_samples": int(len(samples)),
         "num_segments_requested": int(len(rows)),
+        "lateral_event_integrity_required": bool(
+            lateral_integrity_required
+        ),
+        "background_slot_stability_required": bool(
+            background_slot_stability_required
+        ),
         "fps": float(fps),
         "history_steps": int(history_steps),
         "horizon_steps": int(horizon_steps),

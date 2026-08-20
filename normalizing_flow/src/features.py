@@ -1,4 +1,5 @@
-"""Feature extraction for EVT tail initial-state conditions."""
+"""Feature extraction for full natural-driving initial conditions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +12,6 @@ from process_highD.src.natural_segments import (
     SLOT_NAMES,
     _lateral_sign,
 )
-
 
 EGO_FEATURES: tuple[str, ...] = (
     "ego_vx_mps",
@@ -37,7 +37,6 @@ TRAJECTORY_FEATURES: tuple[str, ...] = (
     "final_ax_1s_mps2",
     "mean_ay_left_1s_mps2",
 )
-
 DEFAULT_EGO_LENGTH_M = 4.8
 DEFAULT_EGO_WIDTH_M = 1.9
 DEFAULT_OTHER_LENGTH_M = 4.8
@@ -50,9 +49,9 @@ class C0FeatureSchema:
     feature_names: tuple[str, ...]
     ego_features: tuple[str, ...] = EGO_FEATURES
     slot_features: tuple[str, ...] = SLOT_FEATURES
-    trajectory_features: tuple[str, ...] = TRAJECTORY_FEATURES
+    trajectory_features: tuple[str, ...] = ()
     slot_names: tuple[str, ...] = SLOT_NAMES
-    feature_mode: str = "legacy_future_action_summary"
+    feature_mode: str = "initial_observation"
 
     @property
     def num_features(self) -> int:
@@ -60,22 +59,22 @@ class C0FeatureSchema:
 
 
 def build_feature_schema(
-    feature_mode: str = "legacy_future_action_summary",
+    feature_mode: str = "initial_observation",
 ) -> C0FeatureSchema:
-    """Build the frozen 76-dimensional Flow feature schema."""
+    """Build the versioned Flow feature schema without future leakage."""
     mode = str(feature_mode).strip().lower()
     aliases = {
-        "legacy": "legacy_future_action_summary",
-        "legacy_future_action_summary": "legacy_future_action_summary",
-        "future_action_summary": "legacy_future_action_summary",
+        "initial": "initial_observation",
+        "initial_observation": "initial_observation",
+        "c0": "initial_observation",
     }
     if mode not in aliases:
         raise ValueError(
             "Unsupported Flow feature_mode="
-            f"{feature_mode!r}; expected 'legacy_future_action_summary'"
+            f"{feature_mode!r}; expected 'initial_observation'"
         )
     mode = aliases[mode]
-    trajectory_features = TRAJECTORY_FEATURES
+    trajectory_features = ()
     names: list[str] = [*EGO_FEATURES]
     for slot_name in SLOT_NAMES:
         names.extend(f"{slot_name}_{feature}" for feature in SLOT_FEATURES)
@@ -139,7 +138,9 @@ def slot_trajectory_slice(slot_idx: int) -> slice:
     return slice(start, start + len(TRAJECTORY_FEATURES))
 
 
-def feature_valid_from_slot_mask(schema: dict[str, Any], slot_mask: np.ndarray) -> np.ndarray:
+def feature_valid_from_slot_mask(
+    schema: dict[str, Any], slot_mask: np.ndarray
+) -> np.ndarray:
     mask = np.asarray(slot_mask, dtype=bool)
     if mask.ndim == 1:
         mask = mask.reshape(1, -1)
@@ -179,26 +180,6 @@ def _vehicle_id_for_slot(segment_row: pd.Series, slot_name: str) -> int:
     return int(segment_row.get(f"{slot_name}_id", -1))
 
 
-def _choose_primary_slot(segment_row: pd.Series, slot_mask: np.ndarray) -> tuple[int, str]:
-    peak_slot = str(segment_row.get("peak_slot_name", "none"))
-    if peak_slot in SLOT_NAMES:
-        peak_idx = SLOT_NAMES.index(peak_slot)
-        peak_vehicle_id = _vehicle_id_for_slot(segment_row, peak_slot)
-        if bool(slot_mask[peak_idx]) and peak_vehicle_id >= 0:
-            return peak_idx, peak_slot
-
-    if bool(slot_mask[SLOT_NAMES.index("same_front")]):
-        slot_name = "same_front"
-        return SLOT_NAMES.index(slot_name), slot_name
-
-    active = np.where(slot_mask)[0]
-    if len(active) == 0:
-        raise ValueError("tail context has no active neighbor slot")
-    slot_idx = int(active[0])
-    slot_name = SLOT_NAMES[slot_idx]
-    return slot_idx, slot_name
-
-
 def _extract_slot_action_features(
     *,
     target_track: pd.DataFrame,
@@ -215,8 +196,7 @@ def _extract_slot_action_features(
         )
 
     window = target_track.loc[
-        (target_track.index >= int(anchor_frame))
-        & (target_track.index <= final_frame)
+        (target_track.index >= int(anchor_frame)) & (target_track.index <= final_frame)
     ]
     if window.empty:
         raise ValueError("missing slot future window for 1s action summary")
@@ -230,7 +210,9 @@ def _extract_slot_action_features(
         ay = np.zeros(len(window), dtype=np.float32)
     ay_left = lat_sign * ay
     return {
-        "delta_vx_1s_mps": float(target_final["xVelocity"] - target_anchor["xVelocity"]),
+        "delta_vx_1s_mps": float(
+            target_final["xVelocity"] - target_anchor["xVelocity"]
+        ),
         "delta_vy_left_1s_mps": float(
             lat_sign
             * (
@@ -251,7 +233,7 @@ def extract_c0_features_for_segment(
     *,
     schema: C0FeatureSchema | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
-    """Extract fixed-width c0 features for one selected tail segment.
+    """Extract fixed-width C0 features for one natural-driving segment.
 
     Inactive slots are encoded as zeros and marked invalid in ``feature_valid``;
     downstream checks and exports must consult ``slot_mask`` rather than reading
@@ -272,7 +254,9 @@ def extract_c0_features_for_segment(
             f"ego={ego_id} frame={anchor_frame}"
         )
     ego_meta = recording.tracks_meta.loc[ego_id]
-    ego_direction = int(segment_row.get("ego_driving_direction", ego_meta["drivingDirection"]))
+    ego_direction = int(
+        segment_row.get("ego_driving_direction", ego_meta["drivingDirection"])
+    )
     lat_sign = _lateral_sign(ego_direction)
     ego_vy_left = lat_sign * float(ego.get("yVelocity", 0.0))
     ego_ay_left = lat_sign * float(ego.get("yAcceleration", 0.0))
@@ -321,12 +305,6 @@ def extract_c0_features_for_segment(
             feature[slot_start + local_idx] = float(rel_values[name])
             feature_valid[slot_start + local_idx] = True
 
-    primary_slot_idx, primary_slot_name = _choose_primary_slot(
-        segment_row,
-        slot_mask,
-    )
-    if primary_slot_name not in slot_rows:
-        raise ValueError(f"primary slot {primary_slot_name!r} has no valid anchor row")
     # The clean START schema must not even inspect frames after ``anchor_frame``.
     # This prevents a future trajectory summary from being reintroduced through
     # a seemingly harmless data-preparation path.
@@ -344,10 +322,14 @@ def extract_c0_features_for_segment(
                 horizon_steps=horizon_steps,
                 lat_sign=lat_sign,
             )
-            slot_action_start = trajectory_offset + slot_idx * len(schema.trajectory_features)
+            slot_action_start = trajectory_offset + slot_idx * len(
+                schema.trajectory_features
+            )
             for local_idx, name in enumerate(schema.trajectory_features):
                 value = float(action_values[name])
-                feature[slot_action_start + local_idx] = value if np.isfinite(value) else 0.0
+                feature[slot_action_start + local_idx] = (
+                    value if np.isfinite(value) else 0.0
+                )
                 feature_valid[slot_action_start + local_idx] = np.isfinite(value)
 
     metadata = {
@@ -356,7 +338,5 @@ def extract_c0_features_for_segment(
         "ego_id": ego_id,
         "anchor_frame": anchor_frame,
         "event_risk": float(segment_row["event_risk"]),
-        "primary_slot_name": primary_slot_name,
-        "primary_slot_index": int(primary_slot_idx),
     }
     return feature, feature_valid, slot_mask, metadata

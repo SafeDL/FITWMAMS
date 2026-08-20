@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 # 帧连续性检查
 
+
 def check_frame_continuity(track: pd.DataFrame) -> bool:
     """检查轨迹帧是否连续 (步长为 1)。"""
     frames = track.index.values
@@ -36,6 +37,7 @@ def check_frame_continuity(track: pd.DataFrame) -> bool:
 
 
 # 方向统一
+
 
 def normalize_driving_direction(recording: HighDRecording) -> HighDRecording:
     """将所有车辆统一为 ego forward = positive x。
@@ -72,7 +74,8 @@ def normalize_driving_direction(recording: HighDRecording) -> HighDRecording:
 
     logger.debug(
         "Recording %02d: 翻转 %d 辆车的 x 方向。",
-        recording.recording_id, len(flip_ids),
+        recording.recording_id,
+        len(flip_ids),
     )
 
     mask = vehicle_ids.isin(flip_ids)
@@ -95,9 +98,8 @@ def normalize_driving_direction(recording: HighDRecording) -> HighDRecording:
 
 # 异常轨迹过滤
 
-def filter_abnormal_tracks(
-    recording: HighDRecording, config: dict
-) -> HighDRecording:
+
+def filter_abnormal_tracks(recording: HighDRecording, config: dict) -> HighDRecording:
     """标记异常轨迹段 (不立即删除，添加 '_abnormal' 标记列)。
 
     过滤规则:
@@ -188,8 +190,14 @@ def filter_abnormal_tracks(
     logger.info(
         "Recording %02d: 异常帧标记 — 加速度过大=%d, jerk过大=%d, "
         "速度过低=%d, 位置跳变=%d, 尺寸异常=%d辆, 帧不连续=%d辆, 总标记帧=%d",
-        recording.recording_id, n_accel, n_jerk, n_speed, n_jump,
-        len(bad_size_ids), len(discontinuous_ids), n_total_abnormal,
+        recording.recording_id,
+        n_accel,
+        n_jerk,
+        n_speed,
+        n_jump,
+        len(bad_size_ids),
+        len(discontinuous_ids),
+        n_total_abnormal,
     )
 
     # 清空缓存
@@ -201,9 +209,8 @@ def filter_abnormal_tracks(
 
 # 重采样
 
-def resample_recording(
-    recording: HighDRecording, target_fps: int
-) -> HighDRecording:
+
+def resample_recording(recording: HighDRecording, target_fps: int) -> HighDRecording:
     """将 recording 从 source_fps 重采样到 target_fps。
 
     使用每隔 step 帧取样的方式 (step = source_fps / target_fps)。
@@ -221,14 +228,20 @@ def resample_recording(
     source_fps = int(recording.recording_meta.get("frameRate", 25))
 
     if source_fps == target_fps:
-        logger.debug("Recording %02d: 帧率已为 %d, 无需重采样。",
-                      recording.recording_id, target_fps)
+        logger.debug(
+            "Recording %02d: 帧率已为 %d, 无需重采样。",
+            recording.recording_id,
+            target_fps,
+        )
         return recording
 
     step = source_fps / target_fps  # 允许浮点步长
     logger.info(
         "Recording %02d: 重采样 %d → %d fps (step=%.2f)",
-        recording.recording_id, source_fps, target_fps, step,
+        recording.recording_id,
+        source_fps,
+        target_fps,
+        step,
     )
 
     tracks = recording.tracks

@@ -1,4 +1,5 @@
 """Pipeline helpers for highD natural equal-length segments and EVT."""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -27,10 +28,10 @@ from process_highD.src.natural_segments import (
     SLOT_NAMES,
     build_natural_segments_for_recording,
     options_from_config,
+    validate_natural_segment_contract,
 )
 from process_highD.src.preprocess import prepare_recording
 from tools.evt import fit_evt_model
-
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,9 @@ def risk_quantiles(values: np.ndarray) -> dict[str, float]:
     return {f"q{prob:g}": float(np.quantile(finite, prob)) for prob in probs}
 
 
-def gpd_gof_statistics(values: np.ndarray, *, u: float, xi: float, beta: float) -> dict[str, float]:
+def gpd_gof_statistics(
+    values: np.ndarray, *, u: float, xi: float, beta: float
+) -> dict[str, float]:
     excess = np.asarray(values, dtype=np.float64)
     excess = excess[np.isfinite(excess) & (excess > float(u))] - float(u)
     excess = np.sort(excess[excess > 0.0])
@@ -117,17 +120,8 @@ def gpd_gof_statistics(values: np.ndarray, *, u: float, xi: float, beta: float) 
             np.max(np.abs(i / n - cdf)),
         )
     )
-    cvm = float(
-        (1.0 / (12.0 * n))
-        + np.sum((cdf - (2.0 * i - 1.0) / (2.0 * n)) ** 2)
-    )
-    ad = float(
-        -n
-        - np.mean(
-            (2.0 * i - 1.0)
-            * (np.log(cdf) + np.log(1.0 - cdf[::-1]))
-        )
-    )
+    cvm = float((1.0 / (12.0 * n)) + np.sum((cdf - (2.0 * i - 1.0) / (2.0 * n)) ** 2))
+    ad = float(-n - np.mean((2.0 * i - 1.0) * (np.log(cdf) + np.log(1.0 - cdf[::-1]))))
     return {
         "num_exceedances": n,
         "ks": ks,
@@ -323,7 +317,9 @@ def build_natural_segments_dataset(
     raw_dir = resolve_data_path(cfg["paths"]["raw_dir"], config_path)
     validate_raw_dir(raw_dir)
     paths = natural_output_paths(cfg, config_path)
-    recordings_cfg = parse_recording_override(recording_override) or cfg.get("recordings", {})
+    recordings_cfg = parse_recording_override(recording_override) or cfg.get(
+        "recordings", {}
+    )
     recording_ids = resolve_recording_ids(raw_dir, recordings_cfg)
     options = options_from_config(cfg)
 
@@ -367,6 +363,10 @@ def build_natural_segments_dataset(
     else:
         raise RuntimeError("No valid natural highD segments were built")
 
+    validate_natural_segment_contract(
+        segments, options=options, source=str(paths["segment_csv"])
+    )
+
     observed_trace_max = np.max(risk_trace_all, axis=1)
     csv_event_risk = pd.to_numeric(segments["event_risk"], errors="coerce").to_numpy(
         dtype=np.float64
@@ -374,8 +374,7 @@ def build_natural_segments_dataset(
     max_abs_diff = float(np.max(np.abs(observed_trace_max - csv_event_risk)))
     if max_abs_diff > 1.0e-5:
         raise RuntimeError(
-            "risk trace/event risk mismatch: "
-            f"max_abs_diff={max_abs_diff:.6g}"
+            "risk trace/event risk mismatch: " f"max_abs_diff={max_abs_diff:.6g}"
         )
 
     segments.to_csv(paths["segment_csv"], index=False)
@@ -411,6 +410,20 @@ def build_natural_segments_dataset(
         "total_steps": int(options.total_steps),
         "anchor_stride_steps": int(options.anchor_stride_steps),
         "anchor_stride_seconds": float(options.anchor_stride_steps / options.fps),
+        "lateral_event_policy": {
+            "require_complete": bool(options.require_complete_lateral_events),
+            "pre_cross_steps": int(options.lateral_pre_cross_steps),
+            "post_cross_steps": int(options.lateral_post_cross_steps),
+            "stable_lane_steps": int(options.lateral_stable_steps),
+            "semantics": "adjacent crossing with stable pre/post lane context",
+        },
+        "background_slot_stability_policy": {
+            "require_c0_active_slots_through_full_window": bool(
+                options.require_stable_background_slots
+            ),
+            "window_steps": int(options.total_steps),
+            "semantics": "C0-active background slots remain present and non-abnormal",
+        },
         "slot_names": list(SLOT_NAMES),
         "risk_component_names": list(RISK_COMPONENT_NAMES),
         "segment_csv_columns": list(segments.columns),
@@ -456,6 +469,10 @@ def refit_natural_evt(*, config_path: Path) -> dict[str, Any]:
             f"Cannot refit EVT without segment CSV: {paths['segment_csv']}"
         )
     segments = pd.read_csv(paths["segment_csv"])
+    options = options_from_config(cfg)
+    validate_natural_segment_contract(
+        segments, options=options, source=str(paths["segment_csv"])
+    )
     values = pd.to_numeric(segments["event_risk"], errors="coerce").to_numpy(
         dtype=np.float64
     )
@@ -499,6 +516,10 @@ def select_natural_tail_contexts(
             f"Cannot select tail contexts without segment CSV: {paths['segment_csv']}"
         )
     segments = pd.read_csv(paths["segment_csv"])
+    options = options_from_config(cfg)
+    validate_natural_segment_contract(
+        segments, options=options, source=str(paths["segment_csv"])
+    )
     threshold = min_event_risk
     threshold_source = "explicit_min_event_risk"
     threshold_comparator = ">="

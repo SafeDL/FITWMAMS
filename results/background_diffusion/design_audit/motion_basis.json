@@ -1,0 +1,149 @@
+{
+  "metrics": {
+    "13": {
+      "ADE_m": 0.0048685224288251535,
+      "FDE_m": 0.003260599134323656,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.033523908523908526,
+      "abs_jy_above8_rate": 3.1821460392888966e-05,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.17180997334400977,
+          "wasserstein": 0.2996040848858488
+        },
+        "ay": {
+          "KS": 0.17507612234361997,
+          "wasserstein": 0.051802715528106974
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.0021941146102219928
+    },
+    "17": {
+      "ADE_m": 0.005869296763594548,
+      "FDE_m": 0.004777483314000132,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.004919067419067419,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.1263630904091115,
+          "wasserstein": 0.18298379611244886
+        },
+        "ay": {
+          "KS": 0.15074067830539548,
+          "wasserstein": 0.03741098077796067
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.0010904723272892017
+    },
+    "21": {
+      "ADE_m": 0.006877426789069886,
+      "FDE_m": 0.006294922938506696,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.001055411769697484,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.09599317269499438,
+          "wasserstein": 0.12147029963243815
+        },
+        "ay": {
+          "KS": 0.1362089492482589,
+          "wasserstein": 0.031604820815023894
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.0005584061192881902
+    },
+    "25": {
+      "ADE_m": 0.007760701880807935,
+      "FDE_m": 0.007476940035814048,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.00035799142942000086,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.07565085920790618,
+          "wasserstein": 0.08651070079417869
+        },
+        "ay": {
+          "KS": 0.12537534373584225,
+          "wasserstein": 0.02857006412103747
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.00023442521045589118
+    },
+    "31": {
+      "ADE_m": 0.00887646422397932,
+      "FDE_m": 0.009113113766589801,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.0001219822648394077,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.0596730690211035,
+          "wasserstein": 0.05819786096700329
+        },
+        "ay": {
+          "KS": 0.11661205525059792,
+          "wasserstein": 0.025816503187636737
+        }
+      },
+      "ax_outside_minus8_4_rate": 9.482368063384362e-05
+    },
+    "41": {
+      "ADE_m": 0.010352206207385632,
+      "FDE_m": 0.011025351395037013,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.0,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.045296745440561365,
+          "wasserstein": 0.03622954972687395
+        },
+        "ay": {
+          "KS": 0.10677146439370791,
+          "wasserstein": 0.02316467033964196
+        }
+      },
+      "ax_outside_minus8_4_rate": 3.1607893544614545e-05
+    },
+    "51": {
+      "ADE_m": 0.01145715791463074,
+      "FDE_m": 0.012993954758988178,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.0,
+      "abs_jy_above8_rate": 0.0,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.036414927354524645,
+          "wasserstein": 0.026439899819147482
+        },
+        "ay": {
+          "KS": 0.09938311927765428,
+          "wasserstein": 0.02133072383411453
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.0
+    },
+    "9": {
+      "ADE_m": 0.0039320096412511045,
+      "FDE_m": 0.0018626791647783426,
+      "abs_ay_above4_rate": 0.0,
+      "abs_jx_above12_rate": 0.2356856463999321,
+      "abs_jy_above8_rate": 0.00991768848911706,
+      "action_fidelity": {
+        "ax": {
+          "KS": 0.23847365482073057,
+          "wasserstein": 0.5385719413978673
+        },
+        "ay": {
+          "KS": 0.2268630219253422,
+          "wasserstein": 0.10594065823393914
+        }
+      },
+      "ax_outside_minus8_4_rate": 0.005262714275178321
+    }
+  },
+  "test_sequences": 1024
+}

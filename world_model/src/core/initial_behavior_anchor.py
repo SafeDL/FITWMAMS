@@ -1,4 +1,4 @@
-"""First-second behavior anchors from the frozen 76-dimensional Flow."""
+"""Flow C0 decoding and logged first-second behavior summaries."""
 from __future__ import annotations
 
 import hashlib
@@ -10,13 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from normalizing_flow.src.features import (
-    EGO_FEATURES,
-    SLOT_NAMES,
-    TRAJECTORY_FEATURES,
-    slot_feature_index,
-    trajectory_feature_index,
-)
+from normalizing_flow.src.features import EGO_FEATURES, SLOT_NAMES, slot_feature_index
 
 from .schema import FLOW_ACTION_SUMMARY_FEATURES
 from .utils import file_sha256
@@ -26,8 +20,8 @@ BEHAVIOR_ANCHOR_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
-class FrozenLegacyFlowSchema:
-    """Read-only contract for the frozen legacy 76-D Flow coordinates."""
+class FlowC0Schema:
+    """Read-only contract for the current 40-D C0 Flow coordinates."""
 
     feature_names: tuple[str, ...]
     slot_names: tuple[str, ...]
@@ -40,7 +34,7 @@ class FrozenLegacyFlowSchema:
     source_path: Path
 
     @classmethod
-    def load(cls, path: str | Path) -> "FrozenLegacyFlowSchema":
+    def load(cls, path: str | Path) -> "FlowC0Schema":
         source = Path(path)
         raw = source.read_bytes()
         schema = json.loads(raw)
@@ -50,14 +44,11 @@ class FrozenLegacyFlowSchema:
         transforms = tuple(schema.get("model_feature_transforms", ()))
         mean = np.asarray(schema.get("normalization", {}).get("mean", ()), np.float32)
         std = np.asarray(schema.get("normalization", {}).get("std", ()), np.float32)
-        expected_indices = np.asarray([
-            [trajectory_feature_index(slot, feature) for feature in FLOW_ACTION_SUMMARY_FEATURES]
-            for slot in SLOT_NAMES
-        ], np.int64)
-        if (len(names), len(mean), len(std), len(transforms)) != (76, 76, 76, 76):
-            raise ValueError("frozen Flow schema must contain exactly 76 features, transforms, means and stds")
-        if slots != tuple(SLOT_NAMES) or trajectory != tuple(TRAJECTORY_FEATURES):
-            raise ValueError("frozen Flow slot or trajectory feature order differs from the legacy contract")
+        expected_indices = np.empty((len(SLOT_NAMES), 0), np.int64)
+        if (len(names), len(mean), len(std), len(transforms)) != (40, 40, 40, 40):
+            raise ValueError("Flow schema must contain exactly 40 C0 features")
+        if slots != tuple(SLOT_NAMES) or trajectory:
+            raise ValueError("Flow schema must use the current C0-only slot contract")
         if not np.isfinite(mean).all() or not np.isfinite(std).all() or np.any(std <= 0.0):
             raise ValueError("frozen Flow normalization is invalid")
         return cls(names, slots, trajectory, transforms, mean, std, expected_indices, hashlib.sha256(raw).hexdigest(), source)
@@ -68,43 +59,20 @@ class FrozenLegacyFlowSchema:
             raise ValueError("frozen Flow checkpoint SHA256 mismatch")
         return digest
 
-    def standardize(self, anchor_raw: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
-        """Apply the exact legacy model-coordinate transform to six summaries."""
-        if anchor_raw.shape[-2:] != (len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES)):
-            raise ValueError("behavior anchor must end in [six slots, six summaries]")
-        if valid.shape != anchor_raw.shape[:-1]:
-            raise ValueError("behavior anchor validity does not align with anchor values")
-        indices = torch.as_tensor(self.anchor_feature_indices, device=anchor_raw.device)
-        mean = torch.as_tensor(self.normalization_mean, device=anchor_raw.device, dtype=anchor_raw.dtype)[indices]
-        std = torch.as_tensor(self.normalization_std, device=anchor_raw.device, dtype=anchor_raw.dtype)[indices]
-        model = anchor_raw.clone()
-        # The legacy Flow represents min_ax as softplus^{-1}(mean_ax-min_ax).
-        gap = (anchor_raw[..., 2] - anchor_raw[..., 3]).clamp_min(1.0e-4)
-        transformed_gap = torch.where(gap > 20.0, gap, torch.log(torch.expm1(gap) + 1.0e-4))
-        model[..., 3] = transformed_gap
-        out = (model - mean) / std
-        return out * valid[..., None].to(dtype=out.dtype)
-
     def anchor_statistics(self) -> tuple[np.ndarray, np.ndarray]:
-        return self.normalization_mean[self.anchor_feature_indices], self.normalization_std[self.anchor_feature_indices]
+        return np.zeros((6, 6), np.float32), np.ones((6, 6), np.float32)
 
 
 def behavior_anchor_from_flow_feature(
     feature_row: np.ndarray,
     slot_mask: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Extract the six per-slot first-second summaries from a legacy Flow row."""
+    """Return an empty B0 because the current Flow contains C0 only."""
     feature = np.asarray(feature_row, dtype=np.float32).reshape(-1)
     valid = np.asarray(slot_mask, dtype=bool).reshape(-1)
-    if feature.size != 76 or valid.shape != (len(SLOT_NAMES),):
-        raise ValueError("behavior anchors require one 76-D Flow row and a six-slot mask")
+    if feature.size != 40 or valid.shape != (len(SLOT_NAMES),):
+        raise ValueError("behavior anchors require one 40-D Flow row and a six-slot mask")
     anchor = np.zeros((len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES)), dtype=np.float32)
-    for slot_index, slot_name in enumerate(SLOT_NAMES):
-        if valid[slot_index]:
-            anchor[slot_index] = [
-                feature[trajectory_feature_index(slot_name, name)]
-                for name in FLOW_ACTION_SUMMARY_FEATURES
-            ]
     return anchor, valid
 
 
@@ -112,15 +80,13 @@ def start_state_from_flow_feature(feature_row: np.ndarray, slot_mask: np.ndarray
     """Directly unpack one raw Flow row for the behavior-anchored START mode.
 
     Training never calls this adapter: it reads the logged sequence cache.
-    It exists solely for Flow end-to-end generation, where the sampled 76-D
-    row already contains both the start scene and the six first-second
-    summaries.  Keeping this conversion as a small value function avoids a
-    separate "atomic initializer" object and its redundant lifecycle.
+    The current Flow row contains only C0.  B0 is therefore zero/invalid for
+    synthetic Flow starts and is learned from logged history only in training.
     """
     feature = np.asarray(feature_row, np.float32).reshape(-1)
     valid_slots = np.asarray(slot_mask, bool).reshape(-1)
-    if feature.shape != (76,) or valid_slots.shape != (len(SLOT_NAMES),):
-        raise ValueError("Flow START requires one raw 76-D row and one six-slot mask")
+    if feature.shape != (40,) or valid_slots.shape != (len(SLOT_NAMES),):
+        raise ValueError("Flow START requires one raw 40-D row and one six-slot mask")
     if not np.isfinite(feature).all():
         raise ValueError("Flow START feature row contains a non-finite value")
     states = np.zeros((1 + len(SLOT_NAMES), 6), np.float32)
@@ -138,7 +104,8 @@ def start_state_from_flow_feature(feature_row: np.ndarray, slot_mask: np.ndarray
             feature[slot_feature_index(slot, "other_ax_mps2")], feature[slot_feature_index(slot, "other_ay_left_mps2")],
         )
         valid[index + 1] = True
-    anchor, anchor_valid = behavior_anchor_from_flow_feature(feature, valid_slots)
+    anchor = np.zeros((len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES)), np.float32)
+    anchor_valid = np.zeros(len(SLOT_NAMES), bool)
     return states, valid, anchor, anchor_valid
 
 
@@ -152,8 +119,8 @@ def start_state_from_flow_tensor(
     velocity is stored relative to ego and must be reconstructed before any
     scene encoder sees it.
     """
-    if feature_rows.ndim != 2 or feature_rows.shape[-1] != 76:
-        raise ValueError("Flow START requires features with shape [batch, 76]")
+    if feature_rows.ndim != 2 or feature_rows.shape[-1] != 40:
+        raise ValueError("Flow START requires features with shape [batch, 40]")
     if not torch.isfinite(feature_rows).all():
         raise ValueError("Flow START feature rows contain non-finite values")
     batch = feature_rows.shape[0]
@@ -168,7 +135,9 @@ def start_state_from_flow_tensor(
     ego = feature_rows[:, ego_indices]
     states[:, 0, 2:6] = ego
     valid[:, 0] = True
-    anchor = feature_rows.new_zeros((batch, len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES)))
+    anchor = feature_rows.new_zeros(
+        (batch, len(SLOT_NAMES), len(FLOW_ACTION_SUMMARY_FEATURES))
+    )
     for index, slot in enumerate(SLOT_NAMES):
         position_x = feature_rows[:, slot_feature_index(slot, "rel_x_m")]
         position_y = feature_rows[:, slot_feature_index(slot, "rel_y_left_m")]
@@ -179,12 +148,10 @@ def start_state_from_flow_tensor(
         states[:, index + 1] = torch.stack(
             (position_x, position_y, velocity_x, velocity_y, acceleration_x, acceleration_y), dim=-1
         )
-        anchor[:, index] = torch.stack(
-            [feature_rows[:, trajectory_feature_index(slot, name)] for name in FLOW_ACTION_SUMMARY_FEATURES], dim=-1
-        )
     states[:, 1:] *= valid_slots[..., None].to(dtype=states.dtype)
     valid[:, 1:] = valid_slots
-    return states, valid, anchor * valid_slots[..., None].to(dtype=anchor.dtype), valid_slots
+    anchor_valid = torch.zeros_like(valid_slots)
+    return states, valid, anchor, anchor_valid
 
 
 def summarize_first_second_states(states_26: torch.Tensor, valid_26: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -210,11 +177,6 @@ def summarize_first_second_states(states_26: torch.Tensor, valid_26: torch.Tenso
     # Replace inactive values rather than admitting partial windows into a
     # Flow condition.  This exactly matches the slot-level Flow contract.
     return raw * anchor_valid[..., None].to(dtype=raw.dtype), anchor_valid
-
-
-def summarize_highd_states(states: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
-    """Compatibility alias; formal code must call the 26-state function."""
-    return summarize_first_second_states(states, valid)[0]
 
 
 class BehaviorAnchorControlPlan(nn.Module):

@@ -1,8 +1,7 @@
 # tools：跨模块公共工具
 
-`tools/` 存放 TREAD 主线工程共同使用的轻量工具。凡是 `process_highD/`、
-`diffusion/`、`IDM_subset/` 中出现重复实现，且语义不属于某个单独模块的
-函数，都应优先放在这里。
+`tools/` 存放工程内多个数据、生成和仿真模块共同使用的轻量工具。重复实现且语义不属于
+某个单独模块的函数，应优先放在这里。
 
 ## 当前内容
 
@@ -17,9 +16,10 @@ tools/
 ├── context.py            # context NPZ 读取和单条 context 组装
 ├── normalization.py      # numpy / torch 归一化与反归一化
 ├── diffusion_adapter.py  # frozen diffusion prior 的共享适配器
-├── plot_style.py         # 论文图样式、标签、坐标轴和 paper artifact helpers
+├── plot_style.py         # 跨模块复用的论文绘图样式
 ├── idm_ego.py            # highway-env IDM ego 参数读取和 rollout helper
-└── idm_ego.yaml          # process_highD/subset 共用 IDM ego 参数
+├── idm_ego.yaml          # process_highD/subset 共用 IDM ego 参数
+└── subset_entrypoints.py # 多种 ADS 共用的子集模拟 CLI 实现
 ```
 
 ## 使用原则
@@ -27,8 +27,7 @@ tools/
 - 风险评分统一从 `tools/risk.py` 引入，避免各工程维护不同公式。
 - EVT 模型统一从 `tools/evt.py` 引入，避免 highD 拟合和闭环仿真使用不同尾部映射。
 - NPZ、JSON、CSV 和配置路径解析统一使用 `tools/io.py`。
-- 学术绘图和 paper artifact manifest/README helper 统一使用 `tools/plot_style.py`，
-  避免各模块维护不同字体、符号标签、线型编码和后处理记录规则。
+- 学术绘图样式统一使用 `tools/plot_style.py`，避免各模块维护不同字体和线型。
 - highway-env IDM ego 代码放在 `tools/idm_ego.py`，参数放在 `tools/idm_ego.yaml`，供 subset 闭环和回放复用。
 - 子模块不应新增仅做转发的兼容入口；调用点应直接 import `tools/` 中的真实实现。
 - 不把模块私有训练逻辑、模型结构或脚本默认参数放进 `tools/`。
@@ -47,7 +46,5 @@ tools/
 
 ## 维护边界
 
-`tools/` 只放跨 `process_highD/`、`diffusion/`、`IDM_subset/` 复用的真实实现。当前
-`plot_style.py` 中的 manifest、README 和 figure helper 被 `results/build_*_paper_experiments.py`
-直接使用，属于共享论文产物工具，不是死代码。不要在这里放只服务单个脚本的私有训练逻辑，
-也不要新增仅做 import 转发的兼容模块。
+`tools/` 只放跨模块复用的真实实现。
+不要在这里放只服务单个脚本的私有训练逻辑，也不要新增仅做 import 转发的兼容模块。

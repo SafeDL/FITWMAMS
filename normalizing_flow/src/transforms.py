@@ -1,10 +1,10 @@
-"""Feature-coordinate transforms used by the tail-event density model."""
+"""Feature-coordinate transforms used by the natural-driving density model."""
+
 from __future__ import annotations
 
 from typing import Sequence
 
 import numpy as np
-
 
 _EPS = 1.0e-4
 

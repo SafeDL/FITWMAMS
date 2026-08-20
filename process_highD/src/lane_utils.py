@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # 车道线解析
 
+
 def parse_lane_markings(recording_meta: dict) -> dict:
     """解析 recordingMeta 中的车道线信息。
 
@@ -62,9 +63,7 @@ def parse_lane_markings(recording_meta: dict) -> dict:
     lower = np.array(lower, dtype=float)
 
     if len(upper) < 2 and len(lower) < 2:
-        raise ValueError(
-            f"无法解析车道线: upper={upper}, lower={lower}"
-        )
+        raise ValueError(f"无法解析车道线: upper={upper}, lower={lower}")
 
     lanes = {}
 
@@ -119,7 +118,8 @@ def parse_lane_markings(recording_meta: dict) -> dict:
 
     logger.debug(
         "解析车道: 方向1=%d条, 方向2=%d条",
-        len(direction_1_lanes), len(direction_2_lanes),
+        len(direction_1_lanes),
+        len(direction_2_lanes),
     )
     return result
 
@@ -160,6 +160,7 @@ def are_adjacent_lanes(lane_a: int, lane_b: int, lane_info: dict) -> bool:
 
 # 车道变化检测
 
+
 def detect_lane_changes(
     track: pd.DataFrame,
     vehicle_id: int,
@@ -198,7 +199,11 @@ def detect_lane_changes(
         return []
 
     lane_ids = track["laneId"].values
-    frames = track.index.get_level_values("frame").values if "frame" in track.index.names else track.index.values
+    frames = (
+        track.index.get_level_values("frame").values
+        if "frame" in track.index.names
+        else track.index.values
+    )
 
     if len(lane_ids) < 2:
         return []
@@ -234,13 +239,15 @@ def detect_lane_changes(
                 stable_after_end = int(frames[i])
                 break
 
-        changes.append({
-            "vehicle_id": vehicle_id,
-            "from_lane": from_lane,
-            "to_lane": to_lane,
-            "cross_frame": cross_frame,
-            "stable_before_start": stable_before_start,
-            "stable_after_end": stable_after_end,
-        })
+        changes.append(
+            {
+                "vehicle_id": vehicle_id,
+                "from_lane": from_lane,
+                "to_lane": to_lane,
+                "cross_frame": cross_frame,
+                "stable_before_start": stable_before_start,
+                "stable_after_end": stable_after_end,
+            }
+        )
 
     return changes

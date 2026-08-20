@@ -1,0 +1,65 @@
+{
+  "experiment_scope": "full",
+  "model": "highd_joint_background_trajectory_diffusion",
+  "checkpoint_role": "compact EMA inference checkpoint",
+  "condition_dim": 118,
+  "contract_sha256": "e3f150c55cb5be7d065c801667e0cac283581f3d21d4fb398b640da175ab58d9",
+  "condition": "40-D C0, six-slot mask, and background state knots at 2.00, 4.00, and 5.96 seconds",
+  "uses_future_ego": false,
+  "uses_future_background_state_knots": true,
+  "flow_composition": {
+    "c0_and_slot_mask_available_from_current_flow": true,
+    "state_knots_available_from_current_flow": true,
+    "current_flow_plan_is_directly_compatible": true,
+    "continuous_empirical_donor_used": false,
+    "external_adapter": "diffusion.prepare_external_condition"
+  },
+  "interpretation": "conditional trajectory reconstruction, not C0-only future prediction",
+  "recording_level_split": {
+    "train": 72771,
+    "validation": 13133,
+    "test": 10151
+  },
+  "training": {
+    "best_epoch": 50,
+    "best_validation_loss": 0.06063814016199027,
+    "early_stopped": false
+  },
+  "evaluation": {
+    "samples_per_condition": 4,
+    "ddim_steps": 50,
+    "ensemble_ADE_m": 0.026366834621868705,
+    "ensemble_FDE_m": 0.004632908940118978,
+    "sample_mean_ADE_m": 0.03088880709010859,
+    "sample_mean_FDE_m": 0.009061670589251567,
+    "vx_MAE_mps": 0.04054015118783068,
+    "vy_MAE_mps": 0.010284443738762892,
+    "mean_pairwise_sample_distance_m": 0.02514941395251811,
+    "mean_pairwise_endpoint_distance_m": 0.013016030446522943,
+    "physical_violation_rates_all_zero": true,
+    "crossing_aligned_cutin_sequences": 122,
+    "crossing_aligned_cutin_windows": 567,
+    "crossing_aligned_cutin_ADE_m": 0.028758477419614792,
+    "crossing_aligned_cutin_FDE_m": 0.0268439631909132
+  },
+  "limitations": [
+    "The endpoint is explicitly conditioned, so FDE is not a C0-only prediction score.",
+    "The historical 0.059/0.103 m result used a removed 14,295-sequence protocol and is only a non-comparable reference.",
+    "Same-condition motion diversity remains small.",
+    "Jerk distribution mismatch remains larger than acceleration mismatch.",
+    "No claim of arbitrary-ADS counterfactual correctness is made."
+  ],
+  "artifacts": {
+    "checkpoint": "checkpoints/best_background_diffusion.pt",
+    "data_contract": "dataset_contract.json",
+    "training_summary": "training_summary.json",
+    "training_history": "training_history.json",
+    "training_curves": "training_curves.png",
+    "evaluation_summary": "evaluation_summary.json",
+    "evaluation_per_sequence": "evaluation_per_sequence.npz",
+    "testset_overview": "testset_constrained_reconstruction.png",
+    "rollout_profiles": "testset_selected_rollout_profiles.png",
+    "playback_manifest": "playbacks/playback_manifest.json",
+    "design_audit": "design_audit/README.md"
+  }
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Extract fixed-length natural highD local traffic segments."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,10 +12,13 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from process_highD.src.natural_evt_pipeline import build_natural_segments_dataset  # noqa: E402
+from process_highD.src.natural_evt_pipeline import (
+    build_natural_segments_dataset,
+)  # noqa: E402
 
-
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "highd_natural_evt.yaml"
+DEFAULT_CONFIG_PATH = (
+    Path(__file__).resolve().parent / "configs" / "highd_natural_evt.yaml"
+)
 
 
 def main() -> None:

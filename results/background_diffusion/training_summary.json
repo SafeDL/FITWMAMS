@@ -1,0 +1,28 @@
+{
+  "best_checkpoint": "checkpoints/best_background_diffusion.pt",
+  "best_epoch": 50,
+  "best_validation_loss": 0.06063814016199027,
+  "early_stopped": false,
+  "early_stopping_minimum_delta": 1e-05,
+  "early_stopping_patience": 6,
+  "ema_decay": 0.999,
+  "epochs": 50,
+  "experiment_scope": "full",
+  "full_training": true,
+  "lane_change_train_sequences": 3938,
+  "requested_epochs": 50,
+  "sampling": {
+    "epoch_training_samples": 72771,
+    "evt_tail_unique_sequences": 2194,
+    "lane_change_unique_sequences": 3938,
+    "sampling": "full_recording_level_train_split",
+    "unique_natural_sequences": 72771
+  },
+  "status": "complete",
+  "train_epoch_samples": 72771,
+  "train_sequences": 72771,
+  "validation_and_sampling_weights": "EMA weights",
+  "validation_sequences": 13133,
+  "warm_start_checkpoint": null,
+  "warm_start_epoch": null
+}

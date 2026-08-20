@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build the POT/GPD EVT model for highD natural equal-length segment risks."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,8 +14,9 @@ if str(ROOT) not in sys.path:
 
 from process_highD.src.natural_evt_pipeline import refit_natural_evt  # noqa: E402
 
-
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "highd_natural_evt.yaml"
+DEFAULT_CONFIG_PATH = (
+    Path(__file__).resolve().parent / "configs" / "highd_natural_evt.yaml"
+)
 
 
 def main() -> None:

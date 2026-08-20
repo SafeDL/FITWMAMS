@@ -21,13 +21,19 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 _ID_COLUMNS = [
-    "precedingId", "followingId",
-    "leftPrecedingId", "leftAlongsideId", "leftFollowingId",
-    "rightPrecedingId", "rightAlongsideId", "rightFollowingId",
+    "precedingId",
+    "followingId",
+    "leftPrecedingId",
+    "leftAlongsideId",
+    "leftFollowingId",
+    "rightPrecedingId",
+    "rightAlongsideId",
+    "rightFollowingId",
 ]
 
 
 # HighDRecording 核心类
+
 
 class HighDRecording:
     """封装单个 highD recording 的全部数据。
@@ -65,9 +71,7 @@ class HighDRecording:
         """返回指定车辆的完整轨迹 DataFrame。"""
         if vehicle_id not in self._vehicle_cache:
             try:
-                self._vehicle_cache[vehicle_id] = (
-                    self.tracks.loc[vehicle_id].copy()
-                )
+                self._vehicle_cache[vehicle_id] = self.tracks.loc[vehicle_id].copy()
             except KeyError:
                 raise KeyError(
                     f"Recording {self.recording_id}: 车辆 {vehicle_id} 不存在。"
@@ -99,6 +103,7 @@ class HighDRecording:
 
 
 # 公开加载函数
+
 
 def load_recording(raw_dir: str, recording_id: int) -> HighDRecording:
     """读取指定 recording_id 的 highD 三类 CSV 并构建 HighDRecording
@@ -161,7 +166,9 @@ def load_recording(raw_dir: str, recording_id: int) -> HighDRecording:
     if n_meta != n_tracks:
         logger.warning(
             "Recording %02d: tracksMeta 车辆数 (%d) != tracks 车辆数 (%d)",
-            recording_id, n_meta, n_tracks,
+            recording_id,
+            n_meta,
+            n_tracks,
         )
 
     recording = HighDRecording(

@@ -1,0 +1,70 @@
+# highD full natural-driving conditional normalizing flow.
+
+seed: 42
+device: auto
+
+paths:
+  highd_evt_config: "../../../process_highD/scripts/configs/highd_natural_evt.yaml"
+  raw_dir: "../../../highD_dataset/Matlab/data"
+  output_dir: "../../../results/highd_natural_driving_flow"
+
+dataset:
+  # Train on the one current, completeness-screened natural-driving dataset.
+  # EVT is only retained as the is_evt_tail label for stratified evaluation.
+  scope: full_clean_natural_driving
+  feature_mode: initial_observation
+  rebuild: false
+
+split:
+  group_by: recording
+  ratios: [0.70, 0.15, 0.15]
+  seed: 42
+
+model:
+  type: direct_scenario_condition_flow
+  transform_type: rq_spline
+  num_bins: 8
+  tail_bound: 4.0
+  num_layers: 6
+  hidden_features: 160
+  num_blocks: 2
+  dropout_probability: 0.02
+  use_residual_blocks: true
+  use_batch_norm: false
+  c0_flow:
+    num_bins: 8
+    tail_bound: 4.0
+    num_layers: 6
+    hidden_features: 160
+    num_blocks: 2
+    dropout_probability: 0.02
+    use_residual_blocks: true
+    use_batch_norm: false
+  constraint_flow:
+    num_bins: 8
+    tail_bound: 5.0
+    num_layers: 8
+    hidden_features: 256
+    num_blocks: 2
+    dropout_probability: 0.02
+    use_residual_blocks: true
+    use_batch_norm: false
+
+training:
+  defaults:
+    batch_size: 256
+    max_epochs: 100
+    patience: 12
+    minimum_delta: 0.0001
+    learning_rate: 0.0003
+    weight_decay: 0.000005
+    grad_clip: 5.0
+
+baselines:
+  enabled: true
+  seed: 42
+  gaussian:
+    ridge: 0.0001
+  gmm:
+    n_components: 8
+    reg_covar: 0.00001

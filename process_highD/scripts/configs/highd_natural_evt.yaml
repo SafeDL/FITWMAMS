@@ -2,7 +2,7 @@
 
 paths:
   raw_dir: "../../../highD_dataset/Matlab/data"
-  output_dir: "../../../results/highd_natural_evt"
+  output_dir: "../../../results/highd_natural_driving_evt"
 
 recordings:
   include: "all"
@@ -29,6 +29,18 @@ segments:
   require_ego_no_abnormal: true
   require_valid_ego_lane_full_window: true
   max_slot_longitudinal_distance_m: 150.0
+  # Every background vehicle present at C0 must remain observable and normal
+  # through the entire six-second window. This is the canonical data cohort,
+  # not a downstream model-specific filter.
+  require_stable_background_slots: true
+  # A natural window may contain no lane change. If a relevant vehicle changes
+  # lane, however, the window must contain stable pre-cross context, an adjacent
+  # lane crossing and enough post-cross context. Boundary-truncated lateral
+  # manoeuvres are rejected before EVT, Flow and world-model data are built.
+  require_complete_lateral_events: true
+  lateral_pre_cross_seconds: 1.0
+  lateral_post_cross_seconds: 2.0
+  lateral_stable_steps: 5
 
 risk:
   # Main EVT score: Safety-Envelope Intrusion Risk, R_SEI.
@@ -61,9 +73,9 @@ risk:
     exposure_weight: 0.15
 
 evt:
-  model_path: "../../../results/highd_natural_evt/evt/natural_evt_model.json"
-  summary_path: "../../../results/highd_natural_evt/evt/natural_evt_summary.json"
-  figure_dir: "../../../results/highd_natural_evt/evt/figures"
+  model_path: "../../../results/highd_natural_driving_evt/evt/natural_evt_model.json"
+  summary_path: "../../../results/highd_natural_driving_evt/evt/natural_evt_summary.json"
+  figure_dir: "../../../results/highd_natural_driving_evt/evt/figures"
   return_periods: [20, 50, 100, 500, 1000]
   min_exceedances: 200
   max_tail_fraction: 0.20

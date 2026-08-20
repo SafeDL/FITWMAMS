@@ -1,0 +1,62 @@
+{
+  "experiment_scope": "full_clean_natural_driving_flow",
+  "model": "direct_scenario_condition_flow",
+  "probability_factorization": "p(M) p(C0|M) p(K|C0,M)",
+  "samples": 96055,
+  "train_validation_test": [
+    72771,
+    13133,
+    10151
+  ],
+  "sampling_sources": {
+    "slot_mask": "training_empirical_categorical_pmf",
+    "c0": "conditional_rq_spline_maf",
+    "k": "conditional_rq_spline_maf"
+  },
+  "architecture": {
+    "c0_flow": {
+      "num_bins": 8,
+      "tail_bound": 4.0,
+      "num_layers": 6,
+      "hidden_features": 160,
+      "num_blocks": 2,
+      "dropout_probability": 0.02,
+      "use_residual_blocks": true,
+      "use_batch_norm": false
+    },
+    "k_flow": {
+      "num_bins": 8,
+      "tail_bound": 5.0,
+      "num_layers": 8,
+      "hidden_features": 256,
+      "num_blocks": 2,
+      "dropout_probability": 0.02,
+      "use_residual_blocks": true,
+      "use_batch_norm": false
+    }
+  },
+  "diffusion_condition": {
+    "dimension": 118,
+    "groups": {
+      "C0": 40,
+      "M": 6,
+      "K": 72
+    },
+    "knot_times_s": [
+      2.0,
+      4.0,
+      5.96
+    ],
+    "contract_changed": false
+  },
+  "all_quality_gates_passed": true,
+  "figures": [
+    "figures/c0_marginal_distributions.png",
+    "figures/c0_correlation_comparison.png",
+    "figures/k_marginal_distributions.png",
+    "figures/k_correlation_comparison.png",
+    "figures/k_nll_baselines.png",
+    "figures/mask_and_derived_mode_occupancy.png",
+    "figures/training_diagnostics.png"
+  ]
+}

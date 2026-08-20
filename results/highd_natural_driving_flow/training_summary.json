@@ -1,0 +1,14 @@
+{
+  "model": "direct_scenario_condition_flow",
+  "checkpoint": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt",
+  "dataset": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset.npz",
+  "num_samples": 96055,
+  "split_summary": {
+    "train": 72771,
+    "val": 13133,
+    "test": 10151
+  },
+  "best_val_joint_nll": 87.61407027799721,
+  "best_epoch": 53,
+  "epochs": 65
+}

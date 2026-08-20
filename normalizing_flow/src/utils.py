@@ -1,4 +1,5 @@
-"""Small utilities for the highD tail normalizing-flow module."""
+"""Small utilities for the highD natural-driving normalizing-flow module."""
+
 from __future__ import annotations
 
 import json
@@ -106,4 +107,3 @@ def repo_root_from_file(path: str | Path) -> Path:
         if (candidate / "process_highD").exists() and (candidate / "ref_code").exists():
             return candidate
     raise RuntimeError(f"Could not infer repository root from {path}")
-

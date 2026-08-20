@@ -13,7 +13,7 @@ from world_model.src.core.utils import file_sha256
 
 
 def test_shared_flow_start_decoder_and_report(tmp_path) -> None:
-    features = np.zeros((2, 76), np.float32)
+    features = np.zeros((2, 40), np.float32)
     features[:, :4] = ((20.0, 0.0, 0.0, 0.0), (22.0, 0.0, 0.0, 0.0))
     features[:, slot_feature_index("same_front", "rel_x_m")] = (15.0, 18.0)
     features[:, slot_feature_index("same_front", "rel_vx_mps")] = -3.0
@@ -21,7 +21,7 @@ def test_shared_flow_start_decoder_and_report(tmp_path) -> None:
     states, valid, anchor, anchor_valid = decode_flow_starts(starts)
     assert np.allclose(states[:, 1, 2], (17.0, 19.0))
     assert valid[:, :2].all() and not valid[:, 2:].any()
-    assert not anchor.any() and np.array_equal(anchor_valid, starts["slot_mask"])
+    assert not anchor.any() and not anchor_valid.any()
 
     checkpoint = tmp_path / "model.pt"
     checkpoint.write_bytes(b"shared-report")

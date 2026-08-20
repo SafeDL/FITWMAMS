@@ -8,7 +8,11 @@ from typing import Any
 
 import numpy as np
 
-from normalizing_flow.src.sampling import load_checkpoint_and_dataset, sample_tail_c0
+from normalizing_flow.src.sampling import (
+    load_checkpoint_and_dataset,
+    sample_scenarios,
+)
+from normalizing_flow.src.scenario import ScenarioBatch
 
 from .data import SPLIT_TO_INDEX
 from .initial_behavior_anchor import start_state_from_flow_feature
@@ -70,8 +74,8 @@ def decode_flow_starts(starts: dict[str, np.ndarray]) -> tuple[np.ndarray, np.nd
     """Decode sampled Flow rows for models that consume NumPy scene batches."""
     features = np.asarray(starts["features"], np.float32)
     slot_masks = np.asarray(starts["slot_mask"], bool)
-    if features.ndim != 2 or features.shape[1] != 76 or slot_masks.shape != (len(features), 6):
-        raise ValueError("Flow starts require features [batch, 76] and slot_mask [batch, 6]")
+    if features.ndim != 2 or features.shape[1] != 40 or slot_masks.shape != (len(features), 6):
+        raise ValueError("Flow starts require features [batch, 40] and slot_mask [batch, 6]")
     states = np.zeros((len(features), 7, 6), np.float32)
     valid = np.zeros((len(features), 7), bool)
     anchor = np.zeros((len(features), 6, 6), np.float32)
@@ -224,17 +228,20 @@ def load_flow_tail_starts(
     replay_scope: str = "held_out_test",
     sequence_cache_owner: Path | None = None,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], np.ndarray]:
-    """Draw Flow C0/B0 starts and match compatible reference ego replays.
+    """Draw direct Flow scenarios and match compatible ego replays.
 
-    Matching is exact for Flow's event structure (slot mask and primary risk
-    slot), uses the single highD straight-lane road cohort, and minimizes the
-    initial longitudinal ego-speed mismatch within that cohort.
+    ``primary_slot`` is computed from sampled C0 geometry for legacy world
+    consumers; it is not stored in or conditioned by the Flow.
     """
     device = select_device("auto") if device is None else device
-    flow_checkpoint = repo_root / "results/highd_tail_flow/checkpoints/best_tail_conditional_maf.pt"
-    flow_schema_path = repo_root / "results/highd_tail_flow/dataset_schema.json"
+    flow_checkpoint = (
+        repo_root
+        / "results/highd_natural_driving_flow/checkpoints/"
+        "best_scenario_condition_flow.pt"
+    )
+    flow_schema_path = repo_root / "results/highd_natural_driving_flow/dataset_schema.json"
     flow, flow_arrays, flow_schema, _ = load_checkpoint_and_dataset(
-        flow_checkpoint, repo_root / "results/highd_tail_flow", repo_root=repo_root, device=device
+        flow_checkpoint, repo_root / "results/highd_natural_driving_flow", repo_root=repo_root, device=device
     )
     flow_checkpoint_sha256 = file_sha256(flow_checkpoint)
     flow_schema_sha256 = file_sha256(flow_schema_path)
@@ -242,7 +249,7 @@ def load_flow_tail_starts(
     # raw-150-state cache explicitly, so its 5.96 s protocol cannot read a
     # different model's replay cache.
     cache_owner = sequence_cache_owner or (
-        repo_root / "results/highd_world_model/training_data/semi_markov_sequence_cache"
+        repo_root / "results/highd_shared_training_data/semi_markov_sequence_cache"
     )
     cache, _ = load_sequential_dataset(cache_owner)
     if replay_scope == "held_out_test":
@@ -255,56 +262,66 @@ def load_flow_tail_starts(
     else:
         raise ValueError("replay_scope must be 'held_out_test' or 'all_evt_tail'")
     groups = _event_groups(cache, reference_rows)
-    trained = np.flatnonzero(np.asarray(flow_arrays["split_index"]) == SPLIT_TO_INDEX["train"])
-    supported = {(int(flow_arrays["mask_pattern"][row]), int(flow_arrays["primary_slot_index"][row])) for row in trained}
+    draws = sample_scenarios(
+        flow,
+        max(len(reference_rows) * OUTER_FLOW_SAMPLES * 2, 256),
+        FLOW_COMPOSITION_SEED,
+    )
+    patterns = np.sum(draws.slot_mask * (1 << np.arange(6)), axis=1).astype(np.int64)
+    primary = np.full(len(patterns), -1, np.int64)
+    for index, (feature, mask) in enumerate(zip(draws.c0, draws.slot_mask)):
+        if mask[0]:
+            primary[index] = 0
+        elif mask.any():
+            candidates = np.flatnonzero(mask)
+            gaps = [abs(float(feature[4 + 6 * slot])) for slot in candidates]
+            primary[index] = int(candidates[int(np.argmin(gaps))])
     pieces: dict[str, list[np.ndarray]] = defaultdict(list)
     donors: list[np.ndarray] = []
-    sample_fields = (
-        "features",
-        "features_normalized",
-        "feature_valid",
-        "contexts",
-        "event_structure",
-        "slot_mask",
-        "mask_pattern",
-        "primary_slot_index",
-        "primary_slot_name",
-        "event_structure_id",
-        "event_structure_log_prob",
-        "conditional_log_prob",
-        "log_prob",
-    )
     for offset, (key, rows) in enumerate(sorted(groups.items())):
-        if key not in supported:
+        available = np.flatnonzero((patterns == key[0]) & (primary == key[1]))
+        requested = len(rows) * OUTER_FLOW_SAMPLES
+        if not len(available):
             continue
-        sampling_seed = FLOW_COMPOSITION_SEED + 1009 * offset
-        sampled = sample_tail_c0(
-            flow, flow_arrays, flow_schema, num_samples=len(rows) * OUTER_FLOW_SAMPLES,
-            device=device, seed=sampling_seed,
-            mask_pattern=key[0], primary_slot=key[1], event_structure_split="train",
-            event_structure_sampling="quota", reject_invalid=True, max_rounds=80,
-            oversample_factor=1, min_draw=1, temperature=1.0295,
+        selected = np.resize(available, requested)
+        scenario = {
+            "c0": draws.c0[selected],
+            "slot_mask": draws.slot_mask[selected],
+            "trajectory_constraint": draws.trajectory_constraint[selected],
+            "trajectory_constraint_valid": (
+                draws.trajectory_constraint_valid[selected]
+            ),
+            "c0_normalized_reference": (
+                draws.c0_normalized_reference[selected]
+            ),
+            "constraint_normalized_reference": (
+                draws.constraint_normalized_reference[selected]
+            ),
+        }
+        probability = flow.log_prob(ScenarioBatch(**scenario))
+        pieces["features"].append(scenario["c0"])
+        pieces["slot_mask"].append(scenario["slot_mask"])
+        pieces["mask_pattern"].append(patterns[selected])
+        pieces["primary_slot_index"].append(primary[selected])
+        pieces["primary_slot_name"].append(
+            np.asarray([flow_schema["slot_names"][item] for item in primary[selected]])
         )
-        sample_count = len(sampled["features"])
-        for name in sample_fields:
-            pieces[name].append(np.asarray(sampled[name]))
+        pieces["event_structure_log_prob"].append(probability["mask_log_prob"])
+        pieces["conditional_log_prob"].append(
+            probability["c0_log_prob"] + probability["k_log_prob"]
+        )
+        pieces["log_prob"].append(probability["joint_log_prob"])
+        sample_count = len(selected)
         audit_values = {
             "flow_checkpoint_sha256": flow_checkpoint_sha256,
             "flow_schema_sha256": flow_schema_sha256,
-            "sampling_seed": np.int64(sampling_seed),
-            "sampling_temperature": np.float32(1.0295),
-            "sampling_event_structure": "quota",
-            "sampling_reject_invalid": True,
-            "sampling_max_rounds": np.int64(80),
-            "sampling_oversample_factor": np.int64(1),
-            "sampling_min_draw": np.int64(1),
-            "sampling_num_rejected": np.int64(sampled["num_rejected"][0]),
-            "sampling_rejection_rate": np.float32(sampled["rejection_rate"][0]),
+            "sampling_seed": np.int64(FLOW_COMPOSITION_SEED),
+            "sampling_contract": "direct_scenario_condition_flow",
         }
         for name, value in audit_values.items():
             pieces[name].append(np.full(sample_count, value))
         matched_rows, matched_speed, speed_error = _match_reference_replays(
-            cache, rows, np.asarray(sampled["features"], np.float32)
+            cache, rows, np.asarray(scenario["c0"], np.float32)
         )
         donors.append(matched_rows)
         pieces["matched_replay_ego_vx_mps"].append(matched_speed)

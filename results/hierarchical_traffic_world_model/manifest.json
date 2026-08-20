@@ -1,0 +1,21 @@
+{
+  "artifacts": {
+    "evaluation": "evaluation.json",
+    "full_training": "full_training_manifest.json",
+    "natural_response": "natural_response_calibration.json",
+    "randomness_ablation": "randomness_ablation.json",
+    "report": "experiment_report.md",
+    "sampling": "sampling_hierarchy_evaluation.json",
+    "training": "training_summary.json",
+    "visualization": "visualization_manifest.json"
+  },
+  "checkpoint_sha256": "0006c36be617c63bcf1babc7cea1dc4d89764e947118aa37355871b1611a5ebf",
+  "experiment_scope": "full",
+  "selected_checkpoint": "checkpoints/best_hierarchical_world_model.pt",
+  "three_objective_gates_passed": false,
+  "train_validation_test": [
+    72771,
+    13133,
+    10151
+  ]
+}

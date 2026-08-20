@@ -1,0 +1,66 @@
+paths:
+  output_dir: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model
+  sequence_cache_dir: /home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache
+  source_schema: /home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset_schema.json
+  flow_output_dir: /home/hp/FITWMAMS/results/highd_natural_driving_flow
+  flow_checkpoint: /home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
+  diffusion_checkpoint: /home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt
+  diffusion_contract: /home/hp/FITWMAMS/results/background_diffusion/dataset_contract.json
+
+model:
+  hidden_dim: 128
+  num_heads: 4
+  relation_layers: 2
+  temporal_layers: 1
+  decoder_layers: 2
+  dropout: 0.1
+  scene_latent_dim: 16
+  agent_latent_dim: 16
+  scene_refresh_responses: 25
+  scene_noise_scale: 0.17
+  agent_noise_scale: 0.06
+  agent_noise_correlation: 0.999
+  jerk_knots: 5
+  execute_frames: 1
+  use_soft_plan: true
+  stochastic_latents: true
+  min_acceleration_std_mps2: 0.015
+  min_yaw_rate_std_rps: 0.0002
+  initial_acceleration_std_mps2: 0.20
+  initial_yaw_rate_std_rps: 0.01
+  stochastic_longitudinal_jerk_mps3: 0.60
+  stochastic_yaw_acceleration_rps2: 0.006
+  velocity_rebase_horizon_s: 0.40
+  soft_anchor_final_weight: 0.50
+  causal_response_min_gain: 1.00
+  causal_response_max_gain: 1.40
+  causal_response_initial_gain: 1.10
+  causal_response_scale: 4.0
+  max_residual_jerk_mps3: 2.0
+  max_residual_yaw_acceleration_rps2: 0.2
+  locality_weight: 1.0
+  monotonicity_weight: 10.0
+  response_strength_weight: 100.0
+  energy_weight: 1.0
+  closed_loop_factual_weight: 10.0
+
+training:
+  experiment_scope: full
+  seed: 20260814
+  device: auto
+  epochs: 50
+  patience: 6
+  batch_size: 64
+  validation_batch_size: 128
+  num_workers: 0
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  selection_factual_weight: 0.02
+  selection_jerk_weight: 0.002
+  selection_energy_weight: 1.0
+  factual_ade_tolerance_m: 0.02
+  factual_fde_tolerance_m: 0.06
+  factual_p95_tolerance_m: 0.10
+  intervention_interval: 4
+  intervention_sequences: 8

@@ -1,0 +1,110 @@
+{
+  "cohort": {
+    "background_slot_stability_required": true,
+    "canonical_sequences": 96055,
+    "cohort": "canonical_cleaned_full_horizon_background_slots",
+    "splits": {
+      "test": {
+        "sequences": 10151
+      },
+      "train": {
+        "sequences": 72771
+      },
+      "val": {
+        "sequences": 13133
+      }
+    }
+  },
+  "condition": "shared 40-D C0, slot mask and 2s/4s/end state knots",
+  "condition_dim": 118,
+  "condition_mode": "c0_long_horizon_state_knots",
+  "constraint_agents": 6,
+  "dt_s": 0.04,
+  "ego_future_in_condition": false,
+  "horizon_steps": 149,
+  "motion_basis": {
+    "name": "savitzky_golay_cubic",
+    "polyorder": 3,
+    "window_frames": 41
+  },
+  "motion_seed_controls_diffusion_noise": true,
+  "name": "highd_joint_background_trajectory_diffusion",
+  "position_residual": {
+    "count": 30684613,
+    "layout": "local_dx_dy_left",
+    "mean": [
+      0.00041079940274357796,
+      -8.695792530488688e-06
+    ],
+    "std": [
+      0.03488634526729584,
+      0.007640252821147442
+    ]
+  },
+  "sequence_manifest_sha256": "53907afd8d1dde7171cebea9acd0fb8522ae8c56b205cba6791149812b44a101",
+  "state_mean": [
+    94.58167266845703,
+    -0.43463677167892456,
+    25.826148986816406,
+    -0.007408520206809044,
+    -0.016723623499274254,
+    -0.0003734768833965063
+  ],
+  "state_std": [
+    69.75149536132812,
+    2.6450741291046143,
+    8.084223747253418,
+    0.13437913358211517,
+    0.36163297295570374,
+    0.0619252473115921
+  ],
+  "target": "149-frame joint six-background smooth position residual",
+  "target_dim": 12,
+  "target_representation": "smooth_reference_relative_dx_dy_residual",
+  "trajectory_constraint": {
+    "count": 205937,
+    "feature_names": [
+      "dx_m_2s",
+      "dy_left_m_2s",
+      "dvx_mps_2s",
+      "dvy_left_mps_2s",
+      "dx_m_4s",
+      "dy_left_m_4s",
+      "dvx_mps_4s",
+      "dvy_left_mps_4s",
+      "dx_m_end",
+      "dy_left_m_end",
+      "dvx_mps_end",
+      "dvy_left_mps_end"
+    ],
+    "mean": [
+      50.284446716308594,
+      -0.011861979961395264,
+      -0.0434182770550251,
+      -0.0010419205063953996,
+      100.4691390991211,
+      -0.030329130589962006,
+      -0.086701899766922,
+      -0.003664615796878934,
+      149.59632873535156,
+      -0.047542352229356766,
+      -0.09433010965585709,
+      -0.001370564685203135
+    ],
+    "std": [
+      16.153493881225586,
+      0.250204861164093,
+      0.6978132724761963,
+      0.13398292660713196,
+      32.235923767089844,
+      0.4571656584739685,
+      1.3127998113632202,
+      0.16725005209445953,
+      47.96858215332031,
+      0.5775865912437439,
+      1.8217933177947998,
+      0.18278668820858002
+    ]
+  },
+  "trajectory_reference": "piecewise_cubic_hermite_2s_4s_end"
+}

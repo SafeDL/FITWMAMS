@@ -1,23 +1,12 @@
-"""Hierarchical Interaction Query-Refine World Model (HiQR-WM)."""
+"""Shared HiQR components used by the hierarchical traffic model."""
 
-from .config import HiQRWorldModelConfig
-from .environment import (
-    BatchedHiQRWorldModelEnvironment,
-    BatchedHiQRWorldSnapshot,
-    HiQRFlowStartMetadata,
-    HiQRWorldModelEnvironment,
-    HiQRWorldRandomness,
-    HiQRWorldSnapshot,
-)
-from .model import HierarchicalInteractionQueryRefineWorldModel
+from .config import HiQRConfig
+from .encoder import UnifiedRelationalQueryEncoder
+from .filter import FilterState, ObservedHierarchicalInteractionFilter
 
 __all__ = (
-    "HiQRWorldModelConfig",
-    "HierarchicalInteractionQueryRefineWorldModel",
-    "HiQRWorldModelEnvironment",
-    "BatchedHiQRWorldModelEnvironment",
-    "HiQRWorldSnapshot",
-    "BatchedHiQRWorldSnapshot",
-    "HiQRWorldRandomness",
-    "HiQRFlowStartMetadata",
+    "FilterState",
+    "HiQRConfig",
+    "ObservedHierarchicalInteractionFilter",
+    "UnifiedRelationalQueryEncoder",
 )

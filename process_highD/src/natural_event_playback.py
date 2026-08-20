@@ -1,4 +1,5 @@
 """GIF playback for selected highD natural tail segments."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +21,6 @@ from process_highD.src.io_utils import ensure_dir, load_config, resolve_data_pat
 from process_highD.src.loader import HighDRecording
 from process_highD.src.natural_segments import SLOT_NAMES
 from process_highD.src.preprocess import prepare_recording
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +87,14 @@ def _slot_vehicle_ids(row: pd.Series) -> dict[int, str]:
     return out
 
 
+def _focus_vehicle(row: pd.Series) -> tuple[int, str]:
+    cutin_id = int(row.get("primary_cutin_target_id", -1))
+    if cutin_id > 0:
+        return cutin_id, "cut-in target"
+    peak_id = int(row.get("peak_neighbor_id", -1))
+    return peak_id, "risk target"
+
+
 def _lateral_sign(driving_direction: int) -> float:
     # highD image y increases downward.  Keep playback in an ego-left-positive
     # coordinate system after x has been normalized to forward-positive.
@@ -126,7 +134,9 @@ def _window_track_slice(
     end_frame: int,
 ) -> pd.DataFrame:
     frames = recording.tracks.index.get_level_values("frame")
-    return recording.tracks.loc[(frames >= int(start_frame)) & (frames <= int(end_frame))]
+    return recording.tracks.loc[
+        (frames >= int(start_frame)) & (frames <= int(end_frame))
+    ]
 
 
 def _vehicle_dimensions(
@@ -185,7 +195,9 @@ def _draw_vehicle(
         zorder=zorder,
     )
     rect.set_transform(
-        Affine2D().rotate(_vehicle_heading(row, lateral_sign=lateral_sign)).translate(
+        Affine2D()
+        .rotate(_vehicle_heading(row, lateral_sign=lateral_sign))
+        .translate(
             x,
             y,
         )
@@ -230,9 +242,7 @@ def _draw_vehicle_trail(
     except KeyError:
         return
     trail_start = max(int(start_frame), int(frame_id) - int(trail_frames))
-    window = track.loc[
-        (track.index >= trail_start) & (track.index <= int(frame_id))
-    ]
+    window = track.loc[(track.index >= trail_start) & (track.index <= int(frame_id))]
     if len(window) < 2 or "x" not in window or "y" not in window:
         return
     xs = pd.to_numeric(window["x"], errors="coerce").to_numpy(dtype=np.float64)
@@ -295,11 +305,12 @@ def _draw_frame(
     slot_ids = _slot_vehicle_ids(row)
     peak_neighbor_id = int(row.get("peak_neighbor_id", -1))
     peak_slot_name = str(row.get("peak_slot_name", "") or "")
+    focus_vehicle_id, focus_label = _focus_vehicle(row)
     frame = recording.get_frame(int(frame_id))
     ego = _vehicle_row(frame, ego_id)
     if ego is None:
         return
-    target = _vehicle_row(frame, peak_neighbor_id) if peak_neighbor_id > 0 else None
+    target = _vehicle_row(frame, focus_vehicle_id) if focus_vehicle_id > 0 else None
     if target is not None:
         center_x = 0.5 * (float(ego["x"]) + float(target["x"])) - float(origin_x)
     else:
@@ -316,7 +327,9 @@ def _draw_frame(
     )
     visible = frame.loc[in_view].copy()
     if len(visible) > int(options.max_background_vehicles):
-        distance = np.abs(pd.to_numeric(visible["x"], errors="coerce") - float(ego["x"]))
+        distance = np.abs(
+            pd.to_numeric(visible["x"], errors="coerce") - float(ego["x"])
+        )
         keep = np.argsort(distance.to_numpy())[: int(options.max_background_vehicles)]
         visible = visible.iloc[np.sort(keep)]
 
@@ -330,7 +343,7 @@ def _draw_frame(
 
     for (vehicle_id, _frame), vehicle in visible.iterrows():
         vid = int(vehicle_id)
-        if vid == ego_id or vid in slot_ids:
+        if vid == ego_id or vid in slot_ids or vid == focus_vehicle_id:
             continue
         _draw_vehicle(
             ax,
@@ -346,7 +359,7 @@ def _draw_frame(
         )
 
     for vid, slot in slot_ids.items():
-        if vid == peak_neighbor_id:
+        if vid == focus_vehicle_id:
             continue
         vehicle = _vehicle_row(frame, vid)
         if vehicle is None:
@@ -378,11 +391,11 @@ def _draw_frame(
             label=SLOT_LABELS.get(slot, slot.replace("_", " ")),
         )
 
-    if peak_neighbor_id > 0 and target is not None:
+    if focus_vehicle_id > 0 and target is not None:
         _draw_vehicle_trail(
             ax,
             recording=recording,
-            vehicle_id=peak_neighbor_id,
+            vehicle_id=focus_vehicle_id,
             frame_id=frame_id,
             start_frame=int(row["window_start_frame"]),
             origin_x=origin_x,
@@ -396,14 +409,14 @@ def _draw_frame(
             ax,
             recording=recording,
             row=target,
-            vehicle_id=peak_neighbor_id,
+            vehicle_id=focus_vehicle_id,
             origin_x=origin_x,
             origin_y=origin_y,
             lateral_sign=lateral_sign,
             color=TARGET_COLOR,
             alpha=0.95,
             zorder=5,
-            label="target",
+            label=focus_label,
         )
 
     _draw_vehicle_trail(
@@ -452,16 +465,19 @@ def _draw_frame(
         if peak_neighbor_id > 0 and peak_slot_name
         else "peak=n/a"
     )
+    semantic_text = (
+        f"lane changes={int(row.get('num_lane_changes', 0))}, "
+        f"strict cut-ins={int(row.get('num_strict_cutins', 0))}"
+    )
     ax.set_xlim(*x_limits)
     transformed_y_limits = [
-        float(lateral_sign) * (float(value) - float(origin_y))
-        for value in y_limits
+        float(lateral_sign) * (float(value) - float(origin_y)) for value in y_limits
     ]
     ax.set_ylim(min(transformed_y_limits), max(transformed_y_limits))
     ax.set_aspect("equal", adjustable="box")
     ax.set_title(
         f"{row['segment_id']} | rec {int(row['recording_id']):02d} | "
-        f"t={elapsed:.2f}s | {risk_text} | {peak_text}",
+        f"t={elapsed:.2f}s | {semantic_text} | {risk_text} | {peak_text}",
         fontsize=9,
     )
     ax.set_xlabel("x [m]")
@@ -477,6 +493,29 @@ def _draw_frame(
             va="top",
             fontsize=8,
             color="#b91c1c",
+            fontweight="bold",
+            bbox={
+                "facecolor": "white",
+                "alpha": 0.78,
+                "edgecolor": "none",
+                "pad": 2.0,
+            },
+        )
+    crossing_frame = int(row.get("primary_cutin_cross_frame", -1))
+    if (
+        crossing_frame > 0
+        and abs(int(frame_id) - crossing_frame)
+        <= max(int(options.frame_stride), 1) // 2
+    ):
+        ax.text(
+            0.01,
+            0.84,
+            "strict cut-in crossing",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=8,
+            color="#1d4ed8",
             fontweight="bold",
             bbox={
                 "facecolor": "white",
@@ -529,9 +568,9 @@ def render_natural_tail_event_gif(
     )
     slot_ids = _slot_vehicle_ids(segment_row)
     focus_ids = {int(segment_row["ego_id"]), *slot_ids.keys()}
-    peak_neighbor_id = int(segment_row.get("peak_neighbor_id", -1))
-    if peak_neighbor_id > 0:
-        focus_ids.add(peak_neighbor_id)
+    focus_vehicle_id, _focus_label = _focus_vehicle(segment_row)
+    if focus_vehicle_id > 0:
+        focus_ids.add(focus_vehicle_id)
     y_limits = _focused_y_limits(
         frame_slice=window_slice,
         focus_ids=focus_ids,
@@ -559,7 +598,16 @@ def render_natural_tail_event_gif(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=options.figsize, dpi=int(options.dpi))
     fig.subplots_adjust(left=0.065, right=0.965, bottom=0.18, top=0.83)
-    duration_ms = max(int(round(1000.0 / max(float(options.fps), 1.0e-6))), 1)
+    duration_ms = max(
+        int(
+            round(
+                1000.0
+                * max(int(options.frame_stride), 1)
+                / max(float(options.fps), 1.0e-6)
+            )
+        ),
+        1,
+    )
     with imageio.get_writer(output_path, mode="I", duration=duration_ms) as writer:
         for frame_id in frames:
             _draw_frame(
@@ -594,7 +642,9 @@ def render_natural_tail_events(
     options: NaturalPlaybackOptions | None = None,
 ) -> list[Path]:
     if not tail_contexts_csv.exists():
-        raise FileNotFoundError(f"Natural tail contexts CSV not found: {tail_contexts_csv}")
+        raise FileNotFoundError(
+            f"Natural tail contexts CSV not found: {tail_contexts_csv}"
+        )
     contexts = pd.read_csv(tail_contexts_csv)
     if contexts.empty:
         raise RuntimeError(f"Natural tail contexts CSV is empty: {tail_contexts_csv}")

@@ -4,13 +4,13 @@ Pairwise safety distances define a dynamic safety ellipse.  Positive ellipse
 intrusion is kept as raw severity, and a trajectory score combines peak
 severity with linear exposure.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-
 
 SEI_COMPONENT_NAMES = (
     "sei_instant",
@@ -62,19 +62,15 @@ class SafetyEnvelopeRiskOptions:
                 cfg.get("prediction_use_acceleration", False)
             ),
             acceleration_clip_mps2=float(cfg.get("acceleration_clip_mps2", 3.0)),
-            longitudinal_mode=str(
-                cfg.get("longitudinal_mode", "calibrated_headway")
-            ).strip().lower(),
+            longitudinal_mode=str(cfg.get("longitudinal_mode", "calibrated_headway"))
+            .strip()
+            .lower(),
             longitudinal_time_gap_seconds=float(
                 cfg.get("longitudinal_time_gap_seconds", 0.7)
             ),
-            longitudinal_min_margin_m=float(
-                cfg.get("longitudinal_min_margin_m", 1.0)
-            ),
+            longitudinal_min_margin_m=float(cfg.get("longitudinal_min_margin_m", 1.0)),
             longitudinal_brake_mps2=float(cfg.get("longitudinal_brake_mps2", 4.0)),
-            rss_response_time_seconds=float(
-                cfg.get("rss_response_time_seconds", 0.75)
-            ),
+            rss_response_time_seconds=float(cfg.get("rss_response_time_seconds", 0.75)),
             rss_accel_max_mps2=float(cfg.get("rss_accel_max_mps2", 2.0)),
             rss_brake_min_mps2=float(cfg.get("rss_brake_min_mps2", 4.0)),
             rss_brake_max_mps2=float(cfg.get("rss_brake_max_mps2", 8.0)),
@@ -121,12 +117,13 @@ def smoothmax_axis(
     beta_value = _positive(beta)
     scaled = np.where(finite, beta_value * arr, -np.inf)
     max_scaled = np.max(scaled, axis=axis, keepdims=True)
-    all_empty = ~np.isfinite(max_scaled)
     safe_max_scaled = np.where(np.isfinite(max_scaled), max_scaled, 0.0)
     stable = np.where(finite, scaled - safe_max_scaled, -np.inf)
     total = np.sum(np.where(finite, np.exp(stable), 0.0), axis=axis)
     max_flat = np.squeeze(max_scaled, axis=axis)
-    out = (max_flat + np.log(np.maximum(total, 1.0e-300)) - np.log(np.maximum(count, 1))) / beta_value
+    out = (
+        max_flat + np.log(np.maximum(total, 1.0e-300)) - np.log(np.maximum(count, 1))
+    ) / beta_value
     out = np.where(count > 0, out, float(empty_value))
     return out.astype(np.float32)
 
@@ -177,16 +174,14 @@ def _longitudinal_safe_clearance(
         )
     elif mode in {"approach", "relative"}:
         brake = _positive(options.longitudinal_brake_mps2)
-        dynamic = (
-            max(float(options.rss_response_time_seconds), 0.0) * closing
-            + np.square(closing) / (2.0 * brake)
-        )
+        dynamic = max(
+            float(options.rss_response_time_seconds), 0.0
+        ) * closing + np.square(closing) / (2.0 * brake)
     elif mode in {"calibrated_headway", "headway", "rss_headway"}:
         brake = _positive(options.longitudinal_brake_mps2)
-        dynamic = (
-            max(float(options.longitudinal_time_gap_seconds), 0.0) * follower_speed
-            + np.square(closing) / (2.0 * brake)
-        )
+        dynamic = max(
+            float(options.longitudinal_time_gap_seconds), 0.0
+        ) * follower_speed + np.square(closing) / (2.0 * brake)
     else:
         raise ValueError(f"unknown safety_envelope.longitudinal_mode: {mode!r}")
     return dynamic + max(float(options.longitudinal_min_margin_m), 0.0)
@@ -201,10 +196,9 @@ def _lateral_safe_clearance(
     sign_dy = np.where(dy_pred >= 0.0, 1.0, -1.0)
     lateral_closing = np.maximum(-sign_dy * rel_vy_pred, 0.0)
     brake = _positive(options.lateral_brake_mps2)
-    dynamic = (
-        max(float(options.lateral_response_time_seconds), 0.0) * lateral_closing
-        + np.square(lateral_closing) / (2.0 * brake)
-    )
+    dynamic = max(
+        float(options.lateral_response_time_seconds), 0.0
+    ) * lateral_closing + np.square(lateral_closing) / (2.0 * brake)
     return dynamic + max(float(options.lateral_min_margin_m), 0.0)
 
 
@@ -239,8 +233,12 @@ def pairwise_safety_envelope_intrusion(
     tau = _prediction_offsets(options).astype(np.float64)
     dx = np.asarray(other_x, dtype=np.float64) - np.asarray(ego_x, dtype=np.float64)
     dy = np.asarray(other_y, dtype=np.float64) - np.asarray(ego_y, dtype=np.float64)
-    rel_vx = np.asarray(other_vx, dtype=np.float64) - np.asarray(ego_vx, dtype=np.float64)
-    rel_vy = np.asarray(other_vy, dtype=np.float64) - np.asarray(ego_vy, dtype=np.float64)
+    rel_vx = np.asarray(other_vx, dtype=np.float64) - np.asarray(
+        ego_vx, dtype=np.float64
+    )
+    rel_vy = np.asarray(other_vy, dtype=np.float64) - np.asarray(
+        ego_vy, dtype=np.float64
+    )
 
     if bool(options.prediction_use_acceleration):
         clip = _positive(options.acceleration_clip_mps2)
@@ -259,12 +257,26 @@ def pairwise_safety_envelope_intrusion(
         rel_ay = np.zeros(n, dtype=np.float64)
 
     tau_2d = tau.reshape(1, -1)
-    dx_pred = dx.reshape(-1, 1) + rel_vx.reshape(-1, 1) * tau_2d + 0.5 * rel_ax.reshape(-1, 1) * tau_2d * tau_2d
-    dy_pred = dy.reshape(-1, 1) + rel_vy.reshape(-1, 1) * tau_2d + 0.5 * rel_ay.reshape(-1, 1) * tau_2d * tau_2d
+    dx_pred = (
+        dx.reshape(-1, 1)
+        + rel_vx.reshape(-1, 1) * tau_2d
+        + 0.5 * rel_ax.reshape(-1, 1) * tau_2d * tau_2d
+    )
+    dy_pred = (
+        dy.reshape(-1, 1)
+        + rel_vy.reshape(-1, 1) * tau_2d
+        + 0.5 * rel_ay.reshape(-1, 1) * tau_2d * tau_2d
+    )
     rel_vx_pred = rel_vx.reshape(-1, 1) + rel_ax.reshape(-1, 1) * tau_2d
     rel_vy_pred = rel_vy.reshape(-1, 1) + rel_ay.reshape(-1, 1) * tau_2d
-    ego_vx_pred = np.asarray(ego_vx, dtype=np.float64).reshape(-1, 1) + ego_ax_arr.reshape(-1, 1) * tau_2d
-    other_vx_pred = np.asarray(other_vx, dtype=np.float64).reshape(-1, 1) + other_ax_arr.reshape(-1, 1) * tau_2d
+    ego_vx_pred = (
+        np.asarray(ego_vx, dtype=np.float64).reshape(-1, 1)
+        + ego_ax_arr.reshape(-1, 1) * tau_2d
+    )
+    other_vx_pred = (
+        np.asarray(other_vx, dtype=np.float64).reshape(-1, 1)
+        + other_ax_arr.reshape(-1, 1) * tau_2d
+    )
 
     half_length = 0.5 * (float(ego_length) + float(other_length))
     half_width = 0.5 * (float(ego_width) + float(other_width))

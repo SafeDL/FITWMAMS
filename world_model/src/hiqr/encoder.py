@@ -7,7 +7,7 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-from .config import HiQRWorldModelConfig
+from .config import HiQRConfig
 
 
 def _safe_padding_mask(valid: torch.Tensor) -> torch.Tensor:
@@ -89,7 +89,7 @@ class UnifiedRelationalQueryEncoder(nn.Module):
     relation_feature_dim = 9
     lane_feature_dim = 6
 
-    def __init__(self, cfg: HiQRWorldModelConfig) -> None:
+    def __init__(self, cfg: HiQRConfig) -> None:
         super().__init__()
         self.cfg = cfg
         h = int(cfg.hidden_dim)

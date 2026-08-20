@@ -1,0 +1,622 @@
+{
+  "candidates": [
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031272538006305695,
+        "FDE_m": 0.017172634601593018,
+        "P50_displacement_error_m": 0.0225784033536911,
+        "P90_displacement_error_m": 0.06224778667092323,
+        "P95_displacement_error_m": 0.08332477509975433,
+        "P99_displacement_error_m": 0.15669659748673423,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.03106185607612133
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.1491648107767105,
+          "direction_success_rate": 0.723404255319149,
+          "dose_monotonicity_rate": 0.46808510638297873,
+          "far_response_magnitude": 0.0019602130632847548,
+          "locality_ratio_far_to_near": 0.17394821345806122,
+          "near_longitudinal_action_wasserstein": 0.0013413638030365933,
+          "near_response_magnitude": 0.011268946342170238,
+          "response_distribution_wasserstein_mps2": 0.15040365864644298,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.014184397163120567,
+          "signed_follower_speed_response_mps": 0.0010574827902019024,
+          "strong_to_mild_response_ratio": 1.4920449256896973
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.10845792293548584,
+          "direction_success_rate": 0.8014184397163121,
+          "dose_monotonicity_rate": 0.6453900709219859,
+          "far_response_magnitude": 0.002491688122972846,
+          "locality_ratio_far_to_near": 0.17094291746616364,
+          "near_longitudinal_action_wasserstein": 0.0014575542657663202,
+          "near_response_magnitude": 0.01457614079117775,
+          "response_distribution_wasserstein_mps2": 0.22453628667485429,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0024140134919434786,
+          "strong_to_mild_response_ratio": 1.4982969760894775
+        }
+      },
+      "scale": 1.0,
+      "selection_wasserstein": 0.37493994532129726
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.03126196563243866,
+        "FDE_m": 0.01715679094195366,
+        "P50_displacement_error_m": 0.02257284615188837,
+        "P90_displacement_error_m": 0.062214747071266174,
+        "P95_displacement_error_m": 0.0833202674984932,
+        "P99_displacement_error_m": 0.15670753195881823,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031060228124260902
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.11555090546607971,
+          "direction_success_rate": 0.7021276595744681,
+          "dose_monotonicity_rate": 0.46808510638297873,
+          "far_response_magnitude": 0.0019780988804996014,
+          "locality_ratio_far_to_near": 0.16432081162929535,
+          "near_longitudinal_action_wasserstein": 0.0015134766450396382,
+          "near_response_magnitude": 0.012038030661642551,
+          "response_distribution_wasserstein_mps2": 0.1503007627649891,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.014184397163120567,
+          "signed_follower_speed_response_mps": 0.0011735063744708896,
+          "strong_to_mild_response_ratio": 1.504504680633545
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.09489944577217102,
+          "direction_success_rate": 0.8014184397163121,
+          "dose_monotonicity_rate": 0.6453900709219859,
+          "far_response_magnitude": 0.002506277756765485,
+          "locality_ratio_far_to_near": 0.1597287803888321,
+          "near_longitudinal_action_wasserstein": 0.0015864768357801836,
+          "near_response_magnitude": 0.01569083333015442,
+          "response_distribution_wasserstein_mps2": 0.2243881301117396,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0025546837132424116,
+          "strong_to_mild_response_ratio": 1.5268980264663696
+        }
+      },
+      "scale": 1.25,
+      "selection_wasserstein": 0.3746888928767287
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.03125418722629547,
+        "FDE_m": 0.017141828313469887,
+        "P50_displacement_error_m": 0.022574879229068756,
+        "P90_displacement_error_m": 0.06218062713742256,
+        "P95_displacement_error_m": 0.08328689076006413,
+        "P99_displacement_error_m": 0.15648846179246848,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.0310615636408329
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.08939163386821747,
+          "direction_success_rate": 0.75177304964539,
+          "dose_monotonicity_rate": 0.49645390070921985,
+          "far_response_magnitude": 0.001975726569071412,
+          "locality_ratio_far_to_near": 0.1544879972934723,
+          "near_longitudinal_action_wasserstein": 0.001592678515145684,
+          "near_response_magnitude": 0.012788867577910423,
+          "response_distribution_wasserstein_mps2": 0.15016820769174113,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.028368794326241134,
+          "signed_follower_speed_response_mps": 0.001225261832587421,
+          "strong_to_mild_response_ratio": 1.5287196636199951
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.09542518854141235,
+          "direction_success_rate": 0.8085106382978723,
+          "dose_monotonicity_rate": 0.6312056737588653,
+          "far_response_magnitude": 0.0025337678380310535,
+          "locality_ratio_far_to_near": 0.151549831032753,
+          "near_longitudinal_action_wasserstein": 0.0017179844571677434,
+          "near_response_magnitude": 0.016719041392207146,
+          "response_distribution_wasserstein_mps2": 0.22437787555054498,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0025958202313631773,
+          "strong_to_mild_response_ratio": 1.560303807258606
+        }
+      },
+      "scale": 1.5,
+      "selection_wasserstein": 0.3745460832422861
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031245365738868713,
+        "FDE_m": 0.01712978258728981,
+        "P50_displacement_error_m": 0.02257208712399006,
+        "P90_displacement_error_m": 0.06217210926115513,
+        "P95_displacement_error_m": 0.0832888763397932,
+        "P99_displacement_error_m": 0.15633453726768487,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.03105894848704338
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.09309074282646179,
+          "direction_success_rate": 0.7588652482269503,
+          "dose_monotonicity_rate": 0.49645390070921985,
+          "far_response_magnitude": 0.0019953344017267227,
+          "locality_ratio_far_to_near": 0.147233784198761,
+          "near_longitudinal_action_wasserstein": 0.0016120673827686638,
+          "near_response_magnitude": 0.013552150689065456,
+          "response_distribution_wasserstein_mps2": 0.14997049582687352,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.03546099290780142,
+          "signed_follower_speed_response_mps": 0.0014080561231821775,
+          "strong_to_mild_response_ratio": 1.5513850450515747
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07618606090545654,
+          "direction_success_rate": 0.8865248226950354,
+          "dose_monotonicity_rate": 0.6950354609929078,
+          "far_response_magnitude": 0.002566457260400057,
+          "locality_ratio_far_to_near": 0.14316679537296295,
+          "near_longitudinal_action_wasserstein": 0.0018820348726821935,
+          "near_response_magnitude": 0.017926344648003578,
+          "response_distribution_wasserstein_mps2": 0.2241988017330503,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.002828286960721016,
+          "strong_to_mild_response_ratio": 1.5747710466384888
+        }
+      },
+      "scale": 1.75,
+      "selection_wasserstein": 0.3741692975599238
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031238608062267303,
+        "FDE_m": 0.017118792980909348,
+        "P50_displacement_error_m": 0.022565587423741817,
+        "P90_displacement_error_m": 0.06214697100222111,
+        "P95_displacement_error_m": 0.08326843939721584,
+        "P99_displacement_error_m": 0.1564916774630546,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031061246991157532
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.06989549845457077,
+          "direction_success_rate": 0.7801418439716312,
+          "dose_monotonicity_rate": 0.5035460992907801,
+          "far_response_magnitude": 0.0020003532990813255,
+          "locality_ratio_far_to_near": 0.1395275890827179,
+          "near_longitudinal_action_wasserstein": 0.0018162038107904976,
+          "near_response_magnitude": 0.01433661486953497,
+          "response_distribution_wasserstein_mps2": 0.14999708228687025,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0425531914893617,
+          "signed_follower_speed_response_mps": 0.0013810826931148767,
+          "strong_to_mild_response_ratio": 1.5643534660339355
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.08318758010864258,
+          "direction_success_rate": 0.8652482269503546,
+          "dose_monotonicity_rate": 0.6453900709219859,
+          "far_response_magnitude": 0.002598282415419817,
+          "locality_ratio_far_to_near": 0.13692769408226013,
+          "near_longitudinal_action_wasserstein": 0.0020435476692593183,
+          "near_response_magnitude": 0.018975580111145973,
+          "response_distribution_wasserstein_mps2": 0.22408135896977197,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0029236001428216696,
+          "strong_to_mild_response_ratio": 1.5986188650131226
+        }
+      },
+      "scale": 2.0,
+      "selection_wasserstein": 0.37407844125664225
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.03122418001294136,
+        "FDE_m": 0.017091423273086548,
+        "P50_displacement_error_m": 0.022564557380974293,
+        "P90_displacement_error_m": 0.06210040859878063,
+        "P95_displacement_error_m": 0.08325809426605701,
+        "P99_displacement_error_m": 0.15642324015498088,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031060805544257164
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07903596758842468,
+          "direction_success_rate": 0.7730496453900709,
+          "dose_monotonicity_rate": 0.5390070921985816,
+          "far_response_magnitude": 0.0020698709413409233,
+          "locality_ratio_far_to_near": 0.13055351376533508,
+          "near_longitudinal_action_wasserstein": 0.0019666506984394308,
+          "near_response_magnitude": 0.015854578465223312,
+          "response_distribution_wasserstein_mps2": 0.14983175407230026,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.03546099290780142,
+          "signed_follower_speed_response_mps": 0.0016102215740829706,
+          "strong_to_mild_response_ratio": 1.6047288179397583
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07709059119224548,
+          "direction_success_rate": 0.8297872340425532,
+          "dose_monotonicity_rate": 0.6737588652482269,
+          "far_response_magnitude": 0.0026552025228738785,
+          "locality_ratio_far_to_near": 0.12529632449150085,
+          "near_longitudinal_action_wasserstein": 0.0022935621549927676,
+          "near_response_magnitude": 0.02119138464331627,
+          "response_distribution_wasserstein_mps2": 0.22396018082076524,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0031084101647138596,
+          "strong_to_mild_response_ratio": 1.6348865032196045
+        }
+      },
+      "scale": 2.5,
+      "selection_wasserstein": 0.3737919348930655
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.03120816871523857,
+        "FDE_m": 0.01707284525036812,
+        "P50_displacement_error_m": 0.02255390305072069,
+        "P90_displacement_error_m": 0.06206190772354603,
+        "P95_displacement_error_m": 0.08321649953722954,
+        "P99_displacement_error_m": 0.15635517314076414,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031059207394719124
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.08453750610351562,
+          "direction_success_rate": 0.7801418439716312,
+          "dose_monotonicity_rate": 0.5106382978723404,
+          "far_response_magnitude": 0.002092161448672414,
+          "locality_ratio_far_to_near": 0.11934070289134979,
+          "near_longitudinal_action_wasserstein": 0.0022779647249346504,
+          "near_response_magnitude": 0.01753099635243416,
+          "response_distribution_wasserstein_mps2": 0.14997370375584543,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.03546099290780142,
+          "signed_follower_speed_response_mps": 0.0015552331460639834,
+          "strong_to_mild_response_ratio": 1.6240510940551758
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.06065832078456879,
+          "direction_success_rate": 0.8581560283687943,
+          "dose_monotonicity_rate": 0.6737588652482269,
+          "far_response_magnitude": 0.0027062331791967154,
+          "locality_ratio_far_to_near": 0.11568325012922287,
+          "near_longitudinal_action_wasserstein": 0.0026087999390526483,
+          "near_response_magnitude": 0.023393474519252777,
+          "response_distribution_wasserstein_mps2": 0.2234341367284662,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.003398881759494543,
+          "strong_to_mild_response_ratio": 1.673190712928772
+        }
+      },
+      "scale": 3.0,
+      "selection_wasserstein": 0.37340784048431164
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031196700409054756,
+        "FDE_m": 0.01705987937748432,
+        "P50_displacement_error_m": 0.022545063868165016,
+        "P90_displacement_error_m": 0.06203966215252876,
+        "P95_displacement_error_m": 0.08320531621575356,
+        "P99_displacement_error_m": 0.15623282343149178,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031053796410560608
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.08911123871803284,
+          "direction_success_rate": 0.8014184397163121,
+          "dose_monotonicity_rate": 0.524822695035461,
+          "far_response_magnitude": 0.0021152349654585123,
+          "locality_ratio_far_to_near": 0.1157941073179245,
+          "near_longitudinal_action_wasserstein": 0.002325343886833563,
+          "near_response_magnitude": 0.018267206847667694,
+          "response_distribution_wasserstein_mps2": 0.149849458408981,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.028368794326241134,
+          "signed_follower_speed_response_mps": 0.0015478336717933416,
+          "strong_to_mild_response_ratio": 1.6337906122207642
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.0804058387875557,
+          "direction_success_rate": 0.8652482269503546,
+          "dose_monotonicity_rate": 0.6950354609929078,
+          "far_response_magnitude": 0.002745296573266387,
+          "locality_ratio_far_to_near": 0.11169441044330597,
+          "near_longitudinal_action_wasserstein": 0.002815856941006583,
+          "near_response_magnitude": 0.02457863837480545,
+          "response_distribution_wasserstein_mps2": 0.22355159373206432,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.003476799000054598,
+          "strong_to_mild_response_ratio": 1.679750680923462
+        }
+      },
+      "scale": 3.25,
+      "selection_wasserstein": 0.37340105214104535
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031192459166049957,
+        "FDE_m": 0.017044324427843094,
+        "P50_displacement_error_m": 0.02254018560051918,
+        "P90_displacement_error_m": 0.06202060170471668,
+        "P95_displacement_error_m": 0.08318685367703438,
+        "P99_displacement_error_m": 0.15619227662682533,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.03106071613729
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.08610115945339203,
+          "direction_success_rate": 0.7943262411347518,
+          "dose_monotonicity_rate": 0.5673758865248227,
+          "far_response_magnitude": 0.002132828813046217,
+          "locality_ratio_far_to_near": 0.11190544068813324,
+          "near_longitudinal_action_wasserstein": 0.002489472993297091,
+          "near_response_magnitude": 0.019059205427765846,
+          "response_distribution_wasserstein_mps2": 0.1498011289869396,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.02127659574468085,
+          "signed_follower_speed_response_mps": 0.0016352200182154775,
+          "strong_to_mild_response_ratio": 1.6425747871398926
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07977961748838425,
+          "direction_success_rate": 0.8794326241134752,
+          "dose_monotonicity_rate": 0.6666666666666666,
+          "far_response_magnitude": 0.002774622291326523,
+          "locality_ratio_far_to_near": 0.10785212367773056,
+          "near_longitudinal_action_wasserstein": 0.002950602450413938,
+          "near_response_magnitude": 0.02572617121040821,
+          "response_distribution_wasserstein_mps2": 0.22331827564737855,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0035661468282341957,
+          "strong_to_mild_response_ratio": 1.6908886432647705
+        }
+      },
+      "scale": 3.5,
+      "selection_wasserstein": 0.37311940463431814
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.031184105202555656,
+        "FDE_m": 0.017040353268384933,
+        "P50_displacement_error_m": 0.022537562996149063,
+        "P90_displacement_error_m": 0.06198292784392834,
+        "P95_displacement_error_m": 0.0831228606402874,
+        "P99_displacement_error_m": 0.1561773620545859,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.03105918876826763
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07671276479959488,
+          "direction_success_rate": 0.8297872340425532,
+          "dose_monotonicity_rate": 0.5460992907801419,
+          "far_response_magnitude": 0.002146173035725951,
+          "locality_ratio_far_to_near": 0.10837562382221222,
+          "near_longitudinal_action_wasserstein": 0.0026501620174540687,
+          "near_response_magnitude": 0.01980309747159481,
+          "response_distribution_wasserstein_mps2": 0.14968410607824303,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.028368794326241134,
+          "signed_follower_speed_response_mps": 0.001650898135267198,
+          "strong_to_mild_response_ratio": 1.6616530418395996
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.06252777576446533,
+          "direction_success_rate": 0.8723404255319149,
+          "dose_monotonicity_rate": 0.6950354609929078,
+          "far_response_magnitude": 0.002799341920763254,
+          "locality_ratio_far_to_near": 0.10476376861333847,
+          "near_longitudinal_action_wasserstein": 0.0031958155475073865,
+          "near_response_magnitude": 0.02672051638364792,
+          "response_distribution_wasserstein_mps2": 0.2232563928644273,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0036979836877435446,
+          "strong_to_mild_response_ratio": 1.7097443342208862
+        }
+      },
+      "scale": 3.75,
+      "selection_wasserstein": 0.37294049894267034
+    },
+    {
+      "diffusion": {
+        "ADE_m": 0.026756854727864265,
+        "FDE_m": 0.00031177038908936083,
+        "P95_displacement_error_m": 0.0749686136841774
+      },
+      "factual": {
+        "ADE_m": 0.03118157386779785,
+        "FDE_m": 0.017028579488396645,
+        "P50_displacement_error_m": 0.022538665682077408,
+        "P90_displacement_error_m": 0.06198241002857685,
+        "P95_displacement_error_m": 0.08310086838901043,
+        "P99_displacement_error_m": 0.15614688098430624,
+        "frames": 149,
+        "sequences": 512,
+        "speed_MAE_mps": 0.031061803922057152
+      },
+      "factual_gate_passed": true,
+      "intervention_gate_passed": false,
+      "interventions": {
+        "accelerate": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.0935661643743515,
+          "direction_success_rate": 0.7872340425531915,
+          "dose_monotonicity_rate": 0.49645390070921985,
+          "far_response_magnitude": 0.0021724102552980185,
+          "locality_ratio_far_to_near": 0.10594385117292404,
+          "near_longitudinal_action_wasserstein": 0.0027039834561624976,
+          "near_response_magnitude": 0.020505297929048538,
+          "response_distribution_wasserstein_mps2": 0.1495755760077183,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.03546099290780142,
+          "signed_follower_speed_response_mps": 0.0017959107644855976,
+          "strong_to_mild_response_ratio": 1.67592191696167
+        },
+        "brake": {
+          "committed_response_invariant": false,
+          "committed_response_max_change": 0.07902234047651291,
+          "direction_success_rate": 0.8794326241134752,
+          "dose_monotonicity_rate": 0.723404255319149,
+          "far_response_magnitude": 0.0028367890045046806,
+          "locality_ratio_far_to_near": 0.10182619839906693,
+          "near_longitudinal_action_wasserstein": 0.003445221193220623,
+          "near_response_magnitude": 0.027859127148985863,
+          "response_distribution_wasserstein_mps2": 0.22328319556120785,
+          "response_latency_s": 0.04,
+          "response_onset_frame_offset": 1,
+          "response_within_natural_p10_p90_rate": 0.0,
+          "signed_follower_speed_response_mps": 0.0037426913622766733,
+          "strong_to_mild_response_ratio": 1.7164751291275024
+        }
+      },
+      "scale": 4.0,
+      "selection_wasserstein": 0.37285877156892616
+    }
+  ],
+  "split": "validation",
+  "status": "failed"
+}

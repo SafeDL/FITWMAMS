@@ -1,0 +1,405 @@
+{
+  "any_candidate_passed": false,
+  "candidates": [
+    {
+      "agent_multiplier": 1.0,
+      "agent_noise_correlation": 0.995,
+      "distribution_degradation_fraction": {
+        "ax": 0.042775049842189494,
+        "speed": 0.007373455559978925
+      },
+      "energy_improvement_fraction": 0.021093564181318716,
+      "metrics": {
+        "angular_distribution": {
+          "yaw_acceleration": {
+            "KS": 0.5758915302766109,
+            "wasserstein": 0.05772883541824381
+          },
+          "yaw_rate": {
+            "KS": 0.10790165128225315,
+            "wasserstein": 0.001493891057924432
+          }
+        },
+        "energy_score_m": 0.02576046347975813,
+        "jerk_resolution_diagnostic": {
+          "raw_0p04s_highd_zero_mass": {
+            "jx": 0.6803915352302449,
+            "jy": 0.8242202980106206
+          },
+          "windowed_0p2s": {
+            "jx": {
+              "KS": 0.30610468160871385,
+              "wasserstein": 0.6904496987724916
+            },
+            "jy": {
+              "KS": 0.22297372486384587,
+              "wasserstein": 0.10317377130465599
+            }
+          }
+        },
+        "mean_pairwise_trajectory_distance_m": 0.043663851885889164,
+        "min_ADE_m": 0.03351157979177148,
+        "min_FDE_m": 0.029623759981829305,
+        "motion_distribution": {
+          "ax": {
+            "KS": 0.06289117085555718,
+            "wasserstein": 0.124288462486386
+          },
+          "ay": {
+            "KS": 0.11786051683756815,
+            "wasserstein": 0.04226697891821912
+          },
+          "jx": {
+            "KS": 0.4707110198541651,
+            "wasserstein": 6.024128436153091
+          },
+          "jy": {
+            "KS": 0.5834681134580327,
+            "wasserstein": 1.6462065474852878
+          },
+          "speed": {
+            "KS": 0.0015545351217303993,
+            "wasserstein": 0.004846295958209673
+          }
+        },
+        "risk_distribution": {
+          "TTC_s": {
+            "KS": 0.002042720353198444,
+            "wasserstein": 0.003582462821721582
+          },
+          "gap_m": {
+            "KS": 0.004040216919491024,
+            "wasserstein": 0.12625676715944084
+          }
+        },
+        "sample_mean_ADE_m": 0.04759238942270271,
+        "sample_mean_FDE_m": 0.05643644784802291,
+        "samples_per_condition": 16,
+        "terminal_pairwise_distance_m": 0.05536012014366362
+      },
+      "name": "yaw_0p003",
+      "passed": false,
+      "scene_multiplier": 1.0,
+      "stochastic_longitudinal_jerk_mps3": 0.6,
+      "stochastic_yaw_acceleration_rps2": 0.003
+    },
+    {
+      "agent_multiplier": 1.0,
+      "agent_noise_correlation": 0.995,
+      "distribution_degradation_fraction": {
+        "ax": 0.04336652746546843,
+        "speed": 0.007971303308084376
+      },
+      "energy_improvement_fraction": 0.025236941267399168,
+      "metrics": {
+        "angular_distribution": {
+          "yaw_acceleration": {
+            "KS": 0.5526379339383372,
+            "wasserstein": 0.058706973947095335
+          },
+          "yaw_rate": {
+            "KS": 0.10978615993229546,
+            "wasserstein": 0.0015155446469723992
+          }
+        },
+        "energy_score_m": 0.025651428223472807,
+        "jerk_resolution_diagnostic": {
+          "raw_0p04s_highd_zero_mass": {
+            "jx": 0.6803915352302449,
+            "jy": 0.8242202980106206
+          },
+          "windowed_0p2s": {
+            "jx": {
+              "KS": 0.305960672392124,
+              "wasserstein": 0.690475205067804
+            },
+            "jy": {
+              "KS": 0.23328511206535402,
+              "wasserstein": 0.11097513985475971
+            }
+          }
+        },
+        "mean_pairwise_trajectory_distance_m": 0.04447732977430377,
+        "min_ADE_m": 0.03344608824470933,
+        "min_FDE_m": 0.02850737662068544,
+        "motion_distribution": {
+          "ax": {
+            "KS": 0.06292684366942869,
+            "wasserstein": 0.12428687207498461
+          },
+          "ay": {
+            "KS": 0.11967367985986735,
+            "wasserstein": 0.04290684268155624
+          },
+          "jx": {
+            "KS": 0.4705859405960212,
+            "wasserstein": 6.024060174189872
+          },
+          "jy": {
+            "KS": 0.5606498177062693,
+            "wasserstein": 1.674516048004896
+          },
+          "speed": {
+            "KS": 0.0015554576945029375,
+            "wasserstein": 0.004845479759415623
+          }
+        },
+        "risk_distribution": {
+          "TTC_s": {
+            "KS": 0.0020395330155992715,
+            "wasserstein": 0.003598552468269688
+          },
+          "gap_m": {
+            "KS": 0.00403495699412848,
+            "wasserstein": 0.12610183300036976
+          }
+        },
+        "sample_mean_ADE_m": 0.04789009311062469,
+        "sample_mean_FDE_m": 0.05698383570275496,
+        "samples_per_condition": 16,
+        "terminal_pairwise_distance_m": 0.057403822794074695
+      },
+      "name": "yaw_0p006",
+      "passed": false,
+      "scene_multiplier": 1.0,
+      "stochastic_longitudinal_jerk_mps3": 0.6,
+      "stochastic_yaw_acceleration_rps2": 0.006
+    },
+    {
+      "agent_multiplier": 1.0,
+      "agent_noise_correlation": 0.995,
+      "distribution_degradation_fraction": {
+        "ax": 0.043784640957786225,
+        "speed": 0.008170585890780124
+      },
+      "energy_improvement_fraction": 0.028990926664755556,
+      "metrics": {
+        "angular_distribution": {
+          "yaw_acceleration": {
+            "KS": 0.5204318825790599,
+            "wasserstein": 0.060377258739626766
+          },
+          "yaw_rate": {
+            "KS": 0.11285217677970438,
+            "wasserstein": 0.0015529774723126214
+          }
+        },
+        "energy_score_m": 0.025552640024525817,
+        "jerk_resolution_diagnostic": {
+          "raw_0p04s_highd_zero_mass": {
+            "jx": 0.6803915352302449,
+            "jy": 0.8242202980106206
+          },
+          "windowed_0p2s": {
+            "jx": {
+              "KS": 0.3058526654796816,
+              "wasserstein": 0.6903962534612655
+            },
+            "jy": {
+              "KS": 0.24113361436950148,
+              "wasserstein": 0.12116527072485464
+            }
+          }
+        },
+        "mean_pairwise_trajectory_distance_m": 0.045666493021506833,
+        "min_ADE_m": 0.03353516622998604,
+        "min_FDE_m": 0.027793632711958102,
+        "motion_distribution": {
+          "ax": {
+            "KS": 0.06295206065854475,
+            "wasserstein": 0.12428711303540954
+          },
+          "ay": {
+            "KS": 0.12266558336121552,
+            "wasserstein": 0.044013625489762356
+          },
+          "jx": {
+            "KS": 0.47056457804945706,
+            "wasserstein": 6.023972618859586
+          },
+          "jy": {
+            "KS": 0.5285097115994293,
+            "wasserstein": 1.7229883364435292
+          },
+          "speed": {
+            "KS": 0.001555765218760441,
+            "wasserstein": 0.004844724398207003
+          }
+        },
+        "risk_distribution": {
+          "TTC_s": {
+            "KS": 0.002036565962233148,
+            "wasserstein": 0.0035976897767571797
+          },
+          "gap_m": {
+            "KS": 0.004036881813367477,
+            "wasserstein": 0.12575427373084427
+          }
+        },
+        "sample_mean_ADE_m": 0.048385886535279234,
+        "sample_mean_FDE_m": 0.05796755435629469,
+        "samples_per_condition": 16,
+        "terminal_pairwise_distance_m": 0.06019224554985521
+      },
+      "name": "yaw_0p009",
+      "passed": false,
+      "scene_multiplier": 1.0,
+      "stochastic_longitudinal_jerk_mps3": 0.6,
+      "stochastic_yaw_acceleration_rps2": 0.009
+    },
+    {
+      "agent_multiplier": 1.0,
+      "agent_noise_correlation": 0.995,
+      "distribution_degradation_fraction": {
+        "ax": 0.04313197599416796,
+        "speed": 0.008170585890780124
+      },
+      "energy_improvement_fraction": 0.030784975174095824,
+      "metrics": {
+        "angular_distribution": {
+          "yaw_acceleration": {
+            "KS": 0.48634004468177855,
+            "wasserstein": 0.06273253076157602
+          },
+          "yaw_rate": {
+            "KS": 0.11693548387096775,
+            "wasserstein": 0.0016073497519395882
+          }
+        },
+        "energy_score_m": 0.025505428647202382,
+        "jerk_resolution_diagnostic": {
+          "raw_0p04s_highd_zero_mass": {
+            "jx": 0.6803915352302449,
+            "jy": 0.8242202980106206
+          },
+          "windowed_0p2s": {
+            "jx": {
+              "KS": 0.30621596145789687,
+              "wasserstein": 0.6904594680820125
+            },
+            "jy": {
+              "KS": 0.24714272622538752,
+              "wasserstein": 0.13268639353769332
+            }
+          }
+        },
+        "mean_pairwise_trajectory_distance_m": 0.04713397237296441,
+        "min_ADE_m": 0.033835142841083424,
+        "min_FDE_m": 0.027906246843303964,
+        "motion_distribution": {
+          "ax": {
+            "KS": 0.06291269755358309,
+            "wasserstein": 0.12428733446877228
+          },
+          "ay": {
+            "KS": 0.12675934627723434,
+            "wasserstein": 0.04559173323951102
+          },
+          "jx": {
+            "KS": 0.4706735579971467,
+            "wasserstein": 6.024102604938602
+          },
+          "jy": {
+            "KS": 0.4941866009154316,
+            "wasserstein": 1.7913953327294212
+          },
+          "speed": {
+            "KS": 0.001555765218760441,
+            "wasserstein": 0.004844399676128389
+          }
+        },
+        "risk_distribution": {
+          "TTC_s": {
+            "KS": 0.002033461227098101,
+            "wasserstein": 0.0035760847857489926
+          },
+          "gap_m": {
+            "KS": 0.004032742166520775,
+            "wasserstein": 0.12568453496204254
+          }
+        },
+        "sample_mean_ADE_m": 0.04907241483368459,
+        "sample_mean_FDE_m": 0.05940466532778146,
+        "samples_per_condition": 16,
+        "terminal_pairwise_distance_m": 0.06350031286669505
+      },
+      "name": "yaw_0p012",
+      "passed": false,
+      "scene_multiplier": 1.0,
+      "stochastic_longitudinal_jerk_mps3": 0.6,
+      "stochastic_yaw_acceleration_rps2": 0.012
+    }
+  ],
+  "diffusion_only_baseline": {
+    "angular_distribution": {
+      "yaw_acceleration": {
+        "KS": 0.5837820500118887,
+        "wasserstein": 0.05736035152290401
+      },
+      "yaw_rate": {
+        "KS": 0.10709624525182546,
+        "wasserstein": 0.0014857778669652797
+      }
+    },
+    "energy_score_m": 0.02631555227054369,
+    "jerk_resolution_diagnostic": {
+      "raw_0p04s_highd_zero_mass": {
+        "jx": 0.6803915352302449,
+        "jy": 0.8242202980106206
+      },
+      "windowed_0p2s": {
+        "jx": {
+          "KS": 0.291319189882698,
+          "wasserstein": 0.6433097998412073
+        },
+        "jy": {
+          "KS": 0.21571598764139088,
+          "wasserstein": 0.09958900407146601
+        }
+      }
+    },
+    "mean_pairwise_trajectory_distance_m": 0.03302967855098517,
+    "min_ADE_m": 0.03238980440877094,
+    "min_FDE_m": 0.029826038261065453,
+    "motion_distribution": {
+      "ax": {
+        "KS": 0.060311349859276886,
+        "wasserstein": 0.1232362152455668
+      },
+      "ay": {
+        "KS": 0.11721071808144226,
+        "wasserstein": 0.04203395491341765
+      },
+      "jx": {
+        "KS": 0.46973112913133075,
+        "wasserstein": 5.792743460945968
+      },
+      "jy": {
+        "KS": 0.5911830887889356,
+        "wasserstein": 1.6356417574870492
+      },
+      "speed": {
+        "KS": 0.0015431567242024102,
+        "wasserstein": 0.004795635362317973
+      }
+    },
+    "risk_distribution": {
+      "TTC_s": {
+        "KS": 0.0020677786607292033,
+        "wasserstein": 0.0036291822365472452
+      },
+      "gap_m": {
+        "KS": 0.004023620934155314,
+        "wasserstein": 0.12636460588834939
+      }
+    },
+    "sample_mean_ADE_m": 0.042830391546036274,
+    "sample_mean_FDE_m": 0.04344272854416621,
+    "samples_per_condition": 16,
+    "terminal_pairwise_distance_m": 0.025862287678788554
+  },
+  "samples_per_condition": 16,
+  "selection_split": "validation",
+  "status": "diagnostic",
+  "validation_sequences": 512
+}

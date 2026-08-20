@@ -1,0 +1,18 @@
+paths:
+  output_dir: ../../../results/highd_shared_training_data/highd_sequence_cache
+  sequence_cache_dir: ../../../results/highd_shared_training_data/highd_sequence_cache
+  flow_schema: ../../../results/highd_natural_driving_flow/dataset_schema.json
+  highd_evt_config: ../../../process_highD/scripts/configs/highd_natural_evt.yaml
+
+dataset:
+  sequence_protocol: fixed_horizon_5p96
+  adapter: highd
+  max_sequences: 0
+
+graph:
+  lane_width_m: 3.6
+  top_r_lanes: 3
+  use_recording_lane_metadata: true
+
+split:
+  seed: 42

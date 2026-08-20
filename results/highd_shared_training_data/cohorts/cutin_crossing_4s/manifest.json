@@ -1,0 +1,41 @@
+{
+  "dt_s": 0.04,
+  "event_count": 998,
+  "event_split_counts": {
+    "test": 122,
+    "train": 736,
+    "val": 140
+  },
+  "evt_tail_events": 45,
+  "limitation": "Only the upstream primary cut-in is indexed per segment.",
+  "minimum_post_cross_steps": 50,
+  "missing_sequence_count": 0,
+  "name": "upstream_strict_cutin_crossing_4s",
+  "pre_cross_steps": [
+    15,
+    20,
+    25,
+    30,
+    35,
+    45,
+    50
+  ],
+  "selection": [
+    "consume upstream primary strict cut-in annotation",
+    "use upstream full-recording laneId and all-vehicle semantics",
+    "map the annotated target vehicle to one of six anchor slots",
+    "inherit canonical full-horizon background-slot stability"
+  ],
+  "source_sequence_manifest": "/home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache/sequence_cache/manifest.json",
+  "source_sequence_manifest_sha256": "53907afd8d1dde7171cebea9acd0fb8522ae8c56b205cba6791149812b44a101",
+  "storage": "index_only_no_trajectory_copy",
+  "unmodeled_target_count": 456,
+  "upstream_strict_segment_count": 1454,
+  "window_count": 4539,
+  "window_split_counts": {
+    "test": 567,
+    "train": 3336,
+    "val": 636
+  },
+  "window_steps": 100
+}

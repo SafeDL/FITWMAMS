@@ -1,4 +1,5 @@
 """Normalizing-flow model construction and checkpoint helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,7 +36,9 @@ def build_maf_flow(
     use_batch_norm = bool(model_cfg.get("use_batch_norm", False))
     transform_type = str(model_cfg.get("transform_type", "rq_spline")).lower()
     if transform_type != "rq_spline":
-        raise ValueError(f"Unsupported MAF transform_type={transform_type!r}; expected 'rq_spline'")
+        raise ValueError(
+            f"Unsupported MAF transform_type={transform_type!r}; expected 'rq_spline'"
+        )
     for _ in range(num_layers):
         layers.append(
             MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
@@ -76,7 +79,9 @@ def build_realnvp_flow(
         use_volume_preserving=bool(model_cfg.get("use_volume_preserving", False)),
         dropout_probability=float(model_cfg.get("dropout_probability", 0.0)),
         batch_norm_within_layers=bool(model_cfg.get("batch_norm_within_layers", False)),
-        batch_norm_between_layers=bool(model_cfg.get("batch_norm_between_layers", False)),
+        batch_norm_between_layers=bool(
+            model_cfg.get("batch_norm_between_layers", False)
+        ),
     )
 
 

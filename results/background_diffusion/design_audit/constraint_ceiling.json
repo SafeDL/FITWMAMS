@@ -1,0 +1,111 @@
+{
+  "conditions_use_future_ego": false,
+  "constraint_dimensions": {
+    "position_0p5s": 156,
+    "position_1s": 72,
+    "position_2s": 36
+  },
+  "experiment_scope": "held_out_constraint_ceiling_audit",
+  "historical_target": {
+    "ADE_m": 0.059,
+    "FDE_m": 0.103
+  },
+  "metrics": {
+    "logged_action_reintegration": {
+      "ADE_m": 0.07859325686274733,
+      "FDE_m": 0.1182897172126435,
+      "one_second_grid_MAE_m": 0.08012983379600416
+    },
+    "position_0p5s_cubic": {
+      "ADE_m": 0.011121082753990399,
+      "FDE_m": 1.0577348262871692e-20,
+      "one_second_grid_MAE_m": 0.011502464367702834
+    },
+    "position_0p5s_hermite": {
+      "ADE_m": 0.01070612207062291,
+      "FDE_m": 1.8514240955655306e-20,
+      "one_second_grid_MAE_m": 0.011193303193774392
+    },
+    "position_0p5s_linear": {
+      "ADE_m": 0.011941175560419022,
+      "FDE_m": 0.0,
+      "one_second_grid_MAE_m": 0.012515507528741381
+    },
+    "position_1s_cubic": {
+      "ADE_m": 0.01783126575913144,
+      "FDE_m": 6.014371938110614e-20,
+      "one_second_grid_MAE_m": 0.0
+    },
+    "position_1s_hermite": {
+      "ADE_m": 0.016559672685041393,
+      "FDE_m": 5.769863568340941e-20,
+      "one_second_grid_MAE_m": 0.0
+    },
+    "position_1s_linear": {
+      "ADE_m": 0.02804467947511733,
+      "FDE_m": 0.0,
+      "one_second_grid_MAE_m": 0.0
+    },
+    "position_2s_cubic": {
+      "ADE_m": 0.04357723789360687,
+      "FDE_m": 1.2575939813844984e-19,
+      "one_second_grid_MAE_m": 0.03718408476413006
+    },
+    "position_2s_hermite": {
+      "ADE_m": 0.026054571433923788,
+      "FDE_m": 1.5766451439579281e-19,
+      "one_second_grid_MAE_m": 0.02069724182439518
+    },
+    "position_2s_linear": {
+      "ADE_m": 0.08926728266011454,
+      "FDE_m": 0.0,
+      "one_second_grid_MAE_m": 0.07923400285237531
+    }
+  },
+  "recording_level_split": true,
+  "source_manifest": {
+    "adapter": "highd_straight_lane_v1",
+    "arrays": [
+      "sequence_id",
+      "agent_states",
+      "agent_valid",
+      "ego_index",
+      "map_polylines",
+      "map_polyline_valid",
+      "lane_graph_edges",
+      "actions_highd",
+      "split_index",
+      "is_evt_tail"
+    ],
+    "background_slot_stability_required": true,
+    "bounded_development_cache": false,
+    "cache_format": "highd_canonical_raw150",
+    "evt_tail_sequences": 2964,
+    "flow_schema": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset_schema.json",
+    "flow_schema_sha256": "a19e02eed30fa1436e854a3d750e0cdcbc5a1f9dc68aa9c0431cf71261649fd5",
+    "fps": 25.0,
+    "frames": 174,
+    "future_transition_frames": 149,
+    "history_frames": 25,
+    "lateral_event_integrity_required": true,
+    "num_sequences": 96055,
+    "raw_window_state_frames": 150,
+    "roll_seconds": 4.96,
+    "roll_transition_frames": 124,
+    "source_dataset": "/home/hp/FITWMAMS/results/highd_natural_driving_evt/natural_segments.csv",
+    "source_dataset_sha256": "0ba9d2f9e37d1133b2cd394e51f4102713f0f3186f37b9448439f6aa0e3bbc5d",
+    "split_source": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset.npz",
+    "split_summary": {
+      "test": 10151,
+      "train": 72771,
+      "val": 13133
+    },
+    "start_reconstruction_frames": 25,
+    "start_reconstruction_seconds": 1.0,
+    "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
+    "top_r_lanes": 3,
+    "total_rollout_seconds": 5.96,
+    "uses_recording_lane_metadata": true
+  },
+  "test_sequences": 10151
+}

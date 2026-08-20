@@ -1,0 +1,22 @@
+{
+  "event_fidelity": "figures/event_fidelity.png",
+  "experiment_scope": "full",
+  "factual_temporal_error": "figures/factual_temporal_error.png",
+  "highd_adapted_distribution_realism": "figures/highd_adapted_distribution_realism.png",
+  "intervention_dose_and_locality": "figures/intervention_dose_and_locality.png",
+  "natural_response_calibration": "figures/natural_response_calibration.png",
+  "playbacks": [
+    "playbacks/reconstruction_122.gif",
+    "playbacks/reconstruction_9270.gif",
+    "playbacks/reconstruction_15323.gif"
+  ],
+  "quality_diversity_tradeoff": "figures/quality_diversity_tradeoff.png",
+  "rows": [
+    122,
+    9270,
+    15323
+  ],
+  "three_objective_evaluation": "figures/three_objective_evaluation.png",
+  "training_diagnostics": "figures/training_diagnostics.png",
+  "trajectory_reconstruction": "figures/trajectory_reconstruction.png"
+}
