@@ -137,15 +137,61 @@ def load_checkpoint(
     model = DiffusionGuidedHiQR(WorldModelConfig(**payload["model_config"])).to(
         device
     )
-    incompatible = model.load_state_dict(payload["state_dict"], strict=False)
-    permitted = {"decoder.intervention_logit"}
-    missing = set(incompatible.missing_keys)
-    if missing - permitted or incompatible.unexpected_keys:
+    _load_compatible_state_dict(model, payload["state_dict"])
+    return model, payload
+
+
+def _load_compatible_state_dict(
+    model: DiffusionGuidedHiQR, state_dict: dict[str, Any]
+) -> None:
+    """Load E1 weights while allowing opt-in Stochastic Causal HiQR heads.
+
+    The new heads are strictly additive and inactive under their default
+    flags, so an older checkpoint remains the exact factual-control baseline
+    for a pilot.  Any missing core parameter is still a hard error.
+    """
+    permitted = {
+        "decoder.intervention_logit",
+        "response_sensitivity_bounds",
+    }
+    optional_prefixes = (
+        "decoder.response_field.",
+        "decoder.behavior_mode.",
+        "latent_transition.",
+    )
+    target = model.state_dict()
+    mismatched = {
+        name
+        for name, value in state_dict.items()
+        if name in target
+        and hasattr(value, "shape")
+        and tuple(value.shape) != tuple(target[name].shape)
+    }
+    unknown_mismatch = {
+        name
+        for name in mismatched
+        if name not in permitted and not name.startswith(optional_prefixes)
+    }
+    if unknown_mismatch:
         raise ValueError(
             "checkpoint is incompatible with the maintained response contract: "
-            f"missing={sorted(missing)}, unexpected={incompatible.unexpected_keys}"
+            f"shape_mismatch={sorted(unknown_mismatch)}"
         )
-    return model, payload
+    compatible_state = {
+        name: value for name, value in state_dict.items() if name not in mismatched
+    }
+    incompatible = model.load_state_dict(compatible_state, strict=False)
+    missing = set(incompatible.missing_keys)
+    unknown_missing = {
+        name
+        for name in missing
+        if name not in permitted and not name.startswith(optional_prefixes)
+    }
+    if unknown_missing or incompatible.unexpected_keys:
+        raise ValueError(
+            "checkpoint is incompatible with the maintained response contract: "
+            f"missing={sorted(unknown_missing)}, unexpected={incompatible.unexpected_keys}"
+        )
 
 
 def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
@@ -192,6 +238,7 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
                 30 if scope == "pilot" else 100,
             )
         ),
+        method=str(training.get("response_calibration_method", "exact")),
     )
     train_data = ResponseDataset(
         experiment.bundle,
@@ -246,7 +293,14 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
             model = loaded
         elif training.get("allow_model_config_override", False):
             model = DiffusionGuidedHiQR(cfg).to(device)
-            model.load_state_dict(loaded.state_dict())
+            initial_state = loaded.state_dict()
+            if training.get("preserve_intervention_adapter_initialization", False):
+                initial_state = {
+                    name: value
+                    for name, value in initial_state.items()
+                    if name != "decoder.intervention_logit"
+                }
+            _load_compatible_state_dict(model, initial_state)
         else:
             raise ValueError("initial checkpoint and requested model config differ")
     else:
@@ -254,7 +308,18 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
     model.set_matched_response_bounds(
         torch.from_numpy(response_calibrator.global_bounds).to(device)
     )
+    model.set_response_sensitivity_bounds(
+        torch.from_numpy(response_calibrator.global_sensitivity_bounds).to(device)
+    )
     adapter_only = bool(training.get("intervention_adapter_only", False))
+    stochastic_causal_heads_only = bool(
+        training.get("stochastic_causal_heads_only", False)
+    )
+    causal_response_field_only = bool(training.get("causal_response_field_only", False))
+    if sum((adapter_only, stochastic_causal_heads_only, causal_response_field_only)) > 1:
+        raise ValueError(
+            "the response-head-only training modes are mutually exclusive"
+        )
     if adapter_only:
         if not cfg.intervention_adapter_enabled:
             raise ValueError(
@@ -263,6 +328,47 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
         for parameter in model.parameters():
             parameter.requires_grad_(False)
         model.decoder.intervention_logit.requires_grad_(True)
+    elif stochastic_causal_heads_only:
+        if not (
+            cfg.graph_coupled_latent_enabled and cfg.behavior_mode_decoder_enabled
+        ):
+            raise ValueError(
+                "stochastic_causal_heads_only requires graph latent and "
+                "behavior-mode decoder"
+            )
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+        for name, parameter in model.named_parameters():
+            if name.startswith(
+                (
+                    "latent_transition.",
+                    "decoder.response_field.",
+                    "decoder.behavior_mode.",
+                )
+            ):
+                parameter.requires_grad_(True)
+            if (
+                name == "decoder.intervention_logit"
+                and cfg.causal_response_field_enabled
+            ):
+                parameter.requires_grad_(True)
+    elif causal_response_field_only:
+        if not (
+            cfg.causal_response_field_enabled and cfg.intervention_adapter_enabled
+        ):
+            raise ValueError(
+                "causal_response_field_only requires response field and intervention adapter"
+            )
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+        for name, parameter in model.named_parameters():
+            if name.startswith("decoder.response_field."):
+                parameter.requires_grad_(True)
+            if (
+                name == "decoder.intervention_logit"
+                and training.get("causal_response_field_train_adapter_logit", True)
+            ):
+                parameter.requires_grad_(True)
     save_json(response_report, output / "natural_response_calibration.json")
     closed_rows = experiment.validation_rows[:128]
     closed_states = np.asarray(
@@ -291,6 +397,9 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
     if factual_reference is not None:
         factual_reference.set_matched_response_bounds(
             torch.from_numpy(response_calibrator.global_bounds).to(device)
+        )
+        factual_reference.set_response_sensitivity_bounds(
+            torch.from_numpy(response_calibrator.global_sensitivity_bounds).to(device)
         )
         reference_batches = [
             rollout(
@@ -477,6 +586,8 @@ def train_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, 
         "older_history_mask_probability": 0.5,
         "frozen_diffusion_preview_training": True,
         "intervention_adapter_only": adapter_only,
+        "stochastic_causal_heads_only": stochastic_causal_heads_only,
+        "causal_response_field_only": causal_response_field_only,
         "diffusion_baseline_ADE_m": baseline_ade,
         "diffusion_baseline_FDE_m": baseline_fde,
         "diffusion_baseline_P95_m": baseline_p95,

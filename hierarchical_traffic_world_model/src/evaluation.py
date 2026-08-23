@@ -13,7 +13,7 @@ from scipy.stats import ks_2samp, wasserstein_distance
 
 from diffusion.src.data import ANCHOR_INDEX, semantic_cutin_agents, split_rows
 from world_model.src.core.dynamics import KinematicTrafficDynamics
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from world_model.src.core.utils import ensure_dir, load_json, save_json, select_device, set_seed
 
 from .data import ego_controls, prepare_experiment_data
 from .calibration import matched_response_calibration
@@ -115,9 +115,11 @@ def rollout(
     slow_scene = None
     slow_scene_noise = None
     agent_noise_state = None
+    agent_style_state = None
     previous_current = None
     committed_ego_controls = historical_ego
     intervention_memory = None
+    lateral_intervention_memory = None
     execute = model.cfg.execute_frames
     for start in range(0, 149, execute):
         count = min(execute, 149 - start)
@@ -169,8 +171,10 @@ def rollout(
             slow_scene=slow_scene,
             slow_scene_noise=slow_scene_noise,
             agent_noise_state=agent_noise_state,
+            agent_style_state=agent_style_state,
             committed_ego_controls=committed_ego_controls,
             intervention_memory=intervention_memory,
+            lateral_intervention_memory=lateral_intervention_memory,
             response_index=start // execute,
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
@@ -180,7 +184,9 @@ def rollout(
         slow_scene = response.slow_scene
         slow_scene_noise = response.slow_scene_noise
         agent_noise_state = response.agent_noise_state
+        agent_style_state = response.agent_style_state
         intervention_memory = response.intervention_memory
+        lateral_intervention_memory = response.lateral_intervention_memory
         previous_current = states
         new_frames: list[torch.Tensor] = []
         for frame in range(count):
@@ -813,6 +819,8 @@ def _intervention_metrics(
 
 
 def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
+    from .calibration import fit_natural_response_calibrator
+    from .data import split_rows
     from .model import DiffusionGuidedHiQR
     from .train import _model_config, load_checkpoint
 
@@ -843,6 +851,43 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
             model.decoder.intervention_logit.fill_(
                 float(evaluation["intervention_adapter_logit"])
             )
+    if model.cfg.natural_response_kernel_enabled:
+        # This optional controller is calibrated only on the training
+        # recording split.  In particular, a pilot must not fit it from its
+        # small held-out test cohort just because that cohort is convenient.
+        reference_path = config["paths"].get("response_calibration_reference")
+        if reference_path:
+            calibration = load_json(reference_path)
+            response_bounds = np.asarray(
+                [
+                    calibration[name]["effect_p10_p50_p90_mps2"][::2]
+                    for name in ("brake", "accelerate")
+                ],
+                np.float32,
+            )
+            sensitivity_bounds = np.asarray(
+                calibration["dose_sensitivity_p10_p90_per_mps2"], np.float32
+            )
+        else:
+            calibration_rows = split_rows(
+                experiment.bundle.arrays, "train", seed=seed
+            )
+            calibrator, _ = fit_natural_response_calibrator(
+                experiment.bundle.arrays,
+                calibration_rows,
+                minimum_events=int(
+                    config["training"].get("response_calibration_minimum_events", 100)
+                ),
+                method=str(
+                    config["training"].get("response_calibration_method", "exact")
+                ),
+            )
+            response_bounds = calibrator.global_bounds
+            sensitivity_bounds = calibrator.global_sensitivity_bounds
+        model.set_matched_response_bounds(torch.from_numpy(response_bounds).to(device))
+        model.set_response_sensitivity_bounds(
+            torch.from_numpy(sensitivity_bounds).to(device)
+        )
     model.eval()
     rows = experiment.test_rows
     states = np.asarray(experiment.bundle.arrays["agent_states"][rows], np.float32)
@@ -1124,6 +1169,9 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
             "causal_response_scale": float(model.cfg.causal_response_scale),
             "intervention_adapter_enabled": bool(
                 model.cfg.intervention_adapter_enabled
+            ),
+            "natural_response_kernel_enabled": bool(
+                model.cfg.natural_response_kernel_enabled
             ),
             "intervention_trigger_threshold_mps2": float(
                 model.cfg.intervention_trigger_threshold_mps2

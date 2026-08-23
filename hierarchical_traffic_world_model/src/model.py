@@ -22,6 +22,7 @@ from .reference import (
     response_relevance,
     soft_reference_controls,
 )
+from .stochastic import CausalInteractionResponseField, GraphCoupledLatentTransition
 
 
 @dataclass(frozen=True)
@@ -36,9 +37,13 @@ class ResponseDistribution:
     slow_scene: torch.Tensor
     slow_scene_noise: torch.Tensor
     agent_noise_state: torch.Tensor
+    agent_style_state: torch.Tensor
     agent_latent: torch.Tensor
+    agent_latent_log_prob: torch.Tensor
+    graph_latent_message: torch.Tensor
     intervention_trigger: torch.Tensor
     intervention_memory: torch.Tensor
+    lateral_intervention_memory: torch.Tensor
     scene_refreshed: bool
 
 
@@ -83,7 +88,17 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         # A zero-impact-on-natural-replay response adapter.  Its action
         # correction is gated by a causal, large ego-control deviation and is
         # the only trainable component in the intervention-only pilot.
-        self.intervention_logit = nn.Parameter(torch.tensor(0.0))
+        self.intervention_logit = nn.Parameter(
+            torch.tensor(float(cfg.intervention_adapter_initial_logit))
+        )
+        self.response_field = CausalInteractionResponseField(
+            hidden, cfg.agent_latent_dim
+        )
+        self.behavior_mode = nn.Sequential(
+            nn.Linear(cfg.agent_latent_dim, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, 2),
+        )
         nn.init.normal_(self.knot, std=0.02)
         nn.init.zeros_(self.residual_jerk.weight)
         nn.init.zeros_(self.residual_jerk.bias)
@@ -98,6 +113,8 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         )
         nn.init.orthogonal_(self.scene_innovation.weight)
         nn.init.orthogonal_(self.agent_innovation.weight)
+        nn.init.zeros_(self.behavior_mode[-1].weight)
+        nn.init.zeros_(self.behavior_mode[-1].bias)
 
     def forward(
         self,
@@ -112,10 +129,14 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         soft_actions: torch.Tensor,
         ego_acceleration: torch.Tensor,
         intervention_trigger: torch.Tensor,
+        lateral_intervention_trigger: torch.Tensor,
         relevance: torch.Tensor,
         scene_standard_normal: torch.Tensor,
         agent_standard_normal: torch.Tensor,
+        agent_style_state: torch.Tensor,
         stochastic: bool,
+        response_field_gain: torch.Tensor | None = None,
+        response_sensitivity_bounds: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         cfg = self.cfg
         batch, backgrounds = current.shape[0], current.shape[1] - 1
@@ -218,11 +239,89 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         sampled_actions = deterministic_actions + stochastic_residual.cumsum(
             dim=1
         ) * cfg.dt_s
+        if cfg.behavior_mode_decoder_enabled and stochastic:
+            # A behavior-state effect is constant over this one-second soft
+            # preview.  Unlike jitter, it therefore remains identifiable as
+            # a persistent driver-response branch across 25 Hz replans.
+            mode_limits = sampled_actions.new_tensor(
+                (
+                    cfg.behavior_mode_max_acceleration_mps2,
+                    cfg.behavior_mode_max_yaw_rate_rps,
+                )
+            )
+            mode = torch.tanh(self.behavior_mode(agent_style_state[:, 1:]))
+            sampled_actions = sampled_actions + mode[:, None] * mode_limits
 
         if cfg.intervention_adapter_enabled:
-            adapter_gain = cfg.intervention_adapter_max_gain * torch.sigmoid(
+            brake_limit = (
+                cfg.intervention_adapter_max_gain
+                if cfg.intervention_brake_adapter_max_gain is None
+                else cfg.intervention_brake_adapter_max_gain
+            )
+            accelerate_limit = (
+                cfg.intervention_adapter_max_gain
+                if cfg.intervention_accelerate_adapter_max_gain is None
+                else cfg.intervention_accelerate_adapter_max_gain
+            )
+            adapter_limit = torch.where(
+                intervention_trigger[:, None] < 0.0,
+                relevance.new_full((batch, 1), brake_limit),
+                relevance.new_full((batch, 1), accelerate_limit),
+            )
+            adapter_gain = adapter_limit[..., None] * torch.sigmoid(
                 self.intervention_logit
             )
+            if response_field_gain is not None:
+                adapter_gain = adapter_gain * response_field_gain[:, None]
+            if (
+                cfg.natural_response_kernel_enabled
+                and response_sensitivity_bounds is not None
+                and torch.isfinite(response_sensitivity_bounds).all()
+            ):
+                # A persistent behavior coordinate selects a natural-response
+                # quantile for each agent.  The gain is derived from the
+                # causal intervention memory and the 0.8 s exponential-kernel
+                # average, not from future ego state or a post-hoc clip.
+                kind = (intervention_trigger >= 0.0).long()
+                bounds = response_sensitivity_bounds.to(adapter_gain)[kind]
+                quantile = torch.sigmoid(agent_style_state[:, 1:, 0])
+                sensitivity = bounds[:, :1] + quantile * (
+                    bounds[:, 1:] - bounds[:, :1]
+                )
+                effective_ego_delta = (
+                    intervention_trigger.abs()
+                    + cfg.intervention_trigger_threshold_mps2
+                )
+                desired_effect = sensitivity * effective_ego_delta[:, None]
+                horizon = 20
+                decay = float(cfg.intervention_memory_decay)
+                kernel_average = (1.0 - decay**horizon) / (
+                    horizon * (1.0 - decay)
+                )
+                expected_effect = (
+                    intervention_trigger.abs()[:, None]
+                    * relevance
+                    * kernel_average
+                )
+                calibrated_gain = desired_effect / expected_effect.clamp_min(1.0e-4)
+                brake_limit = (
+                    cfg.natural_response_kernel_max_gain
+                    if cfg.natural_response_kernel_brake_max_gain is None
+                    else cfg.natural_response_kernel_brake_max_gain
+                )
+                accelerate_limit = (
+                    cfg.natural_response_kernel_max_gain
+                    if cfg.natural_response_kernel_accelerate_max_gain is None
+                    else cfg.natural_response_kernel_accelerate_max_gain
+                )
+                kernel_limit = torch.where(
+                    intervention_trigger[:, None] < 0.0,
+                    calibrated_gain.new_full(calibrated_gain.shape, brake_limit),
+                    calibrated_gain.new_full(calibrated_gain.shape, accelerate_limit),
+                )
+                adapter_gain = calibrated_gain.clamp(
+                    min=0.0
+                ).minimum(kernel_limit)[:, None, :]
             adjustment = (
                 intervention_trigger[:, None, None]
                 * relevance[:, None]
@@ -230,6 +329,33 @@ class DiffusionGuidedJerkDecoder(nn.Module):
             )
             correction = torch.zeros_like(deterministic_actions)
             correction[..., 0] = adjustment
+            if cfg.lateral_response_adapter_enabled:
+                # A left/right realized ego yaw change asks background cars to
+                # move away from the ego's current lateral side.  The signal
+                # is causal and relation-gated, unlike a shared lateral
+                # translation of the whole scene.
+                lateral_side = torch.sign(
+                    current[:, 1:, 1] - current[:, :1, 1]
+                )
+                lateral_side = torch.where(
+                    lateral_side == 0.0, torch.ones_like(lateral_side), lateral_side
+                )
+                # Normalize causal memory before bounding the response.  A
+                # short committed yaw step should yield a finite response
+                # that persists across response boundaries, while the bound
+                # retains the original action-space safety limit.
+                lateral_strength = (
+                    lateral_intervention_trigger.abs()
+                    / cfg.lateral_response_trigger_scale_rps
+                ).clamp(max=1.0)
+                lateral_adjustment = (
+                    -torch.sign(lateral_intervention_trigger)[:, None, None]
+                    * lateral_strength[:, None, None]
+                    * relevance[:, None]
+                    * lateral_side[:, None]
+                    * cfg.lateral_response_adapter_max_yaw_rate_rps
+                )
+                correction[..., 1] = correction[..., 1] + lateral_adjustment
             deterministic_actions = deterministic_actions + correction
             sampled_actions = sampled_actions + correction
 
@@ -275,6 +401,11 @@ class DiffusionGuidedHiQR(nn.Module):
             nn.LayerNorm(self.cfg.hidden_dim),
         )
         self.decoder = DiffusionGuidedJerkDecoder(self.cfg)
+        self.latent_transition = GraphCoupledLatentTransition(
+            self.cfg.agent_latent_dim,
+            self.cfg.hidden_dim,
+            self.cfg.latent_flow_persistence,
+        )
         initial_std = torch.tensor(
             (
                 self.cfg.initial_acceleration_std_mps2,
@@ -284,6 +415,9 @@ class DiffusionGuidedHiQR(nn.Module):
         self.log_std = nn.Parameter(initial_std.log())
         self.register_buffer(
             "matched_response_bounds", torch.full((2, 2), float("nan"))
+        )
+        self.register_buffer(
+            "response_sensitivity_bounds", torch.full((2, 2), float("nan"))
         )
         self.dynamics = KinematicTrafficDynamics(
             DynamicsConfig(
@@ -298,6 +432,15 @@ class DiffusionGuidedHiQR(nn.Module):
         if bounds.shape != (2, 2) or not torch.isfinite(bounds).all():
             raise ValueError("matched response bounds must be finite [2,2]")
         self.matched_response_bounds.copy_(bounds.to(self.matched_response_bounds))
+
+    def set_response_sensitivity_bounds(self, values: torch.Tensor) -> None:
+        """Install train-split P10/P90 response sensitivity per ego m/s²."""
+        bounds = torch.as_tensor(values, dtype=self.response_sensitivity_bounds.dtype)
+        if bounds.shape != (2, 2) or not torch.isfinite(bounds).all():
+            raise ValueError("response sensitivity bounds must be finite [2,2]")
+        self.response_sensitivity_bounds.copy_(
+            bounds.to(self.response_sensitivity_bounds)
+        )
 
     def _preview_context(
         self,
@@ -362,8 +505,10 @@ class DiffusionGuidedHiQR(nn.Module):
         slow_scene: torch.Tensor | None = None,
         slow_scene_noise: torch.Tensor | None = None,
         agent_noise_state: torch.Tensor | None = None,
+        agent_style_state: torch.Tensor | None = None,
         committed_ego_controls: torch.Tensor | None = None,
         intervention_memory: torch.Tensor | None = None,
+        lateral_intervention_memory: torch.Tensor | None = None,
         response_index: int = 0,
         scene_standard_normal: torch.Tensor | None = None,
         agent_standard_normal: torch.Tensor | None = None,
@@ -447,6 +592,30 @@ class DiffusionGuidedHiQR(nn.Module):
                 correlation * agent_noise_state.to(agent_mean)
                 + (1.0 - correlation**2) ** 0.5 * raw_agent_noise
             )
+        if self.cfg.graph_coupled_latent_enabled:
+            transition = self.latent_transition(
+                agent_noise_state,
+                raw_agent_noise,
+                conditioned_agents,
+                slow_scene,
+                current,
+                current_valid,
+            )
+            agent_noise = transition.state
+            agent_log_prob = transition.innovation_log_prob
+            graph_message = transition.graph_message
+        else:
+            agent_log_prob = raw_agent_noise.new_zeros(raw_agent_noise.shape[:2])
+            graph_message = raw_agent_noise.new_zeros(raw_agent_noise.shape)
+        # Style is a world-level exogenous variable: sample it once and retain
+        # it across response boundaries and counterfactual twins.  It must not
+        # be recomputed from post-intervention graph state, otherwise a shared
+        # random seed can still create a spurious branch difference.
+        if agent_style_state is None:
+            agent_style_state = raw_agent_noise
+        else:
+            agent_style_state = agent_style_state.to(agent_mean)
+        agent_style_state = agent_style_state * current_valid[..., None].float()
         agent_latent = agent_mean + (
             self.cfg.agent_noise_scale * agent_noise if stochastic else 0.0
         )
@@ -488,8 +657,23 @@ class DiffusionGuidedHiQR(nn.Module):
                 deviation = recent_controls[:, -1, 0] - recent_controls[
                     :, :-1, 0
                 ].mean(dim=1)
+                # Preserve evidence for a newly committed lateral command
+                # until the next response boundary.  A mean would dilute a
+                # 0.08 rad/s command to 0.016 after four committed frames;
+                # the sign-aware preceding-window extreme is a causal step
+                # detector and does not react to settled yaw by itself.
+                recent_yaw = recent_controls[:, :, 1]
+                latest_yaw = recent_yaw[:, -1]
+                preceding_yaw = recent_yaw[:, :-1]
+                reference_yaw = torch.where(
+                    latest_yaw >= 0.0,
+                    preceding_yaw.min(dim=1).values,
+                    preceding_yaw.max(dim=1).values,
+                )
+                lateral_deviation = latest_yaw - reference_yaw
             else:
                 deviation = torch.zeros_like(ego_control[:, 0])
+                lateral_deviation = torch.zeros_like(ego_control[:, 1])
         else:
             # A direct model call has no externally committed action buffer.
             # All rollout and simulation paths pass the buffer explicitly:
@@ -504,8 +688,12 @@ class DiffusionGuidedHiQR(nn.Module):
                     recent_ego[..., 4:6], recent_ego
                 )
                 deviation = ego_control[:, 0] - recent_controls[..., 0].mean(dim=1)
+                lateral_deviation = (
+                    ego_control[:, 1] - recent_controls[..., 1].mean(dim=1)
+                )
             else:
                 deviation = torch.zeros_like(ego_control[:, 0])
+                lateral_deviation = torch.zeros_like(ego_control[:, 1])
         intervention_trigger = torch.sign(deviation) * torch.relu(
             deviation.abs() - self.cfg.intervention_trigger_threshold_mps2
         )
@@ -517,6 +705,13 @@ class DiffusionGuidedHiQR(nn.Module):
         intervention_trigger = intervention_trigger * (
             ego_history_valid & current_valid[:, 0]
         ).to(intervention_trigger)
+        lateral_intervention_trigger = torch.sign(lateral_deviation) * torch.relu(
+            lateral_deviation.abs()
+            - self.cfg.lateral_intervention_trigger_threshold_rps
+        )
+        lateral_intervention_trigger = lateral_intervention_trigger * (
+            ego_history_valid & current_valid[:, 0]
+        ).to(lateral_intervention_trigger)
         if intervention_memory is None:
             intervention_memory = torch.zeros_like(intervention_trigger)
         else:
@@ -525,6 +720,26 @@ class DiffusionGuidedHiQR(nn.Module):
             self.cfg.intervention_memory_decay * intervention_memory
             + intervention_trigger
         ).clamp(-4.0, 4.0)
+        if lateral_intervention_memory is None:
+            lateral_intervention_memory = torch.zeros_like(lateral_intervention_trigger)
+        else:
+            lateral_intervention_memory = lateral_intervention_memory.to(
+                lateral_intervention_trigger
+            )
+        lateral_intervention_memory = (
+            self.cfg.lateral_intervention_memory_decay * lateral_intervention_memory
+            + lateral_intervention_trigger
+        ).clamp(-1.0, 1.0)
+        response_field_gain = None
+        if self.cfg.causal_response_field_enabled:
+            response_field_gain = self.decoder.response_field(
+                agents[:, 1:],
+                observed.agent_hidden[:, 1:],
+                preview_agents,
+                agent_latent[:, 1:],
+                graph_message[:, 1:],
+                intervention_memory,
+            )
         actions, mean, reference_actions = self.decoder(
             agents,
             preview_agents,
@@ -539,10 +754,14 @@ class DiffusionGuidedHiQR(nn.Module):
             # been integrated into ``current`` at the preceding boundary.
             ego_control[:, 0].clamp(-8.0, 8.0),
             intervention_memory,
+            lateral_intervention_memory,
             response_relevance(current, current_valid),
             slow_scene_noise,
             agent_noise,
+            agent_style_state,
             stochastic,
+            response_field_gain,
+            self.response_sensitivity_bounds,
         )
         mean = mean[:, : self.cfg.execute_frames]
         actions = actions[:, : self.cfg.execute_frames]
@@ -562,9 +781,13 @@ class DiffusionGuidedHiQR(nn.Module):
             slow_scene=slow_scene,
             slow_scene_noise=slow_scene_noise,
             agent_noise_state=agent_noise,
+            agent_style_state=agent_style_state,
             agent_latent=agent_latent,
+            agent_latent_log_prob=agent_log_prob,
+            graph_latent_message=graph_message,
             intervention_trigger=intervention_trigger,
             intervention_memory=intervention_memory,
+            lateral_intervention_memory=lateral_intervention_memory,
             scene_refreshed=refresh,
         )
 

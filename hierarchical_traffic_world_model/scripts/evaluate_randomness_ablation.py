@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import argparse
 from dataclasses import replace
 from pathlib import Path
 
@@ -29,9 +30,10 @@ from hierarchical_traffic_world_model.src.train import load_checkpoint  # noqa: 
 from world_model.src.core.dynamics import KinematicTrafficDynamics  # noqa: E402
 from world_model.src.core.utils import load_yaml, save_json, select_device  # noqa: E402
 
-CONFIG = ROOT / "hierarchical_traffic_world_model/configs/highd_hierarchical_world_model.yaml"
-OUTPUT = ROOT / "results/hierarchical_traffic_world_model"
-CHECKPOINT = OUTPUT / "checkpoints/best_hierarchical_world_model.pt"
+CONFIG = (
+    ROOT
+    / "hierarchical_traffic_world_model/configs/highd_stochastic_causal_hiqr_full.yaml"
+)
 SAMPLES = 16
 
 
@@ -40,12 +42,24 @@ def _relative_degradation(current: float, baseline: float) -> float:
 
 
 def main() -> None:
-    config = load_yaml(CONFIG)
+    parser = argparse.ArgumentParser(
+        description="Matched fixed-condition randomness ablation for a full model."
+    )
+    parser.add_argument("--config", type=Path, default=CONFIG)
+    parser.add_argument("--samples", type=int, default=SAMPLES)
+    parser.add_argument("--cohort-size", type=int, default=1024)
+    args = parser.parse_args()
+    config_path = args.config.resolve()
+    config = load_yaml(config_path)
     if config["training"].get("experiment_scope") != "full":
         raise ValueError("randomness evaluation requires the maintained full protocol")
+    output = Path(config["paths"]["output_dir"])
+    checkpoint = output / "checkpoints/best_hierarchical_world_model.pt"
+    if not checkpoint.exists():
+        raise FileNotFoundError(f"missing trained checkpoint: {checkpoint}")
     device = select_device(config["training"].get("device", "auto"))
-    experiment = prepare_experiment_data(config, CONFIG.parent)
-    rows = experiment.test_rows[:1024]
+    experiment = prepare_experiment_data(config, config_path.parent)
+    rows = experiment.test_rows[: int(args.cohort_size)]
     arrays = experiment.bundle.arrays
     states = np.asarray(arrays["agent_states"])[rows].astype(np.float32)
     valid = np.asarray(arrays["agent_valid"])[rows].astype(bool)
@@ -59,7 +73,7 @@ def main() -> None:
         torch.from_numpy(target_highd.copy()), torch.from_numpy(source.copy())
     ).numpy()
     seed = int(config["training"]["seed"])
-    motion_seeds = tuple(seed + sample for sample in range(SAMPLES))
+    motion_seeds = tuple(seed + sample for sample in range(int(args.samples)))
     with tempfile.TemporaryDirectory(prefix="hierarchical_randomness_") as cache:
         fixed_plan = frozen_diffusion_plans(
             experiment.bundle,
@@ -80,7 +94,7 @@ def main() -> None:
         ddim_steps=20,
         motion_seeds=motion_seeds,
     )
-    stochastic, _ = load_checkpoint(CHECKPOINT, device=device)
+    stochastic, _ = load_checkpoint(checkpoint, device=device)
     stochastic.cfg = replace(
         stochastic.cfg,
         stochastic_longitudinal_jerk_mps3=0.60,
@@ -88,7 +102,7 @@ def main() -> None:
         agent_noise_correlation=0.999,
     )
     stochastic.decoder.cfg = stochastic.cfg
-    deterministic, _ = load_checkpoint(CHECKPOINT, device=device)
+    deterministic, _ = load_checkpoint(checkpoint, device=device)
     deterministic.cfg = replace(deterministic.cfg, stochastic_latents=False)
     deterministic.decoder.cfg = deterministic.cfg
     stochastic.eval()
@@ -178,11 +192,11 @@ def main() -> None:
     report = {
         "experiment_scope": "full",
         "cohort_sequences": int(len(rows)),
-        "samples_per_condition": SAMPLES,
+        "samples_per_condition": int(args.samples),
         "fixed_condition": "C0(40)+M(6)+K(72)",
         "selected_on": "validation",
-        "stochastic_checkpoint": str(CHECKPOINT),
-        "deterministic_checkpoint": str(CHECKPOINT),
+        "stochastic_checkpoint": str(checkpoint),
+        "deterministic_checkpoint": str(checkpoint),
         "same_weights_deterministic": True,
         "stochastic_response_config": {
             "longitudinal_jerk_mps3": 0.60,
@@ -197,7 +211,7 @@ def main() -> None:
         "windowed_jerk_degradation_fraction": windowed_jerk_degradation,
         "gates": gates,
     }
-    save_json(report, OUTPUT / "randomness_ablation.json")
+    save_json(report, output / "randomness_ablation.json")
     print(
         {
             "energy": {

@@ -89,6 +89,89 @@ def test_fixed_motion_noise_is_exactly_reproducible():
     torch.testing.assert_close(first.mean, changed.mean)
 
 
+def test_graph_coupled_latent_is_persistent_replayable_and_observed_state_conditioned():
+    cfg = WorldModelConfig(graph_coupled_latent_enabled=True)
+    model = DiffusionGuidedHiQR(cfg).eval()
+    values = list(inputs(batch=1))
+    scene = torch.randn(1, 16, generator=torch.Generator().manual_seed(17))
+    agent = torch.randn(1, 7, 16, generator=torch.Generator().manual_seed(18))
+    first = model(*values, scene_standard_normal=scene, agent_standard_normal=agent)
+    repeated = model(*values, scene_standard_normal=scene, agent_standard_normal=agent)
+    torch.testing.assert_close(first.agent_noise_state, repeated.agent_noise_state)
+    assert torch.isfinite(first.agent_latent_log_prob).all()
+    assert torch.count_nonzero(first.graph_latent_message[:, 1:]) > 0
+
+    # At the next response boundary, changing another realized vehicle state
+    # changes the target driver's transition through the graph, not a future
+    # ego plan.  Use the same innovations and latent snapshot in both worlds.
+    changed = list(values)
+    changed[2] = values[2].clone()
+    changed[2][:, 1, 0] += 12.0
+    baseline_next = model(
+        *values,
+        filter_state=first.filter_state,
+        previous_current=values[2],
+        slow_scene=first.slow_scene,
+        slow_scene_noise=first.slow_scene_noise,
+        agent_noise_state=first.agent_noise_state,
+        response_index=1,
+        scene_standard_normal=scene,
+        agent_standard_normal=agent,
+    )
+    changed_next = model(
+        *changed,
+        filter_state=first.filter_state,
+        previous_current=values[2],
+        slow_scene=first.slow_scene,
+        slow_scene_noise=first.slow_scene_noise,
+        agent_noise_state=first.agent_noise_state,
+        response_index=1,
+        scene_standard_normal=scene,
+        agent_standard_normal=agent,
+    )
+    assert not torch.equal(
+        baseline_next.agent_noise_state[:, 2], changed_next.agent_noise_state[:, 2]
+    )
+
+
+def test_causal_response_field_is_inert_without_an_observed_intervention():
+    base_cfg = WorldModelConfig(intervention_adapter_enabled=True)
+    field_cfg = WorldModelConfig(
+        intervention_adapter_enabled=True,
+        causal_response_field_enabled=True,
+        graph_coupled_latent_enabled=True,
+    )
+    baseline = DiffusionGuidedHiQR(base_cfg).eval()
+    upgraded = DiffusionGuidedHiQR(field_cfg).eval()
+    upgraded.load_state_dict(baseline.state_dict(), strict=False)
+    values = inputs(batch=1)
+    committed = torch.zeros(1, 5, 2)
+    reference = baseline(*values, committed_ego_controls=committed, deterministic=True)
+    result = upgraded(*values, committed_ego_controls=committed, deterministic=True)
+    torch.testing.assert_close(result.mean, reference.mean)
+
+
+def test_behavior_mode_decoder_changes_only_stochastic_response_branches():
+    cfg = WorldModelConfig(
+        graph_coupled_latent_enabled=True,
+        behavior_mode_decoder_enabled=True,
+    )
+    model = DiffusionGuidedHiQR(cfg).eval()
+    # Make the zero-initialized, trainable mode head observable without
+    # changing its bounded contract.
+    with torch.no_grad():
+        model.decoder.behavior_mode[-1].weight.fill_(0.05)
+    values = inputs(batch=1)
+    noise = torch.ones(1, 7, 16)
+    stochastic = model(*values, agent_standard_normal=noise)
+    deterministic = model(
+        *values, agent_standard_normal=noise, deterministic=True
+    )
+    assert not torch.equal(stochastic.actions, deterministic.actions)
+    assert (stochastic.actions[..., 0] <= 4.0).all()
+    assert (stochastic.actions[..., 0] >= -8.0).all()
+
+
 def test_observed_ego_action_drives_local_response_in_the_same_direction():
     model = DiffusionGuidedHiQR().eval()
     values = list(inputs(batch=1))
@@ -204,6 +287,19 @@ def test_conditional_response_targets_override_only_matching_valid_slots():
     )
     present[-1] = False
     invalid = calibrator.bounds_for(state.numpy(), present.numpy())
+    assert not invalid[:, -1].any()
+
+
+def test_dose_sensitivity_targets_are_split_global_and_mask_invalid_slots():
+    global_bounds = torch.tensor(((0.04, 0.40), (0.03, 0.33))).numpy()
+    sensitivity = torch.tensor(((0.10, 0.20), (0.05, 0.15))).numpy()
+    calibrator = NaturalResponseCalibrator(global_bounds, ({}, {}), sensitivity)
+    state = torch.zeros(7, 6)
+    present = torch.ones(7, dtype=torch.bool)
+    values = calibrator.sensitivity_bounds_for(state.numpy(), present.numpy())
+    torch.testing.assert_close(torch.from_numpy(values[:, 0]), torch.from_numpy(sensitivity))
+    present[-1] = False
+    invalid = calibrator.sensitivity_bounds_for(state.numpy(), present.numpy())
     assert not invalid[:, -1].any()
 
 

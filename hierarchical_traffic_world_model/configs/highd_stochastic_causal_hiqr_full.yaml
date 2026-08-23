@@ -1,11 +1,16 @@
+# Sole maintained stochastic-causal HiQR configuration.
+# Training resumes from the promoted checkpoint; evaluation applies the
+# validated lateral-response memory through the explicit override below.
 paths:
-  output_dir: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model
+  output_dir: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full
+  evaluation_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt
   sequence_cache_dir: /home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache
   source_schema: /home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset_schema.json
   flow_output_dir: /home/hp/FITWMAMS/results/highd_natural_driving_flow
   flow_checkpoint: /home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
   diffusion_checkpoint: /home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt
   diffusion_contract: /home/hp/FITWMAMS/results/background_diffusion/dataset_contract.json
+  response_calibration_reference: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/natural_response_calibration.json
 
 model:
   hidden_dim: 128
@@ -18,8 +23,13 @@ model:
   agent_latent_dim: 16
   scene_refresh_responses: 25
   scene_noise_scale: 0.17
-  agent_noise_scale: 0.06
+  agent_noise_scale: 0.08
   agent_noise_correlation: 0.999
+  graph_coupled_latent_enabled: true
+  latent_flow_persistence: 0.985
+  behavior_mode_decoder_enabled: true
+  behavior_mode_max_acceleration_mps2: 0.25
+  behavior_mode_max_yaw_rate_rps: 0.015
   jerk_knots: 5
   execute_frames: 1
   use_soft_plan: true
@@ -36,6 +46,22 @@ model:
   causal_response_max_gain: 1.40
   causal_response_initial_gain: 1.10
   causal_response_scale: 4.0
+  intervention_adapter_enabled: true
+  intervention_adapter_initial_logit: 2.0
+  intervention_trigger_threshold_mps2: 0.50
+  intervention_trigger_history_frames: 5
+  intervention_adapter_max_gain: 0.60
+  intervention_brake_adapter_max_gain: 1.40
+  intervention_accelerate_adapter_max_gain: 2.00
+  intervention_memory_decay: 0.99
+  lateral_response_adapter_enabled: true
+  lateral_intervention_trigger_threshold_rps: 0.05
+  lateral_response_adapter_max_yaw_rate_rps: 0.10
+  lateral_intervention_memory_decay: 0.99
+  lateral_response_trigger_scale_rps: 0.04
+  natural_response_kernel_enabled: false
+  causal_response_field_enabled: false
+  dose_calibrated_intervention_loss: false
   max_residual_jerk_mps3: 2.0
   max_residual_yaw_acceleration_rps2: 0.2
   locality_weight: 1.0
@@ -62,5 +88,15 @@ training:
   factual_ade_tolerance_m: 0.02
   factual_fde_tolerance_m: 0.06
   factual_p95_tolerance_m: 0.10
+  factual_relative_tolerance: 0.05
+  stochastic_causal_heads_only: true
   intervention_interval: 4
   intervention_sequences: 8
+  response_calibration_method: exact
+  response_calibration_minimum_events: 100
+  initial_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt
+  allow_model_config_override: true
+  preserve_intervention_adapter_initialization: true
+
+evaluation:
+  override_model_config: true

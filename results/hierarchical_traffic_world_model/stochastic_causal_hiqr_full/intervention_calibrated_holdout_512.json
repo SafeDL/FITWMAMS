@@ -1,0 +1,28 @@
+{
+  "base_memory_decay": 0.98,
+  "candidates": {
+    "memory=0.990000,brake_max_gain=1.400000": {
+      "accelerate": {
+        "direction_success_rate": 0.9896907216494846,
+        "dose_monotonicity_rate": 1.0,
+        "locality_ratio_far_to_near": 0.04033966735005379,
+        "response_distribution_wasserstein_mps2": 0.1113348941213077,
+        "response_within_natural_p10_p90_rate": 0.30927835051546393,
+        "signed_follower_speed_response_mps": 0.013380719348788261
+      },
+      "brake": {
+        "direction_success_rate": 0.9896907216494846,
+        "dose_monotonicity_rate": 1.0,
+        "locality_ratio_far_to_near": 0.03080698288977146,
+        "response_distribution_wasserstein_mps2": 0.1666768336781364,
+        "response_within_natural_p10_p90_rate": 0.845360824742268,
+        "signed_follower_speed_response_mps": 0.03181099519133568
+      }
+    }
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt",
+  "cohort_sequences": 512,
+  "common_random_numbers": true,
+  "split": "test",
+  "split_offset": 512
+}

@@ -24,9 +24,11 @@ class WorldSnapshot:
     slow_scene: torch.Tensor | None
     slow_scene_noise: torch.Tensor | None
     agent_noise_state: torch.Tensor | None
+    agent_style_state: torch.Tensor | None
     previous_current: torch.Tensor | None
     committed_ego_controls: torch.Tensor
     intervention_memory: torch.Tensor | None
+    lateral_intervention_memory: torch.Tensor | None
 
 
 class ClosedLoopWorld:
@@ -54,9 +56,11 @@ class ClosedLoopWorld:
         self.slow_scene: torch.Tensor | None = None
         self.slow_scene_noise: torch.Tensor | None = None
         self.agent_noise_state: torch.Tensor | None = None
+        self.agent_style_state: torch.Tensor | None = None
         self.previous_current: torch.Tensor | None = None
         self.committed_ego_controls: torch.Tensor | None = None
         self.intervention_memory: torch.Tensor | None = None
+        self.lateral_intervention_memory: torch.Tensor | None = None
 
     @torch.no_grad()
     def reset(
@@ -105,11 +109,13 @@ class ClosedLoopWorld:
         self.slow_scene = None
         self.slow_scene_noise = None
         self.agent_noise_state = None
+        self.agent_style_state = None
         self.previous_current = None
         self.committed_ego_controls = torch.zeros(
             (states.shape[0], 1, 2), dtype=states.dtype, device=self.device
         )
         self.intervention_memory = None
+        self.lateral_intervention_memory = None
         return self.observe()
 
     def _require(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -149,12 +155,18 @@ class ClosedLoopWorld:
             if self.agent_noise_state is None
             else self.agent_noise_state.detach().clone(),
             None
+            if self.agent_style_state is None
+            else self.agent_style_state.detach().clone(),
+            None
             if self.previous_current is None
             else self.previous_current.detach().clone(),
             self.committed_ego_controls.detach().clone(),
             None
             if self.intervention_memory is None
             else self.intervention_memory.detach().clone(),
+            None
+            if self.lateral_intervention_memory is None
+            else self.lateral_intervention_memory.detach().clone(),
         )
 
     def restore(self, snapshot: WorldSnapshot) -> dict[str, torch.Tensor | int]:
@@ -187,6 +199,11 @@ class ClosedLoopWorld:
             if snapshot.agent_noise_state is None
             else snapshot.agent_noise_state.detach().clone().to(self.device)
         )
+        self.agent_style_state = (
+            None
+            if snapshot.agent_style_state is None
+            else snapshot.agent_style_state.detach().clone().to(self.device)
+        )
         self.previous_current = (
             None
             if snapshot.previous_current is None
@@ -199,6 +216,11 @@ class ClosedLoopWorld:
             None
             if snapshot.intervention_memory is None
             else snapshot.intervention_memory.detach().clone().to(self.device)
+        )
+        self.lateral_intervention_memory = (
+            None
+            if snapshot.lateral_intervention_memory is None
+            else snapshot.lateral_intervention_memory.detach().clone().to(self.device)
         )
         return self.observe()
 
@@ -255,8 +277,10 @@ class ClosedLoopWorld:
             slow_scene=self.slow_scene,
             slow_scene_noise=self.slow_scene_noise,
             agent_noise_state=self.agent_noise_state,
+            agent_style_state=self.agent_style_state,
             committed_ego_controls=self.committed_ego_controls,
             intervention_memory=self.intervention_memory,
+            lateral_intervention_memory=self.lateral_intervention_memory,
             response_index=self.reference_index // self.model.cfg.execute_frames,
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
@@ -265,7 +289,9 @@ class ClosedLoopWorld:
         self.slow_scene = response.slow_scene
         self.slow_scene_noise = response.slow_scene_noise
         self.agent_noise_state = response.agent_noise_state
+        self.agent_style_state = response.agent_style_state
         self.intervention_memory = response.intervention_memory
+        self.lateral_intervention_memory = response.lateral_intervention_memory
         self.previous_current = states.detach().clone()
         frames: list[torch.Tensor] = []
         for frame in range(self.model.cfg.execute_frames):

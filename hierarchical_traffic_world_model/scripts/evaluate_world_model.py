@@ -18,7 +18,7 @@ from world_model.src.core.utils import load_yaml, setup_logging  # noqa: E402
 
 CONFIG = (
     ROOT
-    / "hierarchical_traffic_world_model/configs/highd_hierarchical_world_model.yaml"
+    / "hierarchical_traffic_world_model/configs/highd_stochastic_causal_hiqr_full.yaml"
 )
 
 

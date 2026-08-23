@@ -143,6 +143,28 @@ def paired_intervention_losses(
         for name, value in batch.items()
         if isinstance(value, torch.Tensor)
     }
+    responses_count = int(
+        round(0.8 / (model.cfg.execute_frames * model.cfg.dt_s))
+    )
+    # These are drawn once, then addressed by response boundary and reused in
+    # every nominal/treatment branch.  This is genuine common-random-number
+    # training: a branch difference can no longer be reduced by resampling a
+    # driver latent instead of learning an ego-caused response.
+    common_scene_noise = torch.randn(
+        responses_count,
+        count,
+        model.cfg.scene_latent_dim,
+        device=selected["current"].device,
+        dtype=selected["current"].dtype,
+    )
+    common_agent_noise = torch.randn(
+        responses_count,
+        count,
+        7,
+        model.cfg.agent_latent_dim,
+        device=selected["current"].device,
+        dtype=selected["current"].dtype,
+    )
 
     def rollout(acceleration_delta: float) -> torch.Tensor:
         history = selected["history"].clone()
@@ -153,12 +175,13 @@ def paired_intervention_losses(
         slow_scene = None
         slow_scene_noise = None
         agent_noise_state = None
+        agent_style_state = None
         previous_current = None
         committed_ego_controls = selected.get("committed_ego_controls")
         intervention_memory = None
+        lateral_intervention_memory = None
         actions = []
-        responses = int(round(0.8 / (model.cfg.execute_frames * model.cfg.dt_s)))
-        for response in range(responses):
+        for response in range(responses_count):
             start = response * model.cfg.execute_frames
             preview = selected["soft_reference"][:, start:]
             if preview.shape[1] < model.cfg.preview_frames:
@@ -193,10 +216,14 @@ def paired_intervention_losses(
                 slow_scene=slow_scene,
                 slow_scene_noise=slow_scene_noise,
                 agent_noise_state=agent_noise_state,
+                agent_style_state=agent_style_state,
                 committed_ego_controls=committed_ego_controls,
                 intervention_memory=intervention_memory,
+                lateral_intervention_memory=lateral_intervention_memory,
                 response_index=response,
-                deterministic=True,
+                scene_standard_normal=common_scene_noise[response],
+                agent_standard_normal=common_agent_noise[response],
+                deterministic=False,
             )
             actions.append(output.mean)
             ego_control = selected["closed_ego_actions"][:, response].clone()
@@ -231,7 +258,9 @@ def paired_intervention_losses(
             slow_scene = output.slow_scene
             slow_scene_noise = output.slow_scene_noise
             agent_noise_state = output.agent_noise_state
+            agent_style_state = output.agent_style_state
             intervention_memory = output.intervention_memory
+            lateral_intervention_memory = output.lateral_intervention_memory
         return torch.cat(actions, dim=1)
 
     baseline = rollout(0.0)
@@ -276,26 +305,41 @@ def paired_intervention_losses(
             )
         )
         kind_index = 0 if name == "brake" else 1
-        if "natural_response_bounds" in selected:
+        if (
+            model.cfg.dose_calibrated_intervention_loss
+            and "natural_response_sensitivity_bounds" in selected
+        ):
+            sensitivity = selected["natural_response_sensitivity_bounds"][:, kind_index]
+            mild_dose, strong_dose = {
+                "brake": (1.5, 3.0),
+                "accelerate": (1.0, 2.0),
+            }[name]
+            mild_bounds = sensitivity * mild_dose
+            strong_bounds = sensitivity * strong_dose
+        elif "natural_response_bounds" in selected:
             # `[batch, brake/accelerate, slot, P10/P90]`, fitted from train
             # recordings only.  Sparse condition cells already fall back to
             # the split-level interval in ``NaturalResponseCalibrator``.
             bounds = selected["natural_response_bounds"][:, kind_index]
+            mild_bounds = bounds
+            strong_bounds = bounds
         else:
             bounds = model.matched_response_bounds[kind_index].view(1, 1, 2)
+            mild_bounds = bounds
+            strong_bounds = bounds
         mild_effect = (sign * mild_delta).mean(dim=1)
         strong_effect = (
             sign * (strong[..., 0] - baseline[..., 0])
         ).mean(dim=1)
         strength_terms.append(
             masked_mean(
-                functional.relu(bounds[..., 0] - mild_effect)
-                + functional.relu(mild_effect - bounds[..., 1]),
+                functional.relu(mild_bounds[..., 0] - mild_effect)
+                + functional.relu(mild_effect - mild_bounds[..., 1]),
                 following_ego,
             )
             + masked_mean(
-                functional.relu(bounds[..., 0] - strong_effect)
-                + functional.relu(strong_effect - bounds[..., 1]),
+                functional.relu(strong_bounds[..., 0] - strong_effect)
+                + functional.relu(strong_effect - strong_bounds[..., 1]),
                 following_ego,
             )
         )
@@ -331,9 +375,11 @@ def closed_loop_factual_loss(
     history = selected["history"]
     history_valid = selected["history_valid"]
     filter_state = slow_scene = slow_scene_noise = agent_noise_state = None
+    agent_style_state = None
     previous_current = None
     committed_ego_controls = selected.get("committed_ego_controls")
     intervention_memory = None
+    lateral_intervention_memory = None
     predicted_states = []
     for step in range(selected["closed_ego_actions"].shape[1]):
         preview = selected["soft_reference"][:, step:]
@@ -366,8 +412,10 @@ def closed_loop_factual_loss(
             slow_scene=slow_scene,
             slow_scene_noise=slow_scene_noise,
             agent_noise_state=agent_noise_state,
+            agent_style_state=agent_style_state,
             committed_ego_controls=committed_ego_controls,
             intervention_memory=intervention_memory,
+            lateral_intervention_memory=lateral_intervention_memory,
             response_index=step,
             deterministic=True,
         )
@@ -395,7 +443,9 @@ def closed_loop_factual_loss(
         slow_scene = output.slow_scene
         slow_scene_noise = output.slow_scene_noise
         agent_noise_state = output.agent_noise_state
+        agent_style_state = output.agent_style_state
         intervention_memory = output.intervention_memory
+        lateral_intervention_memory = output.lateral_intervention_memory
     predicted = torch.stack(predicted_states, dim=1)
     target = selected["closed_target_states"]
     frame_valid = valid[:, None, 1:].expand(-1, predicted.shape[1], -1)

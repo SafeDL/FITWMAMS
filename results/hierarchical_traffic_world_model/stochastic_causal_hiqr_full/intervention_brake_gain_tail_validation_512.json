@@ -1,0 +1,64 @@
+{
+  "base_memory_decay": 0.98,
+  "candidates": {
+    "memory=0.990000,brake_max_gain=1.200000": {
+      "accelerate": {
+        "direction_success_rate": 0.98989898989899,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.04631822183728218,
+        "response_distribution_wasserstein_mps2": 0.12457838741286625,
+        "response_within_natural_p10_p90_rate": 0.7474747474747475,
+        "signed_follower_speed_response_mps": 0.012345689348876476
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.0349944643676281,
+        "response_distribution_wasserstein_mps2": 0.1716068109978635,
+        "response_within_natural_p10_p90_rate": 0.5959595959595959,
+        "signed_follower_speed_response_mps": 0.027855323627591133
+      }
+    },
+    "memory=0.990000,brake_max_gain=1.400000": {
+      "accelerate": {
+        "direction_success_rate": 0.98989898989899,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.04605052247643471,
+        "response_distribution_wasserstein_mps2": 0.12457145159965603,
+        "response_within_natural_p10_p90_rate": 0.7474747474747475,
+        "signed_follower_speed_response_mps": 0.01235048659145832
+      },
+      "brake": {
+        "direction_success_rate": 0.98989898989899,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.03404053673148155,
+        "response_distribution_wasserstein_mps2": 0.16518720768633166,
+        "response_within_natural_p10_p90_rate": 0.6363636363636364,
+        "signed_follower_speed_response_mps": 0.030580423772335052
+      }
+    },
+    "memory=0.990000,brake_max_gain=1.600000": {
+      "accelerate": {
+        "direction_success_rate": 0.98989898989899,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.045861538499593735,
+        "response_distribution_wasserstein_mps2": 0.1245645157864458,
+        "response_within_natural_p10_p90_rate": 0.7474747474747475,
+        "signed_follower_speed_response_mps": 0.012354821898043156
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.98989898989899,
+        "locality_ratio_far_to_near": 0.03329167142510414,
+        "response_distribution_wasserstein_mps2": 0.15890696923876846,
+        "response_within_natural_p10_p90_rate": 0.6666666666666666,
+        "signed_follower_speed_response_mps": 0.033196207135915756
+      }
+    }
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt",
+  "cohort_sequences": 512,
+  "common_random_numbers": true,
+  "split": "validation",
+  "split_offset": 0
+}

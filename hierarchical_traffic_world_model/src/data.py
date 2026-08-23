@@ -178,6 +178,13 @@ class ResponseDataset(Dataset):
             if self.response_calibrator is None
             else self.response_calibrator.bounds_for(current, current_valid)
         )
+        response_sensitivity_bounds = (
+            np.zeros((2, 6, 2), np.float32)
+            if self.response_calibrator is None
+            else self.response_calibrator.sensitivity_bounds_for(
+                current, current_valid
+            )
+        )
         return {
             "history": torch.from_numpy(history),
             "history_valid": torch.from_numpy(history_valid),
@@ -199,6 +206,9 @@ class ResponseDataset(Dataset):
                 np.asarray(arrays["map_polyline_valid"][row], bool).copy()
             ),
             "natural_response_bounds": torch.from_numpy(response_bounds),
+            "natural_response_sensitivity_bounds": torch.from_numpy(
+                response_sensitivity_bounds
+            ),
             "row_index": torch.tensor(row),
             "response_index": torch.tensor(response),
         }

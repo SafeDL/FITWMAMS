@@ -1,0 +1,80 @@
+{
+  "base_memory_decay": 0.98,
+  "candidates": {
+    "0.980000": {
+      "accelerate": {
+        "direction_success_rate": 0.9629629629629629,
+        "dose_monotonicity_rate": 0.9629629629629629,
+        "locality_ratio_far_to_near": 0.041223958134651184,
+        "response_distribution_wasserstein_mps2": 0.11578266961233956,
+        "response_within_natural_p10_p90_rate": 0.18518518518518517,
+        "signed_follower_speed_response_mps": 0.009453526698052883
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.9629629629629629,
+        "locality_ratio_far_to_near": 0.03500477969646454,
+        "response_distribution_wasserstein_mps2": 0.20680022884977506,
+        "response_within_natural_p10_p90_rate": 0.5185185185185185,
+        "signed_follower_speed_response_mps": 0.013482270762324333
+      }
+    },
+    "0.990000": {
+      "accelerate": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.9629629629629629,
+        "locality_ratio_far_to_near": 0.040775906294584274,
+        "response_distribution_wasserstein_mps2": 0.11019512711378633,
+        "response_within_natural_p10_p90_rate": 0.2962962962962963,
+        "signed_follower_speed_response_mps": 0.014088242314755917
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 1.0,
+        "locality_ratio_far_to_near": 0.03715897351503372,
+        "response_distribution_wasserstein_mps2": 0.20347031602832327,
+        "response_within_natural_p10_p90_rate": 0.6666666666666666,
+        "signed_follower_speed_response_mps": 0.016287485137581825
+      }
+    },
+    "0.995000": {
+      "accelerate": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.9629629629629629,
+        "locality_ratio_far_to_near": 0.040695562958717346,
+        "response_distribution_wasserstein_mps2": 0.10702277239037568,
+        "response_within_natural_p10_p90_rate": 0.37037037037037035,
+        "signed_follower_speed_response_mps": 0.016832564026117325
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 1.0,
+        "locality_ratio_far_to_near": 0.03868255764245987,
+        "response_distribution_wasserstein_mps2": 0.20159129913036639,
+        "response_within_natural_p10_p90_rate": 0.6666666666666666,
+        "signed_follower_speed_response_mps": 0.017924627289175987
+      }
+    },
+    "0.998000": {
+      "accelerate": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 0.9629629629629629,
+        "locality_ratio_far_to_near": 0.040753815323114395,
+        "response_distribution_wasserstein_mps2": 0.10498392014276413,
+        "response_within_natural_p10_p90_rate": 0.4444444444444444,
+        "signed_follower_speed_response_mps": 0.01867152936756611
+      },
+      "brake": {
+        "direction_success_rate": 1.0,
+        "dose_monotonicity_rate": 1.0,
+        "locality_ratio_far_to_near": 0.040262170135974884,
+        "response_distribution_wasserstein_mps2": 0.20042087447609316,
+        "response_within_natural_p10_p90_rate": 0.6666666666666666,
+        "signed_follower_speed_response_mps": 0.018991824239492416
+      }
+    }
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt",
+  "cohort_sequences": 128,
+  "common_random_numbers": true
+}
