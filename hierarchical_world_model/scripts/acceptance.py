@@ -62,6 +62,8 @@ def main() -> None:
         ),
         "sampled_end_to_end_complete": (
             check_sampled_end_to_end_gate(sampled)
+            and sampled.get("provenance", {}).get("code_commit") == manifest.get("code_commit")
+            and sampled.get("provenance", {}).get("release_tag") == manifest.get("release_tag")
         ),
     }
     report = {
