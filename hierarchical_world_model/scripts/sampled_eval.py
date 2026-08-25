@@ -86,8 +86,12 @@ def _background_nonpaired(generated: np.ndarray, reference: np.ndarray, generate
         jerk = np.diff(acceleration, axis=1, prepend=acceleration[:, :1]) / .04
         mask = np.broadcast_to(valid[:, None, :], position.shape[:3])
         pair = np.linalg.norm(position[:, :, :, None] - position[:, :, None, :], axis=-1)
-        pair_mask = valid[:, None, :, None] & valid[:, None, None, :]
-        diagonal = np.eye(position.shape[2], dtype=bool)[None, None]
+        pair_mask = np.broadcast_to(
+            valid[:, None, :, None] & valid[:, None, None, :], pair.shape
+        )
+        diagonal = np.broadcast_to(
+            np.eye(position.shape[2], dtype=bool)[None, None], pair.shape
+        )
         return {"vx": velocity[..., 0][mask], "vy": velocity[..., 1][mask],
                 "ax": acceleration[..., 0][mask], "ay": acceleration[..., 1][mask],
                 "jx": jerk[..., 0][mask], "jy": jerk[..., 1][mask],
