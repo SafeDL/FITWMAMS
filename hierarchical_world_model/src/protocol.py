@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import platform
 import subprocess
 import sys
@@ -171,11 +172,17 @@ def check_sampled_end_to_end_gate(sampled: dict[str, Any], *, worlds: int = SAMP
     paired = sampled.get("paired_failure_table", {})
     paired_world = sampled.get("paired_world_risk", {})
     provenance = sampled.get("provenance", {})
+    finite_risk = all(
+        all(isinstance(value, (int, float)) and math.isfinite(float(value))
+            for value in summary.values() if isinstance(value, (int, float)))
+        for summary in risks.values()
+    )
     return (
         sampled.get("worlds") == worlds
         and sampled.get("response_steps") == response_steps
         and set(risks) == {"hold_current", "idm"}
         and all(value["finite_state_rate"] == 1.0 for value in risks.values())
+        and finite_risk
         and "k_adherence" in k_adherence
         and set(paired) == {"both_safe", "idm_only_failure", "hold_only_failure", "both_failure"}
         and all(len(paired_world.get(name, ())) == worlds for name in ("R_hold", "R_IDM", "Delta_R_IDM_minus_hold"))

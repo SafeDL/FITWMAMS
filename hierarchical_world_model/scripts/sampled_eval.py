@@ -61,6 +61,13 @@ def _risk_summary(result, evt, threshold: float) -> dict[str, object]:
     ttc = longitudinal_gap / np.maximum(closing, 1.0e-3)
     minimum_gap = np.where(active, longitudinal_gap, np.inf).min(axis=(1, 2))
     minimum_ttc = np.where(active, ttc, np.inf).min(axis=(1, 2))
+    # Worlds with no active background slot have no ego-relative gap/TTC
+    # observation.  Exclude them from aggregates and emit a finite sentinel
+    # rather than allowing inactive-slot padding to produce ``inf`` metrics.
+    gap_observed = np.isfinite(minimum_gap)
+    ttc_observed = np.isfinite(minimum_ttc)
+    gap_mean = float(np.nanmean(np.where(gap_observed, minimum_gap, np.nan))) if gap_observed.any() else 0.0
+    ttc_p05 = float(np.nanquantile(np.where(ttc_observed, minimum_ttc, np.nan), 0.05)) if ttc_observed.any() else 0.0
     return {
         "failure": (score >= threshold), "risk": risk, "score": score,
         "summary": {
@@ -68,7 +75,7 @@ def _risk_summary(result, evt, threshold: float) -> dict[str, object]:
             "collision_fraction": float(collision.mean()), "failure_probability": float((score >= threshold).mean()),
             "event_risk_mean": float(risk.mean()), "event_risk_p95": float(np.quantile(risk, .95)),
             "evt_score_mean": float(score.mean()), "evt_score_p95": float(np.quantile(score, .95)),
-            "minimum_gap_m_mean": float(minimum_gap.mean()), "minimum_ttc_s_p05": float(np.quantile(minimum_ttc, .05)),
+            "minimum_gap_m_mean": gap_mean, "minimum_ttc_s_p05": ttc_p05,
         },
     }
 
