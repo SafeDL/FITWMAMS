@@ -9,7 +9,7 @@ Semi-Markov。它们不是当前分层模型的旧版本，也没有被分层模
 
 ```text
 results/background_diffusion/
-results/hierarchical_traffic_world_model/
+results/hierarchical_world_model/
 results/highd_natural_driving_flow/
 ```
 

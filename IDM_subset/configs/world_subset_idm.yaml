@@ -1,7 +1,7 @@
 # IDM rare-event estimation under the maintained Flow -> Diffusion -> HiQR world.
 
 paths:
-  world_model_config: ../../hierarchical_traffic_world_model/configs/highd_stochastic_causal_hiqr_full.yaml
+  world_model_config: ../../hierarchical_world_model/config/release.yaml
   evt_model: ../../results/highd_natural_driving_evt/evt/natural_evt_model.json
   idm_ego_config: ../../tools/idm_ego.yaml
 

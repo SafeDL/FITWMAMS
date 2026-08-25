@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from hierarchical_traffic_world_model.src.composition import HierarchicalWorldSampler
-from hierarchical_traffic_world_model.src.world_execution import WorldRollout, rollout_world
-from hierarchical_traffic_world_model.src.world_randomness import WorldExogenousState
+from hierarchical_world_model.src.composition import HierarchicalWorldSampler
+from hierarchical_world_model.src.execution import WorldRollout, rollout_world
+from hierarchical_world_model.src.randomness import WorldExogenousState
 from tools.evt import GPDTailModel
 
 from .idm_policy import HighwayEnvIDMPolicy

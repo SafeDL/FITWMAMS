@@ -1,7 +1,7 @@
 # highD 世界模型与对比基线
 
 本目录保留仍有独立实现和回归测试的世界模型组件。当前论文主模型位于
-[`hierarchical_traffic_world_model/`](../hierarchical_traffic_world_model/)；这里不复制其训练、
+[`hierarchical_world_model/`](../hierarchical_world_model/)；这里不复制其训练、
 评测或 checkpoint。
 
 ## 维护范围

@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from IDM_subset.src.world_subset_runner import _build_evaluator  # noqa: E402
-from hierarchical_traffic_world_model.src.world_randomness import (  # noqa: E402
+from hierarchical_world_model.src.randomness import (  # noqa: E402
     WorldExogenousState,
 )
 from world_model.src.core.utils import load_yaml, save_json  # noqa: E402

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from hierarchical_traffic_world_model.src.world_randomness import WorldExogenousState
+from hierarchical_world_model.src.randomness import WorldExogenousState
 from IDM_subset.src.idm_policy import HighwayEnvIDMPolicy
 from IDM_subset.src.world_evaluator import WorldEvaluation
 from IDM_subset.src.world_subset_simulation import run_world_subset_simulation

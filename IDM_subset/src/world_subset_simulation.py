@@ -7,7 +7,7 @@ from typing import Callable
 
 import numpy as np
 
-from hierarchical_traffic_world_model.src.world_randomness import WorldExogenousState
+from hierarchical_world_model.src.randomness import WorldExogenousState
 
 from .world_evaluator import WorldEvaluation
 

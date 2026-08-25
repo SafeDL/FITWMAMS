@@ -11,11 +11,11 @@ from typing import Any
 
 import numpy as np
 
-from hierarchical_traffic_world_model.src.composition import HierarchicalWorldSampler
-from hierarchical_traffic_world_model.src.highway_env_execution import (
+from hierarchical_world_model.src.composition import HierarchicalWorldSampler
+from hierarchical_world_model.src.highway import (
     HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT,
 )
-from hierarchical_traffic_world_model.src.world_randomness import WorldExogenousState
+from hierarchical_world_model.src.randomness import WorldExogenousState
 from tools.evt import GPDTailModel, load_evt_model
 from tools.idm_ego import load_idm_ego_config
 from world_model.src.core.utils import file_sha256, load_yaml, save_json, select_device

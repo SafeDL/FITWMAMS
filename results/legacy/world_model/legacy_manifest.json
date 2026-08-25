@@ -1,0 +1,71 @@
+{
+  "artifacts": [
+    {
+      "path": "results/legacy/world_model/risk_calibration_diagnostic.json",
+      "sha256": "10248a3a38aff37b45a9fd3a155ad7a4d8a9f7554d5c8f08964c3251a2dc15eb"
+    },
+    {
+      "path": "results/legacy/world_model/training_history.json",
+      "sha256": "def0e2bc9682d893de2c40414acbc44302dece95368bffb45875e939e6223b9b"
+    },
+    {
+      "path": "results/legacy/world_model/training_summary.json",
+      "sha256": "dd296eeed615ff04d06481359dccebad519e4e3aacf073835abd18c77ffd2cec"
+    },
+    {
+      "path": "results/legacy/world_model/evaluation.json",
+      "sha256": "5955b011c6b81cc29a296cc1a887650007e312aa65604722f9bf189ba35e19d1"
+    },
+    {
+      "path": "results/legacy/world_model/natural_response_calibration.json",
+      "sha256": "7d087c8948cb3e14fa0526be0c3b67736e376d72848588e39f119e023088272d"
+    },
+    {
+      "path": "results/legacy/world_model/intervention_sweeps.json",
+      "sha256": "02ae7ff245103efb563ead1cf6f75afb58122c37f5591d432f0720d3f5e91805"
+    },
+    {
+      "path": "results/legacy/world_model/randomness_ablation.json",
+      "sha256": "074b5210e1a05edc4cb5f2788117518ef6191cbd4a258aad92611041b0d9c449"
+    },
+    {
+      "path": "results/legacy/world_model/final/acceptance.json",
+      "sha256": "b730ca4fe4a733530df5c540d90b8c5d27633763c456bd1d64ba582eba1d1be1"
+    },
+    {
+      "path": "results/legacy/world_model/final/history_response_sensitivity.json",
+      "sha256": "487952af0ac46153f21c90429e876257daa77b29201dcfc6db54399f7d00813f"
+    },
+    {
+      "path": "results/legacy/world_model/final/ams_readiness_world_exogenous.npz",
+      "sha256": "0538e9c1c4c0674ac85f9a8bb7f4924692f2ded269bbcc634bbfa90b00f1b2d9"
+    },
+    {
+      "path": "results/legacy/world_model/final/ams_readiness.json",
+      "sha256": "0ba5b8377dfac93ea4f677f0aec759a4a131f5af191966474ea4020b2972fca0"
+    },
+    {
+      "path": "results/legacy/world_model/checkpoints/final_model_manifest.json",
+      "sha256": "f227fef3f07fb91b3687adac203026abb7986527beea53d85437b01d7f03bfeb"
+    },
+    {
+      "path": "results/legacy/world_model/checkpoints/best_hierarchical_world_model.pt",
+      "sha256": "edf267eeba4570bd7c7168c2d4ac13693e897d498fe4b3afd3f5310d9b90c547"
+    },
+    {
+      "path": "results/legacy/world_model/checkpoints/final_world_model.pt",
+      "sha256": "5bafb4c1b95dcbc0f1b7aba16c8a50dad4718e1873be7e024d0ff13d4ac30e92"
+    },
+    {
+      "path": "results/legacy/world_model/final/history_plans/frozen_diffusion_test_plans.json",
+      "sha256": "5abf362f08cd3b4b249015f5cbfca832cdddf4db63406dac836d8ca4eade1eaf"
+    },
+    {
+      "path": "results/legacy/world_model/final/history_plans/frozen_diffusion_test_plans.npz",
+      "sha256": "b3e47d189a5349b0c094e080fa3f5f5207d3c7f050cf06b116d8a75ccfb0ba61"
+    }
+  ],
+  "formal_reader_policy": "reject unless final manifest protocol_version is stochastic_causal_hiqr_release_v2",
+  "reason": "pre-release artifacts may reference a legacy initial checkpoint and dirty worktree provenance",
+  "status": "deprecated_not_formal_result"
+}
