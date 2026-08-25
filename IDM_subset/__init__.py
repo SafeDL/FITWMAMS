@@ -1,1 +1,1 @@
-"""Latent-space subset simulation experiments."""
+"""IDM rare-event estimation in the maintained traffic world."""

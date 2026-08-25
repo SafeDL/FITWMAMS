@@ -1,146 +1,74 @@
-# IDM_subset：IDM 长尾安全评估
+# IDM_subset：HighwayEnv 中的 IDM 长尾估计
 
-`IDM_subset/` 是当前长尾安全评估的传统模型 baseline。它在同一 highD
-长尾 scenario-condition 分布、同一冻结扩散模型和同一 EVT 风险阈值下，评估
-IDM ego vehicle 对扩散生成 adversary 轨迹的闭环响应。
+正式执行契约为：Flow、Diffusion 和 HiQR 只提供场景、运动先验和背景车动作；
+IDM ego 与背景车都必须由本地 `HighwayEnv` 在同一条道路上推进。IDM 使用原生
+`IDMVehicle`；背景车使用与 HiQR 训练一致的单轮 `[acceleration, yaw_rate]` 动力学，
+同时复用 HighwayEnv 的道路、碰撞与 snapshot。`HighwayEnvTraffic` 已通过动作映射、
+积分一致性、IDM 接入、因果时序及分支精确重放测试。
 
-测试空间为：
-
-```text
-scenario condition ~ highD tail scenario-condition distribution
-z ~ N(0, I)
-adversary actions = deterministic DDIM(scenario condition, z)
-score = S_EVT(Y_sim)
-```
-
-扩散模型只用于生成被测场景中的对手车动作；被测 ADS 是 highway-env 中由
-`tools/idm_ego.yaml` 参数化的 IDM ego。following 使用 125 步、1 车道配置；
-cut-in 使用 100 步、2 车道配置。两类事件都不做 rolling reconditioning。
-
-默认 diffusion checkpoint：
+当前估计对象为：
 
 ```text
-following: results/diffusion_natural/following/checkpoints/best_noise_mse_train_val_test.pt
-cut-in:    results/diffusion_natural/cutin/checkpoints/best_noise_mse_train_val_test.pt
+Omega = (u_M, z_C0, z_K, z_diff, z_scene_response, z_agent_response)
+Omega ~ p(M)p(C0|M)p(K|C0,M)p(z_diff)p(z_response)
+Flow -> Diffusion -> HiQR background actions -> HighwayEnv + IDM -> risk -> EVT score
 ```
 
-配置指向不存在的 checkpoint 时会直接报错，不维护旧权重 fallback。
-
-## 评分口径
-
-following 使用闭环轨迹的 `Y_long_sim`，cut-in 使用 `Y_cutin_sim`，再分别通过
-highD EVT/GPD 模型映射为 `S_EVT(Y_sim)`。默认失效事件为：
+失效事件固定为人类 EVT 模型的 100-event return level：
 
 ```text
-Y_sim > x_c, x_c = 5.0
-failure threshold = S_EVT(x_c)
+S_EVT(Y_IDM(Omega)) >= S_EVT(z_100)
 ```
 
-该失效概率表示：
-
-```text
-P_ADS(failure | sampled from highD tail scenario-condition distribution)
-```
-
-它不是完整 highD 自然驾驶分布上的直接碰撞概率。完整数据集暴露强度由
-`global_risk_exposure_comparison.*` 通过 highD independent tail peak 暴露率映射。
+`world_subset_simulation.py` 的 pCN/离散场景 mutation 可继续复用；正式 runner
+还必须保存 HighwayEnv 车辆状态、动作转换和 snapshot，才能保证完整重放。
 
 ## 运行
 
-运行环境：
+唯一维护配置为 `IDM_subset/configs/world_subset_idm.yaml`；脚本目录不再保存配置文件。
 
 ```bash
 conda activate tread
+python IDM_subset/scripts/run_subset_idm.py
+python IDM_subset/scripts/run_monte_carlo_idm.py
 ```
 
-following：
+正式结果位于 `IDM_subset/results/`，且使用同一套 Flow、Diffusion、
+HiQR、IDM、EVT 和 HighwayEnv 工件。512 粒子 AMS 估计为 **3.4766%**（近似 95% CI
+3.064%--3.889%）；2,000 场景独立 Monte Carlo 为 **4.3000%**（95% CI
+3.411%--5.189%），区间相交并通过 acceptance 审计。
+
+此前 `current_world_idm/` 的 AMS、Monte Carlo 和碰撞 GIF 来自自定义运动学
+`ClosedLoopWorld`，已确认不符合正式执行契约并移除，不能用于论文或策略风险比较。
+
+```text
+IDM_subset/results/subset/                         # 正式 AMS
+IDM_subset/results/monte_carlo/                    # 正式独立 Monte Carlo
+IDM_subset/results/subset/playbacks/               # AMS 最终种群的 HighwayEnv 回放
+IDM_subset/results/risk_calibration_diagnostic/    # 独立 highD 风险校准诊断播放
+IDM_subset/results/acceptance.json
+```
+
+`subset/playbacks/` 是从 `world_subset_top_cases.json` 指向的最终 AMS 粒子重新在
+HighwayEnv 执行得到的碰撞回放；它与 subset 结果使用相同的 `world_exogenous_state`。
+`risk_calibration_diagnostic/` 中的风险校准播放不是 subset 碰撞样本的复现：它来自固定的 highD 测试窗口，
+用于检查观测人类控制与 IDM 反事实控制的差异；subset 的碰撞样本则保存在
+`subset/failure_cases/`，二者不共享样本 ID。
+
+渲染正式 AMS 回放：
 
 ```bash
-python IDM_subset/scripts/run_monte_carlo_following.py
-python IDM_subset/scripts/run_subset_following.py
-python IDM_subset/scripts/play_final_level_following.py --no-gif
+python IDM_subset/scripts/render_subset_playbacks.py
 ```
 
-cut-in：
+脚本职责保持单一：
 
-```bash
-python IDM_subset/scripts/run_monte_carlo_cutin.py
-python IDM_subset/scripts/run_subset_cutin.py
-python IDM_subset/scripts/play_final_level_cutin.py --no-gif
-```
+| 脚本 | 用途 |
+| --- | --- |
+| `run_subset_idm.py` | 在 HighwayEnv 中运行正式 pCN/AMS subset simulation |
+| `run_monte_carlo_idm.py` | 在相同世界先验和执行后端下运行独立 Monte Carlo |
+| `render_subset_playbacks.py` | 将 AMS 最终种群的代表性失败粒子重新执行并渲染为 GIF |
+| `assess_current_world_idm.py` | 检查两种估计的阈值、工件、重放和置信区间一致性 |
 
-当前 IDM subset 入口只接受 `--config`；实验默认值写在 YAML 中。Monte Carlo 入口可覆盖
-`--num_samples`、`--seed` 和 `--output_dir`。
-
-## 当前默认配置
-
-```text
-following:
-  lanes_count = 1
-  episode_steps = 125
-  subset num_samples = 3000, p0 = 0.2, max_levels = 8
-  monte_carlo num_samples = 200000
-
-cut-in:
-  lanes_count = 2
-  episode_steps = 100
-  subset num_samples = 1000, p0 = 0.1, max_levels = 8
-  monte_carlo num_samples = 10000
-```
-
-## 当前结果
-
-```text
-following subset:      p = 0.00249067, se = 0.00006763
-following Monte Carlo: p = 0.00241000, se = 0.00010964
-cut-in subset:         p = 0.00680000, se = 0.00079609
-cut-in Monte Carlo:    p = 0.00650000, se = 0.00080360
-```
-
-## 主要文件
-
-```text
-IDM_subset/scripts/configs/latent_subset_following.yaml
-IDM_subset/scripts/configs/latent_subset_cutin.yaml
-IDM_subset/scripts/run_subset_following.py
-IDM_subset/scripts/run_subset_cutin.py
-IDM_subset/scripts/run_monte_carlo_following.py
-IDM_subset/scripts/run_monte_carlo_cutin.py
-IDM_subset/scripts/play_final_level_following.py
-IDM_subset/scripts/play_final_level_cutin.py
-IDM_subset/src/closed_loop_runner.py
-IDM_subset/src/latent_subset_runner.py
-IDM_subset/src/subset_simulation.py
-IDM_subset/src/final_level_playback.py
-tools/subset_entrypoints.py
-tools/idm_ego.yaml
-```
-
-`tools/subset_entrypoints.py` 提供三类共享 CLI 入口：subset simulation、Monte Carlo
-baseline 和 final-level playback。各 subset 目录中的脚本只保留事件类型、默认配置路径和输出命名。
-
-## 输出
-
-```text
-IDM_subset/results/following/latent_subset_summary.json
-IDM_subset/results/following/global_risk_exposure_comparison.json
-IDM_subset/results/following/global_risk_exposure_comparison.csv
-IDM_subset/results/following/latent_subset_level_stats.csv
-IDM_subset/results/following/latent_subset_top_cases.json
-IDM_subset/results/following/latent_subset_samples.npz
-IDM_subset/results/following/final_level_playbacks/
-IDM_subset/results/monte_carlo_following/latent_monte_carlo_summary.json
-IDM_subset/results/monte_carlo_following/latent_monte_carlo_stats.csv
-IDM_subset/results/cutin/latent_subset_summary.json
-IDM_subset/results/cutin/global_risk_exposure_comparison.json
-IDM_subset/results/cutin/global_risk_exposure_comparison.csv
-IDM_subset/results/cutin/latent_subset_level_stats.csv
-IDM_subset/results/cutin/latent_subset_top_cases.json
-IDM_subset/results/cutin/latent_subset_samples.npz
-IDM_subset/results/cutin/final_level_playbacks/
-IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_summary.json
-IDM_subset/results/monte_carlo_cutin/latent_monte_carlo_stats.csv
-```
-
-`latent_subset_samples.npz` 和 `final_level_playbacks/` 保留为 subset 的可复现
-证据。Monte Carlo 只保留最终汇总、统计和代表性案例；其原始样本可由对应脚本重建。
+正式两种估计必须使用相同的 Flow、Diffusion、HiQR、HighwayEnv、EVT、IDM policy、
+failure threshold 和 `hiqr_vehicle_dynamics_contract`；各 summary 还应写入版本和动作映射审计。

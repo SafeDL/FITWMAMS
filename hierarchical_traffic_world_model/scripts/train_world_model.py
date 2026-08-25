@@ -21,7 +21,9 @@ CONFIG = (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Train the maintained hierarchical traffic world model."
+    )
     parser.add_argument("--config", type=Path, default=CONFIG)
     args = parser.parse_args()
     config_path = args.config.resolve()

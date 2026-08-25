@@ -132,8 +132,9 @@ def paired_intervention_losses(
 
     Each branch sees identical history at its first response boundary.  The
     changed ego control is then integrated, so a background action can change
-    only at the following 25 Hz boundary.  This is the same contract used by
-    ``ClosedLoopWorld`` and the held-out intervention evaluator; directly
+    only at the following 25 Hz boundary.  This is the same causal contract
+    used by the offline ``ClosedLoopWorld`` and the held-out intervention
+    evaluator; directly
     editing ``current`` would leak an unexecuted ego action into the policy.
     """
 

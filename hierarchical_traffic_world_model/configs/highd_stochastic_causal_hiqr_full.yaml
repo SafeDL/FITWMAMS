@@ -1,16 +1,17 @@
 # Sole maintained stochastic-causal HiQR configuration.
-# Training resumes from the promoted checkpoint; evaluation applies the
-# validated lateral-response memory through the explicit override below.
+# The validated response configuration is frozen into ``final_world_model.pt``
+# before final evaluation; evaluation must never override its model contract.
 paths:
-  output_dir: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full
-  evaluation_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt
+  output_dir: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model
+  evaluation_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/checkpoints/final_world_model.pt
+  evt_model: /home/hp/FITWMAMS/results/highd_natural_driving_evt/evt/natural_evt_model.json
   sequence_cache_dir: /home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache
   source_schema: /home/hp/FITWMAMS/results/highd_natural_driving_flow/dataset_schema.json
   flow_output_dir: /home/hp/FITWMAMS/results/highd_natural_driving_flow
   flow_checkpoint: /home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
   diffusion_checkpoint: /home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt
   diffusion_contract: /home/hp/FITWMAMS/results/background_diffusion/dataset_contract.json
-  response_calibration_reference: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/natural_response_calibration.json
+  response_calibration_reference: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/natural_response_calibration.json
 
 model:
   hidden_dim: 128
@@ -94,9 +95,9 @@ training:
   intervention_sequences: 8
   response_calibration_method: exact
   response_calibration_minimum_events: 100
-  initial_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/stochastic_causal_hiqr_full/checkpoints/best_hierarchical_world_model.pt
+  initial_checkpoint: /home/hp/FITWMAMS/results/hierarchical_traffic_world_model/checkpoints/best_hierarchical_world_model.pt
   allow_model_config_override: true
   preserve_intervention_adapter_initialization: true
 
 evaluation:
-  override_model_config: true
+  override_model_config: false

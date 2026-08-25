@@ -15,12 +15,14 @@ from normalizing_flow.src.data import build_natural_flow_dataset  # noqa: E402
 from normalizing_flow.src.utils import load_yaml, setup_logging  # noqa: E402
 
 CONFIG_PATH = (
-    Path(__file__).resolve().parent / "configs" / "highd_natural_driving_flow.yaml"
+    ROOT / "normalizing_flow/configs/highd_natural_driving_flow.yaml"
 )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Build the maintained highD natural-driving Flow dataset."
+    )
     parser.add_argument("--config", default=str(CONFIG_PATH))
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()

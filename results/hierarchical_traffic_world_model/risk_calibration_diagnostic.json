@@ -1,0 +1,188 @@
+{
+  "collision_playbacks": [
+    {
+      "event_risk": 1.1667572259902954,
+      "evt_score": 7.650433779579958,
+      "first_collision_frame": 113,
+      "first_collision_slots": [
+        2
+      ],
+      "first_collision_time_s": 4.5200000000000005,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/risk_calibration_diagnostic/idm_collision_001_row_33121.gif",
+      "highd_evt_score": 2.404014629418298,
+      "playback_frames": 76,
+      "rank": 1,
+      "row": 33121
+    },
+    {
+      "event_risk": 1.1310789585113525,
+      "evt_score": 7.232257360433995,
+      "first_collision_frame": 116,
+      "first_collision_slots": [
+        2
+      ],
+      "first_collision_time_s": 4.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/risk_calibration_diagnostic/idm_collision_002_row_28829.gif",
+      "highd_evt_score": 2.4637179106190574,
+      "playback_frames": 76,
+      "rank": 2,
+      "row": 28829
+    },
+    {
+      "event_risk": 1.1220299005508423,
+      "evt_score": 7.133469935359023,
+      "first_collision_frame": 127,
+      "first_collision_slots": [
+        2
+      ],
+      "first_collision_time_s": 5.08,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/risk_calibration_diagnostic/idm_collision_003_row_88460.gif",
+      "highd_evt_score": 1.8312679755986914,
+      "playback_frames": 76,
+      "rank": 3,
+      "row": 88460
+    },
+    {
+      "event_risk": 1.1143274307250977,
+      "evt_score": 7.051461091400462,
+      "first_collision_frame": 108,
+      "first_collision_slots": [
+        2
+      ],
+      "first_collision_time_s": 4.32,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/risk_calibration_diagnostic/idm_collision_004_row_26729.gif",
+      "highd_evt_score": 1.9859169709132902,
+      "playback_frames": 76,
+      "rank": 4,
+      "row": 26729
+    },
+    {
+      "event_risk": 1.103863000869751,
+      "evt_score": 6.942947887329406,
+      "first_collision_frame": 96,
+      "first_collision_slots": [
+        2
+      ],
+      "first_collision_time_s": 3.84,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/risk_calibration_diagnostic/idm_collision_005_row_48890.gif",
+      "highd_evt_score": 3.882759013614303,
+      "playback_frames": 76,
+      "rank": 5,
+      "row": 48890
+    }
+  ],
+  "highway_env_factual_fidelity": {
+    "conditioning": {
+      "committed_ego_controls": "logged_highd_history_controls",
+      "hiqr_response": "deterministic",
+      "initial_history": "logged_highd_25_frames",
+      "soft_reference": "frozen_diffusion_plan"
+    },
+    "direct_logged_controls_highway_env": {
+      "background_ADE_m": 0.08008363842964172,
+      "background_FDE_m": 0.12116406112909317,
+      "background_P95_displacement_error_m": 0.2100085727870464,
+      "ego_ADE_m": 0.17616376280784607,
+      "ego_FDE_m": 0.18850110471248627
+    },
+    "direct_logged_controls_offline_unicycle": {
+      "background_ADE_m": 0.08008447289466858,
+      "background_FDE_m": 0.12116808444261551,
+      "background_P95_displacement_error_m": 0.21000086218118666,
+      "ego_ADE_m": 0.176151841878891,
+      "ego_FDE_m": 0.1884659379720688
+    },
+    "highway_env_vs_offline_unicycle_same_controls": {
+      "background_ADE_m": 5.657096698996611e-05,
+      "background_FDE_m": 0.00011783885565819219,
+      "background_P95_displacement_error_m": 0.00018312099564354867,
+      "ego_ADE_m": 6.411896902136505e-05,
+      "ego_FDE_m": 0.0001750183291733265
+    },
+    "logged_human_controls": {
+      "background_ADE_m": 0.03561779856681824,
+      "background_FDE_m": 0.025884510949254036,
+      "background_P95_displacement_error_m": 0.08932360969483849,
+      "ego_ADE_m": 0.17616376280784607,
+      "ego_FDE_m": 0.18850110471248627
+    }
+  },
+  "interpretation": "This is a held-out factual-calibration diagnostic, not proof of counterfactual human behavior under IDM intervention.",
+  "paired_failure_changes": {
+    "logged_human_to_world_human_controls": {
+      "both_failure": 6,
+      "both_safe": 1017,
+      "human_failure_generated_safe": 1,
+      "human_safe_generated_failure": 0
+    },
+    "logged_human_to_world_idm_controls": {
+      "both_failure": 2,
+      "both_safe": 975,
+      "human_failure_generated_safe": 5,
+      "human_safe_generated_failure": 42
+    }
+  },
+  "provenance": {
+    "diffusion_checkpoint": "/home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt",
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "evt_model": "/home/hp/FITWMAMS/results/highd_natural_driving_evt/evt/natural_evt_model.json",
+    "evt_model_sha256": "f529beb381cdf8b0da6d66cfce32c310ab80ffe889c16a923c6e0e01d0535f39",
+    "execution_backend": "local_HighwayEnv",
+    "hiqr_vehicle_dynamics_contract": "kinematic_unicycle_v1_on_highwayenv_road_v1",
+    "idm_config": "/home/hp/FITWMAMS/tools/idm_ego.yaml",
+    "idm_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "world_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_traffic_world_model/checkpoints/final_world_model.pt",
+    "world_checkpoint_sha256": "5bafb4c1b95dcbc0f1b7aba16c8a50dad4718e1873be7e024d0ff13d4ac30e92"
+  },
+  "purpose": "Compare the same held-out highD windows under observed human motion, HighwayEnv human-control replay, and HighwayEnv IDM replay.",
+  "results": {
+    "observed_highd_human": {
+      "collision_fraction": 0.0,
+      "event_risk_mean": 0.03911612927913666,
+      "event_risk_p95": 0.2905816122889518,
+      "evt_score_mean": 1.9001981300702113,
+      "evt_score_p95": 2.6995165508233994,
+      "failure_count": 7,
+      "failure_probability": 0.0068359375,
+      "sequences": 1024
+    },
+    "world_replay_idm_controls": {
+      "collision_fraction": 0.0283203125,
+      "event_risk_mean": 0.07127346098423004,
+      "event_risk_p95": 0.6765565872192372,
+      "evt_score_mean": 2.0464721456569794,
+      "evt_score_p95": 4.081364488712009,
+      "failure_count": 44,
+      "failure_probability": 0.04296875,
+      "sequences": 1024
+    },
+    "world_replay_logged_human_controls": {
+      "collision_fraction": 0.0,
+      "event_risk_mean": 0.03972495719790459,
+      "event_risk_p95": 0.3019874542951578,
+      "evt_score_mean": 1.9022541658112808,
+      "evt_score_p95": 2.732795666626071,
+      "failure_count": 6,
+      "failure_probability": 0.005859375,
+      "sequences": 1024
+    }
+  },
+  "sample": {
+    "continuous_background_valid_fraction": 0.4085286458333333,
+    "row_index_sha256": "091ece6a863ff8a4f9695e5edea809db407735f5c8608ebaeb5fdb79af4ce57d",
+    "selected_sequences": 1024,
+    "selection_seed": 20260826,
+    "split": "test"
+  },
+  "schema": "highd_highway_env_risk_calibration_diagnostic_v4",
+  "threshold": {
+    "event_risk": 0.781993143913047,
+    "evt_return_period_segments": 100,
+    "evt_score": 4.605170185988092
+  }
+}

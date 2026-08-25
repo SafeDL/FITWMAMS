@@ -183,4 +183,5 @@ class WorldModelConfig:
         )
 
     def to_dict(self) -> dict[str, object]:
+        """Return the serializable model contract used in checkpoints."""
         return asdict(self)

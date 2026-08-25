@@ -38,11 +38,12 @@ def ego_controls(source: np.ndarray, target: np.ndarray, dt_s: float) -> np.ndar
 
 @dataclass(frozen=True)
 class ExperimentData:
+    """Loaded highD arrays and recording-isolated row indices for one scope."""
+
     bundle: DataBundle
     train_rows: np.ndarray
     validation_rows: np.ndarray
     test_rows: np.ndarray
-    diffusion_contract: dict[str, Any]
 
 
 class ResponseDataset(Dataset):
@@ -252,6 +253,7 @@ def response_loader(
     workers: int,
     seed: int,
 ) -> DataLoader:
+    """Build the deterministic loader for variable-length realized histories."""
     generator = torch.Generator().manual_seed(int(seed))
     return DataLoader(
         dataset,
@@ -266,6 +268,7 @@ def response_loader(
 
 
 def prepare_experiment_data(config: dict[str, Any], config_dir: Path) -> ExperimentData:
+    """Load data and choose either the full or explicitly bounded pilot split."""
     bundle = load_data_bundle(config, config_dir)
     training = config["training"]
     seed = int(training["seed"])
@@ -293,5 +296,4 @@ def prepare_experiment_data(config: dict[str, Any], config_dir: Path) -> Experim
         train_rows=rows["train"],
         validation_rows=rows["validation"],
         test_rows=rows["test"],
-        diffusion_contract={},
     )

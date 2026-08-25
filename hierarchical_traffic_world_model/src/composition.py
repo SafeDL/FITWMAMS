@@ -18,8 +18,9 @@ from normalizing_flow.src.sampling import (
 )
 from world_model.src.core.utils import load_json
 
-from .environment import ClosedLoopWorld
+from .highway_env_execution import HighwayEnvClosedLoopWorld
 from .train import load_checkpoint as load_response_checkpoint
+from .world_randomness import WorldExogenousState
 
 
 def split_motion_seed(seed: int) -> tuple[int, int]:
@@ -31,6 +32,8 @@ def split_motion_seed(seed: int) -> tuple[int, int]:
 
 @dataclass(frozen=True)
 class SampledWorldBatch:
+    """Concrete Flow/Diffusion sample plus its response-layer provenance."""
+
     scenario: Any
     initial_states: np.ndarray
     initial_valid: np.ndarray
@@ -39,6 +42,7 @@ class SampledWorldBatch:
     scenario_seed: int
     motion_seed: int
     response_seed: int
+    exogenous_state: WorldExogenousState | None = None
 
 
 class HierarchicalWorldSampler:
@@ -79,12 +83,25 @@ class HierarchicalWorldSampler:
         self.ddim_steps = int(ddim_steps)
 
     @torch.no_grad()
+    def sample_world_exogenous(
+        self, n: int, *, seed: int, response_steps: int = 149
+    ) -> WorldExogenousState:
+        """Sample the explicit prior variables required by one complete world."""
+        return WorldExogenousState.sample(
+            n,
+            seed=seed,
+            response_steps=response_steps,
+            scene_dim=self.response.cfg.scene_latent_dim,
+            agent_dim=self.response.cfg.agent_latent_dim,
+        )
+
     def _compose(
         self,
         scenario: Any,
         *,
         scenario_seed: int,
         motion_seed: int,
+        exogenous_state: WorldExogenousState | None = None,
     ) -> SampledWorldBatch:
         prepared = [
             prepare_flow_condition(
@@ -104,11 +121,22 @@ class HierarchicalWorldSampler:
             np.stack([item["target_mask"] for item in prepared])
         ).to(self.device)
         diffusion_seed, response_seed = split_motion_seed(motion_seed)
+        initial_noise = None
         generator = torch.Generator(device=self.device).manual_seed(diffusion_seed)
+        if exogenous_state is not None:
+            exogenous_state.validate(
+                response_steps=exogenous_state.response_steps,
+                scene_dim=self.response.cfg.scene_latent_dim,
+                agent_dim=self.response.cfg.agent_latent_dim,
+            )
+            if exogenous_state.batch_size != len(scenario.c0):
+                raise ValueError("exogenous state and scenario batch sizes differ")
+            initial_noise = torch.from_numpy(exogenous_state.diffusion_noise).to(self.device)
         normalized = self.diffusion.sample_ddim(
             condition,
             target_mask,
             inference_steps=self.ddim_steps,
+            initial_noise=initial_noise,
             generator=generator,
         )
         residual_mean = np.asarray(
@@ -133,11 +161,32 @@ class HierarchicalWorldSampler:
             scenario_seed=int(scenario_seed),
             motion_seed=int(motion_seed),
             response_seed=response_seed,
+            exogenous_state=exogenous_state,
+        )
+
+    def compose_exogenous(self, exogenous_state: WorldExogenousState) -> SampledWorldBatch:
+        """Turn an explicit base-randomness state into a concrete traffic world."""
+        exogenous_state.validate(
+            response_steps=exogenous_state.response_steps,
+            scene_dim=self.response.cfg.scene_latent_dim,
+            agent_dim=self.response.cfg.agent_latent_dim,
+        )
+        scenario = self.flow.sample_scenarios_from_base_randomness(
+            exogenous_state.scenario_uniform,
+            exogenous_state.c0_base_latent,
+            exogenous_state.k_base_latent,
+        )
+        return self._compose(
+            scenario,
+            scenario_seed=0,
+            motion_seed=0,
+            exogenous_state=exogenous_state,
         )
 
     def sample_scenarios(
         self, n: int, *, scenario_seed: int, motion_seed: int
     ) -> SampledWorldBatch:
+        """Sample unconstrained scenarios and attach frozen response plans."""
         scenario = sample_scenarios(self.flow, int(n), scenario_seed)
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
@@ -152,6 +201,7 @@ class HierarchicalWorldSampler:
         scenario_seed: int,
         motion_seed: int,
     ) -> SampledWorldBatch:
+        """Sample scenarios conditioned on fixed C0 and slot-presence masks."""
         scenario = sample_constraints(
             self.flow,
             c0,
@@ -163,7 +213,15 @@ class HierarchicalWorldSampler:
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
         )
 
-    def create_world(self, sample: SampledWorldBatch) -> ClosedLoopWorld:
+    def create_world(
+        self,
+        sample: SampledWorldBatch,
+        *,
+        idm_config: dict[str, Any] | None = None,
+    ) -> HighwayEnvClosedLoopWorld:
+        """Create the formal HighwayEnv execution world for one sampled batch."""
+        if sample.exogenous_state is None:
+            raise ValueError("formal HighwayEnv execution requires explicit world randomness")
         batch = len(sample.initial_states)
         x = np.linspace(-200.0, 200.0, 8, dtype=np.float32)
         lane_offsets = np.arange(-3, 5, dtype=np.float32) * 3.6
@@ -176,13 +234,17 @@ class HierarchicalWorldSampler:
         maps[..., 2] = 1.0
         maps[..., 4] = 3.6
         map_valid = np.ones((batch, 8, 8), bool)
-        world = ClosedLoopWorld(self.response, device=self.device)
+        world = HighwayEnvClosedLoopWorld(
+            self.response,
+            device=self.device,
+            idm_config=idm_config,
+        )
         world.reset(
             torch.from_numpy(sample.initial_states),
             torch.from_numpy(sample.initial_valid),
             torch.from_numpy(sample.soft_plan),
             torch.from_numpy(maps),
             torch.from_numpy(map_valid),
-            motion_seed=sample.response_seed,
+            exogenous_state=sample.exogenous_state,
         )
         return world

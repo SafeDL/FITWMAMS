@@ -1,1 +1,1 @@
-"""Subset simulation source package."""
+"""Current-world IDM subset simulation package."""

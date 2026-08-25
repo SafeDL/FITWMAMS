@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 import tempfile
-import argparse
 from dataclasses import replace
 from pathlib import Path
 
@@ -43,7 +43,10 @@ def _relative_degradation(current: float, baseline: float) -> float:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Matched fixed-condition randomness ablation for a full model."
+        description=(
+            "Matched fixed-condition randomness ablation for a full model; "
+            "the bounded cohort is not an AMS population."
+        )
     )
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--samples", type=int, default=SAMPLES)

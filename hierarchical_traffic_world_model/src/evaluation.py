@@ -5,13 +5,13 @@ from __future__ import annotations
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
 from scipy.stats import ks_2samp, wasserstein_distance
 
-from diffusion.src.data import ANCHOR_INDEX, semantic_cutin_agents, split_rows
+from diffusion.src.data import ANCHOR_INDEX, semantic_cutin_agents
 from world_model.src.core.dynamics import KinematicTrafficDynamics
 from world_model.src.core.utils import ensure_dir, load_json, save_json, select_device, set_seed
 
@@ -23,10 +23,15 @@ from .reference import response_relevance
 
 @dataclass(frozen=True)
 class Rollout:
+    """Numpy rollout tensors and controls returned by the offline evaluator."""
+
     states: np.ndarray
     background_actions: np.ndarray
     ego_actions: np.ndarray
     reference_actions: np.ndarray
+
+
+EgoActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
 
 
 def _logged_ego_actions(
@@ -78,7 +83,9 @@ def rollout(
     motion_seed: int | None,
     intervention: str | None = None,
     dose: float = 0.0,
+    ads_policy: EgoActionPolicy | None = None,
 ) -> Rollout:
+    """Run one causal offline response rollout for a matched batch."""
     states = torch.from_numpy(logged_states[:, ANCHOR_INDEX].copy()).to(device)
     valid = torch.from_numpy(logged_valid[:, ANCHOR_INDEX].copy()).to(device)
     history = torch.from_numpy(
@@ -91,8 +98,10 @@ def rollout(
     maps = torch.from_numpy(np.asarray(map_polylines, np.float32)).to(device)
     map_valid = torch.from_numpy(np.asarray(map_polyline_valid, bool)).to(device)
     initial_reference = states[:, 1:, :2].clone()
-    ego = torch.from_numpy(_logged_ego_actions(logged_states, logged_valid)).to(device)
-    ego = _intervene(ego, intervention, dose)
+    logged_ego = torch.from_numpy(
+        _logged_ego_actions(logged_states, logged_valid)
+    ).to(device)
+    scheduled_ego = _intervene(logged_ego, intervention, dose)
     historical_start = max(0, ANCHOR_INDEX - history_frames + 1)
     historical_ego_values = ego_controls(
         logged_states[:, historical_start:ANCHOR_INDEX, 0],
@@ -118,6 +127,7 @@ def rollout(
     agent_style_state = None
     previous_current = None
     committed_ego_controls = historical_ego
+    executed_ego: list[torch.Tensor] = []
     intervention_memory = None
     lateral_intervention_memory = None
     execute = model.cfg.execute_frames
@@ -135,7 +145,28 @@ def rollout(
                 dim=1,
             )
         base = initial_reference if start == 0 else reference[:, start - 1]
-        ego_block = ego[:, start : start + execute]
+        ego_block = scheduled_ego[:, start : start + execute]
+        if ads_policy is not None:
+            proposed = torch.as_tensor(
+                ads_policy(
+                    {
+                        "agent_states": states.detach().clone(),
+                        "agent_valid": valid.detach().clone(),
+                        "reference_index": start,
+                    }
+                ),
+                dtype=states.dtype,
+                device=device,
+            )
+            if proposed.shape == (len(states), 2):
+                ego_block = proposed[:, None].expand(-1, execute, -1)
+            elif proposed.shape == (len(states), execute, 2):
+                ego_block = proposed
+            else:
+                raise ValueError(
+                    "ads_policy must return [batch,2] or "
+                    "[batch,execute_frames,2] controls"
+                )
         if count < execute:
             ego_block = torch.cat(
                 (
@@ -195,6 +226,7 @@ def rollout(
             )
             states = model.dynamics.step(states, controls, valid, model.cfg.dt_s)
             new_frames.append(states)
+        executed_ego.append(ego_block[:, :count])
         committed_ego_controls = torch.cat(
             (committed_ego_controls, ego_block[:, :count]), dim=1
         )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
@@ -210,7 +242,7 @@ def rollout(
     return Rollout(
         torch.cat(generated, dim=1).cpu().numpy(),
         torch.cat(background_actions, dim=1).cpu().numpy(),
-        ego.cpu().numpy(),
+        torch.cat(executed_ego, dim=1).cpu().numpy(),
         torch.cat(reference_actions, dim=1).cpu().numpy(),
     )
 
@@ -819,6 +851,7 @@ def _intervention_metrics(
 
 
 def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
+    """Evaluate the maintained model and persist its complete JSON report."""
     from .calibration import fit_natural_response_calibrator
     from .data import split_rows
     from .model import DiffusionGuidedHiQR
@@ -1009,8 +1042,10 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         target[:ablation_count],
         active[:ablation_count],
     )
-    subset = min(1024, len(rows))
-    stochastic_rows = slice(0, subset)
+    # This is only a bounded evaluation cohort.  It is deliberately not the
+    # AMS/subset-simulation population; that estimator lives in IDM_subset.
+    stochastic_cohort_size = min(1024, len(rows))
+    stochastic_rows = slice(0, stochastic_cohort_size)
     motion_seeds = tuple(seed + sample for sample in range(16))
     sampled_plans = stochastic_diffusion_plan_samples(
         experiment.bundle,
@@ -1184,7 +1219,9 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
                 "diffusion preview; this is conditional reconstruction, not "
                 "unconditional scenario-generation accuracy"
             ),
-            "stochasticity_subset_sequences": int(subset),
+            # Keep the established result schema; these fields are bounded
+            # evaluation cohorts, not subset-simulation populations.
+            "stochasticity_subset_sequences": int(stochastic_cohort_size),
             "intervention_subset_sequences": int(intervention_count),
             "natural_response_reference_sequences": int(len(natural_reference_rows)),
             "intervention_common_random_numbers": True,

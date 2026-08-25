@@ -1,4 +1,10 @@
-"""Causal response-boundary environment with exact branch replay."""
+"""Offline causal response-boundary environment with exact branch replay.
+
+This module is retained for model/loss unit tests and differentiable offline
+evaluation.  It is not the execution backend for ADS risk estimates; those
+must use :mod:`highway_env_execution`, which owns the HighwayEnv road,
+collision and IDM dynamics.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ import torch
 from world_model.src.hiqr.filter import FilterState
 
 from .model import DiffusionGuidedHiQR
+from .world_randomness import WorldExogenousState
 
 
 @dataclass(frozen=True)
@@ -29,6 +36,9 @@ class WorldSnapshot:
     committed_ego_controls: torch.Tensor
     intervention_memory: torch.Tensor | None
     lateral_intervention_memory: torch.Tensor | None
+    response_innovations: torch.Tensor | None
+    response_agent_innovations: torch.Tensor | None
+    response_innovation_index: int
 
 
 class ClosedLoopWorld:
@@ -61,6 +71,9 @@ class ClosedLoopWorld:
         self.committed_ego_controls: torch.Tensor | None = None
         self.intervention_memory: torch.Tensor | None = None
         self.lateral_intervention_memory: torch.Tensor | None = None
+        self.response_innovations: torch.Tensor | None = None
+        self.response_agent_innovations: torch.Tensor | None = None
+        self.response_innovation_index = 0
 
     @torch.no_grad()
     def reset(
@@ -71,7 +84,8 @@ class ClosedLoopWorld:
         map_polylines: torch.Tensor,
         map_polyline_valid: torch.Tensor,
         *,
-        motion_seed: int,
+        motion_seed: int | None = None,
+        exogenous_state: WorldExogenousState | None = None,
     ) -> dict[str, torch.Tensor | int]:
         states = torch.as_tensor(
             initial_states, dtype=torch.float32, device=self.device
@@ -95,7 +109,31 @@ class ClosedLoopWorld:
         self.reference = reference.clone()
         self.reference_base = states[:, 1:, :2].clone()
         self.reference_index = 0
-        self.generator.manual_seed(int(motion_seed))
+        if exogenous_state is not None:
+            exogenous_state.validate(
+                response_steps=exogenous_state.response_steps,
+                scene_dim=self.model.cfg.scene_latent_dim,
+                agent_dim=self.model.cfg.agent_latent_dim,
+            )
+            if exogenous_state.batch_size != states.shape[0]:
+                raise ValueError("exogenous state and initial states have different batch sizes")
+            self.response_innovations = torch.as_tensor(
+                exogenous_state.scene_response_innovations,
+                dtype=states.dtype,
+                device=self.device,
+            )
+            self.response_agent_innovations = torch.as_tensor(
+                exogenous_state.agent_response_innovations,
+                dtype=states.dtype,
+                device=self.device,
+            )
+        else:
+            if motion_seed is None:
+                raise ValueError("motion_seed is required when exogenous_state is absent")
+            self.generator.manual_seed(int(motion_seed))
+            self.response_innovations = None
+            self.response_agent_innovations = None
+        self.response_innovation_index = 0
         self.map_polylines = torch.as_tensor(
             map_polylines, dtype=torch.float32, device=self.device
         )
@@ -167,6 +205,13 @@ class ClosedLoopWorld:
             None
             if self.lateral_intervention_memory is None
             else self.lateral_intervention_memory.detach().clone(),
+            None
+            if self.response_innovations is None
+            else self.response_innovations.detach().clone(),
+            None
+            if self.response_agent_innovations is None
+            else self.response_agent_innovations.detach().clone(),
+            self.response_innovation_index,
         )
 
     def restore(self, snapshot: WorldSnapshot) -> dict[str, torch.Tensor | int]:
@@ -175,7 +220,9 @@ class ClosedLoopWorld:
         self.history = snapshot.history.detach().clone().to(self.device)
         self.history_valid = snapshot.history_valid.detach().clone().to(self.device)
         self.reference_index = int(snapshot.reference_index)
-        self.generator.set_state(snapshot.motion_generator_state.to(self.device))
+        # Generator state is a CPU ByteTensor even when this world executes on
+        # CUDA; moving it to the model device breaks ``Generator.set_state``.
+        self.generator.set_state(snapshot.motion_generator_state.cpu())
         self.filter_state = (
             None
             if snapshot.filter_global is None
@@ -222,6 +269,17 @@ class ClosedLoopWorld:
             if snapshot.lateral_intervention_memory is None
             else snapshot.lateral_intervention_memory.detach().clone().to(self.device)
         )
+        self.response_innovations = (
+            None
+            if snapshot.response_innovations is None
+            else snapshot.response_innovations.detach().clone().to(self.device)
+        )
+        self.response_agent_innovations = (
+            None
+            if snapshot.response_agent_innovations is None
+            else snapshot.response_agent_innovations.detach().clone().to(self.device)
+        )
+        self.response_innovation_index = int(snapshot.response_innovation_index)
         return self.observe()
 
     def _preview(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -250,18 +308,26 @@ class ClosedLoopWorld:
         if actions.shape != expected:
             raise ValueError(f"ego_actions must have shape {expected}")
         preview, base = self._preview()
-        scene_noise = torch.randn(
-            (states.shape[0], self.model.cfg.scene_latent_dim),
-            generator=self.generator,
-            device=self.device,
-            dtype=states.dtype,
-        )
-        agent_noise = torch.randn(
-            (states.shape[0], 7, self.model.cfg.agent_latent_dim),
-            generator=self.generator,
-            device=self.device,
-            dtype=states.dtype,
-        )
+        if self.response_innovations is None:
+            scene_noise = torch.randn(
+                (states.shape[0], self.model.cfg.scene_latent_dim),
+                generator=self.generator,
+                device=self.device,
+                dtype=states.dtype,
+            )
+            agent_noise = torch.randn(
+                (states.shape[0], 7, self.model.cfg.agent_latent_dim),
+                generator=self.generator,
+                device=self.device,
+                dtype=states.dtype,
+            )
+        else:
+            if self.response_innovation_index >= self.response_innovations.shape[1]:
+                raise RuntimeError("world exogenous response innovations are exhausted")
+            assert self.response_agent_innovations is not None
+            scene_noise = self.response_innovations[:, self.response_innovation_index]
+            agent_noise = self.response_agent_innovations[:, self.response_innovation_index]
+            self.response_innovation_index += 1
         assert self.map_polylines is not None and self.map_polyline_valid is not None
         response = self.model(
             self.history,

@@ -32,6 +32,25 @@ recording-level split 为 72,771/13,133/10,151。模型在第 53 epoch 取得最
 
 所有预设总体质量门槛均通过，但平均 KS 会掩盖少数后车纵向结点的较大偏差（单项最高约 `0.414`），不能据此声称每个条件边际都可靠。完整结果、采样和图见 `results/highd_natural_driving_flow/`。扩散仍接收 `C0(40)+M(6)+K(72)=118` 维物理契约，因此冻结扩散模型不需要重训。
 
+## 目录与脚本职责
+
+唯一维护配置为 `normalizing_flow/configs/highd_natural_driving_flow.yaml`；配置不再放在
+脚本目录中。四个入口各自只负责一个阶段：
+
+| 脚本 | 用途 | 是否写入模型工件 |
+| --- | --- | --- |
+| `prepare_highd_natural_driving_flow_dataset.py` | 构建并校验 recording-level 数据集缓存 | 写数据集和 schema，不训练 |
+| `train_highd_natural_driving_flow.py` | 训练直接场景条件 Flow | 写 checkpoint、训练历史和 manifest |
+| `evaluate_highd_natural_driving_flow.py` | 在完整 test split 上评估、采样并生成图表 | 写评估 JSON、样本和 figures |
+| `verify_highd_natural_driving_flow.py` | 审计已发布数据、checkpoint、采样确定性和 118 维扩散契约 | 只读检查，不重训 |
+
+`src/data.py` 负责数据/schema，`src/features.py` 和 `src/transforms.py` 负责物理特征与
+变换，`src/constraints.py` 定义稀疏结点约束，`src/scenario.py`/`src/model.py` 负责三因子
+Flow，`src/sampling.py` 提供统一采样接口，`src/metrics.py` 负责物理合法性指标，
+`src/train.py` 和 `src/evaluation.py` 分别负责训练与评估，`src/utils.py` 只提供本模块的
+配置、设备和序列化小工具。正式生成链只使用这些模块；不保留旧的行为分类器、donor 或
+分阶段 Flow 入口。
+
 ```bash
 conda run -n tread python normalizing_flow/scripts/prepare_highd_natural_driving_flow_dataset.py
 conda run -n tread python normalizing_flow/scripts/train_highd_natural_driving_flow.py

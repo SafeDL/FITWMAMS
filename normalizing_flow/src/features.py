@@ -95,12 +95,6 @@ def mask_pattern_from_slot_mask(slot_mask: np.ndarray) -> np.ndarray:
     return np.sum(mask.astype(np.int64) * powers, axis=1).astype(np.int64)
 
 
-def slot_mask_from_pattern(mask_pattern: np.ndarray) -> np.ndarray:
-    pattern = np.asarray(mask_pattern, dtype=np.int64).reshape(-1)
-    powers = (1 << np.arange(len(SLOT_NAMES), dtype=np.int64)).reshape(1, -1)
-    return (pattern.reshape(-1, 1) & powers) > 0
-
-
 def slot_feature_index(slot_name: str, feature: str) -> int:
     return (
         len(EGO_FEATURES)

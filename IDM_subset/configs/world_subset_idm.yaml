@@ -1,0 +1,47 @@
+# IDM rare-event estimation under the maintained Flow -> Diffusion -> HiQR world.
+
+paths:
+  world_model_config: ../../hierarchical_traffic_world_model/configs/highd_stochastic_causal_hiqr_full.yaml
+  evt_model: ../../results/highd_natural_driving_evt/evt/natural_evt_model.json
+  idm_ego_config: ../../tools/idm_ego.yaml
+
+simulation:
+  steps: 149
+  ddim_steps: 20
+  execution_backend: local_highway_env
+
+runtime:
+  device: auto
+  batch_size: 32
+
+failure_event:
+  # The human-calibrated 100-event return level is the fixed final threshold.
+  return_period: 100
+
+subset_simulation:
+  num_samples: 512
+  # The calibrated failure probability is of order 10^-2.  A 10% conditional
+  # level reaches that tail in one transition and avoids unnecessary,
+  # short-chain intermediate conditioning.
+  p0: 0.1
+  max_levels: 8
+  mutation_blocks:
+    - scenario
+    - c0_base_latent
+    - k_base_latent
+    - diffusion_noise
+    - scene_response_innovations
+    - agent_response_innovations
+  pcn_beta: 0.20
+  mcmc_steps: 3
+  seed: 20260823
+  output_dir: ../results/subset
+
+monte_carlo:
+  num_samples: 2000
+  sample_batch_size: 32
+  seed: 20260824
+  output_dir: ../results/monte_carlo
+
+output:
+  top_cases: 10

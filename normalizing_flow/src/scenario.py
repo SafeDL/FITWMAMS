@@ -118,14 +118,25 @@ def project_constraint(
 def _sample_flow(
     flow: nn.Module,
     context: torch.Tensor,
-    generator: torch.Generator,
+    generator: torch.Generator | None = None,
     *,
+    base_noise: torch.Tensor | None = None,
     chunk_size: int = 128,
 ) -> torch.Tensor:
     features = int(np.prod(flow._distribution._shape))
-    noise = torch.randn(
-        (len(context), features), generator=generator, device=context.device
-    )
+    if base_noise is None:
+        if generator is None:
+            raise ValueError("either generator or base_noise is required")
+        noise = torch.randn(
+            (len(context), features), generator=generator, device=context.device
+        )
+    else:
+        noise = torch.as_tensor(base_noise, dtype=context.dtype, device=context.device)
+        if tuple(noise.shape) != (len(context), features):
+            raise ValueError(
+                f"flow base noise must have shape {(len(context), features)}, "
+                f"got {tuple(noise.shape)}"
+            )
     output = []
     for start in range(0, len(context), chunk_size):
         selected = context[start : start + chunk_size]
@@ -230,6 +241,44 @@ class DirectScenarioFlow(nn.Module):
         return self._sample_given(c0_norm, slots, k_seed)
 
     @torch.no_grad()
+    def sample_scenarios_from_base_randomness(
+        self,
+        scenario_uniform: np.ndarray,
+        c0_base_latent: np.ndarray,
+        k_base_latent: np.ndarray,
+    ) -> ScenarioBatch:
+        """Sample exactly from explicit base variables.
+
+        ``scenario_uniform`` is a U(0, 1) draw for the categorical slot
+        structure; C0 and K use the standard-normal base variables of their
+        respective normalizing flows.  This is the public mutation boundary
+        for rare-event simulation and deliberately keeps projection rules
+        identical to ordinary sampling.
+        """
+        device = next(self.parameters()).device
+        uniform = torch.as_tensor(scenario_uniform, dtype=torch.float64, device=device)
+        if uniform.ndim != 1 or not torch.isfinite(uniform).all() or (
+            (uniform < 0.0) | (uniform >= 1.0)
+        ).any():
+            raise ValueError("scenario_uniform must be a finite [batch] vector in [0, 1)")
+        cumulative = torch.cumsum(self.mask_log_prob.exp().double(), dim=0)
+        pattern = torch.searchsorted(cumulative, uniform).clamp_max(len(cumulative) - 1)
+        bits = 2 ** torch.arange(6, device=device)
+        slots = (pattern[:, None].bitwise_and(bits[None])) > 0
+        c0_norm = _sample_flow(
+            self.c0_flow,
+            slots.float(),
+            base_noise=torch.as_tensor(c0_base_latent, device=device),
+        )
+        context = torch.cat((c0_norm, slots.float()), dim=-1)
+        k_norm = _sample_flow(
+            self.constraint_flow,
+            context,
+            base_noise=torch.as_tensor(k_base_latent, device=device),
+        ).reshape(-1, 6, 12)
+        return self._scenario_from_normalized(c0_norm, slots, k_norm)
+
+    @torch.no_grad()
     def sample_constraints(
         self,
         c0: np.ndarray,
@@ -269,7 +318,15 @@ class DirectScenarioFlow(nn.Module):
         k_norm = _sample_flow(self.constraint_flow, context, generator).reshape(
             -1, 6, 12
         )
-        c0 = inverse_normalize_features(c0_norm.cpu().numpy(), self.schema)
+        return self._scenario_from_normalized(c0_norm, slots, k_norm)
+
+    def _scenario_from_normalized(
+        self,
+        c0_norm: torch.Tensor,
+        slots: torch.Tensor,
+        k_norm: torch.Tensor,
+    ) -> ScenarioBatch:
+        c0 = inverse_normalize_features(c0_norm.detach().cpu().numpy(), self.schema)
         c0[~feature_valid_from_slot_mask(self.schema, slots.cpu().numpy())] = 0.0
         c0 = project_physical_c0(c0, slots.cpu().numpy())
         constraint, valid = inverse_constraint(
