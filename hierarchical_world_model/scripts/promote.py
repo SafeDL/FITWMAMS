@@ -100,6 +100,7 @@ def main() -> None:
     if not base.is_file():
         raise FileNotFoundError(f"missing base stage checkpoint: {base}")
     staged, payload = load_checkpoint(source, device=device)
+    staged.eval()
     final = DiffusionGuidedHiQR(WorldModelConfig(**config["model"])).to(device).eval()
     final.load_state_dict(staged.state_dict())
     torch.testing.assert_close(_probe(final, device), _probe(staged, device), rtol=0.0, atol=0.0)
