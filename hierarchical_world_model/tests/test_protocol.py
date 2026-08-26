@@ -29,7 +29,7 @@ def test_ams_readiness_gate_requires_readiness_and_finite_interfaces():
 
 def test_formal_manifest_gate_checks_contract_version_and_required_fields():
     manifest = {
-        "protocol_version": ACCEPTANCE_GATES["protocol_version"],
+        "protocol": ACCEPTANCE_GATES["protocol"],
         "checkpoint_sha256": "cafebabe",
         "code_commit": "123",
         "worktree_clean_at_start": True,
@@ -37,5 +37,5 @@ def test_formal_manifest_gate_checks_contract_version_and_required_fields():
     assert check_formal_manifest_gate(manifest)
 
     wrong = dict(manifest)
-    wrong["protocol_version"] = "legacy"
+    wrong["protocol"] = "incompatible_protocol"
     assert not check_formal_manifest_gate(wrong)

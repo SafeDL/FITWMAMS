@@ -919,7 +919,7 @@ def build_world_model_dataset(
     schema_payload = {
         "dataset_cache": str(prepared_array_dir),
         "dataset_array_dir": str(prepared_array_dir),
-        "dataset_format": "prepared_npy_dir_v2",
+        "dataset_format": "prepared_npy_dir",
         "natural_segments_csv": str(natural_path),
         "tail_context_csv": str(tail_path) if tail_path is not None else "",
         "raw_dir": str(raw_dir),

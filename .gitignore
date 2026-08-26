@@ -67,3 +67,6 @@ runs/
 wandb/
 mlruns/
 tensorboard/
+
+# Reproducible formal world-model artifacts
+results/hierarchical_world_model/

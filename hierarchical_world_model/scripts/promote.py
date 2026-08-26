@@ -17,7 +17,7 @@ from hierarchical_world_model.src.config import WorldModelConfig  # noqa: E402
 from hierarchical_world_model.src.model import DiffusionGuidedHiQR  # noqa: E402
 from hierarchical_world_model.src.protocol import (  # noqa: E402
     canonical_hash, environment_provenance, load_protocol_config, logical_path,
-    RANDOMNESS_NAMESPACE, release_provenance, FORMAL_PROTOCOL_VERSION,
+    RANDOMNESS_NAMESPACE, release_provenance, FORMAL_PROTOCOL,
 )
 from hierarchical_world_model.src.train import load_checkpoint, save_checkpoint  # noqa: E402
 from world_model.src.core.utils import (  # noqa: E402
@@ -111,7 +111,7 @@ def main() -> None:
     )
     save_json(
         {
-            "protocol_version": FORMAL_PROTOCOL_VERSION,
+            "protocol": FORMAL_PROTOCOL,
             "artifact": logical_path(destination),
             "checkpoint_sha256": file_sha256(destination),
             "source_checkpoint": logical_path(source),

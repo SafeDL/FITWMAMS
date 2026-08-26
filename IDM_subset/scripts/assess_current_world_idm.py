@@ -115,7 +115,7 @@ def main() -> None:
         ),
     }
     report = {
-        "schema": "highway_env_idm_acceptance_v3",
+        "schema": "highway_env_idm_acceptance",
         "checks": checks,
         "all_passed": bool(all(checks.values())),
         "subset_probability": subset["probability"],

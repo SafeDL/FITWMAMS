@@ -298,7 +298,7 @@ def run_subset_from_config(config: dict[str, Any], config_dir: Path) -> Path:
     _write_csv(output_dir / "world_subset_level_stats.csv", level_rows)
     save_json(top_cases, output_dir / "world_subset_top_cases.json")
     summary = {
-        "schema": "highway_env_idm_subset_simulation_v3",
+        "schema": "highway_env_idm_subset_simulation",
         "estimator": "adaptive_multilevel_splitting_pcn_subset_simulation",
         "probability": result.probability,
         "final_failure_fraction": result.final_failure_fraction,
@@ -407,7 +407,7 @@ def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Pat
     )
     save_json(top_cases, output_dir / "world_monte_carlo_top_cases.json")
     summary = {
-        "schema": "highway_env_idm_monte_carlo_v3",
+        "schema": "highway_env_idm_monte_carlo",
         "estimator": "independent_monte_carlo",
         "probability": probability,
         "failure_count": int(failure.sum()),

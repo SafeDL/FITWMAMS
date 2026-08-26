@@ -56,7 +56,7 @@ class DynamicTrafficGraphBuilder:
     ) -> np.ndarray:
         """Associate agents with nearest valid polyline geometry.
 
-        The legacy centerline-y helper remains for compatibility with old
+        The fixed centerline-y helper remains for compatibility with
         callers. Supplied map geometry is never overwritten by this fallback.
         """
         states = np.asarray(states, np.float32)
@@ -271,7 +271,7 @@ class DynamicTrafficGraphBuilder:
         split: str,
         is_evt_tail: bool,
     ) -> DynamicTrafficSequence:
-        """Convert legacy fixed slots into a variable-agent sequence once.
+        """Convert fixed slots into a variable-agent sequence once.
 
         Slot labels are intentionally discarded.  The six background identities
         only provide stable source ids for this highD migration adapter.

@@ -194,7 +194,7 @@ def main() -> None:
         )
     save_json(
         {
-            "schema": "highway_env_idm_subset_playbacks_v1",
+        "schema": "highway_env_idm_subset_playbacks",
             "role": "playbacks rendered from the retained AMS subset final population",
             "source_summary": str(subset_dir / "world_subset_summary.json"),
             "provenance": provenance,

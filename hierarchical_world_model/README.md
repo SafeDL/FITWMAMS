@@ -25,35 +25,13 @@ Flow 与冻结扩散共享 `C0(40)+M(6)+K(72)=118` 维物理契约。`K` 是三�
 
 短程层复用 HiQR 的历史—关系查询编码器、车道几何、只更新已观测状态的递归滤波器、1 s 场景潜变量、连续相关的车辆潜变量和联合 jerk-knot 解码。首次调用在 `filter_state` 不存在时初始化观测状态，之后每 0.04 s 只用已实现联合状态递推更新；历史编码器的实际敏感性由单独诊断审计，不将其作用强度作为未经验证的主张。soft-plan 位置、速度、参考控制与当前偏差作为 preview token 同时进入 prior 和 decoder；解码器预测短计划但只提交第一帧，最终控制满足 `j_bg=j_soft+Δj_HiQR`，不存在输出端 gate 或硬轨迹回放。
 
-`WorldExogenousState` 使用 `world_rng_v2` 的 named block streams：scenario、C0、K、Diffusion、scene 和 agent。scene innovation 只有 `[N,ceil(T/25),16]`（正式 149 steps 为 6 次 refresh），agent innovation 为 `[N,T,7,16]`；响应 horizon 唯一由 agent 数组长度派生。运行时只保存一个 response index，scene 的 `t//25` 索引由其确定性计算。训练和评测分别使用 `training_rng_v1`、`evaluation_rng_v1` namespace。snapshot/restore 保存滤波状态、慢潜变量和该单一响应索引。模型从不接收未来 ego 动作，干预只能从下一次重规划开始生效。
+`WorldExogenousState` 使用 `world_rng` 的 named block streams：scenario、C0、K、Diffusion、scene 和 agent。scene innovation 只有 `[N,ceil(T/25),16]`（正式 149 steps 为 6 次 refresh），agent innovation 为 `[N,T,7,16]`；响应 horizon 唯一由 agent 数组长度派生。运行时只保存一个 response index，scene 的 `t//25` 索引由其确定性计算。训练和评测分别使用 `training_rng`、`evaluation_rng` namespace。snapshot/restore 保存滤波状态、慢潜变量和该单一响应索引。模型从不接收未来 ego 动作，干预只能从下一次重规划开始生效。
 
 ## 正式发布状态
 
-历史结果统一保存在 `results/legacy/world_model/`，并由其中的
-`legacy_manifest.json` 逻辑隔离，不能作为正式论文结果或 acceptance 输入。
-新的正式工件只能由带 release tag 的干净工作树
-生成，并且须完成 base → stochastic heads → final → evaluation 全链路。
-
-## 历史证据（已废弃）
-
-最终随机—因果模型使用 72,771/13,133 条 recording 隔离训练/验证序列训练，并在全部 10,151 条测试序列上确认：
-
-- 25 Hz 闭环 ADE/FDE/P95 为 `0.03906/0.03306/0.08931 m`，相对 E1 基线没有劣化。
-- 固定条件 16 样本的 energy score 相对基线改善 `2.25%`，终点成对距离为基线 `2.41×`。
-- 制动/加速方向成功率为 `0.989/1.000`，自然响应 P10–P90 覆盖率为 `0.865/0.685`；横向分离不下降率为 `0.901`，三类干预局部性均低于 `0.15`。
-
-当前证据支持将其视为现行数据驱动范式下的交通世界模型，但不证明任意 ADS 策略下的反事实正确性。唯一维护的模型与最终结果均位于 `results/hierarchical_world_model/`。
-
-test 窗口上的风险校准诊断使用本地 HighwayEnv 重跑：IDM 是原生 `IDMVehicle`；HiQR
-背景车在同一 `Road`、碰撞与 snapshot 机制中执行与训练一致的单轮
-`[acceleration, yaw_rate]` 动力学。1,024 个固定 test 场景上，同一记录控制下 HighwayEnv
-与离线积分的背景 ADE/FDE 差仅为 `5.66e-5/1.18e-4 m`；确定性 HiQR 的背景重建 ADE/FDE
-为 `0.0356/0.0259 m`。记录人类控制重放失效率为 0.586%（highD 观测为 0.684%）；IDM
-重放失效率为 4.297%，碰撞率为 2.832%。该诊断不支持“闭环重建系统性放大真实风险”，亦不
-构成任意 ADS 策略反事实正确性的证明。其 5 个 IDM 碰撞播放位于
-`IDM_subset/results/risk_calibration_diagnostic/`；这些是固定 highD test 窗口的诊断
-播放，不是 AMS subset 最终粒子的碰撞案例；正式 AMS 粒子回放位于
-`IDM_subset/results/subset/playbacks/`。
+正式工件只能由带 release tag 的干净工作树生成，并且须完成
+base → stochastic heads → final → evaluation 全链路。唯一维护的模型与结果位于
+`results/hierarchical_world_model/`；风险数值描述测试结果，不代表任意 ADS 策略下的反事实正确性。
 
 ### 三目标实验设计（可复现到高可视化）
 
@@ -67,8 +45,6 @@ test 窗口上的风险校准诊断使用本地 HighwayEnv 重跑：IDM 是原�
 ## 正式运行
 
 ```bash
-conda run -n tread python hierarchical_world_model/scripts/legacy.py
-git add results/legacy/world_model/legacy_manifest.json && git commit -m "Isolate legacy world-model results"
 git tag <release-tag>
 # 从干净 tag 一次性执行正式链路（会写入 release session）
 conda run -n tread python hierarchical_world_model/scripts/release.py --release-tag <release-tag>
@@ -117,12 +93,8 @@ Monte Carlo 和其结果都归 `IDM_subset/` 管理。
 
 训练 checkpoint、校准记录、最终全量评价与门槛审计均位于 `results/hierarchical_world_model/`。正式工件为 `checkpoints/final_world_model.pt`，其完整配置、三层 checkpoint 哈希与数据划分记录在 `checkpoints/final_model_manifest.json`；正式评估不再覆盖 checkpoint 配置。
 
-结果目录只保留一层正式报告和一个 `final/` 门槛包：`evaluation.json`、
-`randomness_ablation.json`、`natural_response_calibration.json`、
-`risk_calibration_diagnostic.json`、`training_summary.json` 和
-`training_history.json` 是主报告；探索性的干预扫描统一收纳在
-`intervention_sweeps.json`，不参与 acceptance gate。旧的多级
-`stochastic_causal_hiqr_full/`、散落 figures/playbacks 和重复 intervention JSON 已清理。
+结果目录只保留正式报告和 `final/` 门槛包。训练、评测、随机性、sampled E2E 与
+acceptance 工件均写入 `results/hierarchical_world_model/`；探索性输出不参与 acceptance gate。
 
 ## AMS 接口
 

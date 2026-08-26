@@ -17,7 +17,7 @@ class DynamicsConfig:
 class KinematicTrafficDynamics:
     """Unicycle/single-track compatibility dynamics using `[a, yaw_rate]`."""
 
-    version = "kinematic_unicycle_v1"
+    version = "kinematic_unicycle"
 
     def __init__(self, cfg: DynamicsConfig | None = None) -> None:
         self.cfg = cfg or DynamicsConfig()
@@ -60,7 +60,7 @@ class KinematicTrafficDynamics:
 
     @staticmethod
     def controls_from_highd_actions(actions: torch.Tensor, states: torch.Tensor) -> torch.Tensor:
-        """Project legacy Cartesian acceleration labels to `[a,yaw_rate]`."""
+        """Project Cartesian acceleration labels to `[a,yaw_rate]`."""
         speed = torch.linalg.vector_norm(states[..., 2:4], dim=-1).clamp_min(0.5)
         heading = KinematicTrafficDynamics._safe_heading(states[..., 3], states[..., 2])
         ax, ay = actions[..., 0], actions[..., 1]

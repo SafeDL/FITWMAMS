@@ -17,6 +17,7 @@ import numpy as np
 
 
 DIFFUSION_HORIZON_STEPS = 149
+RNG_SCHEMA = "world_rng"
 
 
 @dataclass(frozen=True)
@@ -115,7 +116,7 @@ class WorldExogenousState:
         # These streams define the probability space.  They must stay
         # independent when another block changes shape or a new block is added.
         def rng(block: str) -> np.random.Generator:
-            material = f"world_rng_v2:{int(seed)}:{block}".encode("utf-8")
+            material = f"{RNG_SCHEMA}:{int(seed)}:{block}".encode("utf-8")
             child_seed = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
             return np.random.default_rng(child_seed)
 
@@ -156,7 +157,7 @@ class WorldExogenousState:
             **self.as_dict(),
             response_steps=np.asarray(self.response_steps, dtype=np.int64),
             scene_refresh_responses=np.asarray(self.scene_refresh_responses, dtype=np.int64),
-            rng_schema=np.asarray("world_rng_v2"),
+            rng_schema=np.asarray(RNG_SCHEMA),
         )
 
     @classmethod
@@ -164,22 +165,18 @@ class WorldExogenousState:
         with np.load(path) as values:
             required = {
                 "scenario_uniform", "c0_base_latent", "k_base_latent", "diffusion_noise",
-                "agent_response_innovations",
+                "scene_innovations", "agent_response_innovations", "rng_schema",
             }
-            scene_key = (
-                "scene_innovations"
-                if "scene_innovations" in values.files
-                else "scene_response_innovations"
-            )
-            required.add(scene_key)
             if not required.issubset(values.files):
-                raise ValueError("not a world_rng_v2 exogenous-state archive")
+                raise ValueError("not a world_rng exogenous-state archive")
+            if str(values["rng_schema"]) != RNG_SCHEMA:
+                raise ValueError("unsupported world RNG schema")
             state = cls(
                 scenario_uniform=np.asarray(values["scenario_uniform"]),
                 c0_base_latent=np.asarray(values["c0_base_latent"]),
                 k_base_latent=np.asarray(values["k_base_latent"]),
                 diffusion_noise=np.asarray(values["diffusion_noise"]),
-                scene_innovations=np.asarray(values[scene_key]),
+                scene_innovations=np.asarray(values["scene_innovations"]),
                 agent_response_innovations=np.asarray(values["agent_response_innovations"]),
             )
             refresh = int(values["scene_refresh_responses"]) if "scene_refresh_responses" in values else 25

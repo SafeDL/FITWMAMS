@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 # QR's canonical cache retains all 150 *recorded* points S0..S149 rather than
 # synthesising an S150 endpoint.  The baseline signature is only retained for
 # the independently maintained baseline models that still consume that cache.
-BASELINE_SEQUENCE_CACHE_SIGNATURE = "semi_markov_sequence_v4_compact_continuous_coordinates"
 CANONICAL_SEQUENCE_CACHE_FORMAT = "highd_canonical_raw150"
 CANONICAL_SEQUENCE_PROTOCOL = "fixed_horizon_5p96"
 SEQUENCE_ARRAYS = (
@@ -47,7 +46,7 @@ SEQUENCE_ARRAYS = (
     "map_polyline_valid", "lane_graph_edges", "actions_highd", "split_index", "is_evt_tail",
 )
 FLOW_ANCHOR_ARRAYS = ("behavior_anchor_raw", "behavior_anchor_std", "behavior_anchor_valid")
-FLOW_ANCHOR_CACHE_VERSION = "frozen_flow_behavior_anchor_v1"
+FLOW_ANCHOR_CACHE_FORMAT = "flow_behavior_anchor"
 
 # The first 24 cache positions are an invalid compatibility prefix.  Position
 # 24 is C0/S0; the following 149 entries are the remaining recorded states.
@@ -130,7 +129,7 @@ def ensure_frozen_flow_behavior_anchor_cache(
     root = _flow_anchor_cache_root(output_dir, schema)
     metadata_path = root / "manifest.json"
     expected = {
-        "cache_version": FLOW_ANCHOR_CACHE_VERSION,
+        "cache_format": FLOW_ANCHOR_CACHE_FORMAT,
         "flow_schema_sha256": schema.schema_sha256,
         "source_sequence_manifest_sha256": _sha256_bytes(sequence_manifest_path(output_dir).read_bytes()),
         "num_sequences": int(np.asarray(arrays["agent_states"]).shape[0]),
@@ -176,7 +175,7 @@ def ensure_frozen_flow_behavior_anchor_cache(
     raw_out.flush(); std_out.flush(); valid_out.flush()
     expected.update({
         "arrays": list(FLOW_ANCHOR_ARRAYS), "summary": "exact_26_state_points_from_S0_through_S25",
-        "source_sequence_cache_format": manifest.get("cache_format", manifest.get("cache_version")),
+        "source_sequence_cache_format": manifest["cache_format"],
         **_validate_flow_tail_alignment(arrays, schema, raw_out, valid_out),
     })
     save_json(expected, metadata_path)
@@ -205,10 +204,7 @@ def sequence_cache_available(output_dir: str | Path) -> bool:
         return False
     try:
         manifest = load_json(manifest_path)
-        return (
-            manifest.get("cache_format") == CANONICAL_SEQUENCE_CACHE_FORMAT
-            or manifest.get("cache_version") == BASELINE_SEQUENCE_CACHE_SIGNATURE
-        )
+        return manifest.get("cache_format") == CANONICAL_SEQUENCE_CACHE_FORMAT
     except (OSError, ValueError):
         return False
 
@@ -280,11 +276,9 @@ def prepare_sequential_dataset(
 
     HiQR and diffusion opt into the canonical 5.96-second representation.
     """
-    if _uses_canonical_sequence_protocol(config):
-        return _prepare_canonical_sequence_dataset(
-            config, config_dir=config_dir, rebuild=rebuild, max_sequences=max_sequences,
-        )
-    return _prepare_baseline_sequence_dataset(
+    if not _uses_canonical_sequence_protocol(config):
+        raise ValueError(f"dataset.sequence_protocol must be {CANONICAL_SEQUENCE_PROTOCOL!r}")
+    return _prepare_canonical_sequence_dataset(
         config, config_dir=config_dir, rebuild=rebuild, max_sequences=max_sequences,
     )
 
@@ -316,7 +310,7 @@ def _prepare_canonical_sequence_dataset(
             return manifest
         raise RuntimeError(
             f"canonical sequences require cache format {CANONICAL_SEQUENCE_CACHE_FORMAT}, but {root} contains "
-            f"{manifest.get('cache_format', manifest.get('cache_version'))!r}; rebuild it explicitly."
+            f"{manifest.get('cache_format')!r}; rebuild it explicitly."
         )
     if root.exists():
         if not rebuild:
@@ -503,147 +497,6 @@ def _prepare_canonical_sequence_dataset(
         ),
         "uses_recording_lane_metadata": use_recording_lane_metadata,
         "top_r_lanes": r, "arrays": list(SEQUENCE_ARRAYS),
-        "split_summary": {name: int(np.sum(output["split_index"] == value)) for name, value in SPLIT_TO_INDEX.items()},
-        "evt_tail_sequences": int(output["is_evt_tail"].sum()), "bounded_development_cache": bool(selected_max > 0),
-    }
-    save_json(manifest, sequence_manifest_path(output_dir))
-    return manifest
-
-
-def _prepare_baseline_sequence_dataset(
-    config: dict[str, Any], *, config_dir: Path, rebuild: bool, max_sequences: int | None,
-) -> dict[str, Any]:
-    """Prepare the separate cache format used by non-QR world models.
-
-    This is deliberately retained rather than reinterpreting old ``S0..S125``
-    supervision as the QR protocol.  The two layouts have different temporal
-    meanings even though both use highD data at 25 Hz.
-    """
-    adapter_name = str(config.get("dataset", {}).get("adapter", "highd")).lower()
-    if adapter_name not in {"highd", "highd_adapter"}:
-        raise ValueError("only the highD sequence adapter is retained")
-    paths = config["paths"]
-    source_dir = Path(paths["source_dataset_dir"])
-    if not source_dir.is_absolute():
-        source_dir = (config_dir / source_dir).resolve()
-    output_dir = sequence_cache_owner_dir(config, config_dir=config_dir)
-    root = sequence_cache_dir(output_dir)
-    if sequence_cache_available(output_dir) and not rebuild:
-        manifest = load_json(sequence_manifest_path(output_dir))
-        if manifest.get("cache_version") == BASELINE_SEQUENCE_CACHE_SIGNATURE:
-            return manifest
-        raise RuntimeError(
-            f"baseline world-model cache requires {BASELINE_SEQUENCE_CACHE_SIGNATURE}, but {root} contains "
-            f"{manifest.get('cache_version')!r}; use a separate cache directory."
-        )
-    if root.exists() and rebuild:
-        import shutil
-        shutil.rmtree(root)
-    ensure_dir(root)
-    arrays, schema = load_world_model_dataset(source_dir)
-    dataset_cfg = config.get("dataset", {})
-    graph_cfg = dict(config.get("graph", {}))
-    selected_max = int(max_sequences if max_sequences is not None else dataset_cfg.get("max_sequences", 0) or 0)
-    rows = _sequence_rows(arrays, max_sequences=selected_max, seed=int(config.get("split", {}).get("seed", 42)))
-    if len(rows) == 0:
-        raise RuntimeError("No source sequences selected")
-    adapter = HighDGraphAdapter(
-        lane_width_m=float(graph_cfg.get("lane_width_m", 3.6)),
-        top_r_lanes=int(graph_cfg.get("top_r_lanes", 3)),
-    )
-    use_recording_lane_metadata = bool(graph_cfg.get("use_recording_lane_metadata", True))
-    raw_dir = Path(schema.get("raw_dir", ""))
-    if use_recording_lane_metadata:
-        from process_highD.src.io_utils import load_config as load_highd_config
-
-        highd_config_value = paths.get("highd_evt_config")
-        if not highd_config_value:
-            raise KeyError("paths.highd_evt_config is required when graph.use_recording_lane_metadata=true")
-        highd_config_path = Path(highd_config_value)
-        if not highd_config_path.is_absolute():
-            highd_config_path = (config_dir / highd_config_path).resolve()
-        highd_cfg = load_highd_config(str(highd_config_path))
-        recording_cache: dict[int, tuple[Any, dict[int, dict[str, Any]]]] = {}
-
-        def _recording_map(recording_id: int, ego_id: int, anchor_frame: int):
-            cached = recording_cache.get(int(recording_id))
-            if cached is None:
-                recording = prepare_recording(raw_dir, int(recording_id), highd_cfg)
-                cached = (recording, _build_vehicle_cache(recording))
-                recording_cache[int(recording_id)] = cached
-            recording, vehicles = cached
-            vehicle = vehicles.get(int(ego_id))
-            position = None if vehicle is None else _position_at(vehicle, int(anchor_frame))
-            if vehicle is None or position is None:
-                return None
-            lateral_sign = 1.0 if int(vehicle.get("direction", 0)) == 1 else -1.0
-            return adapter.map_from_recording_metadata(
-                recording.recording_meta, ego_global_y_m=float(vehicle["y_left"][position]), lateral_sign=lateral_sign,
-            )
-    else:
-        _recording_map = None
-    s, t, n, m, p = len(rows), 150, 7, 8, 8
-    action_t = 125
-    output: dict[str, np.ndarray] = {
-        "sequence_id": np.empty(s, dtype="U96"),
-        "agent_states": np.zeros((s, t, n, 6), np.float32), "agent_valid": np.zeros((s, t, n), bool),
-        "ego_index": np.zeros(s, np.int64),
-        "map_polylines": np.zeros((s, m, p, 6), np.float32), "map_polyline_valid": np.zeros((s, m, p), bool),
-        "lane_graph_edges": np.full((s, max(1, 2 * (m - 1)), 3), -1, np.int64),
-        "actions_highd": np.zeros((s, action_t, n - 1, 2), np.float32), "split_index": np.zeros(s, np.int64), "is_evt_tail": np.zeros(s, bool),
-    }
-    for out_i, row_indices in enumerate(rows):
-        start = int(row_indices[0])
-        hist_valid = np.asarray(arrays["history_valid"][start], bool)
-        history = _unnormalize_history(arrays["history_states_normalized"][start], hist_valid, schema)
-        future_states: list[np.ndarray] = []
-        future_valid: list[np.ndarray] = []
-        future_actions: list[np.ndarray] = []
-        origin_in_sequence = np.asarray(history[-1, 0, :2], dtype=np.float32).copy()
-        for row in row_indices:
-            row = int(row)
-            bg, bg_valid = np.asarray(arrays["target_states"][row], np.float32), np.asarray(arrays["target_valid"][row], bool)
-            ego, ego_valid = np.asarray(arrays["ego_future_states"][row], np.float32), np.asarray(arrays["ego_future_valid"][row], bool)
-            combined = np.zeros((25, n, 6), np.float32)
-            combined[:, 0], combined[:, 1:] = ego, bg
-            combined_valid = np.zeros((25, n), bool)
-            combined_valid[:, 0], combined_valid[:, 1:] = ego_valid, bg_valid
-            combined[:, :, :2] += origin_in_sequence.reshape(1, 1, 2)
-            future_states.append(combined)
-            future_valid.append(combined_valid)
-            future_actions.append(np.asarray(arrays["target_actions"][row], np.float32))
-            origin_in_sequence = combined[-1, 0, :2].copy()
-        states = np.concatenate((history, *future_states), axis=0)
-        valid = np.concatenate((hist_valid, *future_valid), axis=0)
-        map_override = _recording_map(
-            int(arrays["recording_id"][start]), int(arrays["ego_id"][start]), int(arrays["anchor_frame"][start])
-        ) if _recording_map is not None else None
-        seq = adapter.adapt(
-            sequence_id=str(arrays["segment_id"][start]), recording_id=str(arrays["recording_id"][start]),
-            ego_id=str(arrays["ego_id"][start]), timestamps=np.arange(-24, 126, dtype=np.float32) / 25.0,
-            agent_states=states, agent_valid=valid, primary_agent_index=int(arrays["primary_slot_index"][start]),
-            split=_split_name(int(arrays["split_index"][start])), is_evt_tail=bool(arrays["is_evt_tail"][start]),
-            map_override=map_override,
-        )
-        output["sequence_id"][out_i], output["agent_states"][out_i], output["agent_valid"][out_i] = seq.sequence_id, seq.agent_states, seq.agent_valid
-        output["ego_index"][out_i] = seq.ego_index
-        lm = min(m, seq.map_polylines.shape[0])
-        output["map_polylines"][out_i, :lm], output["map_polyline_valid"][out_i, :lm] = seq.map_polylines[:lm], seq.map_polyline_valid[:lm]
-        le = min(output["lane_graph_edges"].shape[1], len(seq.lane_graph_edges))
-        if le:
-            output["lane_graph_edges"][out_i, :le] = seq.lane_graph_edges[:le]
-        output["actions_highd"][out_i] = np.concatenate(future_actions, axis=0)
-        output["split_index"][out_i], output["is_evt_tail"][out_i] = int(arrays["split_index"][start]), bool(arrays["is_evt_tail"][start])
-        if (out_i + 1) % 1000 == 0 or out_i + 1 == s:
-            logger.info("Prepared baseline sequence %d/%d", out_i + 1, s)
-    for key, value in output.items():
-        np.save(root / f"{key}.npy", value, allow_pickle=False)
-    manifest = {
-        "cache_version": BASELINE_SEQUENCE_CACHE_SIGNATURE, "num_sequences": int(s), "frames": t,
-        "history_frames": 25, "future_frames": 125, "fps": 25.0,
-        "source_dataset": str(source_dir), "adapter": adapter.version,
-        "uses_recording_lane_metadata": use_recording_lane_metadata,
-        "top_r_lanes": int(graph_cfg.get("top_r_lanes", 3)), "arrays": list(SEQUENCE_ARRAYS),
         "split_summary": {name: int(np.sum(output["split_index"] == value)) for name, value in SPLIT_TO_INDEX.items()},
         "evt_tail_sequences": int(output["is_evt_tail"].sum()), "bounded_development_cache": bool(selected_max > 0),
     }

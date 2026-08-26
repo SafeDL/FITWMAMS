@@ -33,11 +33,11 @@ def save_json(payload: dict[str, Any], path: str | Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
-FORMAL_PROTOCOL_VERSION = "stochastic_causal_hiqr_release_v2"
+FORMAL_PROTOCOL = "hierarchical_world_model"
 RANDOMNESS_NAMESPACE = {
-    "world": "world_rng_v2",
-    "training": "training_rng_v1",
-    "evaluation": "evaluation_rng_v1",
+    "world": "world_rng",
+    "training": "training_rng",
+    "evaluation": "evaluation_rng",
 }
 RANDOMNESS_ABLATION = {
     "samples": 16,
@@ -46,9 +46,8 @@ RANDOMNESS_ABLATION = {
 STAGED_TRAINING_GATES = {
     "probe_count": 128,
     "trajectory_diversity_min_m": 0.02,
-    # The maintained legacy cohort itself did not clear a 5 cm terminal
-    # pairwise floor; retain a non-degeneracy floor without making that
-    # historical diagnostic an impossible stochastic-stage gate.
+    # Keep a non-degeneracy floor without making a historical diagnostic an
+    # impossible stochastic-stage gate.
     "terminal_diversity_min_m": 0.02,
     "relative_ks_limit_ratio": 1.10,
     "base_factual_fde_fallback_weight": 0.25,
@@ -62,7 +61,7 @@ RANDOMNESS_ABLATION_GATES = {
     "response_response_floor_min_movement": 0.001,
 }
 SAMPLED_END_TO_END = {
-    "schema": "sampled_end_to_end_v1",
+    "schema": "sampled_end_to_end",
     "worlds": 1024,
     "response_steps": 149,
     "knot_frames": (50, 100, 149),
@@ -86,7 +85,7 @@ AMS_READINESS_GATES = {
     "finite_evt_score_rate_min": 1.0,
 }
 ACCEPTANCE_GATES = {
-    "protocol_version": FORMAL_PROTOCOL_VERSION,
+    "protocol": FORMAL_PROTOCOL,
     "factual_limits_m": {
         "ADE_m": 0.06,
         "FDE_m": 0.06,
@@ -124,12 +123,12 @@ def check_ams_readiness_gate(
 def check_formal_manifest_gate(
     manifest: dict[str, Any],
     *,
-    protocol_version: str | None = None,
+    protocol: str | None = None,
 ) -> bool:
     """Return whether a final manifest declares a valid formal protocol contract."""
-    target = protocol_version or ACCEPTANCE_GATES["protocol_version"]
+    target = protocol or ACCEPTANCE_GATES["protocol"]
     return (
-        bool(manifest.get("protocol_version") == target)
+        bool(manifest.get("protocol") == target)
         and bool(manifest.get("checkpoint_sha256"))
         and bool(manifest.get("code_commit"))
         and bool(manifest.get("worktree_clean_at_start"))

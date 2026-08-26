@@ -16,7 +16,7 @@ from world_model.src.hiqr.filter import FilterState
 from .model import DiffusionGuidedHiQR
 
 
-HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT = "kinematic_unicycle_v1_on_highwayenv_road_v1"
+HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT = "kinematic_unicycle_on_highwayenv_road"
 
 
 def _highway_classes() -> tuple[Any, Any, Any, Any, Any]:

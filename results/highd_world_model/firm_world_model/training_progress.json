@@ -1,6 +1,0 @@
-{
-  "best_checkpoint": "/home/hp/FITWMAMS/results/highd_world_model/firm_world_model/checkpoints/best_firm_world_model.pt",
-  "best_validation_fde": 0.6884304500011512,
-  "epoch": 60,
-  "status": "completed"
-}

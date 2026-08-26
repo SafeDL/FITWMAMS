@@ -1,1 +1,0 @@
-world_model/scripts/train_semi_markov_world_model.py --config world_model/scripts/configs/highd_semi_markov_world_model.yaml --output-dir results/highd_world_model/semi_markov_world_model --stages all

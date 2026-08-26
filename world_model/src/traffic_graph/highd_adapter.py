@@ -16,7 +16,7 @@ class HighDGraphAdapter:
     a bounded number of agents, represented by a validity mask.
     """
 
-    version = "highd_straight_lane_v1"
+    version = "highd_straight_lane"
 
     def __init__(self, lane_width_m: float = 3.6, top_r_lanes: int = 3) -> None:
         self.builder = DynamicTrafficGraphBuilder(GraphBuilderConfig(

@@ -300,7 +300,7 @@ def propensity_matched_response_calibration(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Estimate natural effects with continuous covariate nearest matching.
 
-    Unlike the legacy exact-bin estimator, this treats every sustained ego
+    Unlike an exact-bin estimator, this treats every sustained ego
     acceleration/braking frame as a candidate and matches it to nearby neutral
     frames in gap, relative speed, TTC and background acceleration.  It is
     training-split-only and deliberately exposes match-distance diagnostics.

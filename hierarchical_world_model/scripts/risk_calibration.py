@@ -625,7 +625,7 @@ def main() -> None:
             frame_stride=max(int(args.playback_frame_stride), 1),
         )
     report = {
-        "schema": "highd_highway_env_risk_calibration_diagnostic_v4",
+        "schema": "highd_highway_env_risk_calibration_diagnostic",
         "purpose": (
             "Compare the same held-out highD windows under observed human "
             "motion, HighwayEnv human-control replay, and HighwayEnv IDM replay."

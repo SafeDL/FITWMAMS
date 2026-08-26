@@ -1,6 +1,6 @@
 """Dataset-neutral dynamic traffic graph schema.
 
-The semi-Markov model deliberately uses this schema instead of highD's legacy
+The sequence pipeline uses this schema instead of highD's fixed-slot
 six-slot layout.  Arrays are padded only at batching time; ``agent_valid`` and
 ``agent_ids`` preserve the variable participant set of every scene.
 """
