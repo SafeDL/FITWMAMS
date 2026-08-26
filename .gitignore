@@ -68,5 +68,19 @@ wandb/
 mlruns/
 tensorboard/
 
-# Reproducible formal world-model artifacts
+# Reproducible experiment artifacts
 results/hierarchical_world_model/
+results/background_diffusion/
+results/highd_natural_driving_flow/
+results/highd_natural_driving_evt/
+results/highd_shared_training_data/
+results/legacy/
+results/highd_world_model/
+
+# Large generated output media (usually recreated by scripts)
+results/**/*.png
+results/**/*.gif
+results/**/*.jpg
+results/**/*.jpeg
+results/**/*.mp4
+results/**/*.webm
