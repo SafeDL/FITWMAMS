@@ -34,9 +34,9 @@ python IDM_subset/scripts/run_monte_carlo_idm.py
 ```
 
 正式结果位于 `IDM_subset/results/`，且使用同一套 Flow、Diffusion、
-HiQR、IDM、EVT 和 HighwayEnv 工件。512 粒子 AMS 估计为 **3.4766%**（近似 95% CI
-3.064%--3.889%）；2,000 场景独立 Monte Carlo 为 **4.3000%**（95% CI
-3.411%--5.189%），区间相交并通过 acceptance 审计。
+HiQR、IDM、EVT 和 HighwayEnv 工件。该目录是可再生运行输出，不提交到 Git；请以
+本次运行写出的 summary、top-cases 和 playback manifest 为准，而不是在文档中维护
+容易过期的固定概率数字。
 
 此前 `current_world_idm/` 的 AMS、Monte Carlo 和碰撞 GIF 来自自定义运动学
 `ClosedLoopWorld`，已确认不符合正式执行契约并移除，不能用于论文或策略风险比较。
@@ -71,4 +71,4 @@ python IDM_subset/scripts/render_subset_playbacks.py
 | `assess_current_world_idm.py` | 检查两种估计的阈值、工件、重放和置信区间一致性 |
 
 正式两种估计必须使用相同的 Flow、Diffusion、HiQR、HighwayEnv、EVT、IDM policy、
-failure threshold 和 `hiqr_vehicle_dynamics_contract`；各 summary 还应写入版本和动作映射审计。
+failure threshold 和 `hiqr_vehicle_dynamics_contract`；各 summary 还应写入提交、工件哈希和动作映射审计。

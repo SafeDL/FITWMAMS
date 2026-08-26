@@ -30,7 +30,7 @@ subset_simulation:
     - c0_base_latent
     - k_base_latent
     - diffusion_noise
-    - scene_response_innovations
+    - scene_innovations
     - agent_response_innovations
   pcn_beta: 0.20
   mcmc_steps: 3
