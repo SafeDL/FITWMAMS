@@ -1,0 +1,9 @@
+{
+  "config_sha256": "14920c34473dd294ea23ff6c36dea111d80cd02b5a48cf5030ec16c8306d8ff3",
+  "experiment_scope": "full",
+  "seed": 20260814,
+  "test_sequences_reserved": 10151,
+  "train_sequences": 72771,
+  "training_detach_model_input": true,
+  "validation_sequences": 512
+}

@@ -14,7 +14,13 @@ from diffusion.src.train import load_checkpoint as load_diffusion_checkpoint
 from normalizing_flow.src.sampling import (
     load_checkpoint_and_dataset,
     sample_constraints,
+    sample_constraints_from_base_randomness,
     sample_scenarios,
+)
+from normalizing_flow.src.features import feature_valid_from_slot_mask
+from world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    scoped_slot_mask,
 )
 from world_model.src.core.utils import load_json
 
@@ -81,6 +87,16 @@ class HierarchicalWorldSampler:
         self.diffusion.eval()
         self.response.eval()
         self.ddim_steps = int(ddim_steps)
+        self.evaluation_scope = evaluation_scope_contract()
+
+    def _scope_condition(
+        self, c0: np.ndarray, slot_mask: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Remove excluded agents before sampling K or invoking downstream models."""
+        slots = np.asarray(scoped_slot_mask(slot_mask), bool)
+        values = np.asarray(c0, np.float32).copy()
+        values[~feature_valid_from_slot_mask(self.flow_schema, slots)] = 0.0
+        return values, slots
 
     @torch.no_grad()
     def sample_world_exogenous(
@@ -103,6 +119,7 @@ class HierarchicalWorldSampler:
         scenario_seed: int,
         motion_seed: int,
         exogenous_state: WorldExogenousState | None = None,
+        diffusion_noise: np.ndarray | None = None,
     ) -> SampledWorldBatch:
         prepared = [
             prepare_flow_condition(
@@ -124,6 +141,16 @@ class HierarchicalWorldSampler:
         diffusion_seed, response_seed = split_motion_seed(motion_seed)
         initial_noise = None
         generator = torch.Generator(device=self.device).manual_seed(diffusion_seed)
+        if diffusion_noise is not None and exogenous_state is not None:
+            raise ValueError("provide diffusion_noise or exogenous_state, not both")
+        if diffusion_noise is not None:
+            initial_noise = torch.as_tensor(
+                diffusion_noise, dtype=condition.dtype, device=self.device
+            )
+            if tuple(initial_noise.shape) != tuple(target_mask.shape):
+                raise ValueError(
+                    f"diffusion_noise must have shape {tuple(target_mask.shape)}"
+                )
         if exogenous_state is not None:
             exogenous_state.validate(
                 response_steps=exogenous_state.response_steps,
@@ -172,9 +199,14 @@ class HierarchicalWorldSampler:
             scene_dim=self.response.cfg.scene_latent_dim,
             agent_dim=self.response.cfg.agent_latent_dim,
         )
-        scenario = self.flow.sample_scenarios_from_base_randomness(
+        c0, slot_mask = self.flow.sample_initial_conditions_from_base_randomness(
             exogenous_state.scenario_uniform,
             exogenous_state.c0_base_latent,
+        )
+        c0, slot_mask = self._scope_condition(c0, slot_mask)
+        scenario = self.flow.sample_constraints_from_base_randomness(
+            c0,
+            slot_mask,
             exogenous_state.k_base_latent,
         )
         return self._compose(
@@ -188,7 +220,11 @@ class HierarchicalWorldSampler:
         self, n: int, *, scenario_seed: int, motion_seed: int
     ) -> SampledWorldBatch:
         """Sample unconstrained scenarios and attach frozen response plans."""
-        scenario = sample_scenarios(self.flow, int(n), scenario_seed)
+        sampled = sample_scenarios(self.flow, int(n), scenario_seed)
+        c0, slot_mask = self._scope_condition(sampled.c0, sampled.slot_mask)
+        scenario = sample_constraints(
+            self.flow, c0, slot_mask, int(n), int(scenario_seed) + 1
+        )
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
         )
@@ -203,6 +239,7 @@ class HierarchicalWorldSampler:
         motion_seed: int,
     ) -> SampledWorldBatch:
         """Sample scenarios conditioned on fixed C0 and slot-presence masks."""
+        c0, slot_mask = self._scope_condition(c0, slot_mask)
         scenario = sample_constraints(
             self.flow,
             c0,
@@ -212,6 +249,26 @@ class HierarchicalWorldSampler:
         )
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
+        )
+
+    def compose_constraints_from_base_randomness(
+        self,
+        c0: np.ndarray,
+        slot_mask: np.ndarray,
+        *,
+        k_base_latent: np.ndarray,
+        diffusion_noise: np.ndarray,
+    ) -> SampledWorldBatch:
+        """Compose a logged-C0 world without reading held-out future knots."""
+        c0, slot_mask = self._scope_condition(c0, slot_mask)
+        scenario = sample_constraints_from_base_randomness(
+            self.flow, c0, slot_mask, k_base_latent
+        )
+        return self._compose(
+            scenario,
+            scenario_seed=0,
+            motion_seed=0,
+            diffusion_noise=diffusion_noise,
         )
 
     def create_world(

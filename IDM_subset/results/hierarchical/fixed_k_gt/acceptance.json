@@ -1,0 +1,25 @@
+{
+  "all_passed": true,
+  "checks": {
+    "highway_env_execution": true,
+    "monte_carlo_case_replay_exact": true,
+    "monte_carlo_numerically_valid": true,
+    "run_provenance_matches_current_formal_artifacts": true,
+    "same_failure_threshold": true,
+    "same_formal_artifacts": true,
+    "same_world_model": true,
+    "subset_and_monte_carlo_ci_overlap": true,
+    "subset_case_replay_exact": true,
+    "subset_numerically_valid": true,
+    "subset_population_has_all_randomness_blocks": true
+  },
+  "monte_carlo_probability": 0.001,
+  "schema": "highway_env_idm_world_model_acceptance_v2",
+  "sources": {
+    "monte_carlo": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/world_monte_carlo_summary.json",
+    "subset": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/world_subset_summary.json"
+  },
+  "subset_probability": 0.00017773437500000005,
+  "world_model": "Hierarchical Flow–Diffusion–HiQR",
+  "world_model_id": "hierarchical"
+}

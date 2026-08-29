@@ -34,6 +34,10 @@ from hierarchical_world_model.src.protocol import (  # noqa: E402
 )
 from world_model.src.core.dynamics import KinematicTrafficDynamics  # noqa: E402
 from world_model.src.core.utils import save_json, select_device  # noqa: E402
+from world_model.src.core.evaluation_scope import (  # noqa: E402
+    evaluation_scope_contract,
+    scoped_canonical_trajectory,
+)
 
 CONFIG = (
     ROOT
@@ -70,6 +74,7 @@ def main() -> None:
     arrays = experiment.bundle.arrays
     states = np.asarray(arrays["agent_states"])[rows].astype(np.float32)
     valid = np.asarray(arrays["agent_valid"])[rows].astype(bool)
+    states, valid = scoped_canonical_trajectory(states, valid)
     maps = np.asarray(arrays["map_polylines"])[rows].astype(np.float32)
     map_valid = np.asarray(arrays["map_polyline_valid"])[rows].astype(bool)
     active = valid[:, ANCHOR_INDEX, 1:]
@@ -197,6 +202,7 @@ def main() -> None:
     }
     gates["all_passed"] = all(gates.values())
     report = {
+        "evaluation_scope": evaluation_scope_contract(),
         "experiment_scope": "full",
         "cohort_sequences": int(len(rows)),
         "samples_per_condition": int(args.samples),

@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "trafficbots_subset_final_0001",
+    "collision": false,
+    "event_risk": 1.303410291671753,
+    "evt_score": 9.815672512771382,
+    "min_gap_m": 1000.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0001.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0002",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0002.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0003",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0003.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0004",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0004.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0005",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0005.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0006",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0006.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0007",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0007.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0008",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0008.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0009",
+    "collision": true,
+    "event_risk": 1.2344495058059692,
+    "evt_score": 8.519068120688642,
+    "min_gap_m": 58.56283950805664,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0009.npz"
+  },
+  {
+    "case_id": "trafficbots_subset_final_0010",
+    "collision": true,
+    "event_risk": 1.2116730213165283,
+    "evt_score": 8.178897550517766,
+    "min_gap_m": 48.80693435668945,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0010.npz"
+  }
+]

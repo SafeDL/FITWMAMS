@@ -1,0 +1,117 @@
+# Licensed under the CC BY-NC 4.0 license (https://creativecommons.org/licenses/by-nc/4.0/)
+# Model-only extract of the released TrafficBots V1.5 sim_agent config.
+time_step_gt: 90
+hidden_dim: 128
+model:
+  _target_: models.traffic_bots.TrafficBots
+  hidden_dim: ${..hidden_dim}
+  pairwise_relative: True
+  temp_window_size: 11
+  n_tgt_knn: 32
+  dist_limit: 500
+  tf_cfg:
+    d_model: ${...hidden_dim}
+    n_head: 4
+    k_feedforward: 4
+    dropout_p: 0.1
+    bias: True
+    activation: relu
+    out_layernorm: False
+    apply_q_rpe: False
+  pose_rpe:
+    mode: pe_xy_yaw # xy_dir, pe_xy_dir, pe_xy_yaw
+    theta_xy: 1e3 # for mode pe_xy_dir, pe_xy_yaw
+    theta_cs: 1e1 # for mode pe_xy_dir
+  mp_encoder:
+    n_layer_tf: 8
+    pose_emb:
+      mode: mpa_pl # xy_dir, mpa_pl, pe_xy_dir, pe_xy_yaw
+      theta_xy: ${...pose_rpe.theta_xy}
+      theta_cs: ${...pose_rpe.theta_cs}
+    input_encoder:
+      mode: cat # input, cat, add
+      n_layer: 3
+      mlp_dropout_p: 0
+      mlp_use_layernorm: False
+    pl_encoder:
+      pooling_mode: max_valid # max_valid, first, last, last_valid, mean_valid
+      n_layer: 3
+      mlp_dropout_p: 0.1
+      mlp_use_layernorm: False
+      use_pointnet: True
+  tl_encoder:
+    temp_stack_input: False # !
+    tl_lane_detach_mp_feature: True
+    n_layer_tf: 4
+    k_tgt_knn_tl2tl: 0.75
+    k_tgt_knn_tl2mp: 0.75
+    k_dist_limit: 0.5
+    pose_emb:
+      mode: pe_xy_yaw # xy_dir, mpa_pl, pe_xy_dir, pe_xy_yaw
+      theta_xy: ${...pose_rpe.theta_xy}
+      theta_cs: ${...pose_rpe.theta_cs}
+    input_encoder:
+      mode: add # input, cat, add
+      n_layer: 3
+      mlp_dropout_p: 0
+      mlp_use_layernorm: False
+  tl_state_predictor:
+    detach_tl_feature: True
+    n_layer: 3
+    rnn_dropout_p: 0.1
+  ag_encoder:
+    n_layer_tf: 4
+    k_tgt_knn_ag2mp: 2.0
+    k_tgt_knn_ag2tl: 0.8
+    k_tgt_knn_ag2ag: 0.8
+    k_dist_limit: 1.0
+    rnn_latent_temp_pool_mode: max_valid # max_valid, first, last, last_valid, mean_valid
+    pose_emb:
+      mode: pe_xy_yaw # xy_dir, mpa_pl, pe_xy_dir, pe_xy_yaw
+      theta_xy: ${...pose_rpe.theta_xy}
+      theta_cs: ${...pose_rpe.theta_cs}
+    input_encoder:
+      mode: cat # input, cat, add
+      n_layer: 3
+      mlp_dropout_p: 0
+      mlp_use_layernorm: False
+  latent_encoder:
+    latent_dim: 16 # set to <= 0 for dummy latent
+    temporal_down_sample_rate: 5
+    share_post_prior_encoders: False # !
+    latent_post:
+      dist_type: diag_gaus # ! ["std_gaus", "diag_gaus", "std_cat", "cat"]
+      n_cat: 8
+      log_std: 0.0 # !
+      mlp_use_layernorm: False # !
+      n_layer: 3
+      branch_type: False
+    latent_prior:
+      dist_type: std_gaus # ! ["std_gaus", "diag_gaus", "std_cat", "cat"]
+      n_cat: ${..latent_post.n_cat}
+      log_std: ${..latent_post.log_std}
+      mlp_use_layernorm: ${..latent_post.mlp_use_layernorm}
+      n_layer: ${..latent_post.n_layer}
+      branch_type: ${..latent_post.branch_type}
+  navi_encoder:
+    dest_detach_mp_feature: True
+  navi_predictor:
+    detach_input: True
+    rnn_res_add: True
+    n_layer_tf: 3
+    n_layer_mlp: 3
+    mlp_use_layernorm: True
+    k_tgt_knn: 1.0
+    k_dist_limit: 1000
+    goal_log_std: 2.0
+  add_navi_latent:
+    mode: cat # "add", "mul", "cat" or null
+    res_add: True # !
+    n_layer: 3
+    mlp_use_layernorm: False
+    mlp_dropout_p: 0.1
+  action_head:
+    log_std: -2
+    n_layer: 3
+    branch_type: True
+    mlp_use_layernorm: False

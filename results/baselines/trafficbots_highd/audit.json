@@ -1,0 +1,49 @@
+{
+  "audit_schema_version": 1,
+  "checks": {
+    "cache_only_runtime_imports": true,
+    "collision_filtering_disabled": true,
+    "destination_ignores_future_scene": true,
+    "deterministic_prior_mode_exact": true,
+    "explicit_z_g_replay_exact": true,
+    "full_test_split": true,
+    "no_warm_start_or_spawn": true,
+    "policy_history_steps_11": true,
+    "posterior_indices_13_with_endpoints": true,
+    "posterior_uses_future_scene": true,
+    "prior_ignores_future_scene": true,
+    "released_detach_enabled": true,
+    "s0_validity_is_prior_validity": true,
+    "saved_crn_contains_actual_z_g": true
+  },
+  "data_contract": {
+    "future_spawn_or_exit_sequences": 0,
+    "negative_s0_vx_valid_agents": 0,
+    "negative_valid_map_edges": 0,
+    "ordered_test_sequence_ids_sha256": "916d1ef4d85097769d3589bfb2474afa17593bdd5d7e6ee0c7ec507188eae463",
+    "s0_background_agents_mean": 2.400354644862575,
+    "s0_empty_background_sequences": 310,
+    "test_sequences": 10151
+  },
+  "future_boundary_max_abs": {
+    "destination_logits": 0.0,
+    "explicit_z_g_rollout_states": 0.0,
+    "posterior_mean": 1.8331868648529053,
+    "prior_mean": 0.0
+  },
+  "known_adaptations": [
+    "highD cache/schema, 25 Hz dt, padding/KNN sizes and lane destination surrogate",
+    "S0 free rollout with external ego controls and no WOSAC collision filtering",
+    "position SmoothL1 averages x/y; released wrapper sums x/y (effective 0.05 vs 0.1 per-coordinate position weight)",
+    "prior/posterior rollout selection is per scene; released code couples the minibatch draw"
+  ],
+  "method_identity_passed": true,
+  "provenance": {
+    "checkpoint": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/checkpoints/best.ckpt",
+    "checkpoint_sha256": "43437f39036a12abe45fb1f849c76b9584ea9961e0e4d881aec3129f57da28e4",
+    "evaluation_sha256": "8513ded054919a09f3e35ffc9cffcad37ae8fd5350495423f1d9bcb3231d3bb5",
+    "forbidden_runtime_imports": [],
+    "upstream_snapshot_commit": "9a379084adbefe9df005c4eae69e7a56c360a396"
+  },
+  "strict_bit_exact_upstream_reproduction": false
+}

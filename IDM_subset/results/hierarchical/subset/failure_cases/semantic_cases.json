@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "case_id": "hierarchical_semantic_tail_01",
+      "collision": true,
+      "event_risk": 0.7731618881225586,
+      "evt_score": 4.607599660735419,
+      "min_gap_m": 0.0,
+      "selection_population_index": 267,
+      "semantic_tags": [
+        "initial_close_front",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_01.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_02",
+      "collision": true,
+      "event_risk": 0.9880859851837158,
+      "evt_score": 5.920781806951586,
+      "min_gap_m": 0.0,
+      "selection_population_index": 71,
+      "semantic_tags": [
+        "initial_close_front",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_02.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_03",
+      "collision": false,
+      "event_risk": 0.8215232491493225,
+      "evt_score": 4.862795228033405,
+      "min_gap_m": 5.499537467956543,
+      "selection_population_index": 174,
+      "semantic_tags": [
+        "initial_close_front",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_03.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_04",
+      "collision": false,
+      "event_risk": 0.8345695734024048,
+      "evt_score": 4.93497611566169,
+      "min_gap_m": 7.648585319519043,
+      "selection_population_index": 66,
+      "semantic_tags": [
+        "initial_close_front",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_04.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_05",
+      "collision": false,
+      "event_risk": 0.7727168202400208,
+      "evt_score": 4.6053360556392,
+      "min_gap_m": 8.942365646362305,
+      "selection_population_index": 24,
+      "semantic_tags": [
+        "initial_close_front"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_05.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_06",
+      "collision": false,
+      "event_risk": 1.1113649606704712,
+      "evt_score": 6.983378166271556,
+      "min_gap_m": 0.005705833435058594,
+      "selection_population_index": 117,
+      "semantic_tags": [
+        "initial_close_front"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_06.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_07",
+      "collision": false,
+      "event_risk": 0.7778871655464172,
+      "evt_score": 4.631723741332555,
+      "min_gap_m": 10.035099029541016,
+      "selection_population_index": 14,
+      "semantic_tags": [
+        "longitudinal_tail"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_07.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_08",
+      "collision": false,
+      "event_risk": 0.8324244618415833,
+      "evt_score": 4.923004405982762,
+      "min_gap_m": 12.780644416809082,
+      "selection_population_index": 249,
+      "semantic_tags": [
+        "longitudinal_tail"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_08.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_09",
+      "collision": true,
+      "event_risk": 0.8785996437072754,
+      "evt_score": 5.190287539728584,
+      "min_gap_m": 0.0,
+      "selection_population_index": 275,
+      "semantic_tags": [
+        "initial_close_front",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_09.npz"
+    },
+    {
+      "case_id": "hierarchical_semantic_tail_10",
+      "collision": false,
+      "event_risk": 0.7915127277374268,
+      "evt_score": 4.702239922135238,
+      "min_gap_m": 3.766341209411621,
+      "selection_population_index": 19,
+      "semantic_tags": [
+        "initial_close_front"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/hierarchical_semantic_tail_10.npz"
+    }
+  ],
+  "failure_threshold": 4.605170185988091,
+  "failure_worlds_screened": 297,
+  "schema": "hierarchical_ams_semantic_tail_cases_v1",
+  "selection": "semantic-strata representatives plus score/risk/clearance coverage",
+  "semantic_counts": {
+    "collision": 10,
+    "cut_in": 0,
+    "cut_out": 0,
+    "initial_close_front": 283,
+    "lateral_activity": 2,
+    "longitudinal_tail": 14
+  },
+  "source_population": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/world_subset_final_population.npz"
+}

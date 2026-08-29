@@ -1,0 +1,24 @@
+# Protocol-matched IDM evaluation suite across supported background world models.
+
+world_models:
+  - id: hierarchical
+    config: world_subset_idm.yaml
+    enabled: true
+  - id: trafficbots
+    config: trafficbots_subset_idm.yaml
+    # TrafficBots has no observed K input.  Its full-prior IDM results are a
+    # standalone baseline, not comparable to the fixed-K reconstruction test.
+    # Keep the adapter available, but do not include it in the default suite.
+    enabled: false
+
+execution:
+  estimators:
+    - subset
+    - monte_carlo
+
+visualization:
+  top_cases: 10
+  frame_stride: 2
+
+output:
+  comparison_dir: ../results/comparisons

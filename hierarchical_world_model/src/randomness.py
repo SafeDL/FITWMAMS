@@ -18,6 +18,14 @@ import numpy as np
 
 DIFFUSION_HORIZON_STEPS = 149
 RNG_SCHEMA = "world_rng"
+WORLD_RANDOM_BLOCKS = (
+    "scenario_uniform",
+    "c0_base_latent",
+    "k_base_latent",
+    "diffusion_noise",
+    "scene_innovations",
+    "agent_response_innovations",
+)
 
 
 @dataclass(frozen=True)
@@ -163,10 +171,7 @@ class WorldExogenousState:
     @classmethod
     def load(cls, path: str | Path) -> "WorldExogenousState":
         with np.load(path) as values:
-            required = {
-                "scenario_uniform", "c0_base_latent", "k_base_latent", "diffusion_noise",
-                "scene_innovations", "agent_response_innovations", "rng_schema",
-            }
+            required = {*WORLD_RANDOM_BLOCKS, "rng_schema"}
             if not required.issubset(values.files):
                 raise ValueError("not a world_rng exogenous-state archive")
             if str(values["rng_schema"]) != RNG_SCHEMA:
@@ -194,15 +199,15 @@ class WorldExogenousState:
     def as_dict(self) -> dict[str, np.ndarray]:
         return {
             name: np.asarray(getattr(self, name)).copy()
-            for name in (
-                "scenario_uniform",
-                "c0_base_latent",
-                "k_base_latent",
-                "diffusion_noise",
-                "scene_innovations",
-                "agent_response_innovations",
-            )
+            for name in WORLD_RANDOM_BLOCKS
         }
+
+    def replace_arrays(self, values: dict[str, np.ndarray]) -> "WorldExogenousState":
+        """Rebuild this state after a generic subset-simulation update."""
+        return WorldExogenousState(
+            **{name: np.asarray(values[name]).copy() for name in WORLD_RANDOM_BLOCKS},
+            scene_refresh_responses=self.scene_refresh_responses,
+        )
 
     def select(self, indices: slice | np.ndarray) -> "WorldExogenousState":
         """Return a batch subset while preserving every randomness block."""

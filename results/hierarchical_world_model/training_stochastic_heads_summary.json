@@ -1,0 +1,51 @@
+{
+  "best_checkpoint": "checkpoints/stochastic_heads_best.pt",
+  "best_checkpoint_factual_gate_passed": true,
+  "best_validation_metric": 0.03039848990738392,
+  "deterministic_forward": false,
+  "diffusion_baseline_ADE_m": 0.027423910796642303,
+  "diffusion_baseline_FDE_m": 0.00028184428811073303,
+  "diffusion_baseline_P95_m": 0.08024927675724024,
+  "early_stopped": true,
+  "epochs_completed": 8,
+  "experiment_scope": "full",
+  "factual_error_budget_m": {
+    "ADE": 0.02,
+    "FDE": 0.06,
+    "P95": 0.1
+  },
+  "factual_reference": {
+    "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/checkpoints/base_best.pt",
+    "metrics": {
+      "ADE_m": 0.038435906171798706,
+      "FDE_m": 0.026453040540218353,
+      "P50_displacement_error_m": 0.028147444128990173,
+      "P90_displacement_error_m": 0.07682346999645231,
+      "P95_displacement_error_m": 0.10027916282415364,
+      "P99_displacement_error_m": 0.193415480852127,
+      "frames": 149,
+      "sequences": 128,
+      "speed_MAE_mps": 0.03390403091907501
+    },
+    "relative_tolerance": 0.05
+  },
+  "frozen_diffusion_preview_training": true,
+  "history_random_truncation": [
+    5,
+    10,
+    15,
+    25
+  ],
+  "older_history_mask_probability": 0.5,
+  "response_commit_frames": 1,
+  "response_frequency_hz": 25.0,
+  "scene_latent_refresh_s": 1.0,
+  "selection_factual_weight": 0.02,
+  "selection_metric": "base: factual plus closed-loop factual (jerk is inside factual); stochastic_heads: minimum validation energy among gated candidates",
+  "stage": "stochastic_heads",
+  "stage_trainable": "prefixes:latent_transition.,decoder.behavior_mode.,decoder.scene_innovation.,decoder.agent_innovation.",
+  "status": "complete",
+  "test_sequences_reserved": 10151,
+  "train_sequences": 72771,
+  "validation_sequences": 13133
+}

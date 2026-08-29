@@ -7,12 +7,12 @@ import torch
 
 from hierarchical_world_model.src.calibration import NaturalResponseCalibrator
 from hierarchical_world_model.src.config import WorldModelConfig
-from hierarchical_world_model.src.evaluation import _windowed_jerk
-from hierarchical_world_model.src.evaluation import (
+from hierarchical_world_model.src.evaluation import _temporal_factual_metrics
+from world_model.src.core.highd_metrics import (
     _collision_indicator,
     _histogram_summary,
     _nearest_object_distance,
-    _temporal_factual_metrics,
+    _windowed_jerk,
 )
 from hierarchical_world_model.src.environment import ClosedLoopWorld
 from hierarchical_world_model.src.losses import training_losses

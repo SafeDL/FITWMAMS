@@ -1,0 +1,37 @@
+{
+  "best_checkpoint": "checkpoints/base_best.pt",
+  "best_checkpoint_factual_gate_passed": true,
+  "best_validation_metric": 0.9188355326897608,
+  "deterministic_forward": true,
+  "diffusion_baseline_ADE_m": 0.027423910796642303,
+  "diffusion_baseline_FDE_m": 0.00028184428811073303,
+  "diffusion_baseline_P95_m": 0.08024927675724024,
+  "early_stopped": true,
+  "epochs_completed": 45,
+  "experiment_scope": "full",
+  "factual_error_budget_m": {
+    "ADE": 0.02,
+    "FDE": 0.06,
+    "P95": 0.1
+  },
+  "factual_reference": null,
+  "frozen_diffusion_preview_training": true,
+  "history_random_truncation": [
+    5,
+    10,
+    15,
+    25
+  ],
+  "older_history_mask_probability": 0.5,
+  "response_commit_frames": 1,
+  "response_frequency_hz": 25.0,
+  "scene_latent_refresh_s": 1.0,
+  "selection_factual_weight": 0.02,
+  "selection_metric": "base: factual plus closed-loop factual (jerk is inside factual); stochastic_heads: minimum validation energy among gated candidates",
+  "stage": "base",
+  "stage_trainable": "backbone",
+  "status": "complete",
+  "test_sequences_reserved": 10151,
+  "train_sequences": 72771,
+  "validation_sequences": 13133
+}

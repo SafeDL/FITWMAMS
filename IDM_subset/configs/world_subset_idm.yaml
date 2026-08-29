@@ -2,13 +2,25 @@
 
 paths:
   world_model_config: ../../hierarchical_world_model/config/release.yaml
-  evt_model: ../../results/highd_natural_driving_evt/evt/natural_evt_model.json
+  evt_model: ../../results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json
   idm_ego_config: ../../tools/idm_ego.yaml
 
 simulation:
   steps: 149
   ddim_steps: 20
   execution_backend: local_highway_env
+
+# Reconstruction-backed ADS population: choose a held-out highD sequence,
+# retain its observed C0/map context and logged long-horizon K (soft plan),
+# then sample only diffusion and reactive-response randomness.  This is not
+# the unconditional Flow prior and must not be mixed with a prior-world result.
+test_space:
+  kind: empirical_test_fixed_k_gt
+  split: test
+
+evaluation_scope:
+  schema: highd_follower_excluded_v1
+  excluded_background_slots: [same_rear]
 
 runtime:
   device: auto
@@ -26,22 +38,27 @@ subset_simulation:
   p0: 0.1
   max_levels: 8
   mutation_blocks:
-    - scenario
-    - c0_base_latent
-    - k_base_latent
+    - test_context
     - diffusion_noise
     - scene_innovations
     - agent_response_innovations
   pcn_beta: 0.20
   mcmc_steps: 3
   seed: 20260823
-  output_dir: ../results/subset
+  output_dir: ../results/hierarchical/fixed_k_gt/subset
 
 monte_carlo:
   num_samples: 2000
   sample_batch_size: 32
   seed: 20260824
-  output_dir: ../results/monte_carlo
+  output_dir: ../results/hierarchical/fixed_k_gt/monte_carlo
+
+# This is an exhaustive test-context diagnostic, not an IID Monte-Carlo
+# estimator: every held-out sequence is evaluated once with a fixed CRN draw.
+test_sweep:
+  response_draws_per_context: 1
+  seed: 20260830
+  output_dir: ../results/hierarchical/fixed_k_gt/test_sweep
 
 output:
   top_cases: 10

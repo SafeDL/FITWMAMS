@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 from scipy.spatial import cKDTree
+from world_model.src.core.evaluation_scope import scoped_canonical_trajectory
 
 
 def _condition_key(
@@ -109,10 +110,13 @@ def matched_response_calibration(
     *,
     dt_s: float = 0.04,
     minimum_events: int = 100,
+    evaluation_scope: bool = False,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Estimate signed acceleration effects after matched ego action events."""
     states = np.asarray(arrays["agent_states"])[np.asarray(rows, np.int64)]
     valid = np.asarray(arrays["agent_valid"])[np.asarray(rows, np.int64)]
+    if evaluation_scope:
+        states, valid = scoped_canonical_trajectory(states, valid)
     matched_by_horizon: dict[float, dict[str, np.ndarray]] = {}
     sensitivity_by_horizon: dict[float, dict[str, np.ndarray]] = {}
     conditional_by_horizon: dict[
@@ -297,6 +301,7 @@ def propensity_matched_response_calibration(
     dt_s: float = 0.04,
     minimum_events: int = 100,
     neighbors: int = 16,
+    evaluation_scope: bool = False,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Estimate natural effects with continuous covariate nearest matching.
 
@@ -307,6 +312,8 @@ def propensity_matched_response_calibration(
     """
     states = np.asarray(arrays["agent_states"])[np.asarray(rows, np.int64)]
     valid = np.asarray(arrays["agent_valid"])[np.asarray(rows, np.int64)]
+    if evaluation_scope:
+        states, valid = scoped_canonical_trajectory(states, valid)
     matched_by_horizon: dict[float, dict[str, np.ndarray]] = {}
     sensitivity_by_horizon: dict[float, dict[str, np.ndarray]] = {}
     diagnostics: dict[str, Any] = {}
@@ -447,6 +454,52 @@ def propensity_matched_response_calibration(
         },
     }
     return bounds, report
+
+
+def evaluation_response_calibration(
+    arrays: dict[str, np.ndarray],
+    rows: np.ndarray,
+    *,
+    dt_s: float = 0.04,
+    minimum_events: int = 30,
+    evaluation_scope: bool = False,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Fit a diagnostics-only human-response reference for an evaluation cohort.
+
+    Exact binned matching is the primary, most interpretable estimator.  Once
+    an explicit population scope removes a semantic slot, some short-horizon
+    exact cells can legitimately become sparse.  In that case use the
+    pre-existing continuous-covariate propensity estimator rather than
+    silently restoring the excluded vehicle or weakening the event count.
+    The selected estimator and exact failure are retained in the report.
+    """
+    try:
+        bounds, report = matched_response_calibration(
+            arrays,
+            rows,
+            dt_s=dt_s,
+            minimum_events=minimum_events,
+            evaluation_scope=evaluation_scope,
+        )
+        report["estimator_selection"] = {
+            "selected": "exact_binned",
+            "fallback_used": False,
+        }
+        return bounds, report
+    except RuntimeError as error:
+        bounds, report = propensity_matched_response_calibration(
+            arrays,
+            rows,
+            dt_s=dt_s,
+            minimum_events=minimum_events,
+            evaluation_scope=evaluation_scope,
+        )
+        report["estimator_selection"] = {
+            "selected": "continuous_covariate_knn_propensity",
+            "fallback_used": True,
+            "exact_binned_failure": str(error),
+        }
+        return bounds, report
 
 
 def fit_natural_response_calibrator(

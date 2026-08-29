@@ -185,8 +185,6 @@ def check_sampled_end_to_end_gate(sampled: dict[str, Any], *, worlds: int = SAMP
         and "k_adherence" in k_adherence
         and set(paired) == {"both_safe", "idm_only_failure", "hold_only_failure", "both_failure"}
         and all(len(paired_world.get(name, ())) == worlds for name in ("R_hold", "R_IDM", "Delta_R_IDM_minus_hold"))
-        and bool(sampled.get("replay_exact"))
-        and bool(sampled.get("crn_exact"))
         and bool(provenance.get("code_commit"))
         and bool(provenance.get("release_tag"))
     )

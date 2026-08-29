@@ -9,16 +9,24 @@ from typing import Any, Callable
 
 import numpy as np
 import torch
-from scipy.stats import ks_2samp, wasserstein_distance
 
-from diffusion.src.data import ANCHOR_INDEX, semantic_cutin_agents
+from diffusion.src.data import ANCHOR_INDEX
 from world_model.src.core.dynamics import KinematicTrafficDynamics
+from world_model.src.core.highd_metrics import factual_metrics as _shared_factual_metrics
+from world_model.src.core.highd_metrics import temporal_factual_metrics as _shared_temporal_factual_metrics
+from world_model.src.core.highd_metrics import distribution_metrics as _shared_distribution_metrics
+from world_model.src.core.highd_metrics import intervention_metrics as _shared_intervention_metrics
+from world_model.src.core.highd_metrics import intervention_dose_response as _shared_intervention_dose_response
+from world_model.src.core.highd_metrics import semantic_cutin_agents
+from world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    scoped_canonical_trajectory,
+)
 from world_model.src.core.utils import ensure_dir, load_json, save_json, select_device, set_seed
 
 from .data import ego_controls, prepare_experiment_data
-from .calibration import matched_response_calibration
+from .calibration import evaluation_response_calibration
 from .planner import frozen_diffusion_plans, stochastic_diffusion_plan_samples
-from .reference import response_relevance
 
 
 @dataclass(frozen=True)
@@ -86,6 +94,9 @@ def rollout(
     ads_policy: EgoActionPolicy | None = None,
 ) -> Rollout:
     """Run one causal offline response rollout for a matched batch."""
+    logged_states, logged_valid = scoped_canonical_trajectory(
+        logged_states, logged_valid
+    )
     states = torch.from_numpy(logged_states[:, ANCHOR_INDEX].copy()).to(device)
     valid = torch.from_numpy(logged_valid[:, ANCHOR_INDEX].copy()).to(device)
     history = torch.from_numpy(
@@ -252,24 +263,7 @@ def _factual_metrics(
     target: np.ndarray,
     active: np.ndarray,
 ) -> dict[str, float]:
-    distance = np.linalg.norm(generated[..., 1:, :2] - target[..., 1:, :2], axis=-1)
-    mask = np.broadcast_to(active[:, None], distance.shape)
-    speed_error = np.abs(
-        np.linalg.norm(generated[..., 1:, 2:4], axis=-1)
-        - np.linalg.norm(target[..., 1:, 2:4], axis=-1)
-    )
-    valid_distance = distance[mask]
-    return {
-        "ADE_m": float(distance[mask].mean()),
-        "FDE_m": float(distance[:, -1][active].mean()),
-        "P50_displacement_error_m": float(np.quantile(valid_distance, 0.50)),
-        "P90_displacement_error_m": float(np.quantile(valid_distance, 0.90)),
-        "P95_displacement_error_m": float(np.quantile(valid_distance, 0.95)),
-        "P99_displacement_error_m": float(np.quantile(valid_distance, 0.99)),
-        "speed_MAE_mps": float(speed_error[mask].mean()),
-        "sequences": int(len(generated)),
-        "frames": int(generated.shape[1]),
-    }
+    return _shared_factual_metrics(generated, target, active)
 
 
 def _temporal_factual_metrics(
@@ -278,29 +272,7 @@ def _temporal_factual_metrics(
     active: np.ndarray,
 ) -> dict[str, list[float]]:
     """Return per-horizon errors for drift rather than only end-point summaries."""
-    distance = np.linalg.norm(generated[..., 1:, :2] - target[..., 1:, :2], axis=-1)
-    speed_error = np.abs(
-        np.linalg.norm(generated[..., 1:, 2:4], axis=-1)
-        - np.linalg.norm(target[..., 1:, 2:4], axis=-1)
-    )
-    mask = np.broadcast_to(active[:, None], distance.shape)
-    return {
-        "time_s": (0.04 * np.arange(1, generated.shape[1] + 1)).tolist(),
-        "ADE_m": [
-            float(distance[:, step][active].mean()) for step in range(distance.shape[1])
-        ],
-        "P95_displacement_error_m": [
-            float(np.quantile(distance[:, step][active], 0.95))
-            for step in range(distance.shape[1])
-        ],
-        "speed_MAE_mps": [
-            float(speed_error[:, step][active].mean())
-            for step in range(speed_error.shape[1])
-        ],
-        "active_agent_frames": [
-            int(mask[:, step].sum()) for step in range(mask.shape[1])
-        ],
-    }
+    return _shared_temporal_factual_metrics(generated, target, active)
 
 
 def _factual_event_strata(
@@ -326,95 +298,6 @@ def _factual_event_strata(
     return report
 
 
-def _distribution_distance(real: np.ndarray, generated: np.ndarray) -> dict[str, float]:
-    return {
-        "KS": float(ks_2samp(real, generated).statistic),
-        "wasserstein": float(wasserstein_distance(real, generated)),
-    }
-
-
-def _histogram_summary(
-    real: np.ndarray,
-    generated: np.ndarray,
-    *,
-    bounds: tuple[float, float],
-    bins: int = 32,
-) -> dict[str, Any]:
-    """Fixed-bin densities make distribution figures comparable between runs."""
-    edges = np.linspace(*bounds, bins + 1)
-    real_counts, _ = np.histogram(np.clip(real, *bounds), bins=edges)
-    generated_counts, _ = np.histogram(np.clip(generated, *bounds), bins=edges)
-    real_density = real_counts / max(real_counts.sum(), 1)
-    generated_density = generated_counts / max(generated_counts.sum(), 1)
-    return {
-        "bin_edges": edges.tolist(),
-        "real_probability": real_density.tolist(),
-        "generated_probability": generated_density.tolist(),
-        "total_variation": float(0.5 * np.abs(real_density - generated_density).sum()),
-    }
-
-
-def _nearest_object_distance(states: np.ndarray, active: np.ndarray) -> np.ndarray:
-    """Nearest-centre distance for the ego plus valid background vehicles."""
-    positions = np.asarray(states[..., :2], np.float32)
-    valid = np.concatenate((np.ones((len(active), 1), bool), active), axis=1)
-    delta = positions[..., :, None, :] - positions[..., None, :, :]
-    distance = np.linalg.norm(delta, axis=-1)
-    pair_valid = valid[:, None, :, None] & valid[:, None, None, :]
-    diagonal = np.eye(7, dtype=bool)[None, None]
-    invalid_pairs = np.broadcast_to(~pair_valid | diagonal, distance.shape)
-    distance[invalid_pairs] = np.inf
-    nearest = distance.min(axis=-1)
-    return nearest[np.broadcast_to(valid[:, None], nearest.shape)]
-
-
-def _collision_indicator(states: np.ndarray, active: np.ndarray) -> np.ndarray:
-    """HighD-adapted footprint-overlap diagnostic; not an official WOSAC metric."""
-    positions = np.asarray(states[..., :2], np.float32)
-    valid = np.concatenate((np.ones((len(active), 1), bool), active), axis=1)
-    dx = np.abs(positions[..., :, None, 0] - positions[..., None, :, 0])
-    dy = np.abs(positions[..., :, None, 1] - positions[..., None, :, 1])
-    pair_valid = valid[:, None, :, None] & valid[:, None, None, :]
-    upper_triangle = np.triu(np.ones((7, 7), bool), k=1)[None, None]
-    collision = (
-        (dx < 4.8) & (dy < 1.8) & np.broadcast_to(pair_valid & upper_triangle, dx.shape)
-    )
-    return collision.any(axis=(-1, -2)).astype(np.float32).reshape(-1)
-
-
-def _windowed_jerk(
-    actions: np.ndarray,
-    *,
-    time_axis: int,
-    window_frames: int = 5,
-    dt_s: float = 0.04,
-) -> np.ndarray:
-    """Differentiate short action averages to reduce highD frame quantization."""
-    values = np.moveaxis(np.asarray(actions), time_axis, -2)
-    usable = values.shape[-2] // window_frames * window_frames
-    values = values[..., :usable, :]
-    blocks = values.reshape(
-        *values.shape[:-2], usable // window_frames, window_frames, 2
-    ).mean(axis=-2)
-    jerk = np.diff(blocks, axis=-2) / (float(window_frames) * float(dt_s))
-    return np.moveaxis(jerk, -2, time_axis)
-
-
-def _risk_variables(states: np.ndarray, active: np.ndarray) -> dict[str, np.ndarray]:
-    ego = states[..., :1, :]
-    background = states[..., 1:, :]
-    dx = background[..., 0] - ego[..., 0]
-    dy = np.abs(background[..., 1] - ego[..., 1])
-    same_lane_front = (dx > 0.0) & (dy < 1.8) & active[:, None]
-    gap = np.maximum(dx - 4.8, 0.0)
-    closing = np.maximum(ego[..., 2] - background[..., 2], 0.0)
-    ttc = np.where(closing > 1.0e-3, gap / np.maximum(closing, 1.0e-3), 10.0)
-    return {
-        "gap_m": gap[same_lane_front],
-        "TTC_s": np.minimum(ttc, 10.0)[same_lane_front],
-    }
-
-
 def _distribution_metrics(
     samples: list[Rollout],
     initial_states: np.ndarray,
@@ -423,233 +306,10 @@ def _distribution_metrics(
     target_highd_actions: np.ndarray,
     active: np.ndarray,
 ) -> dict[str, Any]:
-    generated_states = np.stack([item.states for item in samples], axis=1)
-    generated_actions = np.stack([item.background_actions for item in samples], axis=1)
-    pairwise_trajectory = []
-    pairwise_terminal = []
-    trajectory_mask = np.broadcast_to(
-        active[:, None], (len(active), generated_states.shape[2], active.shape[1])
+    return _shared_distribution_metrics(
+        samples, initial_states, target_states, target_actions,
+        target_highd_actions, active,
     )
-    for left in range(len(samples)):
-        for right in range(left + 1, len(samples)):
-            distance = np.linalg.norm(
-                generated_states[:, left, :, 1:, :2]
-                - generated_states[:, right, :, 1:, :2],
-                axis=-1,
-            )
-            pairwise_trajectory.append(
-                (distance * trajectory_mask).sum((1, 2))
-                / trajectory_mask.sum((1, 2)).clip(min=1)
-            )
-            pairwise_terminal.append(
-                (distance[:, -1] * active).sum(1) / active.sum(1).clip(min=1)
-            )
-    target_future = target_states
-    distance = np.linalg.norm(
-        generated_states[..., 1:, :2] - target_future[:, None, ..., 1:, :2],
-        axis=-1,
-    )
-    valid = np.broadcast_to(active[:, None, None], distance.shape)
-    per_sample_ade = (distance * valid).sum((2, 3)) / valid.sum((2, 3)).clip(min=1)
-    final_distance = distance[:, :, -1]
-    final_valid = np.broadcast_to(active[:, None], final_distance.shape)
-    per_sample_fde = (final_distance * final_valid).sum(2) / final_valid.sum(2).clip(
-        min=1
-    )
-    pairwise_values = (
-        np.stack(pairwise_trajectory)
-        if pairwise_trajectory
-        else np.zeros((1,), np.float32)
-    )
-    action_mask = np.broadcast_to(
-        active[:, None, None, :, None], generated_actions.shape
-    )
-    real_action_mask = np.broadcast_to(active[:, None, :, None], target_actions.shape)
-    real_yaw = target_actions[..., 1][real_action_mask[..., 0]]
-    generated_yaw = generated_actions[..., 1][action_mask[..., 0]]
-    generated_source = np.concatenate(
-        (
-            np.broadcast_to(
-                initial_states[:, None, None, 1:],
-                (len(initial_states), len(samples), 1, 6, 6),
-            ),
-            generated_states[:, :, :-1, 1:],
-        ),
-        axis=2,
-    )
-    generated_highd = KinematicTrafficDynamics.highd_actions(
-        torch.from_numpy(generated_actions),
-        torch.from_numpy(generated_source.copy()),
-    ).numpy()
-    real_cartesian_mask = np.broadcast_to(
-        active[:, None, :, None], target_highd_actions.shape
-    )
-    generated_cartesian_mask = np.broadcast_to(
-        active[:, None, None, :, None], generated_highd.shape
-    )
-    real_jerk = np.diff(target_highd_actions, axis=1) / 0.04
-    generated_jerk = np.diff(generated_highd, axis=2) / 0.04
-    real_jerk_mask = np.broadcast_to(active[:, None, :, None], real_jerk.shape)
-    generated_jerk_mask = np.broadcast_to(
-        active[:, None, None, :, None], generated_jerk.shape
-    )
-    real_windowed_jerk = _windowed_jerk(target_highd_actions, time_axis=1)
-    generated_windowed_jerk = _windowed_jerk(generated_highd, time_axis=2)
-    real_windowed_mask = np.broadcast_to(
-        active[:, None, :, None], real_windowed_jerk.shape
-    )
-    generated_windowed_mask = np.broadcast_to(
-        active[:, None, None, :, None], generated_windowed_jerk.shape
-    )
-    real_yaw_acceleration = np.diff(target_actions[..., 1], axis=1) / 0.04
-    generated_yaw_acceleration = np.diff(generated_actions[..., 1], axis=2) / 0.04
-    real_yaw_acceleration_mask = np.broadcast_to(
-        active[:, None], real_yaw_acceleration.shape
-    )
-    generated_yaw_acceleration_mask = np.broadcast_to(
-        active[:, None, None], generated_yaw_acceleration.shape
-    )
-    real_speed = np.linalg.norm(target_states[..., 1:, 2:4], axis=-1)
-    generated_speed = np.linalg.norm(generated_states[..., 1:, 2:4], axis=-1)
-    speed_mask = np.broadcast_to(active[:, None], real_speed.shape)
-    generated_speed_mask = np.broadcast_to(active[:, None, None], generated_speed.shape)
-    target_risk = _risk_variables(target_states, active)
-    generated_risk = _risk_variables(
-        generated_states.reshape(-1, 149, 7, 6),
-        np.repeat(active, len(samples), axis=0),
-    )
-    real_acceleration_magnitude = np.linalg.norm(
-        target_highd_actions[real_cartesian_mask].reshape(-1, 2), axis=-1
-    )
-    generated_acceleration_magnitude = np.linalg.norm(
-        generated_highd[generated_cartesian_mask].reshape(-1, 2), axis=-1
-    )
-    real_nearest = _nearest_object_distance(target_states, active)
-    generated_nearest = _nearest_object_distance(
-        generated_states.reshape(-1, 149, 7, 6),
-        np.repeat(active, len(samples), axis=0),
-    )
-    real_collision = _collision_indicator(target_states, active)
-    generated_collision = _collision_indicator(
-        generated_states.reshape(-1, 149, 7, 6),
-        np.repeat(active, len(samples), axis=0),
-    )
-    highd_adapted_histograms = {
-        "speed_mps": _histogram_summary(
-            real_speed[speed_mask],
-            generated_speed[generated_speed_mask],
-            bounds=(0.0, 50.0),
-        ),
-        "acceleration_magnitude_mps2": _histogram_summary(
-            real_acceleration_magnitude,
-            generated_acceleration_magnitude,
-            bounds=(0.0, 10.0),
-        ),
-        "yaw_rate_rps": _histogram_summary(real_yaw, generated_yaw, bounds=(-0.8, 0.8)),
-        "yaw_acceleration_rps2": _histogram_summary(
-            real_yaw_acceleration[real_yaw_acceleration_mask],
-            generated_yaw_acceleration[generated_yaw_acceleration_mask],
-            bounds=(-2.0, 2.0),
-        ),
-        "nearest_object_distance_m": _histogram_summary(
-            real_nearest, generated_nearest, bounds=(0.0, 80.0)
-        ),
-        "gap_m": _histogram_summary(
-            target_risk["gap_m"], generated_risk["gap_m"], bounds=(0.0, 80.0)
-        ),
-        "TTC_s": _histogram_summary(
-            target_risk["TTC_s"], generated_risk["TTC_s"], bounds=(0.0, 10.0)
-        ),
-        "collision_incidence": _histogram_summary(
-            real_collision, generated_collision, bounds=(0.0, 1.0), bins=2
-        ),
-    }
-    return {
-        "samples_per_condition": len(samples),
-        "sample_mean_ADE_m": float(per_sample_ade.mean()),
-        "min_ADE_m": float(per_sample_ade.min(axis=1).mean()),
-        "sample_mean_FDE_m": float(per_sample_fde.mean()),
-        "min_FDE_m": float(per_sample_fde.min(axis=1).mean()),
-        "energy_score_m": float(per_sample_ade.mean() - 0.5 * pairwise_values.mean()),
-        "mean_pairwise_trajectory_distance_m": float(
-            pairwise_values.mean() if pairwise_trajectory else 0.0
-        ),
-        "terminal_pairwise_distance_m": float(
-            np.mean(pairwise_terminal) if pairwise_terminal else 0.0
-        ),
-        "motion_distribution": {
-            "speed": _distribution_distance(
-                real_speed[speed_mask], generated_speed[generated_speed_mask]
-            ),
-            "ax": _distribution_distance(
-                target_highd_actions[..., 0][real_cartesian_mask[..., 0]],
-                generated_highd[..., 0][generated_cartesian_mask[..., 0]],
-            ),
-            "ay": _distribution_distance(
-                target_highd_actions[..., 1][real_cartesian_mask[..., 0]],
-                generated_highd[..., 1][generated_cartesian_mask[..., 0]],
-            ),
-            "jx": _distribution_distance(
-                real_jerk[..., 0][real_jerk_mask[..., 0]],
-                generated_jerk[..., 0][generated_jerk_mask[..., 0]],
-            ),
-            "jy": _distribution_distance(
-                real_jerk[..., 1][real_jerk_mask[..., 0]],
-                generated_jerk[..., 1][generated_jerk_mask[..., 0]],
-            ),
-        },
-        "angular_distribution": {
-            "yaw_rate": _distribution_distance(real_yaw, generated_yaw),
-            "yaw_acceleration": _distribution_distance(
-                real_yaw_acceleration[real_yaw_acceleration_mask],
-                generated_yaw_acceleration[generated_yaw_acceleration_mask],
-            ),
-        },
-        "jerk_resolution_diagnostic": {
-            "raw_0p04s_highd_zero_mass": {
-                "jx": float(
-                    np.isclose(real_jerk[..., 0][real_jerk_mask[..., 0]], 0.0).mean()
-                ),
-                "jy": float(
-                    np.isclose(real_jerk[..., 1][real_jerk_mask[..., 0]], 0.0).mean()
-                ),
-            },
-            "windowed_0p2s": {
-                "jx": _distribution_distance(
-                    real_windowed_jerk[..., 0][real_windowed_mask[..., 0]],
-                    generated_windowed_jerk[..., 0][generated_windowed_mask[..., 0]],
-                ),
-                "jy": _distribution_distance(
-                    real_windowed_jerk[..., 1][real_windowed_mask[..., 0]],
-                    generated_windowed_jerk[..., 1][generated_windowed_mask[..., 0]],
-                ),
-            },
-        },
-        "risk_distribution": {
-            name: _distribution_distance(target_risk[name], generated_risk[name])
-            for name in target_risk
-            if len(target_risk[name]) and len(generated_risk[name])
-        },
-        "highd_adapted_realism": {
-            "definition": (
-                "fixed-bin highD distribution diagnostics inspired by the WOSAC "
-                "kinematic/interactive components; not an official WOSAC score"
-            ),
-            "components": highd_adapted_histograms,
-        },
-    }
-
-
-def _following_agents(
-    initial: np.ndarray, active: np.ndarray, onset: int
-) -> np.ndarray:
-    current = initial[:, ANCHOR_INDEX + onset]
-    return (
-        (current[:, 1:, 0] < current[:, :1, 0])
-        & (np.abs(current[:, 1:, 1] - current[:, :1, 1]) < 1.8)
-        & active
-    )
-
 
 def _dose_response_curve(
     baseline: Rollout,
@@ -660,68 +320,9 @@ def _dose_response_curve(
     natural_calibration: dict[str, Any],
 ) -> dict[str, Any]:
     """Multi-dose response curves at the same horizons as natural matching."""
-    onset = 25
-    horizons = (0.2, 0.4, 0.8)
-    if kind in {"brake", "accelerate"}:
-        following = _following_agents(initial, active, onset)
-        expected = -1.0 if kind == "brake" else 1.0
-        metric = "signed_background_acceleration_effect_mps2"
-        natural = {
-            f"{horizon:.1f}s": natural_calibration["horizon_diagnostics"][
-                f"{horizon:.1f}s"
-            ][kind]["effect_p10_p50_p90_mps2"]
-            for horizon in horizons
-        }
-
-        def effect(rollout: Rollout, frames: int) -> np.ndarray:
-            value = (
-                expected
-                * (
-                    rollout.states[:, onset + frames, 1:, 2]
-                    - baseline.states[:, onset + frames, 1:, 2]
-                )
-                / (frames * 0.04)
-            )
-            return value[following]
-
-    else:
-        current = torch.from_numpy(initial[:, ANCHOR_INDEX + onset].copy())
-        valid = torch.from_numpy(active)
-        relation = response_relevance(
-            current, torch.cat((torch.ones(len(valid), 1, dtype=torch.bool), valid), 1)
-        ).numpy()
-        near = relation > 0.35
-        metric = "near_lateral_separation_change_m"
-        natural = None
-
-        def effect(rollout: Rollout, frames: int) -> np.ndarray:
-            baseline_separation = np.abs(
-                baseline.states[:, onset + frames, 1:, 1]
-                - baseline.states[:, onset + frames, :1, 1]
-            )
-            separation = np.abs(
-                rollout.states[:, onset + frames, 1:, 1]
-                - rollout.states[:, onset + frames, :1, 1]
-            )
-            return (separation - baseline_separation)[near]
-
-    doses: dict[str, Any] = {}
-    for dose, rollout_value in treatments.items():
-        by_horizon = {}
-        for horizon in horizons:
-            values = effect(rollout_value, int(round(horizon / 0.04)))
-            by_horizon[f"{horizon:.1f}s"] = {
-                "p10_p50_p90": np.quantile(values, (0.1, 0.5, 0.9)).tolist(),
-                "mean": float(values.mean()),
-            }
-        doses[f"{dose:g}"] = by_horizon
-    return {
-        "metric": metric,
-        "horizons_s": list(horizons),
-        "natural_p10_p50_p90": natural,
-        "doses": doses,
-    }
-
+    return _shared_intervention_dose_response(
+        baseline, treatments, initial, active, kind, natural_calibration,
+    )
 
 def _intervention_metrics(
     baseline: Rollout,
@@ -732,123 +333,9 @@ def _intervention_metrics(
     kind: str,
     natural_effects: np.ndarray | None = None,
 ) -> dict[str, float]:
-    onset = 25
-    committed_frames = 1
-    current = torch.from_numpy(initial[:, ANCHOR_INDEX + onset].copy())
-    valid = torch.from_numpy(active)
-    all_valid = torch.cat((torch.ones(len(valid), 1, dtype=torch.bool), valid), 1)
-    relevance = response_relevance(current, all_valid).numpy()
-    mild_delta = (
-        mild.background_actions[:, onset:] - baseline.background_actions[:, onset:]
+    return _shared_intervention_metrics(
+        baseline, mild, strong, initial, active, kind, natural_effects,
     )
-    strong_delta = (
-        strong.background_actions[:, onset:] - baseline.background_actions[:, onset:]
-    )
-    near = relevance > 0.35
-    far = relevance < 0.1
-    magnitude = np.linalg.norm(mild_delta, axis=-1)
-    post_magnitude = magnitude[:, committed_frames:]
-    near_mask = np.broadcast_to(near[:, None], post_magnitude.shape)
-    far_mask = np.broadcast_to(far[:, None], post_magnitude.shape)
-    near_value = post_magnitude[near_mask].mean()
-    far_value = post_magnitude[far_mask].mean()
-    near_profile = np.divide(
-        (post_magnitude * near[:, None]).sum((0, 2)),
-        np.broadcast_to(near[:, None], post_magnitude.shape).sum((0, 2)).clip(min=1),
-    )
-    far_profile = np.divide(
-        (post_magnitude * far[:, None]).sum((0, 2)),
-        np.broadcast_to(far[:, None], post_magnitude.shape).sum((0, 2)).clip(min=1),
-    )
-    threshold = max(1.0e-6, 0.05 * float(near_profile.max()))
-    detected = np.flatnonzero(near_profile > threshold)
-    response_frame = committed_frames + int(detected[0]) if len(detected) else -1
-    committed_change = float(np.abs(mild_delta[:, :committed_frames]).max())
-    baseline_near = baseline.background_actions[:, onset + committed_frames :]
-    baseline_near = baseline_near[..., 0][near_mask]
-    mild_near = mild.background_actions[:, onset + committed_frames :, :, 0][near_mask]
-    strong_post = np.linalg.norm(strong_delta[:, committed_frames:], axis=-1)
-    strong_near_value = strong_post[near_mask].mean()
-    result = {
-        "committed_response_max_change": committed_change,
-        "committed_response_invariant": bool(committed_change < 1.0e-8),
-        "response_onset_frame_offset": response_frame,
-        "response_latency_s": (
-            float(response_frame * 0.04) if response_frame >= 0 else float("nan")
-        ),
-        "near_response_magnitude": float(near_value),
-        "far_response_magnitude": float(far_value),
-        "locality_ratio_far_to_near": float(far_value / max(near_value, 1.0e-8)),
-        "strong_to_mild_response_ratio": float(
-            strong_near_value / max(near_value, 1.0e-8)
-        ),
-        "near_longitudinal_action_wasserstein": float(
-            wasserstein_distance(baseline_near, mild_near)
-        ),
-        "response_magnitude_profile": {
-            "time_s": (
-                0.04 * np.arange(committed_frames, mild_delta.shape[1])
-            ).tolist(),
-            "near": near_profile.tolist(),
-            "far": far_profile.tolist(),
-        },
-    }
-    if kind in {"brake", "accelerate"}:
-        following = _following_agents(initial, active, onset)
-        expected = -1.0 if kind == "brake" else 1.0
-        mild_long = mild_delta[:, committed_frames:25, :, 0].mean(1)
-        strong_long = strong_delta[:, committed_frames:25, :, 0].mean(1)
-        result["direction_success_rate"] = float(
-            (expected * mild_long[following] > 0.0).mean()
-        )
-        result["dose_monotonicity_rate"] = float(
-            (expected * (strong_long - mild_long)[following] > 0.0).mean()
-        )
-        # ``matched_response_calibration`` defines a human effect as the
-        # background longitudinal velocity change over 0.8 s, relative to a
-        # matched neutral response.  Compare exactly that physical quantity;
-        # an action-space mean is useful for direction/monotonicity but is not
-        # commensurate with the natural acceleration-effect distribution.
-        horizon_frames = 20
-        velocity_effect = (
-            expected
-            * (
-                mild.states[:, onset + horizon_frames, 1:, 2]
-                - baseline.states[:, onset + horizon_frames, 1:, 2]
-            )
-            / (horizon_frames * 0.04)
-        )
-        simulated_effect = velocity_effect[following]
-        if natural_effects is not None and len(simulated_effect):
-            natural = np.asarray(natural_effects, np.float32)
-            lower, upper = np.quantile(natural, (0.10, 0.90))
-            result["response_distribution_wasserstein_mps2"] = float(
-                wasserstein_distance(natural, simulated_effect)
-            )
-            result["response_within_natural_p10_p90_rate"] = float(
-                ((simulated_effect >= lower) & (simulated_effect <= upper)).mean()
-            )
-        evaluation_frame = onset + 24
-        baseline_speed = np.linalg.norm(
-            baseline.states[:, evaluation_frame, 1:, 2:4], axis=-1
-        )
-        mild_speed = np.linalg.norm(mild.states[:, evaluation_frame, 1:, 2:4], axis=-1)
-        result["signed_follower_speed_response_mps"] = float(
-            expected * (mild_speed - baseline_speed)[following].mean()
-        )
-    else:
-        separation_base = np.abs(
-            baseline.states[:, onset + 24, 1:, 1]
-            - baseline.states[:, onset + 24, :1, 1]
-        )
-        separation_left = np.abs(
-            mild.states[:, onset + 24, 1:, 1] - mild.states[:, onset + 24, :1, 1]
-        )
-        result["separation_non_decrease_rate"] = float(
-            (separation_left[near] >= separation_base[near]).mean()
-        )
-    return result
-
 
 def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
     """Evaluate the maintained model and persist its complete JSON report."""
@@ -925,6 +412,7 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
     rows = experiment.test_rows
     states = np.asarray(experiment.bundle.arrays["agent_states"][rows], np.float32)
     valid = np.asarray(experiment.bundle.arrays["agent_valid"][rows], bool)
+    states, valid = scoped_canonical_trajectory(states, valid)
     maps = np.asarray(experiment.bundle.arrays["map_polylines"][rows], np.float32)
     map_valid = np.asarray(experiment.bundle.arrays["map_polyline_valid"][rows], bool)
     active = valid[:, ANCHOR_INDEX, 1:]
@@ -1110,10 +598,11 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         if scope == "pilot"
         else experiment.test_rows
     )
-    _, test_response_scale = matched_response_calibration(
+    _, test_response_scale = evaluation_response_calibration(
         experiment.bundle.arrays,
         natural_reference_rows,
         minimum_events=30,
+        evaluation_scope=True,
     )
     doses = {
         "brake": (1.5, 2.25, 3.0),
@@ -1160,7 +649,8 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
             test_response_scale,
         )
     report = {
-        "evaluation_schema_version": 2,
+        "evaluation_schema_version": 3,
+        "evaluation_scope": evaluation_scope_contract(),
         "experiment_scope": scope,
         "checkpoint_path": str(checkpoint_path),
         "checkpoint_epoch": int(checkpoint["epoch"]),

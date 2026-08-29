@@ -1,0 +1,36 @@
+{
+  "ads_caused_collision_is_retained_as_valid": true,
+  "all_passed": true,
+  "background_acceleration_bounds": [
+    -2.0101068019866943,
+    1.4934580326080322
+  ],
+  "background_yaw_rate_bounds": [
+    -0.0066178785637021065,
+    0.010006624273955822
+  ],
+  "branch_changes_ego_trajectory": true,
+  "checkpoint_epoch": 2,
+  "common_random_number_branch_reuses_exogenous_digest": "345f075b6f0d1e965f3746de90db0b6714a4a5a86c7ad89c73c30c4fd3b462ba",
+  "event_risk": [
+    0.0,
+    0.0
+  ],
+  "evt_score": [
+    1.7652643835530326,
+    1.7652643835530326
+  ],
+  "evt_score_monotone_on_calibration_probe": true,
+  "finite_evt_score_rate": 1.0,
+  "finite_state_rate": 1.0,
+  "formal_checkpoint_config_match": true,
+  "maximum_speed_mps": 34.64653396606445,
+  "response_risk_variance_under_pcn_mutation": 0.0,
+  "same_world_same_ads_exact": true,
+  "scope": "small-sample AMS readiness audit; it is an interface contract, not a probability estimate",
+  "seed": 20260823,
+  "snapshot_restore_exact": true,
+  "steps": 64,
+  "world_serialization_exact": true,
+  "worlds": 2
+}

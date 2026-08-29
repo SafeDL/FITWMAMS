@@ -1,0 +1,72 @@
+{
+  "collision_fraction": 0.0035,
+  "estimator": "independent_monte_carlo",
+  "evaluation_contract": {
+    "background_world_model": "trafficbots",
+    "dt_s": 0.04,
+    "ego_controller": "native HighwayEnv IDMVehicle",
+    "execution_backend": "local_highway_env",
+    "metric_scope": "IDM ego trajectory risk under generated background response",
+    "population_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "steps": 149
+  },
+  "evt_score_summary": {
+    "max": 5.754012228870754,
+    "mean": 2.088287213654295,
+    "p95": 2.8691270270589366
+  },
+  "failure_count": 4,
+  "failure_event": {
+    "event_risk_threshold": 0.7726841956981889,
+    "evt_score_threshold": 4.605170185988091,
+    "return_period": 100
+  },
+  "formal": false,
+  "numerical_valid_fraction": 1.0,
+  "probability": 0.002,
+  "provenance": {
+    "background_dynamics_contract": "kinematic_unicycle_on_highwayenv_road",
+    "common_world_config": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "common_world_config_sha256": "a2467b7252fbc226e8577e0192a297b4302fe49006f771ea83e4a8f8c7fa2652",
+    "device": "cuda",
+    "evaluation_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "evt_model": "/home/hp/FITWMAMS/results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json",
+    "evt_model_sha256": "dbf5c4f7ea9899eca11c26b565e6d8cfd2bd3d1f4a1bb16b2c7435fb0eedb533",
+    "execution_backend": "local_highway_env",
+    "flow_checkpoint": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt",
+    "flow_checkpoint_sha256": "0f2fe7bcd72df8afa434a7ef36fb94e4c6af873f73ec261d5fdcc154374c2cc2",
+    "idm_ego_config": "/home/hp/FITWMAMS/tools/idm_ego.yaml",
+    "idm_ego_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "initial_scene_prior": "shared_external_Flow_p(M,C0); no K enters TrafficBots",
+    "trafficbots_checkpoint": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/checkpoints/best.ckpt",
+    "trafficbots_checkpoint_sha256": "43437f39036a12abe45fb1f849c76b9584ea9961e0e4d881aec3129f57da28e4",
+    "trafficbots_config": "/home/hp/FITWMAMS/world_model/trafficbots/config/highd.yaml",
+    "trafficbots_config_sha256": "fc28856090c15aaa9c4ac6cb23d8046fb03865ce3aaf7c9d7fd0ec0b01604a32"
+  },
+  "schema": "trafficbots_highway_env_idm_monte_carlo",
+  "simulation_counts": {
+    "world_evaluations": 2000
+  },
+  "uncertainty": {
+    "probability_ci95_lower": 4.196098098122698e-05,
+    "probability_ci95_upper": 0.003958039019018773,
+    "probability_standard_error": 0.0009989994994993741
+  },
+  "world_model": "TrafficBots V1.5-HighD",
+  "world_model_id": "trafficbots",
+  "world_prior": "p_ext(M,C0) * N(Z;0,I) * U(destination_base)"
+}

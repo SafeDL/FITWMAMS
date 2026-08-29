@@ -12,13 +12,27 @@ from typing import Any
 import numpy as np
 
 from hierarchical_world_model.src.composition import HierarchicalWorldSampler
+from hierarchical_world_model.src.empirical_context import EmpiricalKContextSampler
 from hierarchical_world_model.src.highway import (
     HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT,
 )
+from hierarchical_world_model.src.protocol import release_provenance
 from hierarchical_world_model.src.randomness import WorldExogenousState
 from tools.evt import GPDTailModel, load_evt_model
 from tools.idm_ego import load_idm_ego_config
-from world_model.src.core.utils import file_sha256, load_yaml, save_json, select_device
+from diffusion.src.data import load_data_bundle, split_rows
+from world_model.src.core.utils import (
+    file_sha256,
+    load_json,
+    load_yaml,
+    save_json,
+    select_device,
+)
+from world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    require_evaluation_scope,
+    require_scoped_evt_model,
+)
 
 from .idm_policy import HighwayEnvIDMPolicy
 from .world_evaluator import CurrentWorldEvaluator, WorldEvaluation
@@ -72,17 +86,78 @@ def _world_config(config: dict[str, Any], config_dir: Path) -> tuple[dict[str, A
     return load_yaml(path), path
 
 
+def _require_formal_provenance(
+    config: dict[str, Any], config_dir: Path
+) -> dict[str, Any]:
+    """Verify that this run uses the frozen artifact for the current release."""
+    run_provenance = _run_provenance(config)
+    if run_provenance["worktree_dirty"]:
+        raise RuntimeError("formal IDM evaluation requires a clean worktree")
+
+    world_config, _ = _world_config(config, config_dir)
+    checkpoint_path = _resolve_path(
+        world_config["paths"]["evaluation_checkpoint"],
+        Path(__file__).resolve().parents[2],
+    )
+    manifest_path = checkpoint_path.with_name("final_model_manifest.json")
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(
+            f"formal world-model artifact is missing: {checkpoint_path}"
+        )
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"formal world-model manifest is missing: {manifest_path}"
+        )
+
+    manifest = load_json(manifest_path)
+    checkpoint_sha256 = file_sha256(checkpoint_path)
+    if manifest.get("checkpoint_sha256") != checkpoint_sha256:
+        raise RuntimeError(
+            "final_model_manifest.json does not match the formal world-model artifact"
+        )
+    release_tag = manifest.get("release_tag")
+    if not isinstance(release_tag, str) or not release_tag:
+        raise RuntimeError("final_model_manifest.json is missing release provenance")
+    if not manifest.get("worktree_clean_at_start"):
+        raise RuntimeError(
+            "final_model_manifest.json does not certify a clean release worktree"
+        )
+    if manifest.get("code_commit") != run_provenance["repository_commit"]:
+        raise RuntimeError(
+            "final_model_manifest.json code_commit does not match the current repository"
+        )
+    release = release_provenance(release_tag=release_tag, require_clean=True)
+    if (
+        release["code_commit"] != manifest.get("code_commit")
+        or release["release_tag"] != release_tag
+        or not release["worktree_clean_at_start"]
+    ):
+        raise RuntimeError(
+            "final_model_manifest.json release provenance does not match the current formal artifact"
+        )
+    return {
+        **run_provenance,
+        "formal_artifact_checkpoint_sha256": checkpoint_sha256,
+        "formal_manifest_code_commit": manifest["code_commit"],
+        "formal_manifest_release_tag": release_tag,
+        "formal_manifest_worktree_clean_at_start": bool(
+            manifest["worktree_clean_at_start"]
+        ),
+    }
+
+
 def _build_evaluator(
     config: dict[str, Any],
     config_dir: Path,
 ) -> tuple[CurrentWorldEvaluator, dict[str, Any]]:
+    require_evaluation_scope(config)
     backend = str(config["simulation"].get("execution_backend", "local_highway_env"))
     if backend != "local_highway_env":
         raise ValueError("formal IDM evaluation requires simulation.execution_backend=local_highway_env")
     world_config, world_config_path = _world_config(config, config_dir)
     world_paths = world_config["paths"]
     device = select_device(str(config.get("runtime", {}).get("device", "auto")))
-    sampler = HierarchicalWorldSampler(
+    base_sampler = HierarchicalWorldSampler(
         flow_checkpoint=world_paths["flow_checkpoint"],
         flow_output_dir=world_paths["flow_output_dir"],
         diffusion_checkpoint=world_paths["diffusion_checkpoint"],
@@ -97,6 +172,28 @@ def _build_evaluator(
     idm_path = _resolve_path(config["paths"]["idm_ego_config"], config_dir)
     policy = HighwayEnvIDMPolicy.from_dict(load_idm_ego_config(idm_path))
     evt_path = _resolve_path(config["paths"]["evt_model"], config_dir)
+    require_scoped_evt_model(evt_path)
+    test_space = config.get("test_space", {})
+    kind = str(test_space.get("kind", "full_prior"))
+    if kind == "empirical_test_fixed_k_gt":
+        # Release paths are repository-relative so the immutable cache used by
+        # the frozen artifact is resolved from the repository root, not from
+        # ``hierarchical_world_model/config``.
+        bundle = load_data_bundle(
+            world_config, Path(__file__).resolve().parents[2]
+        )
+        split = str(test_space.get("split", "test"))
+        if split != "test":
+            raise ValueError("the fixed-K ADS protocol must use the held-out test split")
+        sampler = EmpiricalKContextSampler(
+            base_sampler,
+            bundle,
+            split_rows(bundle.arrays, split, seed=0),
+        )
+    elif kind == "full_prior":
+        sampler = base_sampler
+    else:
+        raise ValueError(f"unsupported hierarchical IDM test_space.kind={kind!r}")
     evaluator = CurrentWorldEvaluator(
         sampler,
         policy,
@@ -125,6 +222,12 @@ def _build_evaluator(
         "evt_model_sha256": file_sha256(evt_path),
         "idm_ego_config": str(idm_path),
         "idm_ego_config_sha256": file_sha256(idm_path),
+        "evaluation_scope": evaluation_scope_contract(),
+        "test_space": (
+            sampler.context_contract
+            if isinstance(sampler, EmpiricalKContextSampler)
+            else {"test_space": "full_prior"}
+        ),
     }
 
 
@@ -186,7 +289,7 @@ def _level_rows(result: WorldSubsetResult) -> list[dict[str, Any]]:
 
 
 def _save_case(
-    world: WorldExogenousState,
+    world: Any,
     evaluation: WorldEvaluation,
     case_index: int,
     output_dir: Path,
@@ -210,7 +313,7 @@ def _save_case(
 
 
 def _save_top_cases(
-    worlds: WorldExogenousState,
+    worlds: Any,
     evaluation: WorldEvaluation,
     evaluator: CurrentWorldEvaluator,
     output_dir: Path,
@@ -263,8 +366,19 @@ def _subset_uncertainty(result: WorldSubsetResult, p0: float) -> dict[str, float
     }
 
 
-def run_subset_from_config(config: dict[str, Any], config_dir: Path) -> Path:
-    """Run pCN subset simulation under the complete current world prior."""
+def run_subset_from_config(
+    config: dict[str, Any], config_dir: Path, *, formal: bool = True
+) -> Path:
+    """Run pCN subset simulation under the complete current world prior.
+
+    Development runs retain the exact simulation protocol but record the dirty
+    provenance and can never be promoted to a formal result.
+    """
+    formal_provenance = (
+        _require_formal_provenance(config, config_dir)
+        if formal
+        else _run_provenance(config)
+    )
     output_dir = _resolve_path(config["subset_simulation"]["output_dir"], config_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
@@ -284,6 +398,9 @@ def run_subset_from_config(config: dict[str, Any], config_dir: Path) -> Path:
         pcn_beta=float(settings["pcn_beta"]),
         mcmc_steps=int(settings["mcmc_steps"]),
         seed=int(settings["seed"]),
+        sample_worlds=lambda count, seed: evaluator.sampler.sample_world_exogenous(
+            count, seed=seed, response_steps=dimensions["response_steps"]
+        ),
     )
     _save_final_population(result, output_dir)
     top_cases = _save_top_cases(
@@ -299,7 +416,10 @@ def run_subset_from_config(config: dict[str, Any], config_dir: Path) -> Path:
     save_json(top_cases, output_dir / "world_subset_top_cases.json")
     summary = {
         "schema": "highway_env_idm_subset_simulation",
+        "world_model_id": "hierarchical",
+        "world_model": "Hierarchical Flow–Diffusion–HiQR",
         "estimator": "adaptive_multilevel_splitting_pcn_subset_simulation",
+        "formal": bool(formal),
         "probability": result.probability,
         "final_failure_fraction": result.final_failure_fraction,
         "failure_event": target,
@@ -316,11 +436,28 @@ def run_subset_from_config(config: dict[str, Any], config_dir: Path) -> Path:
             "pcn_beta": float(settings["pcn_beta"]),
             "mcmc_steps": int(settings["mcmc_steps"]),
         },
-        "world_prior": "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)",
+        "world_prior": (
+            "empirical_test(C0,M,K_GT) * p(z_diff) * p(z_response)"
+            if getattr(evaluator.sampler, "test_space", "full_prior")
+            == "empirical_test_fixed_k_gt"
+            else "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)"
+        ),
+        "evaluation_contract": {
+            "population_scope": evaluation_scope_contract(),
+            "steps": int(config["simulation"].get("steps", 149)),
+            "dt_s": 0.04,
+            "execution_backend": config["simulation"].get(
+                "execution_backend", "local_highway_env"
+            ),
+            "ego_controller": "native HighwayEnv IDMVehicle",
+            "background_world_model": "hierarchical",
+            "metric_scope": "IDM ego trajectory risk under generated background response",
+            "test_space": provenance["test_space"],
+        },
         "dimensions": dimensions,
         "level_statistics": level_rows,
         "uncertainty": _subset_uncertainty(result, float(settings["p0"])),
-        "provenance": {**provenance, **_run_provenance(config)},
+        "provenance": {**provenance, **formal_provenance},
     }
     path = output_dir / "world_subset_summary.json"
     save_json(summary, path)
@@ -336,8 +473,15 @@ def _monte_carlo_uncertainty(probability: float, count: int) -> dict[str, float]
     }
 
 
-def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Path:
+def run_monte_carlo_from_config(
+    config: dict[str, Any], config_dir: Path, *, formal: bool = True
+) -> Path:
     """Run independent prior samples for the current-world probability baseline."""
+    formal_provenance = (
+        _require_formal_provenance(config, config_dir)
+        if formal
+        else _run_provenance(config)
+    )
     output_dir = _resolve_path(config["monte_carlo"]["output_dir"], config_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
@@ -354,15 +498,13 @@ def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Pat
     collisions: list[np.ndarray] = []
     gaps: list[np.ndarray] = []
     valid: list[np.ndarray] = []
-    worlds: list[WorldExogenousState] = []
+    worlds: list[Any] = []
     for start in range(0, total, batch_size):
         count = min(batch_size, total - start)
-        batch = WorldExogenousState.sample(
+        batch = evaluator.sampler.sample_world_exogenous(
             count,
             seed=int(rng.integers(0, np.iinfo(np.int64).max)),
             response_steps=dimensions["response_steps"],
-            scene_dim=dimensions["scene_dim"],
-            agent_dim=dimensions["agent_dim"],
         )
         evaluation = evaluator.evaluate(batch)
         scores.append(evaluation.evt_score)
@@ -371,7 +513,7 @@ def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Pat
         gaps.append(evaluation.min_gap_m)
         valid.append(evaluation.numerical_valid)
         worlds.append(batch)
-    population = WorldExogenousState.concatenate(worlds)
+    population = type(worlds[0]).concatenate(worlds)
     evaluation = WorldEvaluation(
         evt_score=np.concatenate(scores),
         event_risk=np.concatenate(risks),
@@ -408,12 +550,32 @@ def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Pat
     save_json(top_cases, output_dir / "world_monte_carlo_top_cases.json")
     summary = {
         "schema": "highway_env_idm_monte_carlo",
+        "world_model_id": "hierarchical",
+        "world_model": "Hierarchical Flow–Diffusion–HiQR",
         "estimator": "independent_monte_carlo",
+        "formal": bool(formal),
         "probability": probability,
         "failure_count": int(failure.sum()),
         "failure_event": target,
         "simulation_counts": {"world_evaluations": total},
-        "world_prior": "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)",
+        "world_prior": (
+            "empirical_test(C0,M,K_GT) * p(z_diff) * p(z_response)"
+            if getattr(evaluator.sampler, "test_space", "full_prior")
+            == "empirical_test_fixed_k_gt"
+            else "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)"
+        ),
+        "evaluation_contract": {
+            "population_scope": evaluation_scope_contract(),
+            "steps": int(config["simulation"].get("steps", 149)),
+            "dt_s": 0.04,
+            "execution_backend": config["simulation"].get(
+                "execution_backend", "local_highway_env"
+            ),
+            "ego_controller": "native HighwayEnv IDMVehicle",
+            "background_world_model": "hierarchical",
+            "metric_scope": "IDM ego trajectory risk under generated background response",
+            "test_space": provenance["test_space"],
+        },
         "dimensions": dimensions,
         "numerical_valid_fraction": float(evaluation.numerical_valid.mean()),
         "collision_fraction": float(evaluation.collision.mean()),
@@ -423,7 +585,7 @@ def run_monte_carlo_from_config(config: dict[str, Any], config_dir: Path) -> Pat
             "max": float(evaluation.evt_score.max()),
         },
         "uncertainty": _monte_carlo_uncertainty(probability, total),
-        "provenance": {**provenance, **_run_provenance(config)},
+        "provenance": {**provenance, **formal_provenance},
     }
     path = output_dir / "world_monte_carlo_summary.json"
     save_json(summary, path)

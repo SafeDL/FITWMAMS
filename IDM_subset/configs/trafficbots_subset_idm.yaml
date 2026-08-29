@@ -1,0 +1,53 @@
+# IDM rare-event evaluation with TrafficBots V1.5-HighD background traffic.
+
+paths:
+  # Supplies only the shared external p(M,C0) initial-scene prior. K,
+  # diffusion and HiQR are not loaded by the TrafficBots evaluator.
+  common_world_config: ../../hierarchical_world_model/config/release.yaml
+  trafficbots_config: ../../world_model/trafficbots/config/highd.yaml
+  trafficbots_checkpoint: ../../results/baselines/trafficbots_highd/checkpoints/best.ckpt
+  trafficbots_acceptance: ../../results/baselines/trafficbots_highd/full_acceptance.json
+  trafficbots_audit: ../../results/baselines/trafficbots_highd/audit.json
+  evt_model: ../../results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json
+  idm_ego_config: ../../tools/idm_ego.yaml
+
+simulation:
+  steps: 149
+  execution_backend: local_highway_env
+
+test_space:
+  kind: full_prior
+
+evaluation_scope:
+  schema: highd_follower_excluded_v1
+  excluded_background_slots: [same_rear]
+
+runtime:
+  device: auto
+  batch_size: 16
+
+failure_event:
+  return_period: 100
+
+subset_simulation:
+  num_samples: 512
+  p0: 0.1
+  max_levels: 8
+  mutation_blocks:
+    - scenario
+    - c0_base_latent
+    - personality_latent
+    - destination_uniform
+  pcn_beta: 0.20
+  mcmc_steps: 3
+  seed: 20260825
+  output_dir: ../results/trafficbots
+
+monte_carlo:
+  num_samples: 2000
+  sample_batch_size: 16
+  seed: 20260826
+  output_dir: ../results/trafficbots/monte_carlo
+
+output:
+  top_cases: 10

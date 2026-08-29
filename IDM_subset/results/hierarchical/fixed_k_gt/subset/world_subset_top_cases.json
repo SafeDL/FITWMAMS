@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "subset_final_0001",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0001.npz"
+  },
+  {
+    "case_id": "subset_final_0002",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0002.npz"
+  },
+  {
+    "case_id": "subset_final_0003",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0003.npz"
+  },
+  {
+    "case_id": "subset_final_0004",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0004.npz"
+  },
+  {
+    "case_id": "subset_final_0005",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0005.npz"
+  },
+  {
+    "case_id": "subset_final_0006",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0006.npz"
+  },
+  {
+    "case_id": "subset_final_0007",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0007.npz"
+  },
+  {
+    "case_id": "subset_final_0008",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0008.npz"
+  },
+  {
+    "case_id": "subset_final_0009",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0009.npz"
+  },
+  {
+    "case_id": "subset_final_0010",
+    "collision": true,
+    "event_risk": 1.0542372465133667,
+    "evt_score": 6.450401968909992,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/subset/failure_cases/subset_final_0010.npz"
+  }
+]

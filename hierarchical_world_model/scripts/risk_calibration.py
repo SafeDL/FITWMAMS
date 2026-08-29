@@ -54,6 +54,11 @@ from world_model.src.core.utils import (  # noqa: E402
 
 from diffusion.src.data import ANCHOR_INDEX  # noqa: E402
 from world_model.src.core.dynamics import KinematicTrafficDynamics  # noqa: E402
+from world_model.src.core.evaluation_scope import (  # noqa: E402
+    evaluation_scope_contract,
+    require_scoped_evt_model,
+    scoped_canonical_trajectory,
+)
 
 
 DEFAULT_CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
@@ -525,6 +530,9 @@ def main() -> None:
     arrays = experiment.bundle.arrays
     logged_states = np.asarray(arrays["agent_states"][rows], np.float32)
     logged_valid = np.asarray(arrays["agent_valid"][rows], bool)
+    logged_states, logged_valid = scoped_canonical_trajectory(
+        logged_states, logged_valid
+    )
     maps = np.asarray(arrays["map_polylines"][rows], np.float32)
     map_valid = np.asarray(arrays["map_polyline_valid"][rows], bool)
     valid = _continuous_valid(logged_valid)
@@ -589,6 +597,7 @@ def main() -> None:
         idm_policy=policy,
     )
     evt_path = Path(config["paths"]["evt_model"])
+    require_scoped_evt_model(evt_path)
     evt_model = load_evt_model(evt_path)
     risk_level = float(evt_model.return_level(100))
     score_level = float(evt_model.score(risk_level))
@@ -626,6 +635,7 @@ def main() -> None:
         )
     report = {
         "schema": "highd_highway_env_risk_calibration_diagnostic",
+        "evaluation_scope": evaluation_scope_contract(),
         "purpose": (
             "Compare the same held-out highD windows under observed human "
             "motion, HighwayEnv human-control replay, and HighwayEnv IDM replay."

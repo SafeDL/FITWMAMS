@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "monte_carlo_0001",
+    "collision": false,
+    "event_risk": 0.9422363638877869,
+    "evt_score": 5.595992444492651,
+    "min_gap_m": 45.42499923706055,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0001.npz"
+  },
+  {
+    "case_id": "monte_carlo_0002",
+    "collision": false,
+    "event_risk": 0.7947735786437988,
+    "evt_score": 4.7193302346083925,
+    "min_gap_m": 6.018816947937012,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0002.npz"
+  },
+  {
+    "case_id": "monte_carlo_0003",
+    "collision": false,
+    "event_risk": 0.7580340504646301,
+    "evt_score": 4.531475179029834,
+    "min_gap_m": 6.465000152587891,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0003.npz"
+  },
+  {
+    "case_id": "monte_carlo_0004",
+    "collision": false,
+    "event_risk": 0.7323489189147949,
+    "evt_score": 4.405928668249016,
+    "min_gap_m": 3.75,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0004.npz"
+  },
+  {
+    "case_id": "monte_carlo_0005",
+    "collision": false,
+    "event_risk": 0.7182421088218689,
+    "evt_score": 4.338859170105144,
+    "min_gap_m": 6.984999656677246,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0005.npz"
+  },
+  {
+    "case_id": "monte_carlo_0006",
+    "collision": false,
+    "event_risk": 0.7173492312431335,
+    "evt_score": 4.3346573392756325,
+    "min_gap_m": 2.607020378112793,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0006.npz"
+  },
+  {
+    "case_id": "monte_carlo_0007",
+    "collision": false,
+    "event_risk": 0.6796393990516663,
+    "evt_score": 4.161684328914882,
+    "min_gap_m": 9.804999351501465,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0007.npz"
+  },
+  {
+    "case_id": "monte_carlo_0008",
+    "collision": false,
+    "event_risk": 0.6615452170372009,
+    "evt_score": 4.081649613084857,
+    "min_gap_m": 8.72499942779541,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0008.npz"
+  },
+  {
+    "case_id": "monte_carlo_0009",
+    "collision": false,
+    "event_risk": 0.6366229057312012,
+    "evt_score": 3.9743478887876074,
+    "min_gap_m": 8.808844566345215,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0009.npz"
+  },
+  {
+    "case_id": "monte_carlo_0010",
+    "collision": false,
+    "event_risk": 0.6030210852622986,
+    "evt_score": 3.8347333874951532,
+    "min_gap_m": 13.175000190734863,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/monte_carlo/failure_cases/monte_carlo_0010.npz"
+  }
+]

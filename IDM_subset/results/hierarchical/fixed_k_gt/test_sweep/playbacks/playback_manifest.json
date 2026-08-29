@@ -1,0 +1,262 @@
+{
+  "episodes": [
+    {
+      "case_id": "test_sweep_failure_0006",
+      "collision": false,
+      "event_risk": 0.7973034381866455,
+      "evt_score": 4.7326475569487,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0006.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0006.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0009",
+      "collision": true,
+      "event_risk": 1.1087969541549683,
+      "evt_score": 6.957579693000815,
+      "first_collision_frame": 82,
+      "first_collision_time_s": 3.2800000000000002,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0009.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "lateral_activity",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0009.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0008",
+      "collision": false,
+      "event_risk": 0.7866413593292236,
+      "evt_score": 4.676864440691209,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0008.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_out",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0008.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0002",
+      "collision": true,
+      "event_risk": 1.059076189994812,
+      "evt_score": 6.492507852768762,
+      "first_collision_frame": 70,
+      "first_collision_time_s": 2.8000000000000003,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0002.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "cut_out",
+        "lateral_activity",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0002.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0001",
+      "collision": true,
+      "event_risk": 0.8765218257904053,
+      "evt_score": 5.177807694184686,
+      "first_collision_frame": 110,
+      "first_collision_time_s": 4.4,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0001.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "lateral_activity",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0001.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0010",
+      "collision": false,
+      "event_risk": 0.9918400645256042,
+      "evt_score": 5.9487706141391765,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0010.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0010.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0003",
+      "collision": true,
+      "event_risk": 0.9207905530929565,
+      "evt_score": 5.453908583281372,
+      "first_collision_frame": 124,
+      "first_collision_time_s": 4.96,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0003.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_in",
+        "lateral_activity",
+        "collision"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0003.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0011",
+      "collision": false,
+      "event_risk": 0.9470294117927551,
+      "evt_score": 5.628558330845085,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0011.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0011.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0004",
+      "collision": false,
+      "event_risk": 0.8450908064842224,
+      "evt_score": 4.994299465561877,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0004.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0004.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0007",
+      "collision": false,
+      "event_risk": 0.985900342464447,
+      "evt_score": 5.904589883206799,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0007.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0007.npz"
+    },
+    {
+      "case_id": "test_sweep_failure_0005",
+      "collision": false,
+      "event_risk": 0.8982978463172913,
+      "evt_score": 5.310881996759819,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/playbacks/test_sweep_failure_0005.gif",
+      "playback_frames": 76,
+      "semantic_tags": [
+        "cut_out",
+        "lateral_activity"
+      ],
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/failure_cases/test_sweep_failure_0005.npz"
+    }
+  ],
+  "evaluation_scope": {
+    "excluded_background_slots": [
+      "same_rear"
+    ],
+    "schema": "highd_follower_excluded_v1",
+    "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+    "training_population_modified": false
+  },
+  "provenance": {
+    "device": "cuda",
+    "diffusion_checkpoint": "results/background_diffusion/checkpoints/best_background_diffusion.pt",
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "evaluation_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "evt_model": "/home/hp/FITWMAMS/results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json",
+    "evt_model_sha256": "dbf5c4f7ea9899eca11c26b565e6d8cfd2bd3d1f4a1bb16b2c7435fb0eedb533",
+    "execution_backend": "local_highway_env",
+    "final_model_manifest": "results/hierarchical_world_model/checkpoints/final_model_manifest.json",
+    "final_model_manifest_sha256": "d0b01a695c6f395a3a44631c919ecb4d8c1009be65b7a685632f7bd893fdad84",
+    "flow_checkpoint": "results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt",
+    "flow_checkpoint_sha256": "0f2fe7bcd72df8afa434a7ef36fb94e4c6af873f73ec261d5fdcc154374c2cc2",
+    "hiqr_vehicle_dynamics_contract": "kinematic_unicycle_on_highwayenv_road",
+    "idm_ego_config": "/home/hp/FITWMAMS/tools/idm_ego.yaml",
+    "idm_ego_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "response_checkpoint": "results/hierarchical_world_model/checkpoints/final_world_model.pt",
+    "response_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+    "test_space": {
+      "fixed_variables": [
+        "M",
+        "C0",
+        "K_GT"
+      ],
+      "sampled_variables": [
+        "diffusion_noise",
+        "scene_innovations",
+        "agent_response_innovations"
+      ],
+      "sampling": "uniform_over_recording-isolated_test_sequences",
+      "test_sequence_id_sha256": "40d50686ac90ba50e329294954a84a4a6e55947ff82a83562e9c2ca7389e453d",
+      "test_sequences": 10151,
+      "test_space": "empirical_test_fixed_k_gt"
+    },
+    "world_model_config": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "world_model_config_sha256": "a2467b7252fbc226e8577e0192a297b4302fe49006f771ea83e4a8f8c7fa2652"
+  },
+  "role": "model-specific playbacks from the exhaustive held-out test sweep",
+  "schema": "highway_env_idm_subset_playbacks_v4",
+  "selection": "test_sweep_diverse",
+  "semantic_counts_over_source_failures": {
+    "collision": 4,
+    "cut_in": 6,
+    "cut_out": 3,
+    "initial_close_front": 0,
+    "lateral_activity": 11,
+    "longitudinal_tail": 0
+  },
+  "source_summary": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/fixed_k_gt/test_sweep/test_context_sweep_summary.json",
+  "visual_contract": {
+    "background_color": "#3274a1",
+    "background_color_name": "blue",
+    "collision_color": "#ffbf00",
+    "coordinate_frame": "S0 ego-relative",
+    "ego_color": "#D62728",
+    "x_window_m": [
+      -60.0,
+      60.0
+    ],
+    "y_window_m": [
+      -8.2,
+      8.2
+    ]
+  },
+  "world_model": "Hierarchical Flow–Diffusion–HiQR",
+  "world_model_id": "hierarchical"
+}

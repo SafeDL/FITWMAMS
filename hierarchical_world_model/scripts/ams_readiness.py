@@ -20,7 +20,10 @@ from hierarchical_world_model.src.execution import (  # noqa: E402
     hold_current_ego_action,
     rollout_world,
 )
-from hierarchical_world_model.src.randomness import WorldExogenousState  # noqa: E402
+from hierarchical_world_model.src.randomness import (  # noqa: E402
+    WORLD_RANDOM_BLOCKS,
+    WorldExogenousState,
+)
 from hierarchical_world_model.src.train import load_checkpoint  # noqa: E402
 from hierarchical_world_model.src.protocol import (  # noqa: E402
     AMS_READINESS,
@@ -29,6 +32,10 @@ from hierarchical_world_model.src.protocol import (  # noqa: E402
 )
 from tools.evt import load_evt_model  # noqa: E402
 from world_model.src.core.utils import ensure_dir, save_json, select_device  # noqa: E402
+from world_model.src.core.evaluation_scope import (  # noqa: E402
+    evaluation_scope_contract,
+    require_scoped_evt_model,
+)
 
 CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
 
@@ -76,6 +83,7 @@ def main() -> None:
     serialized = output / "ams_readiness_world_exogenous.npz"
     exogenous.save(serialized)
     reloaded = WorldExogenousState.load(serialized)
+    require_scoped_evt_model(config["paths"]["evt_model"])
     evt = load_evt_model(config["paths"]["evt_model"])
     snapshot_sample = sampler.compose_exogenous(exogenous)
     snapshot_world = sampler.create_world(snapshot_sample)
@@ -134,6 +142,7 @@ def main() -> None:
     yaw_rate = first.background_actions[..., 1]
     risk_probe = evt.score(np.asarray([0.0, evt.u, evt.return_level(100)], np.float64))
     report = {
+        "evaluation_scope": evaluation_scope_contract(),
         "scope": (
             "small-sample AMS readiness audit; it is an interface contract, not a "
             "probability estimate"
@@ -146,7 +155,7 @@ def main() -> None:
         "world_serialization_exact": bool(
             all(
                 np.array_equal(exogenous.as_dict()[key], reloaded.as_dict()[key])
-                for key in exogenous.as_dict()
+                for key in WORLD_RANDOM_BLOCKS
             )
         ),
         "same_world_same_ads_exact": bool(

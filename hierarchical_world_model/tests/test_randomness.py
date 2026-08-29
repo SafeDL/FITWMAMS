@@ -2,12 +2,16 @@
 
 import numpy as np
 
-from hierarchical_world_model.src.randomness import WorldExogenousState
+from hierarchical_world_model.src.randomness import (
+    WORLD_RANDOM_BLOCKS,
+    WorldExogenousState,
+)
 
 
 def test_explicit_randomness_is_seed_replayable_and_block_mutable(tmp_path):
     first = WorldExogenousState.sample(2, seed=71, response_steps=9)
     replay = WorldExogenousState.sample(2, seed=71, response_steps=9)
+    assert tuple(first.as_dict()) == WORLD_RANDOM_BLOCKS
     assert all(np.array_equal(first.as_dict()[name], replay.as_dict()[name]) for name in first.as_dict())
     path = tmp_path / "world.npz"
     first.save(path)

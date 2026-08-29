@@ -1,0 +1,100 @@
+{
+  "artifacts": {
+    "comparison_figure": "/home/hp/FITWMAMS/IDM_subset/results/comparisons/world_model_comparison.png",
+    "table_csv": "/home/hp/FITWMAMS/IDM_subset/results/comparisons/world_model_comparison.csv"
+  },
+  "comparison_contract": {
+    "common_initial_prior_config_sha256": "a2467b7252fbc226e8577e0192a297b4302fe49006f771ea83e4a8f8c7fa2652",
+    "comparison_semantics": "protocol-matched independent estimates; model-specific latent priors are intentionally not treated as paired random variables",
+    "dt_s": 0.04,
+    "ego_controller": "native HighwayEnv IDMVehicle",
+    "evaluation_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "evt_model_sha256": "dbf5c4f7ea9899eca11c26b565e6d8cfd2bd3d1f4a1bb16b2c7435fb0eedb533",
+    "execution_backend": "local_highway_env",
+    "failure_metric": "shared trajectory event risk mapped by shared EVT model",
+    "idm_ego_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "initial_scene_distribution": "shared external Flow p(M,C0)",
+    "monte_carlo_num_samples": 2000,
+    "return_period": 100,
+    "steps": 149,
+    "subset_max_levels": 8,
+    "subset_mcmc_steps": 3,
+    "subset_num_samples": 512,
+    "subset_p0": 0.1,
+    "subset_pcn_beta": 0.2
+  },
+  "missing_results": [],
+  "records": [
+    {
+      "estimator": "subset",
+      "final_failure_fraction": 0.580078125,
+      "final_population_collision_fraction": 0.01953125,
+      "num_levels": 5,
+      "probability": 5.800781250000001e-05,
+      "probability_ci95_lower": 5.373268979399254e-05,
+      "probability_ci95_upper": 6.228293520600747e-05,
+      "probability_standard_error": 2.1811850540854417e-06,
+      "summary": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/world_subset_summary.json",
+      "world_evaluations": 6656,
+      "world_model": "Hierarchical Flow–Diffusion–HiQR",
+      "world_model_id": "hierarchical"
+    },
+    {
+      "collision_fraction": 0.0,
+      "estimator": "monte_carlo",
+      "evt_score_max": 4.604552459099393,
+      "evt_score_mean": 2.013844850432479,
+      "evt_score_p95": 2.555915280513427,
+      "failure_count": 0,
+      "numerical_valid_fraction": 1.0,
+      "probability": 0.0,
+      "probability_ci95_lower": 0.0,
+      "probability_ci95_upper": 0.0,
+      "probability_standard_error": 0.0,
+      "summary": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/monte_carlo/world_monte_carlo_summary.json",
+      "world_evaluations": 2000,
+      "world_model": "Hierarchical Flow–Diffusion–HiQR",
+      "world_model_id": "hierarchical"
+    },
+    {
+      "estimator": "subset",
+      "final_failure_fraction": 0.650390625,
+      "final_population_collision_fraction": 0.412109375,
+      "num_levels": 4,
+      "probability": 0.0006503906250000001,
+      "probability_ci95_lower": 0.0006090858974236918,
+      "probability_ci95_upper": 0.0006916953525763085,
+      "probability_standard_error": 2.1073840600157315e-05,
+      "summary": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/world_subset_summary.json",
+      "world_evaluations": 5120,
+      "world_model": "TrafficBots V1.5-HighD",
+      "world_model_id": "trafficbots"
+    },
+    {
+      "collision_fraction": 0.0035,
+      "estimator": "monte_carlo",
+      "evt_score_max": 5.754012228870754,
+      "evt_score_mean": 2.088287213654295,
+      "evt_score_p95": 2.8691270270589366,
+      "failure_count": 4,
+      "numerical_valid_fraction": 1.0,
+      "probability": 0.002,
+      "probability_ci95_lower": 4.196098098122698e-05,
+      "probability_ci95_upper": 0.003958039019018773,
+      "probability_standard_error": 0.0009989994994993741,
+      "summary": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/world_monte_carlo_summary.json",
+      "world_evaluations": 2000,
+      "world_model": "TrafficBots V1.5-HighD",
+      "world_model_id": "trafficbots"
+    }
+  ],
+  "role": "protocol-matched comparison; each model retains its native latent prior",
+  "schema": "idm_multi_world_model_comparison_v1"
+}

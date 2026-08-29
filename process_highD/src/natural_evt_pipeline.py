@@ -245,6 +245,12 @@ def _fit_natural_evt_values(
     risk_window_frames = int(round(risk_window_seconds * fps))
     summary = {
         "evt_kind": evt_kind,
+        "evaluation_scope": {
+            "excluded_risk_slots": list(
+                options_from_config(config).excluded_risk_slots
+            ),
+            "training_population_modified": False,
+        },
         "model_path": str(model_path),
         "segment_csv": str(segment_csv_path),
         "model_type": f"gpd_pot_highd_natural_{risk_model}_event_risk",
@@ -423,6 +429,10 @@ def build_natural_segments_dataset(
             ),
             "window_steps": int(options.total_steps),
             "semantics": "C0-active background slots remain present and non-abnormal",
+        },
+        "evaluation_scope": {
+            "excluded_risk_slots": list(options.excluded_risk_slots),
+            "training_population_modified": False,
         },
         "slot_names": list(SLOT_NAMES),
         "risk_component_names": list(RISK_COMPONENT_NAMES),

@@ -26,6 +26,10 @@ from world_model.src.core.sequential_dataset import (
     sequence_cache_owner_dir,
 )
 from world_model.src.core.utils import load_json
+from world_model.src.core.evaluation_scope import (
+    scoped_canonical_trajectory,
+    scoped_slot_mask,
+)
 from world_model.src.hiqr.data import cohort_manifest
 
 ANCHOR_INDEX = 24
@@ -647,6 +651,8 @@ class BackgroundTrajectoryDataset(Dataset):
         bundle: DataBundle,
         rows: np.ndarray,
         contract: dict[str, Any],
+        *,
+        evaluation_scope: bool = False,
     ) -> None:
         self.bundle = bundle
         self.rows = np.asarray(rows, dtype=np.int64)
@@ -662,6 +668,7 @@ class BackgroundTrajectoryDataset(Dataset):
         self.constraint_std = np.asarray(
             contract["trajectory_constraint"]["std"], dtype=np.float32
         )
+        self.evaluation_scope = bool(evaluation_scope)
         if bool(contract.get("ego_future_in_condition", True)):
             raise ValueError(
                 "future ego information is forbidden in diffusion conditions"
@@ -679,10 +686,23 @@ class BackgroundTrajectoryDataset(Dataset):
         valid = np.asarray(
             arrays["agent_valid"][row, ANCHOR_INDEX:174], dtype=bool
         ).copy()
+        if self.evaluation_scope:
+            states, valid = scoped_canonical_trajectory(states, valid)
         flow = self.bundle.flow_arrays
         flow_row = int(self.bundle.flow_row_for_sequence[row])
-        c0 = np.asarray(flow["features_normalized"][flow_row], np.float32)
+        c0 = np.asarray(flow["features_normalized"][flow_row], np.float32).copy()
         slots = np.asarray(flow["slot_mask"][flow_row], bool)
+        if self.evaluation_scope:
+            slots = np.asarray(scoped_slot_mask(slots), bool)
+            # ``feature_valid_from_slot_mask`` preserves a batch dimension;
+            # this dataset item is a single, one-dimensional C0 vector.
+            # Project the corresponding one-dimensional validity row before
+            # masking so evaluation-only removal of ``same_rear`` cannot
+            # trigger NumPy's two-dimensional boolean-indexing path.
+            feature_valid = feature_valid_from_slot_mask(
+                self.bundle.flow_schema, slots
+            )[0]
+            c0[~feature_valid] = 0.0
         constraint = extract_trajectory_constraint(states[:, 1:])
         constraint_normalized = (
             constraint - self.constraint_mean

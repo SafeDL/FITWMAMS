@@ -26,3 +26,7 @@ conda run -n tread python process_highD/scripts/prepare_highd_sequences.py --reb
 
 Do not add standalone model variants, checkpoints, or evaluation outputs here.
 They belong in their owning module or in an explicitly maintained baseline.
+
+`trafficbots/` is the explicitly maintained, CC BY-NC 4.0 external
+TrafficBotsV1.5-HighD baseline.  It only consumes the canonical sequence cache
+and writes outputs below `results/baselines/trafficbots_highd/`.

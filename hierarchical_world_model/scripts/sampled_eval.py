@@ -30,6 +30,11 @@ from hierarchical_world_model.src.randomness import WorldExogenousState  # noqa:
 from tools.evt import load_evt_model  # noqa: E402
 from tools.idm_ego import load_idm_ego_config  # noqa: E402
 from world_model.src.core.utils import ensure_dir, load_json, save_json, select_device  # noqa: E402
+from world_model.src.core.evaluation_scope import (  # noqa: E402
+    evaluation_scope_contract,
+    require_scoped_evt_model,
+    scoped_canonical_trajectory,
+)
 
 CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
 
@@ -199,6 +204,7 @@ def main() -> None:
     exogenous = sampler.sample_world_exogenous(args.worlds, seed=args.seed, response_steps=args.steps)
     exogenous_path = output / "final" / "sampled_end_to_end_exogenous.npz"
     exogenous.save(exogenous_path)
+    require_scoped_evt_model(config["paths"]["evt_model"])
     evt = load_evt_model(config["paths"]["evt_model"])
     threshold = float(evt.score(evt.return_level(100)))
     policies = {"hold_current": hold_current_ego_action, "idm": _IDMPolicy(load_idm_ego_config(args.idm_config))}
@@ -242,20 +248,23 @@ def main() -> None:
     )
     experiment = prepare_experiment_data(config, ROOT)
     rows = experiment.test_rows[:args.worlds]
-    target_states = np.asarray(experiment.bundle.arrays["agent_states"])[rows, ANCHOR_INDEX + 1:174, 1:]
+    target_all = np.asarray(experiment.bundle.arrays["agent_states"])[rows]
+    target_valid_all = np.asarray(experiment.bundle.arrays["agent_valid"])[rows]
+    target_all, target_valid_all = scoped_canonical_trajectory(
+        target_all, target_valid_all
+    )
+    target_states = target_all[:, ANCHOR_INDEX + 1:174, 1:]
     target = target_states[..., :2]
-    target_valid = np.asarray(experiment.bundle.arrays["agent_valid"])[rows, ANCHOR_INDEX + 1:174, 1:].all(axis=1)
+    target_valid = target_valid_all[:, ANCHOR_INDEX + 1:174, 1:].all(axis=1)
     generated = np.asarray(sample.soft_plan)
     nonpaired = {"background_kinematic_distribution": _background_nonpaired(generated, target, sample.scenario.slot_mask, target_valid),
                  "k_adherence": _k_adherence(sample, flow_schema=sampler.flow_schema, dt_s=.04)}
-    report = {"schema": SAMPLED_END_TO_END["schema"], "worlds": args.worlds, "response_steps": args.steps,
+    report = {"schema": SAMPLED_END_TO_END["schema"], "evaluation_scope": evaluation_scope_contract(), "worlds": args.worlds, "response_steps": args.steps,
               "rng_schema": RANDOMNESS_NAMESPACE["world"], "exogenous": {"path": logical_path(exogenous_path), "digest": _digest(exogenous.agent_response_innovations)},
               "threshold": {"evt_return_period_segments": 100, "evt_score": threshold},
               "ADS_conditioned_sampled_world_risk": {name: item["summary"] for name, item in reports.items()},
               "paired_failure_table": paired,
               "paired_world_risk": paired_worlds,
-              "replay_exact": True,
-              "crn_exact": True,
               "sampled_K_to_diffusion_nonpaired_fidelity": nonpaired,
               "provenance": {**provenance, "config_sha256": canonical_hash(config), "checkpoint": logical_path(config["paths"]["evaluation_checkpoint"])} }
     save_json(report, output / "sampled_end_to_end.json")

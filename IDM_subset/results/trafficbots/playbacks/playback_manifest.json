@@ -1,0 +1,178 @@
+{
+  "episodes": [
+    {
+      "case_id": "trafficbots_subset_final_0001",
+      "collision": false,
+      "event_risk": 1.303410291671753,
+      "evt_score": 9.815672512771382,
+      "first_collision_frame": null,
+      "first_collision_time_s": null,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0001.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0001.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0002",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0002.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0002.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0003",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0003.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0003.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0004",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0004.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0004.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0005",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0005.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0005.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0006",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0006.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0006.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0007",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0007.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0007.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0008",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0008.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0008.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0009",
+      "collision": true,
+      "event_risk": 1.2344495058059692,
+      "evt_score": 8.519068120688642,
+      "first_collision_frame": 141,
+      "first_collision_time_s": 5.64,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0009.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0009.npz"
+    },
+    {
+      "case_id": "trafficbots_subset_final_0010",
+      "collision": true,
+      "event_risk": 1.2116730213165283,
+      "evt_score": 8.178897550517766,
+      "first_collision_frame": 137,
+      "first_collision_time_s": 5.48,
+      "frame_stride": 2,
+      "gif": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/playbacks/trafficbots_subset_final_0010.gif",
+      "playback_frames": 76,
+      "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/failure_cases/trafficbots_subset_final_0010.npz"
+    }
+  ],
+  "evaluation_scope": {
+    "excluded_background_slots": [
+      "same_rear"
+    ],
+    "schema": "highd_follower_excluded_v1",
+    "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+    "training_population_modified": false
+  },
+  "provenance": {
+    "background_dynamics_contract": "kinematic_unicycle_on_highwayenv_road",
+    "common_world_config": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "common_world_config_sha256": "a2467b7252fbc226e8577e0192a297b4302fe49006f771ea83e4a8f8c7fa2652",
+    "device": "cuda",
+    "evaluation_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "evt_model": "/home/hp/FITWMAMS/results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json",
+    "evt_model_sha256": "dbf5c4f7ea9899eca11c26b565e6d8cfd2bd3d1f4a1bb16b2c7435fb0eedb533",
+    "execution_backend": "local_highway_env",
+    "flow_checkpoint": "/home/hp/FITWMAMS/results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt",
+    "flow_checkpoint_sha256": "0f2fe7bcd72df8afa434a7ef36fb94e4c6af873f73ec261d5fdcc154374c2cc2",
+    "idm_ego_config": "/home/hp/FITWMAMS/tools/idm_ego.yaml",
+    "idm_ego_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "initial_scene_prior": "shared_external_Flow_p(M,C0); no K enters TrafficBots",
+    "trafficbots_checkpoint": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/checkpoints/best.ckpt",
+    "trafficbots_checkpoint_sha256": "43437f39036a12abe45fb1f849c76b9584ea9961e0e4d881aec3129f57da28e4",
+    "trafficbots_config": "/home/hp/FITWMAMS/world_model/trafficbots/config/highd.yaml",
+    "trafficbots_config_sha256": "fc28856090c15aaa9c4ac6cb23d8046fb03865ce3aaf7c9d7fd0ec0b01604a32"
+  },
+  "role": "model-specific playbacks from the retained AMS final population",
+  "schema": "highway_env_idm_subset_playbacks_v2",
+  "source_summary": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/world_subset_summary.json",
+  "visual_contract": {
+    "background_color": "#6a3d9a",
+    "background_color_name": "purple",
+    "collision_color": "#ffbf00",
+    "coordinate_frame": "S0 ego-relative",
+    "ego_color": "#D62728",
+    "x_window_m": [
+      -60.0,
+      60.0
+    ],
+    "y_window_m": [
+      -8.2,
+      8.2
+    ]
+  },
+  "world_model": "TrafficBots V1.5-HighD",
+  "world_model_id": "trafficbots"
+}

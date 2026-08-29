@@ -16,6 +16,7 @@ from diffusion.src.data import (
 )
 from diffusion.src.train import load_checkpoint
 from world_model.src.core.utils import ensure_dir, file_sha256, save_json
+from world_model.src.core.evaluation_scope import EVALUATION_SCOPE_SCHEMA
 
 
 def _row_digest(rows: np.ndarray) -> str:
@@ -50,6 +51,7 @@ def frozen_diffusion_plans(
             and manifest.get("row_digest") == digest
             and int(manifest.get("ddim_steps", -1)) == int(ddim_steps)
             and manifest.get("experiment_scope") == str(experiment_scope)
+            and manifest.get("evaluation_scope") == EVALUATION_SCOPE_SCHEMA
         ):
             saved = np.load(cache)
             if np.array_equal(saved["row_index"], selected):
@@ -57,7 +59,9 @@ def frozen_diffusion_plans(
     model, payload = load_checkpoint(Path(checkpoint), device=device)
     model.eval()
     contract = payload["dataset_contract"]
-    dataset = BackgroundTrajectoryDataset(bundle, selected, contract)
+    dataset = BackgroundTrajectoryDataset(
+        bundle, selected, contract, evaluation_scope=True
+    )
     loader = make_loader(
         dataset,
         batch_size=int(batch_size),
@@ -93,6 +97,7 @@ def frozen_diffusion_plans(
             "ddim_steps": int(ddim_steps),
             "initial_noise": "zero",
             "experiment_scope": str(experiment_scope),
+            "evaluation_scope": EVALUATION_SCOPE_SCHEMA,
         },
         manifest_path,
     )
@@ -115,7 +120,9 @@ def stochastic_diffusion_plan_samples(
     model, payload = load_checkpoint(Path(checkpoint), device=device)
     model.eval()
     contract = payload["dataset_contract"]
-    dataset = BackgroundTrajectoryDataset(bundle, selected, contract)
+    dataset = BackgroundTrajectoryDataset(
+        bundle, selected, contract, evaluation_scope=True
+    )
     loader = make_loader(
         dataset,
         batch_size=int(batch_size),

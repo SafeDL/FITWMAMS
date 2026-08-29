@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify current-world IDM subset and Monte Carlo artifacts."""
+"""Verify one registered world model's IDM subset and Monte-Carlo artifacts."""
 
 from __future__ import annotations
 
@@ -14,13 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from IDM_subset.src.world_subset_runner import _build_evaluator  # noqa: E402
-from hierarchical_world_model.src.randomness import (  # noqa: E402
-    WorldExogenousState,
-)
+from IDM_subset.src.world_model_registry import get_world_model  # noqa: E402
 from world_model.src.core.utils import load_yaml, save_json  # noqa: E402
-
-CONFIG = ROOT / "IDM_subset/configs/world_subset_idm.yaml"
 
 
 def _load(path: Path) -> dict:
@@ -35,8 +30,8 @@ def _intervals_overlap(left: dict, right: dict) -> bool:
     )
 
 
-def _replay_case(evaluator, case: dict) -> bool:
-    world = WorldExogenousState.load(case["world_exogenous_state"])
+def _replay_case(spec, evaluator, case: dict) -> bool:
+    world = spec.load_exogenous(case["world_exogenous_state"])
     result = evaluator.evaluate(world)
     return bool(
         np.array_equal(result.evt_score, np.asarray([case["evt_score"]]))
@@ -47,11 +42,15 @@ def _replay_case(evaluator, case: dict) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Verify the maintained IDM subset and Monte Carlo artifacts."
+        description="Verify one model's maintained IDM subset and Monte Carlo artifacts."
     )
-    parser.add_argument("--config", type=Path, default=CONFIG)
+    parser.add_argument("--model", default="hierarchical")
+    parser.add_argument("--config", type=Path, default=None)
     args = parser.parse_args()
-    config_path = args.config.resolve()
+    spec = get_world_model(args.model)
+    config_path = (
+        args.config.resolve() if args.config is not None else spec.default_config
+    )
     config = load_yaml(config_path)
     subset_dir = (config_path.parent / config["subset_simulation"]["output_dir"]).resolve()
     monte_carlo_dir = (config_path.parent / config["monte_carlo"]["output_dir"]).resolve()
@@ -59,28 +58,31 @@ def main() -> None:
     monte_carlo = _load(monte_carlo_dir / "world_monte_carlo_summary.json")
     subset_cases = _load(subset_dir / "world_subset_top_cases.json")
     monte_carlo_cases = _load(monte_carlo_dir / "world_monte_carlo_top_cases.json")
-    evaluator, provenance = _build_evaluator(config, config_path.parent)
+    evaluator, provenance = spec.build_evaluator(config, config_path.parent)
     final_population = np.load(subset_dir / "world_subset_final_population.npz")
-    required_blocks = set(WorldExogenousState.__dataclass_fields__) - {
-        "batch_size",
-        "response_steps",
-    }
-    population_has_blocks = required_blocks.issubset(final_population.files)
+    declared_space = subset.get("evaluation_contract", {}).get("test_space", {})
+    expected_blocks = (
+        {
+            "test_row_uniform",
+            "diffusion_noise",
+            "scene_innovations",
+            "agent_response_innovations",
+        }
+        if declared_space.get("test_space") == "empirical_test_fixed_k_gt"
+        else set(spec.random_blocks)
+    )
+    population_has_blocks = expected_blocks.issubset(final_population.files)
     checks = {
+        "same_world_model": (
+            subset.get("world_model_id") == spec.model_id
+            and monte_carlo.get("world_model_id") == spec.model_id
+        ),
         "same_failure_threshold": (
             subset["failure_event"] == monte_carlo["failure_event"]
         ),
         "same_formal_artifacts": all(
             subset["provenance"][key] == monte_carlo["provenance"][key]
-            for key in (
-                "flow_checkpoint_sha256",
-                "diffusion_checkpoint_sha256",
-                "response_checkpoint_sha256",
-                "evt_model_sha256",
-                "idm_ego_config_sha256",
-                "execution_backend",
-                "hiqr_vehicle_dynamics_contract",
-            )
+            for key in spec.provenance_keys
         ),
         "subset_numerically_valid": all(
             row["numerical_valid_fraction"] == 1.0
@@ -90,23 +92,19 @@ def main() -> None:
             monte_carlo["numerical_valid_fraction"] == 1.0
         ),
         "subset_population_has_all_randomness_blocks": population_has_blocks,
-        "subset_case_replay_exact": _replay_case(evaluator, subset_cases[0]),
-        "monte_carlo_case_replay_exact": _replay_case(evaluator, monte_carlo_cases[0]),
+        "subset_case_replay_exact": _replay_case(
+            spec, evaluator, subset_cases[0]
+        ),
+        "monte_carlo_case_replay_exact": _replay_case(
+            spec, evaluator, monte_carlo_cases[0]
+        ),
         "subset_and_monte_carlo_ci_overlap": _intervals_overlap(
             subset["uncertainty"],
             monte_carlo["uncertainty"],
         ),
         "run_provenance_matches_current_formal_artifacts": all(
             subset["provenance"][key] == provenance[key]
-            for key in (
-                "flow_checkpoint_sha256",
-                "diffusion_checkpoint_sha256",
-                "response_checkpoint_sha256",
-                "evt_model_sha256",
-                "idm_ego_config_sha256",
-                "execution_backend",
-                "hiqr_vehicle_dynamics_contract",
-            )
+            for key in spec.provenance_keys
         ),
         "highway_env_execution": (
             subset["provenance"].get("execution_backend") == "local_highway_env"
@@ -115,7 +113,9 @@ def main() -> None:
         ),
     }
     report = {
-        "schema": "highway_env_idm_acceptance",
+        "schema": "highway_env_idm_world_model_acceptance_v2",
+        "world_model_id": spec.model_id,
+        "world_model": spec.display_name,
         "checks": checks,
         "all_passed": bool(all(checks.values())),
         "subset_probability": subset["probability"],

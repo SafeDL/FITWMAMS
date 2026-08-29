@@ -18,6 +18,7 @@ from tools.evt import GPDTailModel
 
 from .composition import HierarchicalWorldSampler
 from .randomness import WorldExogenousState
+from world_model.src.core.evaluation_scope import scoped_agent_valid
 
 ADSActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
 
@@ -59,7 +60,7 @@ def trajectory_event_risk(
 ) -> np.ndarray:
     """Evaluate the same safety-envelope severity used for highD EVT fitting."""
     values = np.asarray(states, np.float32)
-    present = np.asarray(valid, bool)
+    present = np.asarray(scoped_agent_valid(valid), bool)
     if values.ndim != 4 or values.shape[2:] != (7, 6):
         raise ValueError("states must have shape [batch,frames,7,6]")
     if present.shape != (values.shape[0], 7):
@@ -82,7 +83,9 @@ def trajectory_event_risk(
             valid=np.broadcast_to(present[:, None, slot + 1], (n, frames)).reshape(-1),
             options=options,
         )
-        pair_scores.append(pair.reshape(n, frames))
+        pair_values = pair.reshape(n, frames)
+        pair_values[~present[:, slot + 1], :] = -np.inf
+        pair_scores.append(pair_values)
     if pair_scores:
         instantaneous = smoothmax_axis(
             np.stack(pair_scores, axis=-1), options.pair_smooth_beta, axis=-1

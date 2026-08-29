@@ -431,16 +431,21 @@ def _summary_figures(output: Path) -> dict[str, str]:
 
 
 def _select_examples(experiment: Any) -> np.ndarray:
+    from world_model.src.core.evaluation_scope import scoped_slot_mask
+
     rows = experiment.test_rows
     flow_rows = experiment.bundle.flow_row_for_sequence[rows]
     flow = experiment.bundle.flow_arrays
+    scoped_slots = np.asarray(
+        scoped_slot_mask(np.asarray(flow["slot_mask"])[flow_rows]), bool
+    )
     modes = derived_modes(
         np.asarray(flow["trajectory_constraint"])[flow_rows],
-        np.asarray(flow["slot_mask"])[flow_rows],
+        scoped_slots,
     )
     lane_change = (modes[..., 1] != 0).any(axis=1)
     evt = np.asarray(experiment.bundle.arrays["is_evt_tail"])[rows].astype(bool)
-    slot_count = np.asarray(flow["slot_mask"])[flow_rows].sum(axis=1)
+    slot_count = scoped_slots.sum(axis=1)
     selected: list[int] = []
     for candidates in (
         np.flatnonzero(lane_change),
@@ -529,6 +534,9 @@ def _reconstruction_outputs(
 
     states = np.asarray(experiment.bundle.arrays["agent_states"][rows], np.float32)
     valid = np.asarray(experiment.bundle.arrays["agent_valid"][rows], bool)
+    from world_model.src.core.evaluation_scope import scoped_canonical_trajectory
+
+    states, valid = scoped_canonical_trajectory(states, valid)
     sequence_id = np.asarray(experiment.bundle.arrays["sequence_id"])[rows]
     model, _ = load_checkpoint(
         config["paths"]["evaluation_checkpoint"], device=device

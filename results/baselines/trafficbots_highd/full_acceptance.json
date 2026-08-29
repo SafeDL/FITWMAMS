@@ -1,0 +1,18 @@
+{
+  "all_passed": true,
+  "checks": {
+    "audit_checkpoint_alignment": true,
+    "audit_test_cohort_alignment": true,
+    "checkpoint_provenance": true,
+    "crn_sequence_alignment": true,
+    "ego_replay_gate": true,
+    "full_test_cohort": true,
+    "method_audit": true,
+    "oracle_diagnostic": true,
+    "paired_crn": true,
+    "prior_mode": true,
+    "schema": true,
+    "stochastic_16": true
+  },
+  "evaluation": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/evaluation.json"
+}

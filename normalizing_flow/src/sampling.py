@@ -79,6 +79,18 @@ def sample_constraints(
     )
 
 
+def sample_constraints_from_base_randomness(
+    model,
+    c0: np.ndarray,
+    slot_mask: np.ndarray,
+    k_base_latent: np.ndarray,
+):
+    """Sample conditional state knots from caller-owned Gaussian variables."""
+    return model.sample_constraints_from_base_randomness(
+        c0, slot_mask, k_base_latent
+    )
+
+
 def log_prob(model, c0, slot_mask, k) -> dict[str, np.ndarray]:
     """Return all three probability factors and their exact sum."""
     return model.log_prob(c0, slot_mask, k)

@@ -20,6 +20,10 @@ from hierarchical_world_model.src.planner import frozen_diffusion_plans  # noqa:
 from hierarchical_world_model.src.train import load_checkpoint  # noqa: E402
 from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: E402
 from world_model.src.core.utils import ensure_dir, save_json, select_device  # noqa: E402
+from world_model.src.core.evaluation_scope import (  # noqa: E402
+    evaluation_scope_contract,
+    scoped_canonical_trajectory,
+)
 
 CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
 
@@ -71,6 +75,7 @@ def main() -> None:
         model.eval()
         states = np.asarray(experiment.bundle.arrays["agent_states"][rows], np.float32)
         valid = np.asarray(experiment.bundle.arrays["agent_valid"][rows], bool)
+        states, valid = scoped_canonical_trajectory(states, valid)
         histories = torch.from_numpy(
             states[:, ANCHOR_INDEX - 24 : ANCHOR_INDEX + 1]
         ).to(device)
@@ -136,6 +141,7 @@ def main() -> None:
         return float((value.abs() * active).sum().cpu() / active.sum().clamp_min(1))
 
     report = {
+        "evaluation_scope": evaluation_scope_contract(),
         "sequences": int(len(rows)),
         "contract": (
             "same current state, soft plan and response innovations; only legal prior "

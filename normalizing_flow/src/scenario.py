@@ -241,6 +241,45 @@ class DirectScenarioFlow(nn.Module):
         return self._sample_given(c0_norm, slots, k_seed)
 
     @torch.no_grad()
+    def sample_initial_conditions_from_base_randomness(
+        self,
+        scenario_uniform: np.ndarray,
+        c0_base_latent: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Sample only `(C0, slot_mask)` from their explicit prior variables.
+
+        External response-model comparisons use this boundary to share the
+        initial traffic distribution without evaluating or exposing the
+        hierarchy's future-knot model ``p(K|C0,M)``.
+        """
+        device = next(self.parameters()).device
+        uniform = torch.as_tensor(
+            scenario_uniform, dtype=torch.float64, device=device
+        )
+        if uniform.ndim != 1 or not torch.isfinite(uniform).all() or (
+            (uniform < 0.0) | (uniform >= 1.0)
+        ).any():
+            raise ValueError(
+                "scenario_uniform must be a finite [batch] vector in [0, 1)"
+            )
+        cumulative = torch.cumsum(self.mask_log_prob.exp().double(), dim=0)
+        pattern = torch.searchsorted(cumulative, uniform).clamp_max(
+            len(cumulative) - 1
+        )
+        bits = 2 ** torch.arange(6, device=device)
+        slots = (pattern[:, None].bitwise_and(bits[None])) > 0
+        c0_norm = _sample_flow(
+            self.c0_flow,
+            slots.float(),
+            base_noise=torch.as_tensor(c0_base_latent, device=device),
+        )
+        slot_values = slots.cpu().numpy()
+        c0 = inverse_normalize_features(c0_norm.cpu().numpy(), self.schema)
+        c0[~feature_valid_from_slot_mask(self.schema, slot_values)] = 0.0
+        c0 = project_physical_c0(c0, slot_values)
+        return c0.astype(np.float32), slot_values.astype(bool)
+
+    @torch.no_grad()
     def sample_scenarios_from_base_randomness(
         self,
         scenario_uniform: np.ndarray,
@@ -305,6 +344,45 @@ class DirectScenarioFlow(nn.Module):
             torch.from_numpy(c0_norm).float().to(device),
             torch.from_numpy(slots).bool().to(device),
             int(scenario_seed),
+            c0_override=c0,
+        )
+
+    @torch.no_grad()
+    def sample_constraints_from_base_randomness(
+        self,
+        c0: np.ndarray,
+        slot_mask: np.ndarray,
+        k_base_latent: np.ndarray,
+    ) -> ScenarioBatch:
+        """Sample ``K|C0,M`` from explicit Gaussian base variables.
+
+        This is the conditional counterpart of
+        :meth:`sample_scenarios_from_base_randomness`.  It is used when two
+        world models must share the exact logged C0 while keeping every
+        long-horizon state knot causal (sampled rather than read from the
+        held-out future).
+        """
+        values = np.asarray(c0, np.float32)
+        slots = np.asarray(slot_mask, bool)
+        if values.ndim == 1:
+            values = values[None]
+        if slots.ndim == 1:
+            slots = slots[None]
+        if len(values) != len(slots):
+            raise ValueError("c0 and slot_mask must have the same batch size")
+        valid = feature_valid_from_slot_mask(self.schema, slots)
+        c0_norm = normalize_features(values, valid, self.schema)
+        device = next(self.parameters()).device
+        c0_tensor = torch.from_numpy(c0_norm).float().to(device)
+        slot_tensor = torch.from_numpy(slots).bool().to(device)
+        context = torch.cat((c0_tensor, slot_tensor.float()), dim=-1)
+        k_norm = _sample_flow(
+            self.constraint_flow,
+            context,
+            base_noise=torch.as_tensor(k_base_latent, device=device),
+        ).reshape(-1, 6, 12)
+        return self._scenario_from_normalized(
+            c0_tensor, slot_tensor, k_norm, c0_override=values
         )
 
     def _sample_given(
@@ -312,27 +390,45 @@ class DirectScenarioFlow(nn.Module):
         c0_norm: torch.Tensor,
         slots: torch.Tensor,
         k_seed: int,
+        c0_override: np.ndarray | None = None,
     ) -> ScenarioBatch:
         generator = torch.Generator(device=c0_norm.device).manual_seed(int(k_seed))
         context = torch.cat((c0_norm, slots.float()), dim=-1)
         k_norm = _sample_flow(self.constraint_flow, context, generator).reshape(
             -1, 6, 12
         )
-        return self._scenario_from_normalized(c0_norm, slots, k_norm)
+        return self._scenario_from_normalized(
+            c0_norm, slots, k_norm, c0_override=c0_override
+        )
 
     def _scenario_from_normalized(
         self,
         c0_norm: torch.Tensor,
         slots: torch.Tensor,
         k_norm: torch.Tensor,
+        c0_override: np.ndarray | None = None,
     ) -> ScenarioBatch:
-        c0 = inverse_normalize_features(c0_norm.detach().cpu().numpy(), self.schema)
-        c0[~feature_valid_from_slot_mask(self.schema, slots.cpu().numpy())] = 0.0
-        c0 = project_physical_c0(c0, slots.cpu().numpy())
+        slot_values = slots.cpu().numpy()
+        if c0_override is None:
+            c0 = inverse_normalize_features(
+                c0_norm.detach().cpu().numpy(), self.schema
+            )
+            c0[~feature_valid_from_slot_mask(self.schema, slot_values)] = 0.0
+            c0 = project_physical_c0(c0, slot_values)
+        else:
+            # A conditional draw means K ~ p(K | logged C0, M).  The logged
+            # condition is not a generated sample and must never be projected
+            # to the unconditional flow's collision-free support.
+            c0 = np.asarray(c0_override, np.float32).copy()
+            if c0.shape != tuple(c0_norm.shape):
+                raise ValueError(
+                    f"c0_override must have shape {tuple(c0_norm.shape)}"
+                )
+            c0[~feature_valid_from_slot_mask(self.schema, slot_values)] = 0.0
         constraint, valid = inverse_constraint(
-            k_norm.cpu().numpy(), slots.cpu().numpy(), self.schema
+            k_norm.cpu().numpy(), slot_values, self.schema
         )
-        constraint = project_constraint(constraint, slots.cpu().numpy(), c0)
+        constraint = project_constraint(constraint, slot_values, c0)
         return ScenarioBatch(
             c0,
             slots.cpu().numpy(),

@@ -51,6 +51,7 @@ class NaturalSegmentOptions:
     lateral_pre_cross_steps: int = 25
     lateral_post_cross_steps: int = 50
     lateral_stable_steps: int = 5
+    excluded_risk_slots: tuple[str, ...] = ()
     sei: SafetyEnvelopeRiskOptions = field(default_factory=SafetyEnvelopeRiskOptions)
 
     def __post_init__(self) -> None:
@@ -65,6 +66,9 @@ class NaturalSegmentOptions:
                 "highD natural-segment cleaning requires complete lateral "
                 "events; require_complete_lateral_events cannot be disabled"
             )
+        unknown = set(self.excluded_risk_slots) - set(SLOT_NAMES)
+        if unknown:
+            raise ValueError(f"unknown excluded risk slots: {sorted(unknown)}")
 
     @property
     def total_steps(self) -> int:
@@ -109,6 +113,9 @@ def options_from_config(config: dict[str, Any]) -> NaturalSegmentOptions:
             int(round(float(segment.get("lateral_post_cross_seconds", 2.0)) * fps)),
         ),
         lateral_stable_steps=max(1, int(segment.get("lateral_stable_steps", 5))),
+        excluded_risk_slots=tuple(
+            str(value) for value in segment.get("excluded_risk_slots", ())
+        ),
         sei=SafetyEnvelopeRiskOptions.from_config(risk, fps=fps),
     )
 
@@ -500,6 +507,8 @@ def compute_segment_risk(
     slot_pair_matrix = np.zeros((window_steps, len(SLOT_NAMES)), dtype=np.float32)
     slot_time_mask = np.zeros((window_steps, len(SLOT_NAMES)), dtype=bool)
     for slot_idx, vehicle_id in enumerate(np.asarray(slot_ids, dtype=np.int64)):
+        if SLOT_NAMES[slot_idx] in options.excluded_risk_slots:
+            continue
         if int(vehicle_id) < 0:
             continue
         other = vehicles.get(int(vehicle_id))

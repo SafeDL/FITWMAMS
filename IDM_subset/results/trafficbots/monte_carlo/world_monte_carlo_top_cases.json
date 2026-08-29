@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "trafficbots_monte_carlo_0001",
+    "collision": true,
+    "event_risk": 0.9695627093315125,
+    "evt_score": 5.78588915838075,
+    "min_gap_m": 13.651280403137207,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0001.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0002",
+    "collision": true,
+    "event_risk": 0.8644695281982422,
+    "evt_score": 5.106290229292714,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0002.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0003",
+    "collision": false,
+    "event_risk": 0.7935065627098083,
+    "evt_score": 4.71267973504157,
+    "min_gap_m": 7.7837629318237305,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0003.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0004",
+    "collision": false,
+    "event_risk": 0.3436557948589325,
+    "evt_score": 2.9781377222111116,
+    "min_gap_m": 10.224626541137695,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0004.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0005",
+    "collision": false,
+    "event_risk": 0.7553343176841736,
+    "evt_score": 4.518063647776136,
+    "min_gap_m": 1000.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0005.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0006",
+    "collision": false,
+    "event_risk": 0.7219563722610474,
+    "evt_score": 4.356393047363495,
+    "min_gap_m": 4.138501167297363,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0006.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0007",
+    "collision": true,
+    "event_risk": 0.7209841012954712,
+    "evt_score": 4.351794699606601,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0007.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0008",
+    "collision": false,
+    "event_risk": 0.7062075734138489,
+    "evt_score": 4.282648424023178,
+    "min_gap_m": 8.607050895690918,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0008.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0009",
+    "collision": false,
+    "event_risk": 0.6998146772384644,
+    "evt_score": 4.253154515071461,
+    "min_gap_m": 3.8018980026245117,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0009.npz"
+  },
+  {
+    "case_id": "trafficbots_monte_carlo_0010",
+    "collision": true,
+    "event_risk": 0.6645904779434204,
+    "evt_score": 4.094991069391648,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/trafficbots/monte_carlo/failure_cases/trafficbots_monte_carlo_0010.npz"
+  }
+]

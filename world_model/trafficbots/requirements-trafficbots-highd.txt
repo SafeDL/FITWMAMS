@@ -1,0 +1,6 @@
+# Create a dedicated environment; do not modify the project's tread environment.
+omegaconf==2.3.0
+hydra-core==1.3.2
+pytorch-lightning==1.9.5
+torchmetrics==0.11.4
+transforms3d==0.4.2

@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "subset_final_0001",
+    "collision": false,
+    "event_risk": 1.1113635301589966,
+    "evt_score": 6.9833637417172545,
+    "min_gap_m": 0.005705833435058594,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0001.npz"
+  },
+  {
+    "case_id": "subset_final_0002",
+    "collision": false,
+    "event_risk": 1.1099971532821655,
+    "evt_score": 6.969613174702258,
+    "min_gap_m": 0.009999752044677734,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0002.npz"
+  },
+  {
+    "case_id": "subset_final_0003",
+    "collision": false,
+    "event_risk": 1.0088905096054077,
+    "evt_score": 6.078809522292633,
+    "min_gap_m": 0.0021886825561523438,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0003.npz"
+  },
+  {
+    "case_id": "subset_final_0004",
+    "collision": false,
+    "event_risk": 1.0077576637268066,
+    "evt_score": 6.070016974623515,
+    "min_gap_m": 0.008193016052246094,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0004.npz"
+  },
+  {
+    "case_id": "subset_final_0005",
+    "collision": true,
+    "event_risk": 0.9880859851837158,
+    "evt_score": 5.920781806951586,
+    "min_gap_m": 0.0,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0005.npz"
+  },
+  {
+    "case_id": "subset_final_0006",
+    "collision": false,
+    "event_risk": 0.9733949899673462,
+    "evt_score": 5.813370501598151,
+    "min_gap_m": 3.522242546081543,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0006.npz"
+  },
+  {
+    "case_id": "subset_final_0007",
+    "collision": false,
+    "event_risk": 0.9601571559906006,
+    "evt_score": 5.719349474896277,
+    "min_gap_m": 0.009999752044677734,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0007.npz"
+  },
+  {
+    "case_id": "subset_final_0008",
+    "collision": false,
+    "event_risk": 0.9503845572471619,
+    "evt_score": 5.651537604837252,
+    "min_gap_m": 0.009999752044677734,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0008.npz"
+  },
+  {
+    "case_id": "subset_final_0009",
+    "collision": false,
+    "event_risk": 0.9465647339820862,
+    "evt_score": 5.625387722385838,
+    "min_gap_m": 0.7272529602050781,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0009.npz"
+  },
+  {
+    "case_id": "subset_final_0010",
+    "collision": false,
+    "event_risk": 0.9465599060058594,
+    "evt_score": 5.625354795131891,
+    "min_gap_m": 4.5543622970581055,
+    "numerical_valid": true,
+    "world_exogenous_state": "/home/hp/FITWMAMS/IDM_subset/results/hierarchical/subset/failure_cases/subset_final_0010.npz"
+  }
+]

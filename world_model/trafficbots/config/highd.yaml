@@ -1,0 +1,72 @@
+experiment:
+  name: trafficbots_v15_highd
+  seed: 20260814
+paths:
+  sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
+  output_dir: results/baselines/trafficbots_highd
+evaluation_scope:
+  schema: highd_follower_excluded_v1
+  excluded_background_slots: [same_rear]
+data:
+  fps: 25.0
+  dt_s: 0.04
+  anchor_index: 24
+  state_points: 150
+  rollout_steps: 149
+  canonical_agent_slots: 7
+  padded_agents: 8
+  canonical_map_polylines: 8
+  padded_map_polylines: 16
+  n_mp_pl_node: 8
+  padded_traffic_lights: 8
+model:
+  hidden_dim: 128
+  policy_history_steps: 11
+  posterior_temporal_indices: [0, 12, 25, 37, 50, 62, 75, 87, 99, 112, 124, 137, 149]
+  n_tgt_knn: 8
+  ag2mp_knn: 8
+  ag2ag_knn: 6
+  ag2tl_knn: 4
+  tl2mp_knn: 8
+  tl2tl_knn: 4
+  dist_limit: 500.0
+training:
+  seed: 20260814
+  # Released TrafficBots uses AdamW at 2e-4; 48 fits a 24 GB GPU and keeps
+  # the full 72,771-sequence experiment tractable without changing the loss.
+  batch_size: 48
+  validation_batch_size: 48
+  validation_sequences: 512
+  num_workers: 4
+  # Match the released TrafficBotsV1.5 trainer configuration.
+  precision: 16
+  gradient_clip_val: 5.0
+  max_epochs: 20
+  early_stopping_patience: 4
+  checkpoint_every_n_train_steps: 250
+  learning_rate: 0.0002
+  weight_decay: 0.1
+  lr_scheduler_step_size: 7
+  lr_scheduler_gamma: 0.5
+  p_rollout_prior: 0.10
+  training_detach_model_input: true
+  deterministic_action: true
+  step_spawn_agent: 0
+  step_warm_start: 0
+  prob_forcing_agent: 0.30
+  prob_forcing_agent_decrease_per_epoch: 0.10
+  kl_free_nats: 1.0
+  kl_balance_scale: 0.2
+evaluation:
+  seed: 20260814
+  split: test
+  batch_size: 16
+  stochastic_samples: 16
+  stochasticity_subset_sequences: 1024
+  intervention_subset_sequences: 512
+  collision_filtering: false
+  ego_replay_gate:
+    ego_ADE_m: 0.25
+    ego_FDE_m: 0.35
+    ego_FDE_P95_m: 0.50
+    ego_speed_MAE_mps: 0.05

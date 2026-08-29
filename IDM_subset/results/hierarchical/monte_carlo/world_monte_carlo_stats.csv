@@ -1,0 +1,2 @@
+num_samples,failure_count,probability,score_mean,score_max,risk_mean,risk_max,collision_fraction,numerical_valid_fraction
+2000,0,0.0,2.013844850432479,4.604552459099393,0.022662436589598656,0.7725626826286316,0.0,1.0

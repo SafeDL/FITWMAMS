@@ -7,11 +7,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from hierarchical_world_model.src.composition import HierarchicalWorldSampler
-from hierarchical_world_model.src.execution import WorldRollout, rollout_world
+from hierarchical_world_model.src.execution import rollout_world
 from hierarchical_world_model.src.randomness import WorldExogenousState
 from tools.evt import GPDTailModel
 
 from .idm_policy import HighwayEnvIDMPolicy
+from .metrics import collision_and_min_gap
 
 
 @dataclass(frozen=True)
@@ -23,33 +24,6 @@ class WorldEvaluation:
     collision: np.ndarray
     min_gap_m: np.ndarray
     numerical_valid: np.ndarray
-
-
-def _collision_and_min_gap(
-    rollout: WorldRollout,
-    valid: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    states = rollout.states
-    ego = states[:, :, :1]
-    background = states[:, :, 1:]
-    active = np.asarray(valid[:, 1:], bool)[:, None]
-    longitudinal = background[..., 0] - ego[..., 0]
-    lateral = np.abs(background[..., 1] - ego[..., 1])
-    collision = (
-        active
-        & (np.abs(longitudinal) < 4.8)
-        & (lateral < 1.8)
-    ).any(axis=(1, 2))
-    front_gap = np.where(
-        active & (longitudinal > 0.0) & (lateral < 1.8),
-        np.maximum(longitudinal - 4.8, 0.0),
-        np.inf,
-    )
-    min_gap = front_gap.min(axis=(1, 2))
-    # A world without a same-lane lead is safe with respect to this metric,
-    # not numerically invalid.  Keep the stored summary finite.
-    min_gap = np.where(np.isfinite(min_gap), min_gap, 1_000.0)
-    return collision.astype(bool), min_gap
 
 
 class CurrentWorldEvaluator:
@@ -90,9 +64,8 @@ class CurrentWorldEvaluator:
                 steps=self.steps,
                 evt_model=self.evt_model,
             )
-            collision, min_gap = _collision_and_min_gap(
-                rollout,
-                rollout.initial_valid,
+            collision, min_gap = collision_and_min_gap(
+                rollout.states, rollout.initial_valid
             )
             if rollout.evt_score is None or not np.isfinite(rollout.evt_score).all():
                 raise FloatingPointError("world rollout produced a non-finite EVT score")

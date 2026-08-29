@@ -1,0 +1,174 @@
+{
+  "dimensions": {
+    "agent_dim": 16,
+    "response_steps": 149,
+    "scene_dim": 16
+  },
+  "estimator": "adaptive_multilevel_splitting_pcn_subset_simulation",
+  "evaluation_contract": {
+    "background_world_model": "hierarchical",
+    "dt_s": 0.04,
+    "ego_controller": "native HighwayEnv IDMVehicle",
+    "execution_backend": "local_highway_env",
+    "metric_scope": "IDM ego trajectory risk under generated background response",
+    "population_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "steps": 149
+  },
+  "failure_event": {
+    "event_risk_threshold": 0.7726841956981889,
+    "evt_score_threshold": 4.605170185988091,
+    "return_period": 100
+  },
+  "final_failure_fraction": 0.580078125,
+  "formal": false,
+  "level_statistics": [
+    {
+      "chain_moved_fraction": 0.822265625,
+      "collision_fraction": 0.0,
+      "failure_fraction": 0.0,
+      "level": 0,
+      "num_samples": 512,
+      "numerical_valid_fraction": 1.0,
+      "proposal_acceptance_rate": 0.5384114583333334,
+      "risk_max": 0.6421680450439453,
+      "risk_mean": 0.03027302585542202,
+      "score_max": 3.9979370811961963,
+      "score_mean": 2.0371684381891795,
+      "score_p90": 2.1845381777559467,
+      "score_p95": 2.751256036834068,
+      "subset_threshold": 2.1845381777559467
+    },
+    {
+      "chain_moved_fraction": 0.599609375,
+      "collision_fraction": 0.0,
+      "failure_fraction": 0.0,
+      "level": 1,
+      "num_samples": 512,
+      "numerical_valid_fraction": 1.0,
+      "proposal_acceptance_rate": 0.326171875,
+      "risk_max": 0.7144715189933777,
+      "risk_mean": 0.2670525312423706,
+      "score_max": 4.321149482488309,
+      "score_mean": 2.7765313937864766,
+      "score_p90": 3.3902756813567754,
+      "score_p95": 3.693774227429843,
+      "subset_threshold": 3.3902756813567754
+    },
+    {
+      "chain_moved_fraction": 0.4921875,
+      "collision_fraction": 0.00390625,
+      "failure_fraction": 0.0,
+      "level": 2,
+      "num_samples": 512,
+      "numerical_valid_fraction": 1.0,
+      "proposal_acceptance_rate": 0.22330729166666666,
+      "risk_max": 0.7673752307891846,
+      "risk_mean": 0.574216365814209,
+      "score_max": 4.578283344834327,
+      "score_mean": 3.7378848146245782,
+      "score_p90": 4.010442851582162,
+      "score_p95": 4.112952309123941,
+      "subset_threshold": 4.010442851582162
+    },
+    {
+      "chain_moved_fraction": 0.53515625,
+      "collision_fraction": 0.0234375,
+      "failure_fraction": 0.05859375,
+      "level": 3,
+      "num_samples": 512,
+      "numerical_valid_fraction": 1.0,
+      "proposal_acceptance_rate": 0.2565104166666667,
+      "risk_max": 1.1217254400253296,
+      "risk_mean": 0.6930831670761108,
+      "score_max": 7.089451761467645,
+      "score_mean": 4.231723220807179,
+      "score_p90": 4.489206185425875,
+      "score_p95": 4.643414782605461,
+      "subset_threshold": 4.489206185425875
+    },
+    {
+      "chain_moved_fraction": null,
+      "collision_fraction": 0.01953125,
+      "failure_fraction": 0.580078125,
+      "level": 4,
+      "num_samples": 512,
+      "numerical_valid_fraction": 1.0,
+      "proposal_acceptance_rate": null,
+      "risk_max": 1.1113649606704712,
+      "risk_mean": 0.7986454963684082,
+      "score_max": 6.983378166271556,
+      "score_mean": 4.75207165659723,
+      "score_p90": 5.162803449601908,
+      "score_p95": 5.31080618741245,
+      "subset_threshold": 5.162803449601908
+    }
+  ],
+  "mutation_kernel": {
+    "blocks": [
+      "scenario",
+      "c0_base_latent",
+      "k_base_latent",
+      "diffusion_noise",
+      "scene_innovations",
+      "agent_response_innovations"
+    ],
+    "mcmc_steps": 3,
+    "pcn_beta": 0.2,
+    "type": "prior-reversible joint block pCN sweep plus categorical refresh"
+  },
+  "num_levels": 5,
+  "probability": 5.800781250000001e-05,
+  "provenance": {
+    "device": "cuda",
+    "diffusion_checkpoint": "results/background_diffusion/checkpoints/best_background_diffusion.pt",
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "evaluation_scope": {
+      "excluded_background_slots": [
+        "same_rear"
+      ],
+      "schema": "highd_follower_excluded_v1",
+      "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+      "training_population_modified": false
+    },
+    "evt_model": "/home/hp/FITWMAMS/results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json",
+    "evt_model_sha256": "dbf5c4f7ea9899eca11c26b565e6d8cfd2bd3d1f4a1bb16b2c7435fb0eedb533",
+    "execution_backend": "local_highway_env",
+    "final_model_manifest": "results/hierarchical_world_model/checkpoints/final_model_manifest.json",
+    "final_model_manifest_sha256": "d0b01a695c6f395a3a44631c919ecb4d8c1009be65b7a685632f7bd893fdad84",
+    "flow_checkpoint": "results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt",
+    "flow_checkpoint_sha256": "0f2fe7bcd72df8afa434a7ef36fb94e4c6af873f73ec261d5fdcc154374c2cc2",
+    "hiqr_vehicle_dynamics_contract": "kinematic_unicycle_on_highwayenv_road",
+    "idm_ego_config": "/home/hp/FITWMAMS/tools/idm_ego.yaml",
+    "idm_ego_config_sha256": "65d6f8d0697834810e4401360eb2590fac8c7e25b666e958012a7bd6fb353b4b",
+    "repository_commit": "9a379084adbefe9df005c4eae69e7a56c360a396",
+    "response_checkpoint": "results/hierarchical_world_model/checkpoints/final_world_model.pt",
+    "response_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+    "run_config_sha256": "728c52b21e3ccc322f768ba41d44d57c109f7792c0e0406cf98b28b1f03d113d",
+    "worktree_dirty": true,
+    "world_model_config": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "world_model_config_sha256": "a2467b7252fbc226e8577e0192a297b4302fe49006f771ea83e4a8f8c7fa2652"
+  },
+  "schema": "highway_env_idm_subset_simulation",
+  "simulation_counts": {
+    "proposal_evaluations": 6144,
+    "stored_final_population": 512,
+    "world_evaluations": 6656
+  },
+  "stop_reason": "subset_threshold_reached_failure_threshold",
+  "uncertainty": {
+    "probability_ci95_lower": 5.373268979399254e-05,
+    "probability_ci95_upper": 6.228293520600747e-05,
+    "probability_standard_error": 2.1811850540854417e-06,
+    "uncertainty_method": "final-level binomial approximation; does not account for MCMC correlation"
+  },
+  "world_model": "Hierarchical Flow–Diffusion–HiQR",
+  "world_model_id": "hierarchical",
+  "world_prior": "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)"
+}

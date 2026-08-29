@@ -94,3 +94,8 @@ def test_downstream_contract_rejects_legacy_segments() -> None:
 def test_lateral_event_integrity_cannot_be_disabled() -> None:
     with pytest.raises(ValueError, match="cannot be disabled"):
         NaturalSegmentOptions(require_complete_lateral_events=False)
+
+
+def test_unknown_excluded_risk_slot_is_rejected() -> None:
+    with pytest.raises(ValueError, match="unknown excluded risk slots"):
+        NaturalSegmentOptions(excluded_risk_slots=("not_a_slot",))

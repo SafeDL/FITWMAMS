@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 
@@ -12,7 +12,8 @@ from hierarchical_world_model.src.randomness import WorldExogenousState
 from .world_evaluator import WorldEvaluation
 
 
-EvaluateWorlds = Callable[[WorldExogenousState], WorldEvaluation]
+EvaluateWorlds = Callable[[Any], WorldEvaluation]
+SampleWorlds = Callable[[int, int], Any]
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class WorldSubsetLevel:
     """One AMS level, including its population and evaluated risk scores."""
 
     level: int
-    worlds: WorldExogenousState
+    worlds: Any
     evaluation: WorldEvaluation
     threshold: float
     accepted: np.ndarray
@@ -51,10 +52,10 @@ def _take_evaluation(evaluation: WorldEvaluation, indices: np.ndarray) -> WorldE
 
 
 def _replace_accepted(
-    current: WorldExogenousState,
-    proposal: WorldExogenousState,
+    current: Any,
+    proposal: Any,
     accepted: np.ndarray,
-) -> WorldExogenousState:
+) -> Any:
     values: dict[str, np.ndarray] = {}
     for name, current_value in current.as_dict().items():
         proposal_value = proposal.as_dict()[name]
@@ -62,7 +63,7 @@ def _replace_accepted(
             (len(accepted),) + (1,) * (current_value.ndim - 1)
         )
         values[name] = np.where(mask, proposal_value, current_value)
-    return WorldExogenousState(**values)
+    return current.replace_arrays(values)
 
 
 def _replace_evaluation(
@@ -81,12 +82,12 @@ def _replace_evaluation(
 
 
 def _mutated_world(
-    world: WorldExogenousState,
+    world: Any,
     *,
     blocks: tuple[str, ...],
     beta: float,
     rng: np.random.Generator,
-) -> WorldExogenousState:
+) -> Any:
     """Make one joint, prior-reversible pCN proposal.
 
     Mutating only one of the independently distributed blocks in a short
@@ -119,6 +120,7 @@ def run_world_subset_simulation(
     pcn_beta: float,
     mcmc_steps: int,
     seed: int,
+    sample_worlds: SampleWorlds | None = None,
 ) -> WorldSubsetResult:
     """Estimate a rare failure probability with prior-reversible kernels.
 
@@ -142,12 +144,17 @@ def run_world_subset_simulation(
     elite_count = max(1, int(round(int(num_samples) * float(p0))))
     if elite_count >= int(num_samples):
         raise ValueError("p0 leaves no non-elite samples")
-    worlds = WorldExogenousState.sample(
-        int(num_samples),
-        seed=int(rng.integers(0, np.iinfo(np.int64).max)),
-        response_steps=int(response_steps),
-        scene_dim=int(scene_dim),
-        agent_dim=int(agent_dim),
+    initial_seed = int(rng.integers(0, np.iinfo(np.int64).max))
+    worlds = (
+        WorldExogenousState.sample(
+            int(num_samples),
+            seed=initial_seed,
+            response_steps=int(response_steps),
+            scene_dim=int(scene_dim),
+            agent_dim=int(agent_dim),
+        )
+        if sample_worlds is None
+        else sample_worlds(int(num_samples), initial_seed)
     )
     evaluation = evaluate(worlds)
     levels: list[WorldSubsetLevel] = []
