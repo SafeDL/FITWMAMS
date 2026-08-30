@@ -1,0 +1,155 @@
+{
+  "episodes": [
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_brake.npz",
+      "context_row": 12639,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_accelerate.npz",
+      "context_row": 12639,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_left.npz",
+      "context_row": 12639,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_brake.npz",
+      "context_row": 15323,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_accelerate.npz",
+      "context_row": 15323,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_left.npz",
+      "context_row": 15323,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_brake.npz",
+      "context_row": 122,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_accelerate.npz",
+      "context_row": 122,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_left.npz",
+      "context_row": 122,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_brake.npz",
+      "context_row": 61899,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_accelerate.npz",
+      "context_row": 61899,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_left.npz",
+      "context_row": 61899,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_brake.npz",
+      "context_row": 61899,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_accelerate.npz",
+      "context_row": 61899,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_left.npz",
+      "context_row": 61899,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    }
+  ],
+  "evaluation_scope": {
+    "excluded_background_slots": [
+      "same_rear"
+    ],
+    "schema": "highd_follower_excluded_v1",
+    "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+    "training_population_modified": false
+  },
+  "provenance": {
+    "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/checkpoints/final_world_model.pt",
+    "checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+    "config_hash": "4f100b70450f292f32c61d452c633d784ed6392f4cde58b8d5d386950a00f475",
+    "model_epoch": 2,
+    "role_labels": "offline held-out strata only; never model inputs"
+  },
+  "schema": "a0_necessity_playbacks_v1"
+}

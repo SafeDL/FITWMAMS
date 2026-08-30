@@ -1,0 +1,1743 @@
+{
+  "calibration": {
+    "roles": {
+      "adjacent_rear_left": {
+        "accelerate": {
+          "matched_effects": 2084,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.04374861717224121,
+            0.2375003695487976,
+            0.6625008583068848
+          ],
+          "reference_split": "train"
+        },
+        "brake": {
+          "matched_effects": 981,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.1999950408935547,
+            0.431249737739563,
+            0.8687520027160645
+          ],
+          "reference_split": "train"
+        },
+        "left": {
+          "matched_effects": 130,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -1.0249988436698914,
+            -0.025001317262649536,
+            0.11250019073486328
+          ],
+          "reference_split": "train"
+        }
+      },
+      "adjacent_rear_right": {
+        "accelerate": {
+          "matched_effects": 7136,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.024998188018798828,
+            0.1250004768371582,
+            0.42812585830688477
+          ],
+          "reference_split": "train"
+        },
+        "brake": {
+          "matched_effects": 4464,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.11250019073486328,
+            0.23750066757202148,
+            0.5125021934509277
+          ],
+          "reference_split": "train"
+        },
+        "left": {
+          "matched_effects": 258,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.12499946355819702,
+            0.009374469518661499,
+            0.23937588930130013
+          ],
+          "reference_split": "train"
+        }
+      },
+      "cut_in_or_committed": {
+        "accelerate": {
+          "matched_effects": 1905,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.037500858306884766,
+            0.21250009536743164,
+            0.5750007629394531
+          ],
+          "reference_split": "train"
+        },
+        "brake": {
+          "matched_effects": 1167,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.1875007152557373,
+            0.41249990463256836,
+            0.7624959945678711
+          ],
+          "reference_split": "train"
+        },
+        "left": {
+          "matched_effects": 8,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.14625167846679688,
+            0.6562513113021851,
+            1.023752212524414
+          ],
+          "reference_split": "train"
+        }
+      },
+      "same_lane_front": {
+        "accelerate": {
+          "matched_effects": 5808,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.03749847412109375,
+            0.17499923706054688,
+            0.549999475479126
+          ],
+          "reference_split": "train"
+        },
+        "brake": {
+          "matched_effects": 4400,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.16874909400939941,
+            0.3562498092651367,
+            0.6749999523162842
+          ],
+          "reference_split": "train"
+        },
+        "left": {
+          "matched_effects": 497,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.1249992847442627,
+            0.006250143051147461,
+            0.390000104904175
+          ],
+          "reference_split": "train"
+        }
+      },
+      "target_lane_follower": {
+        "accelerate": {
+          "matched_effects": 0,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": null,
+          "reference_split": "train"
+        },
+        "brake": {
+          "matched_effects": 0,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": null,
+          "reference_split": "train"
+        },
+        "left": {
+          "matched_effects": 3,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.1724991798400879,
+            -0.16249895095825195,
+            -0.10249757766723633
+          ],
+          "reference_split": "train"
+        }
+      }
+    },
+    "source_split": "train"
+  },
+  "contexts": 10151,
+  "decision": {
+    "evidence": [],
+    "gail_ppo_necessary_in_current_scope": false,
+    "next_step": "stop: retain A0 and do not add GAIL/PPO",
+    "rule": "requires FDR-corrected envelope deficit and bootstrap lower CI of outside-envelope error greater than one train P10-P90 band width"
+  },
+  "evaluation_scope": {
+    "excluded_background_slots": [
+      "same_rear"
+    ],
+    "schema": "highd_follower_excluded_v1",
+    "semantics": "same_rear is absent before model inference and simulation; metrics, risk, collision detection and visualization inherit the same mask",
+    "training_population_modified": false
+  },
+  "figures": [
+    "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/figures/role_context_counts.png",
+    "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/figures/human_envelope_vs_a0.png",
+    "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/figures/a0_response_bootstrap.png"
+  ],
+  "playbacks": [
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_brake.npz",
+      "context_row": 12639,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_accelerate.npz",
+      "context_row": 12639,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_left.npz",
+      "context_row": 12639,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/same_lane_front_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "same_lane_front"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_brake.npz",
+      "context_row": 15323,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_accelerate.npz",
+      "context_row": 15323,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_left.npz",
+      "context_row": 15323,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/cut_in_or_committed_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "cut_in_or_committed"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_brake.npz",
+      "context_row": 122,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_accelerate.npz",
+      "context_row": 122,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_left.npz",
+      "context_row": 122,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_left_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_left"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_brake.npz",
+      "context_row": 61899,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_accelerate.npz",
+      "context_row": 61899,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_left.npz",
+      "context_row": 61899,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/adjacent_rear_right_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "adjacent_rear_right"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_brake.npz",
+      "context_row": 61899,
+      "dose": 3.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_brake.gif",
+      "intervention": "brake",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_accelerate.npz",
+      "context_row": 61899,
+      "dose": 2.0,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_accelerate.gif",
+      "intervention": "accelerate",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    },
+    {
+      "archive": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_left.npz",
+      "context_row": 61899,
+      "dose": 0.16,
+      "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/a0_necessity/playbacks/target_lane_follower_left.gif",
+      "intervention": "left",
+      "randomness": "deterministic A0 mean action; paired branches share all inputs",
+      "role": "target_lane_follower"
+    }
+  ],
+  "provenance": {
+    "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/checkpoints/final_world_model.pt",
+    "checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+    "config_hash": "4f100b70450f292f32c61d452c633d784ed6392f4cde58b8d5d386950a00f475",
+    "model_epoch": 2,
+    "role_labels": "offline held-out strata only; never model inputs"
+  },
+  "roles": {
+    "adjacent_rear_left": {
+      "accelerate": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 2084,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.04374861717224121,
+            0.2375003695487976,
+            0.6625008583068848
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 935
+          },
+          "dose_monotone": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 935
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.2120051194002284,
+            "ci_low": -0.21408420864911004,
+            "mean": -0.21305751067431852,
+            "median": -0.2155420184135437,
+            "samples": 935
+          },
+          "effect_mps2": {
+            "ci_high": 0.025538904590402693,
+            "ci_low": 0.023362112427777786,
+            "mean": 0.02444285887447908,
+            "median": 0.021958351135253906,
+            "samples": 935
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04506845664850531,
+            "ci_low": 0.04233964242823257,
+            "mean": 0.04359531470871286,
+            "median": 0.03847915854230023,
+            "samples": 935
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "latency_s": {
+            "ci_high": 0.039999999999999994,
+            "ci_low": 0.039999999999999994,
+            "mean": 0.039999999999999994,
+            "median": 0.04,
+            "samples": 935
+          },
+          "locality_difference": {
+            "ci_high": 0.010416233762276461,
+            "ci_low": 0.005075499671543226,
+            "mean": 0.007752381112306991,
+            "median": 0.004700840711593627,
+            "samples": 935
+          },
+          "min_gap_m": null,
+          "outside_envelope_widths": {
+            "ci_high": 0.03493121041690258,
+            "ci_low": 0.03222009724135623,
+            "mean": 0.033525759555080935,
+            "median": 0.03521646401963599,
+            "samples": 935
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 935
+          },
+          "within_envelope": {
+            "ci_high": 0.1593850267379679,
+            "ci_low": 0.11657754010695187,
+            "mean": 0.13903743315508021,
+            "median": 0.0,
+            "samples": 935
+          }
+        }
+      },
+      "brake": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 981,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.1999950408935547,
+            0.431249737739563,
+            0.8687520027160645
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 0.9925133689839573,
+            "mean": 0.9967914438502674,
+            "median": 1.0,
+            "samples": 935
+          },
+          "dose_monotone": {
+            "ci_high": 0.9989304812834224,
+            "ci_low": 0.9914438502673797,
+            "mean": 0.9957219251336898,
+            "median": 1.0,
+            "samples": 935
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.39164450104861337,
+            "ci_low": -0.394860250044634,
+            "mean": -0.39324987317151566,
+            "median": -0.39635002613067627,
+            "samples": 935
+          },
+          "effect_mps2": {
+            "ci_high": 0.039760303561062735,
+            "ci_low": 0.036406294674796856,
+            "mean": 0.037999864568047347,
+            "median": 0.03489971160888672,
+            "samples": 935
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04506845664850531,
+            "ci_low": 0.04233964242823257,
+            "mean": 0.04359531470871286,
+            "median": 0.03847915854230023,
+            "samples": 935
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "latency_s": {
+            "ci_high": 0.039999999999999994,
+            "ci_low": 0.039999999999999994,
+            "mean": 0.039999999999999994,
+            "median": 0.04,
+            "samples": 935
+          },
+          "locality_difference": {
+            "ci_high": 0.014868798731791382,
+            "ci_low": 0.006486667448656765,
+            "mean": 0.010799752852256922,
+            "median": 0.005927209854125981,
+            "samples": 935
+          },
+          "min_gap_m": null,
+          "outside_envelope_widths": {
+            "ci_high": 0.24472107187358938,
+            "ci_low": 0.23994913421343275,
+            "mean": 0.24223325598590387,
+            "median": 0.2468689504700585,
+            "samples": 935
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 935
+          },
+          "within_envelope": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          }
+        }
+      },
+      "contexts": 935,
+      "left": {
+        "human_envelope": {
+          "matched_effects": 130,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -1.0249988436698914,
+            -0.025001317262649536,
+            0.11250019073486328
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.30802139037433157,
+            "ci_low": 0.24812834224598931,
+            "mean": 0.27807486631016043,
+            "median": 0.0,
+            "samples": 935
+          },
+          "direction": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04506845664850531,
+            "ci_low": 0.04233964242823257,
+            "mean": 0.04359531470871286,
+            "median": 0.03847915854230023,
+            "samples": 935
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 935
+          },
+          "latency_s": {
+            "ci_high": 0.04376577540106952,
+            "ci_low": 0.0400427807486631,
+            "mean": 0.04166844919786095,
+            "median": 0.04,
+            "samples": 935
+          },
+          "lateral_separation_change_m": {
+            "ci_high": -0.7366557548167233,
+            "ci_low": -0.7477961256924798,
+            "mean": -0.7423095468531318,
+            "median": -0.7318458557128906,
+            "samples": 935
+          },
+          "locality_difference": {
+            "ci_high": -0.0005487654438627047,
+            "ci_low": -0.0009202207168264135,
+            "mean": -0.000733825255414461,
+            "median": -0.0007300860434770583,
+            "samples": 935
+          },
+          "min_gap_m": {
+            "ci_high": 0.5187642288457661,
+            "ci_low": 0.10594493156952385,
+            "mean": 0.2814249617891162,
+            "median": 0.0,
+            "samples": 191
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 935
+          }
+        }
+      }
+    },
+    "adjacent_rear_right": {
+      "accelerate": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 7136,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.024998188018798828,
+            0.1250004768371582,
+            0.42812585830688477
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 0.9951890034364261,
+            "mean": 0.9979381443298969,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "dose_monotone": {
+            "ci_high": 1.0,
+            "ci_low": 0.9965635738831615,
+            "mean": 0.9986254295532646,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.1054038366296447,
+            "ci_low": -0.10692291825088028,
+            "mean": -0.10614736874898274,
+            "median": -0.11012077331542969,
+            "samples": 1455
+          },
+          "effect_mps2": {
+            "ci_high": 0.019643653483734917,
+            "ci_low": 0.018101365500709034,
+            "mean": 0.018853108088175457,
+            "median": 0.014879703521728516,
+            "samples": 1455
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04119864631573178,
+            "ci_low": 0.03918201501556047,
+            "mean": 0.040182493023828494,
+            "median": 0.036222605097213846,
+            "samples": 1455
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "latency_s": {
+            "ci_high": 0.039999999999999994,
+            "ci_low": 0.039999999999999994,
+            "mean": 0.039999999999999994,
+            "median": 0.04,
+            "samples": 1455
+          },
+          "locality_difference": {
+            "ci_high": 0.0028832923371184794,
+            "ci_low": -0.001744782855950577,
+            "mean": 0.00043720759342575055,
+            "median": -0.0031722915172576888,
+            "samples": 1455
+          },
+          "min_gap_m": null,
+          "outside_envelope_widths": {
+            "ci_high": 0.02587228873653641,
+            "ci_low": 0.023764566968117108,
+            "mean": 0.0248518701251888,
+            "median": 0.02509995032055073,
+            "samples": 1455
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "within_envelope": {
+            "ci_high": 0.3127147766323024,
+            "ci_low": 0.2652920962199313,
+            "mean": 0.2893470790378007,
+            "median": 0.0,
+            "samples": 1455
+          }
+        }
+      },
+      "brake": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 4464,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.11250019073486328,
+            0.23750066757202148,
+            0.5125021934509277
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "direction": {
+            "ci_high": 0.9979381443298969,
+            "ci_low": 0.9896907216494846,
+            "mean": 0.9938144329896907,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "dose_monotone": {
+            "ci_high": 0.9979381443298969,
+            "ci_low": 0.99106529209622,
+            "mean": 0.9951890034364261,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.2056992505014557,
+            "ci_low": -0.20818461910965516,
+            "mean": -0.20701518337341518,
+            "median": -0.2122974395751953,
+            "samples": 1455
+          },
+          "effect_mps2": {
+            "ci_high": 0.03171536754496728,
+            "ci_low": 0.029271272797764782,
+            "mean": 0.030485484198606302,
+            "median": 0.025203227996826172,
+            "samples": 1455
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04119864631573178,
+            "ci_low": 0.03918201501556047,
+            "mean": 0.040182493023828494,
+            "median": 0.036222605097213846,
+            "samples": 1455
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "latency_s": {
+            "ci_high": 0.039999999999999994,
+            "ci_low": 0.039999999999999994,
+            "mean": 0.039999999999999994,
+            "median": 0.04,
+            "samples": 1455
+          },
+          "locality_difference": {
+            "ci_high": 0.0035061081965873184,
+            "ci_low": -0.003980023735540813,
+            "mean": -0.00039159810719723514,
+            "median": -0.00676761150360107,
+            "samples": 1455
+          },
+          "min_gap_m": null,
+          "outside_envelope_widths": {
+            "ci_high": 0.20857256654041811,
+            "ci_low": 0.20252032856414584,
+            "mean": 0.20547211732232779,
+            "median": 0.2182413141566283,
+            "samples": 1455
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "within_envelope": {
+            "ci_high": 0.009621993127147767,
+            "ci_low": 0.002061855670103093,
+            "mean": 0.005498281786941581,
+            "median": 0.0,
+            "samples": 1455
+          }
+        }
+      },
+      "contexts": 1455,
+      "left": {
+        "human_envelope": {
+          "matched_effects": 258,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.12499946355819702,
+            0.009374469518661499,
+            0.23937588930130013
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1455
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04119864631573178,
+            "ci_low": 0.03918201501556047,
+            "mean": 0.040182493023828494,
+            "median": 0.036222605097213846,
+            "samples": 1455
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1455
+          },
+          "latency_s": {
+            "ci_high": 0.039999999999999994,
+            "ci_low": 0.039999999999999994,
+            "mean": 0.039999999999999994,
+            "median": 0.04,
+            "samples": 1455
+          },
+          "lateral_separation_change_m": {
+            "ci_high": 0.7608992896846071,
+            "ci_low": 0.7482708374208601,
+            "mean": 0.7546405125319753,
+            "median": 0.7452847957611084,
+            "samples": 1455
+          },
+          "locality_difference": {
+            "ci_high": -0.00040324785889352794,
+            "ci_low": -0.0007676969846139685,
+            "mean": -0.0005974163674082147,
+            "median": -0.0008117227256298066,
+            "samples": 1455
+          },
+          "min_gap_m": null,
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1455
+          }
+        }
+      }
+    },
+    "cut_in_or_committed": {
+      "accelerate": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 1905,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.037500858306884766,
+            0.21250009536743164,
+            0.5750007629394531
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "direction": {
+            "ci_high": 0.9991438356164384,
+            "ci_low": 0.9914383561643836,
+            "mean": 0.9957191780821918,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "dose_monotone": {
+            "ci_high": 0.9991438356164384,
+            "ci_low": 0.9922945205479452,
+            "mean": 0.9957191780821918,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.1721741582381807,
+            "ci_low": -0.1752766675430618,
+            "mean": -0.17374159844770823,
+            "median": -0.17759919166564941,
+            "samples": 1168
+          },
+          "effect_mps2": {
+            "ci_high": 0.040225035447168024,
+            "ci_low": 0.03730555325236223,
+            "mean": 0.038758496919723405,
+            "median": 0.03490090370178223,
+            "samples": 1168
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.07176820710565118,
+            "ci_low": 0.045993730521732536,
+            "mean": 0.05653551966705403,
+            "median": 0.040983428891073134,
+            "samples": 1168
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 1168
+          },
+          "locality_difference": {
+            "ci_high": 0.0971388576903866,
+            "ci_low": 0.08874239983830612,
+            "mean": 0.09304668372482611,
+            "median": 0.08086268484592438,
+            "samples": 1168
+          },
+          "min_gap_m": {
+            "ci_high": 48.37292690385286,
+            "ci_low": 44.98053804121606,
+            "mean": 46.643428217058315,
+            "median": 37.44377517700195,
+            "samples": 1168
+          },
+          "outside_envelope_widths": {
+            "ci_high": 0.021756374146528173,
+            "ci_low": 0.018885673383037465,
+            "mean": 0.020356869656073324,
+            "median": 0.004837125704942873,
+            "samples": 1168
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "within_envelope": {
+            "ci_high": 0.4991438356164384,
+            "ci_low": 0.4451840753424658,
+            "mean": 0.4708904109589041,
+            "median": 0.0,
+            "samples": 1168
+          }
+        }
+      },
+      "brake": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 1167,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.1875007152557373,
+            0.41249990463256836,
+            0.7624959945678711
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "direction": {
+            "ci_high": 0.9991438356164384,
+            "ci_low": 0.9914383561643836,
+            "mean": 0.9957191780821918,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "dose_monotone": {
+            "ci_high": 0.9991438356164384,
+            "ci_low": 0.9922945205479452,
+            "mean": 0.9957191780821918,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.3459480469153352,
+            "ci_low": -0.35075421195017964,
+            "mean": -0.3483679931457729,
+            "median": -0.35143494606018066,
+            "samples": 1168
+          },
+          "effect_mps2": {
+            "ci_high": 0.06648820602934653,
+            "ci_low": 0.06176841554984655,
+            "mean": 0.0641319114867955,
+            "median": 0.061064958572387695,
+            "samples": 1168
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.07176820710565118,
+            "ci_low": 0.045993730521732536,
+            "mean": 0.05653551966705403,
+            "median": 0.040983428891073134,
+            "samples": 1168
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 1168
+          },
+          "locality_difference": {
+            "ci_high": 0.16458829279881676,
+            "ci_low": 0.15080142935067223,
+            "mean": 0.157624657666821,
+            "median": 0.14349188446998595,
+            "samples": 1168
+          },
+          "min_gap_m": {
+            "ci_high": 52.44347085409785,
+            "ci_low": 48.93716722759482,
+            "mean": 50.67426379984372,
+            "median": 40.852834701538086,
+            "samples": 1168
+          },
+          "outside_envelope_widths": {
+            "ci_high": 0.21893472337523504,
+            "ci_low": 0.20991900871947497,
+            "mean": 0.21459616382066765,
+            "median": 0.21989007776655933,
+            "samples": 1168
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "within_envelope": {
+            "ci_high": 0.0059931506849315065,
+            "ci_low": 0.0,
+            "mean": 0.0025684931506849314,
+            "median": 0.0,
+            "samples": 1168
+          }
+        }
+      },
+      "contexts": 1168,
+      "left": {
+        "human_envelope": {
+          "matched_effects": 8,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.14625167846679688,
+            0.6562513113021851,
+            1.023752212524414
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "direction": {
+            "ci_high": 0.7936643835616438,
+            "ci_low": 0.7482876712328768,
+            "mean": 0.7731164383561644,
+            "median": 1.0,
+            "samples": 1168
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.07176820710565118,
+            "ci_low": 0.045993730521732536,
+            "mean": 0.05653551966705403,
+            "median": 0.040983428891073134,
+            "samples": 1168
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 1168
+          },
+          "latency_s": {
+            "ci_high": 0.04979623287671233,
+            "ci_low": 0.044075342465753425,
+            "mean": 0.046883561643835614,
+            "median": 0.04,
+            "samples": 1168
+          },
+          "lateral_separation_change_m": {
+            "ci_high": 0.44248308843186707,
+            "ci_low": 0.371676852198458,
+            "mean": 0.40654543917370983,
+            "median": 0.6639277637004852,
+            "samples": 1168
+          },
+          "locality_difference": {
+            "ci_high": 0.009342389596555695,
+            "ci_low": 0.008507876918703366,
+            "mean": 0.00889852005635625,
+            "median": 0.006987161040306091,
+            "samples": 1168
+          },
+          "min_gap_m": {
+            "ci_high": 53.37405795229619,
+            "ci_low": 49.638092427287425,
+            "mean": 51.46385353614079,
+            "median": 41.274253845214844,
+            "samples": 1132
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 1168
+          }
+        }
+      }
+    },
+    "same_lane_front": {
+      "accelerate": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 5808,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.03749847412109375,
+            0.17499923706054688,
+            0.549999475479126
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "direction": {
+            "ci_high": 0.9996392496392497,
+            "ci_low": 0.9983164983164983,
+            "mean": 0.9990379990379991,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "dose_monotone": {
+            "ci_high": 0.9996392496392497,
+            "ci_low": 0.9983164983164983,
+            "mean": 0.9990379990379991,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.13069332861926133,
+            "ci_low": -0.13186124966315432,
+            "mean": -0.1312818893909225,
+            "median": -0.13219594955444336,
+            "samples": 8316
+          },
+          "effect_mps2": {
+            "ci_high": 0.04432489142044053,
+            "ci_low": 0.04312461037986149,
+            "mean": 0.04371734766962437,
+            "median": 0.042803287506103516,
+            "samples": 8316
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04837815680235388,
+            "ci_low": 0.04332858001125306,
+            "mean": 0.045509105692279346,
+            "median": 0.03829724036607166,
+            "samples": 8316
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 8316
+          },
+          "locality_difference": {
+            "ci_high": 0.10935924241379799,
+            "ci_low": 0.10598103058316762,
+            "mean": 0.10773649318758519,
+            "median": 0.10104712963104248,
+            "samples": 8316
+          },
+          "min_gap_m": {
+            "ci_high": 42.67923892658166,
+            "ci_low": 41.42661877038561,
+            "mean": 42.06439197115052,
+            "median": 33.19719314575195,
+            "samples": 8316
+          },
+          "outside_envelope_widths": {
+            "ci_high": 0.01728762998374342,
+            "ci_low": 0.016290126850362893,
+            "mean": 0.016787202030516438,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "within_envelope": {
+            "ci_high": 0.570947570947571,
+            "ci_low": 0.5499007936507937,
+            "mean": 0.5607263107263107,
+            "median": 1.0,
+            "samples": 8316
+          }
+        }
+      },
+      "brake": {
+        "envelope_gap_test": {
+          "bh_adjusted_p_value": 0.0,
+          "coverage_deficit": true,
+          "evidence_of_material_gap": false,
+          "full_band_error": false,
+          "nominal_train_p10_p90_coverage": 0.8
+        },
+        "human_envelope": {
+          "matched_effects": 4400,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            0.16874909400939941,
+            0.3562498092651367,
+            0.6749999523162842
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "direction": {
+            "ci_high": 0.9996392496392497,
+            "ci_low": 0.9983164983164983,
+            "mean": 0.9990379990379991,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "dose_monotone": {
+            "ci_high": 0.9996392496392497,
+            "ci_low": 0.9983164983164983,
+            "mean": 0.9990379990379991,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "effect_minus_human_median_mps2": {
+            "ci_high": -0.28066618823342854,
+            "ci_low": -0.2826963591498214,
+            "mean": -0.28164631690240466,
+            "median": -0.2804136276245117,
+            "samples": 8316
+          },
+          "effect_mps2": {
+            "ci_high": 0.07558638460579373,
+            "ci_low": 0.07366439100209769,
+            "mean": 0.07460349236273203,
+            "median": 0.075836181640625,
+            "samples": 8316
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04837815680235388,
+            "ci_low": 0.04332858001125306,
+            "mean": 0.045509105692279346,
+            "median": 0.03829724036607166,
+            "samples": 8316
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 8316
+          },
+          "locality_difference": {
+            "ci_high": 0.18417882935689842,
+            "ci_low": 0.17850880292015736,
+            "mean": 0.18135729417092863,
+            "median": 0.17240464180707932,
+            "samples": 8316
+          },
+          "min_gap_m": {
+            "ci_high": 47.41962263221176,
+            "ci_low": 46.177168228506986,
+            "mean": 46.80324692024297,
+            "median": 37.77789306640625,
+            "samples": 8316
+          },
+          "outside_envelope_widths": {
+            "ci_high": 0.18813766641169247,
+            "ci_low": 0.1842674466219821,
+            "mean": 0.18613633437474783,
+            "median": 0.1835313675901986,
+            "samples": 8316
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "within_envelope": {
+            "ci_high": 0.011183261183261184,
+            "ci_low": 0.006974506974506974,
+            "mean": 0.009018759018759018,
+            "median": 0.0,
+            "samples": 8316
+          }
+        }
+      },
+      "contexts": 8316,
+      "left": {
+        "human_envelope": {
+          "matched_effects": 497,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.1249992847442627,
+            0.006250143051147461,
+            0.390000104904175
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.00036075036075036075,
+            "ci_low": 0.0,
+            "mean": 0.00012025012025012025,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "direction": {
+            "ci_high": 0.8381463443963444,
+            "ci_low": 0.8215458152958154,
+            "mean": 0.82996632996633,
+            "median": 1.0,
+            "samples": 8316
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04837815680235388,
+            "ci_low": 0.04332858001125306,
+            "mean": 0.045509105692279346,
+            "median": 0.03829724036607166,
+            "samples": 8316
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 8316
+          },
+          "latency_s": {
+            "ci_high": 0.04260233285233285,
+            "ci_low": 0.04143338143338143,
+            "mean": 0.041967291967291966,
+            "median": 0.04,
+            "samples": 8316
+          },
+          "lateral_separation_change_m": {
+            "ci_high": 0.45647796757757564,
+            "ci_low": 0.43588590995131304,
+            "mean": 0.4466352106509672,
+            "median": 0.6049597263336182,
+            "samples": 8316
+          },
+          "locality_difference": {
+            "ci_high": 0.011158878137895716,
+            "ci_low": 0.010781780179971685,
+            "mean": 0.010980691399607277,
+            "median": 0.009235766157507895,
+            "samples": 8316
+          },
+          "min_gap_m": {
+            "ci_high": 48.28753380501081,
+            "ci_low": 46.97862920877508,
+            "mean": 47.66166804179714,
+            "median": 38.05684852600098,
+            "samples": 8316
+          },
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 8316
+          }
+        }
+      }
+    },
+    "target_lane_follower": {
+      "accelerate": {
+        "human_envelope": {
+          "matched_effects": 0,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": null,
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          },
+          "dose_monotone": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          },
+          "effect_mps2": {
+            "ci_high": 0.04621423780918121,
+            "ci_low": 0.030768312513828278,
+            "mean": 0.03832345207532247,
+            "median": 0.03531217575073242,
+            "samples": 48
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04863174739450016,
+            "ci_low": 0.03593383218751391,
+            "mean": 0.041832926156003473,
+            "median": 0.0356600876622552,
+            "samples": 48
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 48
+          },
+          "locality_difference": {
+            "ci_high": 0.058471231468953194,
+            "ci_low": 0.02228240645913563,
+            "mean": 0.0404052118010198,
+            "median": 0.03974977552890778,
+            "samples": 48
+          },
+          "min_gap_m": null,
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          }
+        }
+      },
+      "brake": {
+        "human_envelope": {
+          "matched_effects": 0,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": null,
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "direction": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          },
+          "dose_monotone": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          },
+          "effect_mps2": {
+            "ci_high": 0.06842225169142088,
+            "ci_low": 0.048529845972855895,
+            "mean": 0.05824918548266093,
+            "median": 0.05452752113342285,
+            "samples": 48
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04863174739450016,
+            "ci_low": 0.03593383218751391,
+            "mean": 0.041832926156003473,
+            "median": 0.0356600876622552,
+            "samples": 48
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 48
+          },
+          "locality_difference": {
+            "ci_high": 0.08313242112356237,
+            "ci_low": 0.02839820150619684,
+            "mean": 0.05543064857833088,
+            "median": 0.049239857196807874,
+            "samples": 48
+          },
+          "min_gap_m": null,
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          }
+        }
+      },
+      "contexts": 48,
+      "left": {
+        "human_envelope": {
+          "matched_effects": 3,
+          "method": "role_conditioned_neutral_context_matching",
+          "p10_p50_p90": [
+            -0.1724991798400879,
+            -0.16249895095825195,
+            -0.10249757766723633
+          ],
+          "reference_split": "train"
+        },
+        "statistics": {
+          "collision": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "direction": {
+            "ci_high": 0.7708333333333334,
+            "ci_low": 0.5208333333333334,
+            "mean": 0.6458333333333334,
+            "median": 1.0,
+            "samples": 48
+          },
+          "factual_ADE_m": {
+            "ci_high": 0.04863174739450016,
+            "ci_low": 0.03593383218751391,
+            "mean": 0.041832926156003473,
+            "median": 0.0356600876622552,
+            "samples": 48
+          },
+          "invalid": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "mean": 0.0,
+            "median": 0.0,
+            "samples": 48
+          },
+          "latency_s": {
+            "ci_high": 0.04,
+            "ci_low": 0.04,
+            "mean": 0.04,
+            "median": 0.04,
+            "samples": 48
+          },
+          "lateral_separation_change_m": {
+            "ci_high": 0.4315583183740575,
+            "ci_low": 0.007945110152165138,
+            "mean": 0.21681807935237885,
+            "median": 0.7162108421325684,
+            "samples": 48
+          },
+          "locality_difference": {
+            "ci_high": 0.0034902543108328247,
+            "ci_low": 0.0012380972392808571,
+            "mean": 0.0023490868949253736,
+            "median": 0.0022246715426445006,
+            "samples": 48
+          },
+          "min_gap_m": null,
+          "valid": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "mean": 1.0,
+            "median": 1.0,
+            "samples": 48
+          }
+        }
+      }
+    }
+  },
+  "schema": "a0_role_stratified_necessity_v1",
+  "settings": {
+    "batch_size": 32,
+    "bootstrap_replicates": 1000,
+    "calibration_stride": 5,
+    "confidence": 0.95,
+    "per_cell_cap": 128,
+    "seed": 20260830
+  },
+  "test_space": "empirical_test_fixed_k_gt"
+}
