@@ -1,0 +1,10 @@
+{
+  "adversarial_passes": 4,
+  "bc_epochs": 30,
+  "best_discriminator_auc": 0.5046098956372611,
+  "best_selected_pass": 2,
+  "conditional_mean_action_mae_mps2": {},
+  "expert_samples": 42981,
+  "schema": "formal_longitudinal_gail_evidence_v4",
+  "training_rows": 72771
+}

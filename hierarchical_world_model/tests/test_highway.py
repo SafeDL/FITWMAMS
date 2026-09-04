@@ -10,6 +10,12 @@ from hierarchical_world_model.src.highway import (
     yaw_rate_to_steering,
 )
 from hierarchical_world_model.src.model import DiffusionGuidedHiQR
+from hierarchical_world_model.src.influence_graph import (
+    CausalInfluenceGraph,
+    ROLE_SAME_LANE_FOLLOWER,
+    ROLE_SECONDARY_FOLLOWER,
+)
+from hierarchical_world_model.src.reaction_controller import RLResidualReactionController
 from hierarchical_world_model.src.randomness import WorldExogenousState
 from world_model.src.core.dynamics import KinematicTrafficDynamics
 
@@ -89,6 +95,22 @@ def test_hiqr_controls_use_the_offline_unicycle_plant_on_highway_road() -> None:
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1.0e-5)
 
 
+def test_constant_speed_post_step_state_aligns_with_next_logged_frame() -> None:
+    """Guard the 25 Hz x[t+1] versus x[t] factual-audit contract."""
+    states, valid = _initial_world()
+    states[0, 2] = 25.0
+    world = HighwayEnvTraffic(dt_s=0.04)
+    anchor = world.reset(states, valid)
+    post_step = world.step(
+        np.zeros((6, 2), np.float32),
+        ego_action=np.zeros(2, np.float32),
+    ).states
+    np.testing.assert_allclose(post_step[0, 0], anchor[0, 0] + 1.0, atol=1.0e-6)
+    # Comparing the post-step state with the anchor is precisely the former
+    # one-frame audit error; the correct target is the next logged frame.
+    assert np.linalg.norm(post_step[0, :2] - anchor[0, :2]) == 1.0
+
+
 def test_snapshot_restore_replays_a_highway_env_branch_exactly() -> None:
     states, valid = _initial_world()
     world = HighwayEnvTraffic()
@@ -165,6 +187,8 @@ def test_batched_highway_world_replays_the_same_exogenous_branch() -> None:
     replay = world.advance_response(torch.zeros(2, 2))
     torch.testing.assert_close(replay["agent_state_frames"], second["agent_state_frames"])
     assert first["background_actions"].shape == (2, 1, 6, 2)
+    assert first["crashed"].shape == (2, 7)
+    assert first["crashed"].dtype == torch.bool
 
 
 def test_highway_world_accepts_offline_factual_history_and_controls() -> None:
@@ -214,3 +238,130 @@ def test_highway_world_uses_real_idm_actions_for_hiqr_execution() -> None:
     transition = world.advance_response(action)
     assert float(action[0, 0]) < 0.0
     torch.testing.assert_close(transition["ego_actions"][:, 0], action)
+
+
+def test_causal_reaction_authority_engages_then_recovers_and_replays() -> None:
+    """Authority follows an executed event, not the external command window."""
+    states, valid = _initial_world()
+    initial, present = torch.from_numpy(states[None]), torch.from_numpy(valid[None])
+    maps, map_valid = _maps(1)
+    world = HighwayEnvClosedLoopWorld(
+        DiffusionGuidedHiQR().eval(), controller="none", reaction_min_frames=1,
+        reaction_max_frames=8, reaction_recovery_frames=2, reaction_safety_ttc_s=.1,
+        reaction_release_ttc_s=.1, influence_stable_release_frames=1,
+    )
+    world.reset(initial, present, torch.zeros(1, 149, 6, 2), maps, map_valid,
+        exogenous_state=WorldExogenousState.sample(1, seed=31, response_steps=6), deterministic_response=True)
+    # This action executes first.  The controller cannot use it until the
+    # following response boundary, at which point authority is engaged.
+    world.advance_response(torch.tensor([[-6.0, 0.0]]))
+    world.register_executed_ego_intervention(torch.tensor([True]))
+    # Registration happens after the road step; it cannot retroactively
+    # modify the background command that was just executed.
+    assert not bool(world.reaction_enabled.any())
+    engaged = world.advance_response(torch.zeros(1, 2))
+    assert int(engaged["controller_phase"][0, 1]) == 1
+    assert int(engaged["influence_role"][0, 1]) == 1
+    snapshot = world.snapshot()
+    expected = world.advance_response(torch.zeros(1, 2))
+    world.restore(snapshot)
+    replay = world.advance_response(torch.zeros(1, 2))
+    torch.testing.assert_close(replay["agent_state_frames"], expected["agent_state_frames"])
+    torch.testing.assert_close(replay["influence_authority"], expected["influence_authority"])
+
+
+def test_causal_authority_does_not_expire_while_same_rear_is_still_closing() -> None:
+    """A short ego command may not create a short NPC authority window."""
+    states, valid = _initial_world()
+    initial, present = torch.from_numpy(states[None]), torch.from_numpy(valid[None])
+    maps, map_valid = _maps(1)
+    world = HighwayEnvClosedLoopWorld(
+        DiffusionGuidedHiQR().eval(), controller="none", reaction_min_frames=1,
+        # Deliberately tiny legacy normalizer: it is not an authority timeout.
+        reaction_max_frames=2, reaction_recovery_frames=1, reaction_safety_ttc_s=2.,
+        reaction_release_ttc_s=4.,
+    )
+    world.reset(initial, present, torch.zeros(1, 149, 6, 2), maps, map_valid,
+        exogenous_state=WorldExogenousState.sample(1, seed=37, response_steps=12), deterministic_response=True)
+    # Directly fix an already-realized same-lane following state: 10 m gap,
+    # 5 m/s closing, hence TTC=2 s.  Registering false afterwards must not
+    # relinquish authority merely because the original ADS brake ended.
+    world.states[0, 0, 0], world.states[0, 0, 2] = 20., 20.
+    world.states[0, 2, 0], world.states[0, 2, 2] = 10., 25.
+    world.register_executed_ego_intervention(torch.tensor([True]))
+    for _ in range(8):
+        world.register_executed_ego_intervention(torch.tensor([False]))
+        transition = world.advance_response(torch.zeros(1, 2))
+        assert int(transition["controller_phase"][0, 1]) == 1
+
+
+def test_causal_monitor_latch_reengages_after_a_brief_safe_interval() -> None:
+    """A later re-closing relation must not be forgotten after recovery."""
+    states, valid = _initial_world()
+    initial, present = torch.from_numpy(states[None]), torch.from_numpy(valid[None])
+    maps, map_valid = _maps(1)
+    world = HighwayEnvClosedLoopWorld(
+        DiffusionGuidedHiQR().eval(), controller="none", reaction_min_frames=1,
+        reaction_max_frames=2, reaction_recovery_frames=2, reaction_safety_ttc_s=2.,
+        reaction_release_ttc_s=4., influence_stable_release_frames=1,
+    )
+    world.reset(initial, present, torch.zeros(1, 149, 6, 2), maps, map_valid,
+        exogenous_state=WorldExogenousState.sample(1, seed=41, response_steps=5), deterministic_response=True)
+    # Event starts authority, then a safe state drains the finite correction
+    # envelope but preserves the causal monitor latch (phase 2).
+    world.register_executed_ego_intervention(torch.tensor([True]))
+    engaged = world.advance_response(torch.zeros(1, 2))
+    assert int(engaged["controller_phase"][0, 1]) == 1
+    assert world.history is not None
+    world.states[0, 2, 0], world.states[0, 2, 2] = -60., 15.
+    world.history[0, -2, 2, 0] = -50.
+    recovery = world.advance_response(torch.zeros(1, 2))
+    assert int(recovery["controller_phase"][0, 1]) == 2
+    assert int(recovery["influence_role"][0, 1]) == 1
+    # A later realised same-lane re-closing relation immediately re-engages.
+    world.states[0, 0, 0], world.states[0, 0, 2] = 20., 20.
+    world.states[0, 2, 0], world.states[0, 2, 2] = 10., 25.
+    reengaged = world.advance_response(torch.zeros(1, 2))
+    assert int(reengaged["controller_phase"][0, 1]) == 1
+
+
+def test_pending_ego_command_cannot_change_current_background_response() -> None:
+    """The controller gets no access to the action passed to this tick."""
+    states, valid = _initial_world()
+    initial, present = torch.from_numpy(states[None]), torch.from_numpy(valid[None])
+    maps, map_valid = _maps(1)
+    model = DiffusionGuidedHiQR().eval()
+    worlds = []
+    for seed in (41, 41):
+        world = HighwayEnvClosedLoopWorld(model, controller=RLResidualReactionController())
+        world.reset(initial, present, torch.zeros(1, 149, 6, 2), maps, map_valid,
+            exogenous_state=WorldExogenousState.sample(1, seed=seed, response_steps=2), deterministic_response=True)
+        worlds.append(world)
+    no_change = worlds[0].advance_response(torch.zeros(1, 2))
+    hard_brake = worlds[1].advance_response(torch.tensor([[-8.0, 0.0]]))
+    torch.testing.assert_close(no_change["background_actions"], hard_brake["background_actions"])
+    assert not no_change["controller_active"].any()
+    assert not hard_brake["controller_active"].any()
+
+
+def test_dynamic_influence_graph_propagates_exactly_one_secondary_hop() -> None:
+    current = torch.zeros(1, 7, 6)
+    valid = torch.zeros(1, 7, dtype=torch.bool)
+    valid[:, :4] = True
+    current[0, 0, 2] = 20.0
+    # Direct candidate in the ego rear semicircle.
+    current[0, 1, 0], current[0, 1, 2] = -41.0, 25.0
+    # Its close follower is outside the ego 50 m region and can therefore be
+    # reached only through the direct parent's one-hop edge.
+    current[0, 2, 0], current[0, 2, 2] = -51.0, 30.0
+    # A follower behind the secondary car must not receive a depth-2 edge.
+    current[0, 3, 0], current[0, 3, 2] = -61.0, 35.0
+    history = current[:, None].expand(-1, 2, -1, -1).clone()
+    graph = CausalInfluenceGraph()
+    result = graph.update(current, valid, history, torch.ones(1, dtype=torch.bool), None)
+    assert bool(result.direct[0, 0])
+    assert int(result.role[0, 0]) == ROLE_SAME_LANE_FOLLOWER
+    assert bool(result.secondary[0, 1])
+    assert int(result.role[0, 1]) == ROLE_SECONDARY_FOLLOWER
+    assert int(result.parent[0, 1]) == 1
+    assert not bool(result.secondary[0, 2])

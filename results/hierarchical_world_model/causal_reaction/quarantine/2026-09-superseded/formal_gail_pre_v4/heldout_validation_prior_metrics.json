@@ -1,0 +1,20 @@
+{
+  "action_ks": 0.19386666666666663,
+  "action_w1_mps2": 0.06464453976154325,
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/gail/human_prior.pt",
+  "mean_absolute_error_mps2": 0.11104801297187805,
+  "note": "conditional sample selection balances ordinary following and TTC-critical following; distribution distances are reported with that fixed sampling scheme.",
+  "observed_brake_response_reference_groups": {
+    "dose_2_ttc_0": 0,
+    "dose_2_ttc_1": 110,
+    "dose_2_ttc_2": 512,
+    "dose_4_ttc_0": 0,
+    "dose_4_ttc_1": 0,
+    "dose_4_ttc_2": 20
+  },
+  "observed_brake_response_reference_samples": 642,
+  "raw_gaussian_nll": -0.7101567983627319,
+  "samples": 30000,
+  "schema": "longitudinal_human_prior_heldout_v1",
+  "split": "validation"
+}

@@ -27,6 +27,7 @@ from world_model.src.core.utils import ensure_dir, load_json, save_json, select_
 from .data import ego_controls, prepare_experiment_data
 from .calibration import evaluation_response_calibration
 from .planner import frozen_diffusion_plans, stochastic_diffusion_plan_samples
+from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,8 @@ class Rollout:
     background_actions: np.ndarray
     ego_actions: np.ndarray
     reference_actions: np.ndarray
+    base_background_actions: np.ndarray | None = None
+    controller_diagnostics: dict[str, np.ndarray] | None = None
 
 
 EgoActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
@@ -92,11 +95,19 @@ def rollout(
     intervention: str | None = None,
     dose: float = 0.0,
     ads_policy: EgoActionPolicy | None = None,
+    controller: ReactionController | str | None = None,
+    controller_deterministic: bool = False,
+    excluded_slots: tuple[str, ...] | None = None,
 ) -> Rollout:
     """Run one causal offline response rollout for a matched batch."""
-    logged_states, logged_valid = scoped_canonical_trajectory(
-        logged_states, logged_valid
-    )
+    if excluded_slots is None:
+        logged_states, logged_valid = scoped_canonical_trajectory(
+            logged_states, logged_valid
+        )
+    else:
+        logged_states, logged_valid = scoped_canonical_trajectory(
+            logged_states, logged_valid, excluded_slots=excluded_slots
+        )
     states = torch.from_numpy(logged_states[:, ANCHOR_INDEX].copy()).to(device)
     valid = torch.from_numpy(logged_valid[:, ANCHOR_INDEX].copy()).to(device)
     history = torch.from_numpy(
@@ -113,6 +124,10 @@ def rollout(
         _logged_ego_actions(logged_states, logged_valid)
     ).to(device)
     scheduled_ego = _intervene(logged_ego, intervention, dose)
+    if isinstance(controller, str):
+        controller = make_reaction_controller(
+            controller, adapter_logit=model.decoder.intervention_logit
+        ).to(device)
     historical_start = max(0, ANCHOR_INDEX - history_frames + 1)
     historical_ego_values = ego_controls(
         logged_states[:, historical_start:ANCHOR_INDEX, 0],
@@ -131,6 +146,10 @@ def rollout(
     generated: list[torch.Tensor] = []
     background_actions: list[torch.Tensor] = []
     reference_actions: list[torch.Tensor] = []
+    base_background_actions: list[torch.Tensor] = []
+    controller_alpha: list[torch.Tensor] = []
+    controller_delta: list[torch.Tensor] = []
+    controller_active: list[torch.Tensor] = []
     filter_state = None
     slow_scene = None
     slow_scene_noise = None
@@ -141,6 +160,10 @@ def rollout(
     executed_ego: list[torch.Tensor] = []
     intervention_memory = None
     lateral_intervention_memory = None
+    # A runner may mark a response controller active only after the preceding
+    # ADS action was committed.  This is causal metadata, never a future ego
+    # command.
+    controller_enabled = torch.zeros(len(states), dtype=torch.bool, device=device)
     execute = model.cfg.execute_frames
     for start in range(0, 149, execute):
         count = min(execute, 149 - start)
@@ -221,6 +244,8 @@ def rollout(
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
             deterministic=motion_seed is None,
+            apply_intervention_adapter=controller is None,
+            apply_explicit_ego_response=True,
         )
         filter_state = response.filter_state
         slow_scene = response.slow_scene
@@ -230,10 +255,32 @@ def rollout(
         intervention_memory = response.intervention_memory
         lateral_intervention_memory = response.lateral_intervention_memory
         previous_current = states
+        base_actions = response.actions
+        if controller is not None:
+            context = ReactionControllerContext(
+                history=history, history_valid=history_valid, current=states,
+                current_valid=valid, committed_ego_controls=committed_ego_controls,
+                base_actions=base_actions, reference_actions=response.reference_actions,
+                intervention_trigger=response.intervention_trigger,
+                intervention_memory=response.intervention_memory,
+                lateral_intervention_memory=response.lateral_intervention_memory,
+                agent_style_state=response.agent_style_state,
+                response_field_gain=response.response_field_gain,
+                response_sensitivity_bounds=model.response_sensitivity_bounds,
+                adapter_gain=torch.sigmoid(model.decoder.intervention_logit), cfg=model.cfg,
+                reaction_enabled=controller_enabled,
+            )
+            output = controller(context, deterministic=controller_deterministic)
+            response_actions = output.actions
+            controller_alpha.append(output.alpha.detach())
+            controller_delta.append(output.delta_ax.detach())
+            controller_active.append(output.active.detach())
+        else:
+            response_actions = base_actions
         new_frames: list[torch.Tensor] = []
         for frame in range(count):
             controls = torch.cat(
-                (ego_block[:, frame, None], response.actions[:, frame]), dim=1
+                (ego_block[:, frame, None], response_actions[:, frame]), dim=1
             )
             states = model.dynamics.step(states, controls, valid, model.cfg.dt_s)
             new_frames.append(states)
@@ -241,9 +288,13 @@ def rollout(
         committed_ego_controls = torch.cat(
             (committed_ego_controls, ego_block[:, :count]), dim=1
         )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
+        controller_enabled = (
+            ego_block[:, 0, 0] - logged_ego[:, start, 0] < -0.5
+        )
         block = torch.stack(new_frames, dim=1)
         generated.append(block)
-        background_actions.append(response.actions[:, :count])
+        background_actions.append(response_actions[:, :count])
+        base_background_actions.append(base_actions[:, :count])
         reference_actions.append(response.reference_actions[:, :count])
         block_valid = valid[:, None].expand(-1, count, -1)
         history = torch.cat((history, block), dim=1)[:, -history_frames:]
@@ -255,6 +306,12 @@ def rollout(
         torch.cat(background_actions, dim=1).cpu().numpy(),
         torch.cat(executed_ego, dim=1).cpu().numpy(),
         torch.cat(reference_actions, dim=1).cpu().numpy(),
+        torch.cat(base_background_actions, dim=1).cpu().numpy(),
+        None if not controller_alpha else {
+            "alpha": torch.stack(controller_alpha, dim=1).cpu().numpy(),
+            "delta_ax": torch.stack(controller_delta, dim=1).cpu().numpy(),
+            "active": torch.stack(controller_active, dim=1).cpu().numpy(),
+        },
     )
 
 

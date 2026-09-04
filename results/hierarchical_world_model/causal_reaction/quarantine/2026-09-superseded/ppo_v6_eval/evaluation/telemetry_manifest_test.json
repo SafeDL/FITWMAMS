@@ -1,0 +1,16 @@
+{
+  "arm_codes": {
+    "0": "A0_none",
+    "1": "A1_rl_residual",
+    "2": "A2_rl_residual_idm",
+    "3": "A3_rl_residual_gail"
+  },
+  "backend": "HighwayEnvClosedLoopWorld",
+  "counterfactual_samples": 59384,
+  "counterfactual_telemetry_rows_per_condition": 128,
+  "counterfactual_window": "post-observation intervention plus 1.0 s recovery",
+  "human_reference": "held-out highD same-lane same-rear 25 Hz action and jerk samples",
+  "human_reference_samples": 256690,
+  "schema": "naturalistic_reaction_telemetry_v1",
+  "split": "test"
+}

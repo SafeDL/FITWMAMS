@@ -1,0 +1,135 @@
+{
+  "comparison": "held-out highD versus post-observation HighwayEnv target-NPC actions, matched by realised TTC bin",
+  "counterfactual_condition": "-8 m/s² ego brake for 1.0 s",
+  "metrics": {
+    "TTC 0–2 s": {
+      "A0_none": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 308,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 11,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 0,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 0,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      }
+    },
+    "TTC 2–4 s": {
+      "A0_none": {
+        "action_ks": 0.42834216526706337,
+        "action_w1_mps2": 0.8752234544463354,
+        "generated_samples": 659,
+        "highd_samples": 191,
+        "jerk_ks": 0.5796661608497724,
+        "jerk_w1_mps3": 17.45982626720064,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 41,
+        "highd_samples": 191,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 92,
+        "highd_samples": 191,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 114,
+        "highd_samples": 191,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      }
+    },
+    "TTC ≥4 s": {
+      "A0_none": {
+        "action_ks": 0.265175701962111,
+        "action_w1_mps2": 0.4478592101155835,
+        "generated_samples": 739,
+        "highd_samples": 256,
+        "jerk_ks": 0.5791610284167794,
+        "jerk_w1_mps3": 17.44297343685278,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A1_rl_residual": {
+        "action_ks": 0.963100348680264,
+        "action_w1_mps2": 5.174287721089786,
+        "generated_samples": 1667,
+        "highd_samples": 256,
+        "jerk_ks": 0.5345563699760048,
+        "jerk_w1_mps3": 3.839052276251218,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": 0.7516028101965602,
+        "action_w1_mps2": 2.558401914982709,
+        "generated_samples": 1628,
+        "highd_samples": 256,
+        "jerk_ks": 0.5339277487714987,
+        "jerk_w1_mps3": 3.478490211039454,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": 0.9557324097135741,
+        "action_w1_mps2": 2.8423278675575547,
+        "generated_samples": 1606,
+        "highd_samples": 256,
+        "jerk_ks": 0.5345335849937733,
+        "jerk_w1_mps3": 3.512305414947845,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      }
+    }
+  },
+  "minimum_matched_samples": 128,
+  "schema": "reaction_naturalness_distribution_evidence_v1",
+  "split": "validation"
+}

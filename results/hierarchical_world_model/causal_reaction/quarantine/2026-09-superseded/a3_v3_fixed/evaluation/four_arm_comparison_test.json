@@ -1,0 +1,190 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "common_random_numbers": true,
+  "controllers": [
+    "A2_rl_residual_idm",
+    "A3_rl_residual_gail"
+  ],
+  "counterfactual_rows": 5095,
+  "eligible_rows_in_split": 5095,
+  "evaluation_limit": null,
+  "factual_reconstruction": {},
+  "factual_rows": 10151,
+  "full_split_sequences": 10151,
+  "idm_minus_pure_ppo_bootstrap": {},
+  "interventions": {
+    "duration_15_frames": {
+      "8": {
+        "A2_rl_residual_idm": {
+          "collision_sequence_rate": 0.0003925417075564279,
+          "effective_response_sequence_rate": 0.3167811579980373,
+          "ego_collision_sequence_rate": 0.00019627085377821394,
+          "first_effective_response_delay_frames": 14.031598513011152,
+          "minimum_predicted_gap_m": -21.597591400146484,
+          "post_command_brake_rate_while_unresolved": 0.9716251074806534,
+          "post_command_positive_acceleration_rebound_rate": 0.02407566638005159,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 1163.0,
+          "role_active_frame_counts": {
+            "1": 162866,
+            "2": 1855,
+            "3": 0,
+            "4": 320
+          },
+          "target_active_rate": 0.036233487671599784,
+          "target_brake_rate": 0.9391741071428571,
+          "target_jerk_p95_mps3": 14.253104209899902,
+          "target_mean_ax_delta_mps2": -5.134657859802246,
+          "target_natural_kl_mean": 40.66594696044922,
+          "target_rear_collision_sequence_rate": 0.0003925417075564279,
+          "target_response_dose_mps2": 5.169196605682373,
+          "target_rule_action_mean_mps2": -0.05330391973257065,
+          "unrelated_max_abs_correction_mps2": 0.0
+        },
+        "A3_rl_residual_gail": {
+          "collision_sequence_rate": 0.0003925417075564279,
+          "effective_response_sequence_rate": 0.31481844946025517,
+          "ego_collision_sequence_rate": 0.0003925417075564279,
+          "first_effective_response_delay_frames": 14.074812967581048,
+          "minimum_predicted_gap_m": -21.582157135009766,
+          "post_command_brake_rate_while_unresolved": 0.9824723247232472,
+          "post_command_positive_acceleration_rebound_rate": 0.016605166051660517,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 1084.0,
+          "role_active_frame_counts": {
+            "1": 170308,
+            "2": 1811,
+            "3": 0,
+            "4": 288
+          },
+          "target_active_rate": 0.03785063656302073,
+          "target_brake_rate": 0.9327643962354443,
+          "target_jerk_p95_mps3": 15.708862972259514,
+          "target_mean_ax_delta_mps2": -5.4116973876953125,
+          "target_natural_kl_mean": 36.28591537475586,
+          "target_rear_collision_sequence_rate": 0.0003925417075564279,
+          "target_response_dose_mps2": 5.462457656860352,
+          "target_rule_action_mean_mps2": -0.09601666778326035,
+          "unrelated_max_abs_correction_mps2": 0.0
+        }
+      }
+    },
+    "duration_25_frames": {
+      "8": {
+        "A2_rl_residual_idm": {
+          "collision_sequence_rate": 0.0021589793915603533,
+          "effective_response_sequence_rate": 0.32993130520117764,
+          "ego_collision_sequence_rate": 0.001962708537782139,
+          "first_effective_response_delay_frames": 14.912552052349792,
+          "minimum_predicted_gap_m": -21.59703826904297,
+          "post_command_brake_rate_while_unresolved": 0.9912195121951219,
+          "post_command_positive_acceleration_rebound_rate": 0.008390243902439025,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 5125.0,
+          "role_active_frame_counts": {
+            "1": 176844,
+            "2": 2166,
+            "3": 0,
+            "4": 175
+          },
+          "target_active_rate": 0.0393386945573258,
+          "target_brake_rate": 0.9391741071428571,
+          "target_jerk_p95_mps3": 14.30270977020261,
+          "target_mean_ax_delta_mps2": -5.134657859802246,
+          "target_natural_kl_mean": 42.23819351196289,
+          "target_rear_collision_sequence_rate": 0.0021589793915603533,
+          "target_response_dose_mps2": 5.169196605682373,
+          "target_rule_action_mean_mps2": -0.36645954847335815,
+          "unrelated_max_abs_correction_mps2": 0.0
+        },
+        "A3_rl_residual_gail": {
+          "collision_sequence_rate": 0.0025515210991167814,
+          "effective_response_sequence_rate": 0.3281648675171737,
+          "ego_collision_sequence_rate": 0.0021589793915603533,
+          "first_effective_response_delay_frames": 15.008373205741627,
+          "minimum_predicted_gap_m": -21.591327667236328,
+          "post_command_brake_rate_while_unresolved": 0.9893126957803575,
+          "post_command_positive_acceleration_rebound_rate": 0.010503040353786623,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 5427.0,
+          "role_active_frame_counts": {
+            "1": 177701,
+            "2": 2134,
+            "3": 0,
+            "4": 149
+          },
+          "target_active_rate": 0.0395141088886108,
+          "target_brake_rate": 0.9327643962354443,
+          "target_jerk_p95_mps3": 16.583751201629653,
+          "target_mean_ax_delta_mps2": -5.4116973876953125,
+          "target_natural_kl_mean": 38.74827194213867,
+          "target_rear_collision_sequence_rate": 0.0025515210991167814,
+          "target_response_dose_mps2": 5.462457656860352,
+          "target_rule_action_mean_mps2": -0.41211700439453125,
+          "unrelated_max_abs_correction_mps2": 0.0
+        }
+      }
+    },
+    "duration_5_frames": {
+      "8": {
+        "A2_rl_residual_idm": {
+          "collision_sequence_rate": 0.00019627085377821394,
+          "effective_response_sequence_rate": 0.2904808635917566,
+          "ego_collision_sequence_rate": 0.0,
+          "first_effective_response_delay_frames": 10.016891891891891,
+          "minimum_predicted_gap_m": -21.598628997802734,
+          "post_command_brake_rate_while_unresolved": 0.9917695473251029,
+          "post_command_positive_acceleration_rebound_rate": 0.00411522633744856,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 243.0,
+          "role_active_frame_counts": {
+            "1": 138205,
+            "2": 1654,
+            "3": 0,
+            "4": 437
+          },
+          "target_active_rate": 0.030800912417973492,
+          "target_brake_rate": 0.9394640293507737,
+          "target_jerk_p95_mps3": 14.413686275482178,
+          "target_mean_ax_delta_mps2": -4.723892688751221,
+          "target_natural_kl_mean": 35.18424606323242,
+          "target_rear_collision_sequence_rate": 0.00019627085377821394,
+          "target_response_dose_mps2": 4.7526116371154785,
+          "target_rule_action_mean_mps2": 0.09561532735824585,
+          "unrelated_max_abs_correction_mps2": 0.0
+        },
+        "A3_rl_residual_gail": {
+          "collision_sequence_rate": 0.0003925417075564279,
+          "effective_response_sequence_rate": 0.2900883218842002,
+          "ego_collision_sequence_rate": 0.0,
+          "first_effective_response_delay_frames": 10.031123139377538,
+          "minimum_predicted_gap_m": -21.598628997802734,
+          "post_command_brake_rate_while_unresolved": 0.9910714285714286,
+          "post_command_positive_acceleration_rebound_rate": 0.008928571428571428,
+          "post_command_unresolved_inactive_rate": 0.0,
+          "post_command_unresolved_risk_frames": 112.0,
+          "role_active_frame_counts": {
+            "1": 157031,
+            "2": 1633,
+            "3": 0,
+            "4": 256
+          },
+          "target_active_rate": 0.03488966899601092,
+          "target_brake_rate": 0.936073423782921,
+          "target_jerk_p95_mps3": 6.559114766120909,
+          "target_mean_ax_delta_mps2": -4.834506988525391,
+          "target_natural_kl_mean": 31.600648880004883,
+          "target_rear_collision_sequence_rate": 0.0003925417075564279,
+          "target_response_dose_mps2": 4.868795394897461,
+          "target_rule_action_mean_mps2": 0.05989590659737587,
+          "unrelated_max_abs_correction_mps2": 0.0
+        }
+      }
+    }
+  },
+  "natural_exact_base": {},
+  "rows": 5095,
+  "schema": "naturalistic_selected_arm_highwayenv_v3",
+  "split": "test",
+  "status": "complete_dynamic_counterfactual_only"
+}

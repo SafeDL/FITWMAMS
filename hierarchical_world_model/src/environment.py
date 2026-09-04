@@ -16,6 +16,7 @@ from world_model.src.hiqr.filter import FilterState
 
 from .model import DiffusionGuidedHiQR
 from .randomness import WorldExogenousState
+from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
 
 
 @dataclass(frozen=True)
@@ -48,9 +49,15 @@ class ClosedLoopWorld:
         model: DiffusionGuidedHiQR,
         *,
         device: str | torch.device = "cpu",
+        controller: ReactionController | str | None = None,
     ) -> None:
         self.device = torch.device(device)
         self.model = model.to(self.device).eval()
+        if isinstance(controller, str):
+            controller = make_reaction_controller(
+                controller, adapter_logit=self.model.decoder.intervention_logit
+            )
+        self.controller = None if controller is None else controller.to(self.device)
         self.states: torch.Tensor | None = None
         self.valid: torch.Tensor | None = None
         self.history: torch.Tensor | None = None
@@ -72,6 +79,25 @@ class ClosedLoopWorld:
         self.lateral_intervention_memory: torch.Tensor | None = None
         self.response_innovations: torch.Tensor | None = None
         self.response_agent_innovations: torch.Tensor | None = None
+
+    def _controller_context(self, response: object) -> ReactionControllerContext:
+        assert self.history is not None and self.history_valid is not None
+        assert self.states is not None and self.valid is not None
+        assert self.committed_ego_controls is not None
+        return ReactionControllerContext(
+            history=self.history, history_valid=self.history_valid,
+            current=self.states, current_valid=self.valid,
+            committed_ego_controls=self.committed_ego_controls,
+            base_actions=response.actions, reference_actions=response.reference_actions,
+            intervention_trigger=response.intervention_trigger,
+            intervention_memory=response.intervention_memory,
+            lateral_intervention_memory=response.lateral_intervention_memory,
+            agent_style_state=response.agent_style_state,
+            response_field_gain=response.response_field_gain,
+            response_sensitivity_bounds=self.model.response_sensitivity_bounds,
+            adapter_gain=torch.sigmoid(self.model.decoder.intervention_logit), cfg=self.model.cfg,
+            reaction_enabled=None,
+        )
 
     @torch.no_grad()
     def reset(
@@ -355,6 +381,8 @@ class ClosedLoopWorld:
             response_index=self.reference_index // self.model.cfg.execute_frames,
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
+            apply_intervention_adapter=self.controller is None,
+            apply_explicit_ego_response=True,
         )
         self.filter_state = response.filter_state
         self.slow_scene = response.slow_scene
@@ -364,10 +392,17 @@ class ClosedLoopWorld:
         self.intervention_memory = response.intervention_memory
         self.lateral_intervention_memory = response.lateral_intervention_memory
         self.previous_current = states.detach().clone()
+        base_actions = response.actions
+        controller_output = None
+        if self.controller is not None:
+            controller_output = self.controller(self._controller_context(response))
+            response_actions = controller_output.actions
+        else:
+            response_actions = base_actions
         frames: list[torch.Tensor] = []
         for frame in range(self.model.cfg.execute_frames):
             controls = torch.cat(
-                (actions[:, frame, None], response.actions[:, frame]), dim=1
+                (actions[:, frame, None], response_actions[:, frame]), dim=1
             )
             states = self.model.dynamics.step(
                 states, controls, valid, self.model.cfg.dt_s
@@ -391,10 +426,14 @@ class ClosedLoopWorld:
         result.update(
             {
                 "agent_state_frames": new_frames,
-                "background_actions": response.actions,
+                "background_actions": response_actions,
+                "base_background_actions": base_actions,
                 "response_mean": response.mean,
                 "response_std": response.std,
                 "rebased_preview": response.rebased_preview,
+                "controller_alpha": None if controller_output is None else controller_output.alpha,
+                "controller_delta_ax": None if controller_output is None else controller_output.delta_ax,
+                "controller_active": None if controller_output is None else controller_output.active,
             }
         )
         return result

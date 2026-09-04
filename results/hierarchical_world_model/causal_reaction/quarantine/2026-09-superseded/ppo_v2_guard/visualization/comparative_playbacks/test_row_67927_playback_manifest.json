@@ -1,0 +1,46 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "common_random_numbers": true,
+  "counterfactual_gif": "results/hierarchical_world_model/causal_reaction/candidates/ppo_v2_guard/visualization/comparative_playbacks/test_row_67927_counterfactual_a0_a3_brake_8.gif",
+  "counterfactual_summary": {
+    "A0": {
+      "active_frames": 0,
+      "focus_slot": 2,
+      "influenced_npc_collision": false,
+      "minimum_predicted_gap_m": -0.4796571731567383
+    },
+    "A1": {
+      "active_frames": 15,
+      "focus_slot": 2,
+      "influenced_npc_collision": false,
+      "minimum_predicted_gap_m": 4.208945274353027
+    },
+    "A2": {
+      "active_frames": 15,
+      "focus_slot": 2,
+      "influenced_npc_collision": false,
+      "minimum_predicted_gap_m": 4.89005184173584
+    },
+    "A3": {
+      "active_frames": 15,
+      "focus_slot": 2,
+      "influenced_npc_collision": false,
+      "minimum_predicted_gap_m": 4.89005184173584
+    }
+  },
+  "factual_gif": "results/hierarchical_world_model/causal_reaction/candidates/ppo_v2_guard/visualization/comparative_playbacks/test_row_67927_factual_highd_vs_a0.gif",
+  "factual_position_error_m": {
+    "all_background_position_ADE_m": 0.09375274926424026,
+    "focus_npc_position_ADE_m": 0.04210638999938965
+  },
+  "interpretation": "The factual GIF compares highD with A0 under logged ego replay. The four-arm GIF is a counterfactual: after forced ego braking, highD future is not a target; compare causal response, locality, safety and smoothness across arms instead.",
+  "intervention": {
+    "dose_mps2": 8.0,
+    "duration_frames": 25,
+    "start_frame": 25
+  },
+  "row": 67927,
+  "schema": "highwayenv_dynamic_factual_and_counterfactual_playbacks_v2",
+  "selection": "row belongs to the complete dynamic-eligible subset of the 10,151-sequence highD record-isolated test split",
+  "split": "highD record-isolated test"
+}

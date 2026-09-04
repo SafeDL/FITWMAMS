@@ -1,0 +1,9 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "counterfactual_samples": 122880,
+  "counterfactual_window": "post-observation intervention plus 1.0 s recovery",
+  "human_reference": "held-out highD same-lane same-rear 25 Hz action and jerk samples",
+  "human_reference_samples": 9015,
+  "schema": "naturalistic_reaction_telemetry_v1",
+  "split": "validation"
+}

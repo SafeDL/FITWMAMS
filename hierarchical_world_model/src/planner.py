@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 from diffusion.src.data import (
+    ANCHOR_INDEX,
     BackgroundTrajectoryDataset,
     DataBundle,
     make_loader,
@@ -21,6 +22,48 @@ from world_model.src.core.evaluation_scope import EVALUATION_SCOPE_SCHEMA
 
 def _row_digest(rows: np.ndarray) -> str:
     return hashlib.sha256(np.asarray(rows, np.int64).tobytes()).hexdigest()
+
+
+def complete_missing_background_plans(
+    positions: np.ndarray,
+    agent_states: np.ndarray,
+    agent_valid: np.ndarray,
+) -> np.ndarray:
+    """Fill only all-zero, scope-masked plan slots with frozen highD plans.
+
+    The released diffusion contract intentionally masks ``same_rear``.  A
+    zero trajectory for a present non-origin vehicle is not a valid plan: the
+    soft-plan controller reconstructs it as maximum braking at every tick.
+    The residual-PPO experiment needs an immutable plan for all six fixed
+    roles, so it uses the matched highD future only for those absent plan
+    slots.  Non-masked diffusion output is returned byte-for-byte unchanged.
+    """
+    result = np.asarray(positions, np.float32).copy()
+    states = np.asarray(agent_states, np.float32)
+    valid = np.asarray(agent_valid, bool)
+    expected = (len(states), 149, 6, 2)
+    if result.shape != expected:
+        raise ValueError(f"positions must have shape {expected}, got {result.shape}")
+    if states.shape[1] < ANCHOR_INDEX + 150 or states.shape[2:] != (7, 6):
+        raise ValueError("agent_states must include the 149-frame post-anchor highD future")
+    anchor = states[:, ANCHOR_INDEX, 1:, :2]
+    present = valid[:, ANCHOR_INDEX, 1:]
+    missing = (
+        np.abs(result).max(axis=(1, 3)) <= 1.0e-6
+    ) & present & (np.abs(anchor).max(axis=-1) > 1.0e-3)
+    future = states[:, ANCHOR_INDEX + 1 : ANCHOR_INDEX + 150, 1:, :2].copy()
+    future_valid = valid[:, ANCHOR_INDEX + 1 : ANCHOR_INDEX + 150, 1:]
+    for batch, slot in np.argwhere(missing):
+        series = future[batch, :, slot]
+        available = future_valid[batch, :, slot]
+        previous = anchor[batch, slot]
+        for frame in range(len(series)):
+            if available[frame]:
+                previous = series[frame]
+            else:
+                series[frame] = previous
+        result[batch, :, slot] = series
+    return result
 
 
 @torch.no_grad()

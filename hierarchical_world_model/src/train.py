@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import numpy as np
@@ -350,27 +351,31 @@ def train_world_model(
     set_seed(seed)
     experiment = prepare_experiment_data(config, config_dir)
     cfg = _model_config(config)
-    preview_root = ensure_dir(output / "training_preview_cache")
-    train_plans = frozen_diffusion_plans(
-        experiment.bundle,
-        experiment.train_rows,
-        checkpoint=config["paths"]["diffusion_checkpoint"],
-        output_dir=preview_root / "train",
-        device=device,
-        batch_size=256,
-        ddim_steps=20,
-        experiment_scope=scope,
-    )
-    validation_plans = frozen_diffusion_plans(
-        experiment.bundle,
-        experiment.validation_rows,
-        checkpoint=config["paths"]["diffusion_checkpoint"],
-        output_dir=preview_root / "validation",
-        device=device,
-        batch_size=256,
-        ddim_steps=20,
-        experiment_scope=scope,
-    )
+    # Frozen Diffusion plans are an in-process training input, not a release
+    # artifact.  Keeping them under ``results/`` used to leave hundreds of MB
+    # of reproducible preview caches after each staged training run.
+    with TemporaryDirectory(prefix="hiqr_diffusion_plans_") as temporary_cache:
+        preview_root = Path(temporary_cache)
+        train_plans = frozen_diffusion_plans(
+            experiment.bundle,
+            experiment.train_rows,
+            checkpoint=config["paths"]["diffusion_checkpoint"],
+            output_dir=preview_root / "train",
+            device=device,
+            batch_size=256,
+            ddim_steps=20,
+            experiment_scope=scope,
+        )
+        validation_plans = frozen_diffusion_plans(
+            experiment.bundle,
+            experiment.validation_rows,
+            checkpoint=config["paths"]["diffusion_checkpoint"],
+            output_dir=preview_root / "validation",
+            device=device,
+            batch_size=256,
+            ddim_steps=20,
+            experiment_scope=scope,
+        )
     response_calibrator, response_report = fit_natural_response_calibrator(
         experiment.bundle.arrays,
         experiment.train_rows,

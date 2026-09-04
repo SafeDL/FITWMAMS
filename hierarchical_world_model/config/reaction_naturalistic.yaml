@@ -1,0 +1,100 @@
+# Independent second-stage naturalistic reaction experiment.  It keeps the
+# released Flow/Diffusion/HiQR checkpoint immutable.
+base_config: hierarchical_world_model/config/release.yaml
+paths:
+  # Each independently auditable component owns its artifact directory.
+  # `ppo` contains only reaction-policy checkpoints/evaluation/evidence;
+  # rule and human-prior artifacts must never be mistaken for PPO outputs.
+  output_dir: results/hierarchical_world_model/causal_reaction/formal/ppo
+  rule_model: results/hierarchical_world_model/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json
+  # Latest V4 prior is an independent candidate artifact.  Formal release
+  # checkpoints remain untouched; callers may override this path explicitly
+  # for another frozen prior.
+  human_prior: results/hierarchical_world_model/causal_reaction/candidates/gail_v4_temporal/human_prior.pt
+training:
+  device: auto
+  seed: 20260902
+  # A full 149-frame (5.96 s) HighwayEnv episode is required: the old 64-frame
+  # horizon frequently ended before a long ADS brake and its rear-TTC outcome.
+  rollout_steps: 149
+  episodes_per_rollout: 64
+  epochs_per_update: 4
+  minibatch_size: 2048
+  # The current dynamic-scope audit finds 42,192 eligible highD train scenes.
+  # 660 × 64 resets is one complete stratified pass; 700 leaves a short
+  # post-pass stability tail while keeping all arms on the same schedule.
+  updates: 700
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_ratio: 0.2
+  value_coefficient: 0.5
+  entropy_coefficient: 0.01
+  max_grad_norm: 1.0
+  plan_coefficient: 0.02
+  invalid_penalty: 10.0
+  jerk_limit_mps3: 100.0
+  safety_ttc_s: 2.0
+  safety_coefficient: 2.0
+  excess_brake_coefficient: 0.02
+  response_floor: 0.85
+  response_floor_coefficient: 3.0
+  # Do not collapse -6/-8 m/s² ADS interventions into the old 4 m/s² reward
+  # target; PPO must learn a proportional large response.
+  response_target_max_mps2: 8.0
+  jerk_coefficient: 0.10
+  reaction_min_frames: 5
+  # Legacy feature-normalization scale only; it is no longer an authority
+  # timeout.  A triggered same-rear controller remains engaged until the
+  # realized following risk has cleared.
+  reaction_max_frames: 149
+  reaction_recovery_frames: 15
+  reaction_release_ttc_s: 4.0
+  influence_radius_m: 50.0
+  influence_secondary_radius_m: 35.0
+  influence_prediction_horizon_s: 1.5
+  # 13 ticks at 25 Hz is the required continuously safe/opening dwell.
+  influence_stable_release_frames: 13
+  validation_interval_updates: 10
+  validation_scenes: 128
+  validation_patience: 4
+  validation_minimum_improvement: 0.002
+  recovery_plan_coefficient: 2.0
+  recovery_residual_coefficient: 0.5
+  # Tuned on validation only.  The prior remains a soft constraint: response
+  # reward still dominates when a realized rear TTC is unsafe.
+  # Fixed as specified for A3: naturalness must regularize safe response,
+  # never dominate the causal braking objective.
+  naturalness_weight: 0.05
+  # Zero requests automatic M calibration from the frozen A2 policy before
+  # A3 starts; lambda_H remains fixed at 0.05.
+  naturalness_kl_scale: 0.0
+  naturalness_ttc_relax_s: 2.0
+  naturalness_ttc_full_s: 4.0
+  diffusion_ddim_steps: 20
+human_prior:
+  # Formal training consumes the complete eligible highD train split through
+  # deterministic streaming epochs; it is not the former 20k-pair smoke run.
+  bc_epochs: 30
+  gail_epochs: 20
+  batch_size: 2048
+  actor_learning_rate: 0.0001
+  critic_learning_rate: 0.001
+  discriminator_learning_rate: 0.0001
+  gail_bc_initial_weight: 0.1
+  gail_bc_decay_passes: 3
+  # Paired highD temporal regularizer used during GAIL refinement only.
+  # It suppresses iid 25-Hz action alternation without replacing the
+  # adversarial human-action objective.
+  gail_jerk_weight: 0.1
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_ratio: 0.2
+  ppo_epochs: 4
+  patience: 5
+  trajectory_frames: 50
+  # Simulator vectorization only; PPO optimization batches remain 2048.
+  highway_rollout_batch: 128
+  refinement_source_rows: 0
+  max_expert_samples: 0
+  seed: 20260902

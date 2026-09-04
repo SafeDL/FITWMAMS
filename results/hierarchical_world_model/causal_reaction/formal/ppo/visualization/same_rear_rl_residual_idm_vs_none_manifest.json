@@ -1,0 +1,20 @@
+{
+  "active_frames": 123,
+  "backend": "HighwayEnvClosedLoopWorld",
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+  "controller": "rl_residual_idm",
+  "dose_mps2": 8.0,
+  "frame_stride": 2,
+  "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/visualization/same_rear_lane_keep_highwayenv_rl_residual_idm_vs_none_brake_8.gif",
+  "maximum_initial_rear_gap_m": 45.0,
+  "mean_rear_residual_active_mps2": -4.390905857086182,
+  "minimum_rear_gap_none_m": 8.167068481445312,
+  "minimum_rear_gap_ppo_m": 20.099266052246094,
+  "none_collision": false,
+  "none_ego_or_rear_collision": false,
+  "paired_common_random_numbers": true,
+  "ppo_collision": false,
+  "ppo_ego_or_rear_collision": false,
+  "rear_lateral_displacement_max_m": 0.4,
+  "row": 64622
+}

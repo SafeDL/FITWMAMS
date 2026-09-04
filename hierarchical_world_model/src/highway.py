@@ -14,6 +14,13 @@ from tools.idm_ego import IDM_PARAMETER_KEYS
 from world_model.src.hiqr.filter import FilterState
 
 from .model import DiffusionGuidedHiQR
+from .influence_graph import CausalInfluenceGraph, InfluenceGraphState
+from .reaction_controller import (
+    ReactionController,
+    ReactionControllerContext,
+    controller_features,
+    make_reaction_controller,
+)
 
 
 HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT = "kinematic_unicycle_on_highwayenv_road"
@@ -141,6 +148,7 @@ class HighwayEnvStep:
     ego_action: np.ndarray
     background_actions: np.ndarray
     collision: bool
+    crashed: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -159,6 +167,13 @@ class HighwayEnvWorldSnapshot:
     committed_ego_controls: torch.Tensor
     intervention_memory: torch.Tensor | None
     lateral_intervention_memory: torch.Tensor | None
+    reaction_enabled: torch.Tensor | None
+    reaction_phase: torch.Tensor | None
+    reaction_age_frames: torch.Tensor | None
+    reaction_recovery_remaining: torch.Tensor | None
+    previous_background_actions: torch.Tensor | None
+    intervention_armed: torch.Tensor | None
+    influence_state: InfluenceGraphState | None
     traffic: tuple[HighwayEnvSnapshot, ...]
 
 
@@ -402,11 +417,15 @@ class HighwayEnvTraffic:
         for slot, vehicle in self.background.items():
             executed_background[slot] = self._control_from_vehicle(vehicle)
         road.step(self.dt_s)
+        crashed = np.zeros(7, dtype=bool)
+        for slot, vehicle in self._slot_vehicles().items():
+            crashed[slot] = bool(vehicle.crashed)
         return HighwayEnvStep(
             states=self.states(),
             ego_action=ego_control,
             background_actions=executed_background,
-            collision=bool(any(vehicle.crashed for vehicle in road.vehicles)),
+            collision=bool(crashed.any()),
+            crashed=crashed,
         )
 
     def snapshot(self) -> HighwayEnvSnapshot:
@@ -488,10 +507,44 @@ class HighwayEnvClosedLoopWorld:
         *,
         device: str | torch.device = "cpu",
         idm_config: dict[str, Any] | None = None,
+        controller: ReactionController | str | None = None,
+        reaction_min_frames: int = 5,
+        reaction_max_frames: int = 75,
+        reaction_recovery_frames: int = 15,
+        reaction_safety_ttc_s: float = 2.0,
+        reaction_release_ttc_s: float = 4.0,
+        influence_radius_m: float = 50.0,
+        influence_secondary_radius_m: float = 35.0,
+        influence_prediction_horizon_s: float = 1.5,
+        influence_stable_release_frames: int = 13,
     ) -> None:
         self.device = torch.device(device)
         self.model = model.to(self.device).eval()
         self.idm_config = None if idm_config is None else dict(idm_config)
+        # ``None`` preserves historical callers.  An explicit controller mode
+        # always requests decoder base actions and applies exactly one hook.
+        if isinstance(controller, str):
+            controller = make_reaction_controller(
+                controller, adapter_logit=self.model.decoder.intervention_logit
+            )
+        self.controller = None if controller is None else controller.to(self.device)
+        if not (0 <= reaction_min_frames <= reaction_max_frames):
+            raise ValueError("reaction authority frames must satisfy 0 <= min <= max")
+        if reaction_recovery_frames < 1 or reaction_safety_ttc_s <= 0.0 or reaction_release_ttc_s < reaction_safety_ttc_s:
+            raise ValueError("reaction recovery frames must be positive and release TTC must be >= safety TTC")
+        self.reaction_min_frames = int(reaction_min_frames)
+        self.reaction_max_frames = int(reaction_max_frames)
+        self.reaction_recovery_frames = int(reaction_recovery_frames)
+        self.reaction_safety_ttc_s = float(reaction_safety_ttc_s)
+        self.reaction_release_ttc_s = float(reaction_release_ttc_s)
+        self.influence_graph = CausalInfluenceGraph(
+            radius_m=influence_radius_m,
+            secondary_radius_m=influence_secondary_radius_m,
+            prediction_horizon_s=influence_prediction_horizon_s,
+            release_ttc_s=reaction_release_ttc_s,
+            stable_release_frames=influence_stable_release_frames,
+            recovery_frames=reaction_recovery_frames,
+        )
         self.traffic: list[HighwayEnvTraffic] = []
         self.states: torch.Tensor | None = None
         self.valid: torch.Tensor | None = None
@@ -514,6 +567,92 @@ class HighwayEnvClosedLoopWorld:
         self.response_innovations: torch.Tensor | None = None
         self.response_agent_innovations: torch.Tensor | None = None
         self.deterministic_response = False
+        self.reaction_enabled: torch.Tensor | None = None
+        # 0=inactive, 1=engaged (response/safety), 2=recovery (return to plan).
+        self.reaction_phase: torch.Tensor | None = None
+        self.reaction_age_frames: torch.Tensor | None = None
+        self.reaction_recovery_remaining: torch.Tensor | None = None
+        self.previous_background_actions: torch.Tensor | None = None
+        self.intervention_armed: torch.Tensor | None = None
+        self.influence_state: InfluenceGraphState | None = None
+
+    def set_reaction_enabled(self, enabled: torch.Tensor | np.ndarray | bool) -> None:
+        """Legacy manual authority override; PPO uses causal registration below."""
+        states, _ = self._require()
+        value = torch.as_tensor(enabled, dtype=torch.bool, device=self.device)
+        if value.ndim == 0:
+            value = value.expand(states.shape[0])
+        if tuple(value.shape) != (states.shape[0],):
+            raise ValueError("reaction enable mask must be scalar or [batch]")
+        self.intervention_armed = value.clone()
+        expanded = value[:, None].expand(-1, 6)
+        self.reaction_enabled = expanded.clone()
+        self.reaction_phase = expanded.long()
+        self.reaction_age_frames = torch.zeros_like(expanded, dtype=torch.long)
+        self.reaction_recovery_remaining = torch.zeros_like(expanded, dtype=torch.long)
+
+    def register_executed_ego_intervention(
+        self, executed: torch.Tensor | np.ndarray | bool,
+    ) -> None:
+        """Arm dynamic influence monitoring after an ADS action has executed."""
+        states, _ = self._require()
+        event = torch.as_tensor(executed, dtype=torch.bool, device=self.device)
+        if event.ndim == 0:
+            event = event.expand(states.shape[0])
+        if tuple(event.shape) != (states.shape[0],):
+            raise ValueError("executed intervention mask must be scalar or [batch]")
+        if self.intervention_armed is None:
+            self.intervention_armed = torch.zeros_like(event)
+        # This method is called after ``advance_response``.  Therefore this
+        # latch cannot expose the command to the background action that ran in
+        # the same tick; the graph first sees it at the next response boundary.
+        self.intervention_armed = self.intervention_armed | event
+
+    def _controller_context(self, response) -> ReactionControllerContext:
+        assert self.history is not None and self.history_valid is not None
+        assert self.states is not None and self.valid is not None
+        assert self.committed_ego_controls is not None
+        assert self.intervention_armed is not None
+        self.influence_state = self.influence_graph.update(
+            self.states,
+            self.valid,
+            self.history,
+            self.intervention_armed,
+            self.influence_state,
+            self.previous_background_actions,
+        )
+        self.reaction_enabled = self.influence_state.authority > 0.0
+        self.reaction_phase = self.influence_state.phase
+        self.reaction_age_frames = self.influence_state.age_frames
+        self.reaction_recovery_remaining = self.influence_state.recovery_remaining
+        return ReactionControllerContext(
+            history=self.history, history_valid=self.history_valid,
+            current=self.states, current_valid=self.valid,
+            committed_ego_controls=self.committed_ego_controls,
+            base_actions=response.actions, reference_actions=response.reference_actions,
+            intervention_trigger=response.intervention_trigger,
+            intervention_memory=response.intervention_memory,
+            lateral_intervention_memory=response.lateral_intervention_memory,
+            agent_style_state=response.agent_style_state,
+            response_field_gain=response.response_field_gain,
+            response_sensitivity_bounds=self.model.response_sensitivity_bounds,
+            adapter_gain=torch.sigmoid(self.model.decoder.intervention_logit), cfg=self.model.cfg,
+            reaction_enabled=self.reaction_enabled,
+            reaction_phase=self.reaction_phase,
+            reaction_age_frames=self.reaction_age_frames,
+            reaction_max_frames=self.reaction_max_frames,
+            reaction_release_ttc_s=self.reaction_release_ttc_s,
+            reaction_recovery_remaining=self.reaction_recovery_remaining,
+            reaction_recovery_frames=self.reaction_recovery_frames,
+            previous_background_actions=self.previous_background_actions,
+            influence_authority=self.influence_state.authority,
+            influence_role=self.influence_state.role,
+            influence_parent=self.influence_state.parent,
+            influence_direct=self.influence_state.direct,
+            influence_secondary=self.influence_state.secondary,
+            influence_predicted_ttc_s=self.influence_state.predicted_ttc_s,
+            influence_predicted_min_gap_m=self.influence_state.predicted_min_gap_m,
+        )
 
     def _require(self) -> tuple[torch.Tensor, torch.Tensor]:
         if self.states is None or self.valid is None:
@@ -632,6 +771,13 @@ class HighwayEnvClosedLoopWorld:
             device=self.device,
         )
         self.deterministic_response = bool(deterministic_response)
+        self.reaction_enabled = torch.zeros((len(self.traffic), 6), dtype=torch.bool, device=self.device)
+        self.reaction_phase = torch.zeros((len(self.traffic), 6), dtype=torch.long, device=self.device)
+        self.reaction_age_frames = torch.zeros((len(self.traffic), 6), dtype=torch.long, device=self.device)
+        self.reaction_recovery_remaining = torch.zeros((len(self.traffic), 6), dtype=torch.long, device=self.device)
+        self.previous_background_actions = None
+        self.intervention_armed = torch.zeros(len(self.traffic), dtype=torch.bool, device=self.device)
+        self.influence_state = InfluenceGraphState.empty(len(self.traffic), device=self.device)
         return self.observe()
 
     def observe(self) -> dict[str, torch.Tensor | int]:
@@ -710,6 +856,11 @@ class HighwayEnvClosedLoopWorld:
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
             deterministic=self.deterministic_response,
+            apply_intervention_adapter=self.controller is None,
+            # The learned frozen HiQR ego-response actuator is part of the
+            # factual checkpoint.  Only the migrated handcrafted adapter is
+            # mutually exclusive with a post-HiQR controller.
+            apply_explicit_ego_response=True,
         )
         self.filter_state = response.filter_state
         self.slow_scene = response.slow_scene
@@ -719,18 +870,31 @@ class HighwayEnvClosedLoopWorld:
         self.intervention_memory = response.intervention_memory
         self.lateral_intervention_memory = response.lateral_intervention_memory
         self.previous_current = states.detach().clone()
+        base_actions = response.actions
+        controller_output = None
+        if self.controller is not None:
+            controller_context = self._controller_context(response)
+            controller_output = self.controller(controller_context, deterministic=self.deterministic_response)
+            response_actions = controller_output.actions
+        else:
+            response_actions = base_actions
         realized: list[np.ndarray] = []
         executed_ego: list[np.ndarray] = []
         executed_background: list[np.ndarray] = []
+        collisions: list[bool] = []
+        crashed: list[np.ndarray] = []
         for index, traffic in enumerate(self.traffic):
             step = traffic.step(
-                response.actions[index, 0].detach().cpu().numpy(),
+                response_actions[index, 0].detach().cpu().numpy(),
                 ego_action=action[index, 0].detach().cpu().numpy(),
             )
             realized.append(step.states)
             executed_ego.append(step.ego_action)
             executed_background.append(step.background_actions)
+            collisions.append(bool(step.collision))
+            crashed.append(step.crashed)
         self.states = torch.from_numpy(np.stack(realized)).to(self.device)
+        self.previous_background_actions = torch.from_numpy(np.stack(executed_background)).to(self.device)
         self.committed_ego_controls = torch.cat((self.committed_ego_controls, action), dim=1)[
             :, -self.model.cfg.intervention_trigger_history_frames - 1 :
         ]
@@ -746,10 +910,37 @@ class HighwayEnvClosedLoopWorld:
             {
                 "agent_state_frames": self.states[:, None],
                 "background_actions": torch.from_numpy(np.stack(executed_background)).to(self.device)[:, None],
+                "base_background_actions": base_actions.detach().clone(),
                 "ego_actions": torch.from_numpy(np.stack(executed_ego)).to(self.device)[:, None],
                 "response_mean": response.mean,
                 "response_std": response.std,
                 "rebased_preview": response.rebased_preview,
+                "intervention_trigger": response.intervention_trigger.detach().clone(),
+                "intervention_memory": response.intervention_memory.detach().clone(),
+                "collision": torch.as_tensor(collisions, device=self.device, dtype=torch.bool),
+                "crashed": torch.from_numpy(np.stack(crashed)).to(self.device),
+                "controller_alpha": None if controller_output is None else controller_output.alpha.detach().clone(),
+                "controller_delta_ax": None if controller_output is None else controller_output.delta_ax.detach().clone(),
+                "controller_active": None if controller_output is None else controller_output.active.detach().clone(),
+                "controller_phase": self.reaction_phase.detach().clone(),
+                "controller_age_frames": self.reaction_age_frames.detach().clone(),
+                "controller_features": None if controller_output is None else (
+                    controller_features(controller_context) if controller_output.policy_features is None else controller_output.policy_features
+                ).detach().clone(),
+                "controller_raw_action": None if controller_output is None or controller_output.raw_action is None else controller_output.raw_action.detach().clone(),
+                "controller_log_prob": None if controller_output is None or controller_output.log_prob is None else controller_output.log_prob.detach().clone(),
+                "controller_entropy": None if controller_output is None or controller_output.entropy is None else controller_output.entropy.detach().clone(),
+                "controller_value": None if controller_output is None or controller_output.value is None else controller_output.value.detach().clone(),
+                "controller_rule_action_ax": None if controller_output is None or controller_output.rule_action_ax is None else controller_output.rule_action_ax.detach().clone(),
+                "controller_natural_kl": None if controller_output is None or controller_output.natural_kl is None else controller_output.natural_kl.detach().clone(),
+                "controller_desired_action_ax": None if controller_output is None or controller_output.desired_action_ax is None else controller_output.desired_action_ax.detach().clone(),
+                "influence_authority": None if self.influence_state is None else self.influence_state.authority.detach().clone(),
+                "influence_role": None if self.influence_state is None else self.influence_state.role.detach().clone(),
+                "influence_parent": None if self.influence_state is None else self.influence_state.parent.detach().clone(),
+                "influence_direct": None if self.influence_state is None else self.influence_state.direct.detach().clone(),
+                "influence_secondary": None if self.influence_state is None else self.influence_state.secondary.detach().clone(),
+                "influence_predicted_ttc_s": None if self.influence_state is None else self.influence_state.predicted_ttc_s.detach().clone(),
+                "influence_predicted_min_gap_m": None if self.influence_state is None else self.influence_state.predicted_min_gap_m.detach().clone(),
             }
         )
         return result
@@ -773,6 +964,13 @@ class HighwayEnvClosedLoopWorld:
             committed_ego_controls=self.committed_ego_controls.detach().clone(),
             intervention_memory=self._clone(self.intervention_memory),
             lateral_intervention_memory=self._clone(self.lateral_intervention_memory),
+            reaction_enabled=self._clone(self.reaction_enabled),
+            reaction_phase=self._clone(self.reaction_phase),
+            reaction_age_frames=self._clone(self.reaction_age_frames),
+            reaction_recovery_remaining=self._clone(self.reaction_recovery_remaining),
+            previous_background_actions=self._clone(self.previous_background_actions),
+            intervention_armed=self._clone(self.intervention_armed),
+            influence_state=self.influence_state,
             traffic=tuple(traffic.snapshot() for traffic in self.traffic),
         )
 
@@ -797,4 +995,11 @@ class HighwayEnvClosedLoopWorld:
         self.committed_ego_controls = snapshot.committed_ego_controls.detach().clone().to(self.device)
         self.intervention_memory = self._clone(snapshot.intervention_memory)
         self.lateral_intervention_memory = self._clone(snapshot.lateral_intervention_memory)
+        self.reaction_enabled = self._clone(snapshot.reaction_enabled)
+        self.reaction_phase = self._clone(snapshot.reaction_phase)
+        self.reaction_age_frames = self._clone(snapshot.reaction_age_frames)
+        self.reaction_recovery_remaining = self._clone(snapshot.reaction_recovery_remaining)
+        self.previous_background_actions = self._clone(snapshot.previous_background_actions)
+        self.intervention_armed = self._clone(snapshot.intervention_armed)
+        self.influence_state = snapshot.influence_state
         return self.observe()

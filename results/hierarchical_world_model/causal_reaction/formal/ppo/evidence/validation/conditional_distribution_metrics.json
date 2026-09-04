@@ -1,0 +1,135 @@
+{
+  "comparison": "held-out highD versus post-observation HighwayEnv target-NPC actions, matched by realised TTC bin",
+  "counterfactual_condition": "-8 m/s² ego brake for 1.0 s",
+  "metrics": {
+    "TTC 0–2 s": {
+      "A0_none": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 384,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 35,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 12,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 14,
+        "highd_samples": 3,
+        "jerk_ks": null,
+        "jerk_w1_mps3": null,
+        "minimum_samples_required": 128,
+        "status": "insufficient_matched_samples"
+      }
+    },
+    "TTC 2–4 s": {
+      "A0_none": {
+        "action_ks": 0.36334032564179397,
+        "action_w1_mps2": 0.6510168828212362,
+        "generated_samples": 852,
+        "highd_samples": 235,
+        "jerk_ks": 0.6514084507042254,
+        "jerk_w1_mps3": 20.795652175140013,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A1_rl_residual": {
+        "action_ks": 0.2605774549209041,
+        "action_w1_mps2": 0.9592960442650598,
+        "generated_samples": 1154,
+        "highd_samples": 235,
+        "jerk_ks": 0.708838821490468,
+        "jerk_w1_mps3": 5.6336347124634685,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": 0.4371544763364178,
+        "action_w1_mps2": 1.8856872945953485,
+        "generated_samples": 722,
+        "highd_samples": 235,
+        "jerk_ks": 0.8448753462603878,
+        "jerk_w1_mps3": 7.816770318148898,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": 0.3828051442547931,
+        "action_w1_mps2": 1.68582079000832,
+        "generated_samples": 809,
+        "highd_samples": 235,
+        "jerk_ks": 0.7589616810877626,
+        "jerk_w1_mps3": 8.020899786301413,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      }
+    },
+    "TTC ≥4 s": {
+      "A0_none": {
+        "action_ks": 0.31236475305498984,
+        "action_w1_mps2": 0.49979144464296577,
+        "generated_samples": 1964,
+        "highd_samples": 256,
+        "jerk_ks": 0.6033604887983707,
+        "jerk_w1_mps3": 20.266235284747406,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A1_rl_residual": {
+        "action_ks": 0.34214748570363,
+        "action_w1_mps2": 0.638059153486906,
+        "generated_samples": 2011,
+        "highd_samples": 256,
+        "jerk_ks": 0.7444057682744902,
+        "jerk_w1_mps3": 5.892635897229946,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": 0.5946909215328468,
+        "action_w1_mps2": 1.6585374583858838,
+        "generated_samples": 2466,
+        "highd_samples": 256,
+        "jerk_ks": 0.7510137875101379,
+        "jerk_w1_mps3": 5.424776072264649,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": 0.5034592579932688,
+        "action_w1_mps2": 2.0788626760929168,
+        "generated_samples": 2377,
+        "highd_samples": 256,
+        "jerk_ks": 0.809002944888515,
+        "jerk_w1_mps3": 6.155689864478293,
+        "minimum_samples_required": 128,
+        "status": "ok"
+      }
+    }
+  },
+  "minimum_matched_samples": 128,
+  "schema": "reaction_naturalness_distribution_evidence_v1",
+  "split": "validation"
+}

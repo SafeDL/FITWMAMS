@@ -2,8 +2,8 @@
 # The validated response configuration is frozen into ``final_world_model.pt``
 # before final evaluation; evaluation must never override its model contract.
 paths:
-  output_dir: results/hierarchical_world_model
-  evaluation_checkpoint: results/hierarchical_world_model/checkpoints/final_world_model.pt
+  output_dir: results/hierarchical_world_model/world_model
+  evaluation_checkpoint: results/hierarchical_world_model/world_model/checkpoints/final_world_model.pt
   evt_model: results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json
   sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
   source_schema: results/highd_natural_driving_flow/dataset_schema.json
@@ -11,7 +11,7 @@ paths:
   flow_checkpoint: results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
   diffusion_checkpoint: results/background_diffusion/checkpoints/best_background_diffusion.pt
   diffusion_contract: results/background_diffusion/dataset_contract.json
-  response_calibration_reference: results/hierarchical_world_model/natural_response_calibration.json
+  response_calibration_reference: results/hierarchical_world_model/world_model/causal_diagnostics/natural_response_calibration.json
 
 evaluation_scope:
   schema: highd_follower_excluded_v1

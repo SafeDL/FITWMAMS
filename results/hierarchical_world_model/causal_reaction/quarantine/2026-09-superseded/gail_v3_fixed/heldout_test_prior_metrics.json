@@ -1,0 +1,22 @@
+{
+  "bounded_gaussian_action_nll": 0.17241841554641724,
+  "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v3_fixed/human_prior.pt",
+  "conditional_mean_action_w1_mps2": 0.06927130601738002,
+  "mean_absolute_error_mps2": 0.12132337689399719,
+  "note": "conditional sample selection balances ordinary following and TTC-critical following; distribution distances are reported with that fixed sampling scheme.",
+  "observed_brake_response_reference_groups": {
+    "dose_2_ttc_0": 0,
+    "dose_2_ttc_1": 0,
+    "dose_2_ttc_2": 512,
+    "dose_4_ttc_0": 0,
+    "dose_4_ttc_1": 0,
+    "dose_4_ttc_2": 0
+  },
+  "observed_brake_response_reference_samples": 512,
+  "sampled_action_ks": 0.21758767268862916,
+  "sampled_action_w1_mps2": 0.1808439894132989,
+  "samples": 3764,
+  "schema": "longitudinal_human_prior_heldout_v2",
+  "split": "test",
+  "stage": "gail"
+}

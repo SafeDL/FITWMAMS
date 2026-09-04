@@ -1,0 +1,42 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "common_random_numbers": true,
+  "counterfactual_gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/visualization/comparative_playbacks/test_row_67927_counterfactual_a0_a3_brake_8.gif",
+  "counterfactual_summary": {
+    "A0": {
+      "active_frames": 0,
+      "minimum_rear_gap_m": -25.65948486328125,
+      "rear_collision": false
+    },
+    "A1": {
+      "active_frames": 79,
+      "minimum_rear_gap_m": -25.904312133789062,
+      "rear_collision": false
+    },
+    "A2": {
+      "active_frames": 79,
+      "minimum_rear_gap_m": -25.904312133789062,
+      "rear_collision": false
+    },
+    "A3": {
+      "active_frames": 79,
+      "minimum_rear_gap_m": -25.904312133789062,
+      "rear_collision": false
+    }
+  },
+  "factual_gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/visualization/comparative_playbacks/test_row_67927_factual_highd_vs_a0.gif",
+  "factual_position_error_m": {
+    "all_background_position_ADE_m": 1.2574280500411987,
+    "same_rear_position_ADE_m": 1.740736961364746
+  },
+  "interpretation": "The factual GIF compares highD with A0 under logged ego replay. The four-arm GIF is a counterfactual: after forced ego braking, highD future is not a target; compare causal response, locality, safety and smoothness across arms instead.",
+  "intervention": {
+    "dose_mps2": 8.0,
+    "duration_frames": 25,
+    "start_frame": 25
+  },
+  "row": 67927,
+  "schema": "highwayenv_factual_and_counterfactual_reaction_playbacks_v1",
+  "selection": "row is member of the fixed 64-scene subset of 1,014 eligible same-lane closing same-rear scenes from the 10,151-sequence highD record-isolated test split",
+  "split": "highD record-isolated test"
+}

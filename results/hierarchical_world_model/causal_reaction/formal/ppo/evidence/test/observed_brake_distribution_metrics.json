@@ -1,0 +1,128 @@
+{
+  "comparison": "held-out highD rear response following an observed front brake, versus the corresponding post-observation counterfactual response window",
+  "metrics": {
+    "ego_brake_2_4_ttc_2–4 s": {
+      "A0_none": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 46,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 36,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 25,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 26,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      }
+    },
+    "ego_brake_2_4_ttc_≥4 s": {
+      "A0_none": {
+        "action_ks": 0.6703090583700441,
+        "action_w1_mps2": 1.8270614503594573,
+        "generated_samples": 9080,
+        "highd_samples": 512,
+        "status": "ok"
+      },
+      "A1_rl_residual": {
+        "action_ks": 0.5297798920517052,
+        "action_w1_mps2": 0.9822697113294466,
+        "generated_samples": 9090,
+        "highd_samples": 512,
+        "status": "ok"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": 0.1749208963987474,
+        "action_w1_mps2": 0.21511224518934327,
+        "generated_samples": 9101,
+        "highd_samples": 512,
+        "status": "ok"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": 0.5889010989010989,
+        "action_w1_mps2": 1.0688630614159804,
+        "generated_samples": 9100,
+        "highd_samples": 512,
+        "status": "ok"
+      }
+    },
+    "ego_brake_4_6_ttc_2–4 s": {
+      "A0_none": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 92,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 66,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 51,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 49,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      }
+    },
+    "ego_brake_4_6_ttc_≥4 s": {
+      "A0_none": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 9029,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A1_rl_residual": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 9060,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A2_rl_residual_idm": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 9075,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      },
+      "A3_rl_residual_gail": {
+        "action_ks": null,
+        "action_w1_mps2": null,
+        "generated_samples": 9077,
+        "highd_samples": 0,
+        "status": "insufficient_matched_samples"
+      }
+    }
+  },
+  "minimum_matched_samples": 128,
+  "schema": "reaction_observed_brake_distribution_evidence_v1",
+  "split": "test"
+}

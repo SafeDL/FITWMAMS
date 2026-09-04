@@ -91,10 +91,26 @@ Monte Carlo 和其结果都归 `IDM_subset/` 管理。
 `acceptance.py`。`risk_calibration.py` 和
 `history_eval.py` 是独立诊断，可按需运行。
 
-训练 checkpoint、校准记录、最终全量评价与门槛审计均位于 `results/hierarchical_world_model/`。正式工件为 `checkpoints/final_world_model.pt`，其完整配置、三层 checkpoint 哈希与数据划分记录在 `checkpoints/final_model_manifest.json`；正式评估不再覆盖 checkpoint 配置。
+训练 checkpoint、校准记录、最终全量评价与门槛审计均位于 `results/hierarchical_world_model/`。正式工件为 `world_model/checkpoints/final_world_model.pt`，其完整配置、三层 checkpoint 哈希与数据划分记录在 `world_model/checkpoints/final_model_manifest.json`；正式评估不再覆盖 checkpoint 配置。
 
-结果目录只保留正式报告和 `final/` 门槛包。训练、评测、随机性、sampled E2E 与
-acceptance 工件均写入 `results/hierarchical_world_model/`；探索性输出不参与 acceptance gate。
+结果目录只保留可追溯工件，不持久化可再生的训练 preview cache：
+
+```text
+results/hierarchical_world_model/
+├── world_model/                   # 主干训练、checkpoint、正式评估、安全审计
+│   ├── checkpoints/
+│   ├── training/
+│   ├── evaluation/
+│   ├── causal_diagnostics/
+│   └── safety/
+└── causal_reaction/               # NPC 因果反应修正项的独立实验
+    ├── formal/                     # 冻结 IDM/MOBIL 与已验证 PPO 基线
+    └── candidates/                 # 当前动态 PPO、V4 GAIL 与 A3 拒绝证据
+```
+
+`train.py` 的 Diffusion preview 计划仅在训练进程的临时目录中保存，退出后自动删除；
+其余缓存若服务于独立诊断，必须与对应报告同目录保存。训练、评测、随机性、sampled E2E 与
+acceptance 工件均写入上述目录；探索性输出不参与 acceptance gate。
 
 ## AMS 接口
 
@@ -115,3 +131,59 @@ conda run -n tread python hierarchical_world_model/scripts/acceptance.py
 ```
 
 `history_eval.py` 是诊断而非训练 gate：当前冻结权重若未显示可观测的 history sensitivity，应约束论文表述，而不是仅为通过该诊断扩大模型或噪声。
+
+## IDM/MOBIL 与 GAIL 自然性扩展
+
+`reaction_naturalistic.yaml` 是唯一维护的四臂消融配置。PPO 的语义是“动态因果后车反应残差”
+而非通用驾驶策略：只有已执行的 ADS 制动写入 HighwayEnv 后，动态影响图认定的直接或一跳
+次级候选车辆才可输出 `α` 与纵向残差；无控制权的槽位逐元素保留 HiQR 基础动作。图只读取
+已实现状态和已提交控制，风险解除并稳定 0.5 s 后以 recovery envelope 释放。先从 training
+split 标定规则与人类先验，再训练新增策略：
+
+```bash
+conda run -n tread python hierarchical_world_model/scripts/calibrate_reaction_rules.py
+conda run -n tread python hierarchical_world_model/scripts/evaluate_reaction_rules.py --split validation
+conda run -n tread python hierarchical_world_model/scripts/evaluate_human_driving_prior.py --split validation
+conda run -n tread python hierarchical_world_model/scripts/visualize_human_prior_evidence.py
+conda run -n tread python hierarchical_world_model/scripts/visualize_a2_a3_fast_evidence.py \
+  --artifact-dir results/hierarchical_world_model/causal_reaction/candidates/a3_v4_balanced
+conda run -n tread python hierarchical_world_model/scripts/render_reaction_ppo_comparative_playbacks.py \
+  --artifact-dir results/hierarchical_world_model/causal_reaction/candidates/ppo_v7_final --row 3456
+```
+
+训练新的 prior 或 PPO controller 时必须显式使用 `--output` 或 `--output-dir` 指向新的
+candidate 目录，不能覆盖 `formal/`、`ppo_v7_final/`、`gail_v4_temporal/` 或
+`a3_v4_balanced/`。完整的保留工件和生命周期说明见
+`results/hierarchical_world_model/causal_reaction/README.md`。
+
+消融固定为 `A0_none`、已有纯 `A1_rl_residual`、IDM-referenced
+`A2_rl_residual_idm`、以及 GAIL-constrained `A3_rl_residual_gail`。MOBIL 在本轮
+只作为从 highD 换道片段标定出的诊断规则；它不输出 yaw-rate，也不修改纵向 controller。
+V4 GAIL prior 使用两层128单元的单一 bounded Gaussian actor、独立 critic 和逐 tick
+轻量 MLP discriminator。它先经概率行为克隆初始化，再以“prior 控制目标 NPC、其余
+车辆保持冻结 HiQR”的连续2秒 HighwayEnv 闭环进行完整 GAE/clipped-PPO 细化；expert
+与生成轨迹按同一 highD row/父子关系配对，避免 discriminator 利用 role/TTC 样本构成
+区分标签。A3 的自然性奖励对**最终完整纵向动作分布**计算前向 KL，而非对 PPO 残差
+计算；V4 对 gate 与 residual 联合数值边缘化，并将安全/jerk 可执行边界纳入同一密度，
+不再执行确定性 human-action projection。评估中，动作修正剂量定义为同一 tick 的
+`HighwayEnv 执行动作 − HiQR 基础动作`，而不是与已发生状态分叉的 A0 未来动作相减。
+
+最新快速修复工件位于 `causal_reaction/candidates/gail_v4_temporal/` 与
+`causal_reaction/candidates/a3_v4_balanced/`。V4 prior 在完整 highD train split 上进行
+连续两秒 HighwayEnv GAIL refinement；A3 完成全量动态训练和响应受限 fine-tune。在完整
+5,095条动态 test 上，A3 的 0.6/1.0秒 KL 改善约33%/24%，响应保持 A2 的约92%，但
+0.2秒 KL 与 jerk W1 未全面改善，因此自动验收仍选择 A2，不覆盖正式 controller 或 GIF。
+机器可读结论见 `a3_v4_balanced/evidence/a2_a3_v4_acceptance.json`。
+
+每次四臂评估还会保存逐 tick 的 `counterfactual_telemetry_<split>.npz`：最终/基础动作、
+残差、门控、IDM 动作、GAIL KL、gap、closing speed、TTC 与 jerk。随后运行
+`visualize_reaction_naturalistic_evidence.py` 会在 `evidence/<split>/` 生成四类证据图：
+PPO/GAIL 训练曲线、IDM/MOBIL 标定参数、剂量—响应/时延/局部性/碰撞曲线，以及在
+相同 TTC 条件下与 held-out highD 人类动作和 jerk 分布的比较；相应的 Wasserstein-1 与
+KS 指标写入 `conditional_distribution_metrics.json`。这些图是实验诊断和论文证据，不接入
+正式 release acceptance 或 AMS 概率 gate。
+
+为避免把极端反事实与普通跟驰动作作无条件比较，`evaluate_human_driving_prior.py` 还会
+从 held-out highD 挖掘“前车已发生制动 → 同车道后车随后 0.4 s 响应”的参考样本；
+`observed_brake_distribution_metrics.json` 只在人类与生成样本均不少于 128 时给出 W1/KS，
+否则显式标为 `insufficient_matched_samples`，不得用于自然性结论。

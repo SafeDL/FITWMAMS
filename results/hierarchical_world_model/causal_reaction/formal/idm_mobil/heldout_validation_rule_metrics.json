@@ -1,0 +1,13 @@
+{
+  "acceleration_bias_mps2": 0.030330199748277664,
+  "acceleration_mae_mps2": 0.27066683769226074,
+  "acceleration_rmse_mps2": 0.4042777717113495,
+  "correlation": 0.3509933092525245,
+  "full_split": true,
+  "global_model_utilisation": 367044,
+  "mobil_scope": "calibrated diagnostic only; no lateral action is evaluated in this longitudinal study.",
+  "rows": 13133,
+  "samples": 367044,
+  "schema": "highd_global_idm_heldout_validation_v2",
+  "split": "validation"
+}

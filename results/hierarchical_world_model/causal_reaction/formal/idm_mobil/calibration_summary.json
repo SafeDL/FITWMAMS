@@ -1,0 +1,126 @@
+{
+  "artifact": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json",
+  "full_training_split": true,
+  "report": {
+    "batch_size": 32768,
+    "epochs": 24,
+    "following_observations": 3081988,
+    "history": [
+      {
+        "epoch": 1.0,
+        "robust_acceleration_loss": 0.39151380956172943
+      },
+      {
+        "epoch": 2.0,
+        "robust_acceleration_loss": 0.13315913496833098
+      },
+      {
+        "epoch": 3.0,
+        "robust_acceleration_loss": 0.12560290506011562
+      },
+      {
+        "epoch": 4.0,
+        "robust_acceleration_loss": 0.12209820425824115
+      },
+      {
+        "epoch": 5.0,
+        "robust_acceleration_loss": 0.11975295826008445
+      },
+      {
+        "epoch": 6.0,
+        "robust_acceleration_loss": 0.11762405406487615
+      },
+      {
+        "epoch": 7.0,
+        "robust_acceleration_loss": 0.11603788043323317
+      },
+      {
+        "epoch": 8.0,
+        "robust_acceleration_loss": 0.115066591140471
+      },
+      {
+        "epoch": 9.0,
+        "robust_acceleration_loss": 0.1144276068398827
+      },
+      {
+        "epoch": 10.0,
+        "robust_acceleration_loss": 0.11386999040842057
+      },
+      {
+        "epoch": 11.0,
+        "robust_acceleration_loss": 0.11338933651384554
+      },
+      {
+        "epoch": 12.0,
+        "robust_acceleration_loss": 0.11302534192800522
+      },
+      {
+        "epoch": 13.0,
+        "robust_acceleration_loss": 0.1129436676439486
+      },
+      {
+        "epoch": 14.0,
+        "robust_acceleration_loss": 0.11259249887968364
+      },
+      {
+        "epoch": 15.0,
+        "robust_acceleration_loss": 0.1124956718400905
+      },
+      {
+        "epoch": 16.0,
+        "robust_acceleration_loss": 0.1124545353807901
+      },
+      {
+        "epoch": 17.0,
+        "robust_acceleration_loss": 0.11215115299350337
+      },
+      {
+        "epoch": 18.0,
+        "robust_acceleration_loss": 0.1120499694033673
+      },
+      {
+        "epoch": 19.0,
+        "robust_acceleration_loss": 0.11195594284095262
+      },
+      {
+        "epoch": 20.0,
+        "robust_acceleration_loss": 0.1119244584911748
+      },
+      {
+        "epoch": 21.0,
+        "robust_acceleration_loss": 0.11174644929798026
+      },
+      {
+        "epoch": 22.0,
+        "robust_acceleration_loss": 0.11173080166703776
+      },
+      {
+        "epoch": 23.0,
+        "robust_acceleration_loss": 0.11171073929259652
+      },
+      {
+        "epoch": 24.0,
+        "robust_acceleration_loss": 0.11165429581152765
+      }
+    ],
+    "idm_parameter_names": [
+      "desired_speed_mps",
+      "max_acceleration_mps2",
+      "comfortable_brake_mps2",
+      "minimum_gap_m",
+      "desired_headway_s",
+      "delta"
+    ],
+    "mobil_committed_lane_change_rate": 0.01946281768557513,
+    "mobil_lane_observations": 14415590,
+    "mobil_scope": "single global diagnostic calibration; no yaw-rate or lane-change action in the longitudinal controller",
+    "optimizer": "Adam; robust gap-weighted full-observation IDM objective",
+    "schema": "highd_global_rule_calibration_report_v2",
+    "training_acceleration_mae_mps2": 0.3070901334285736,
+    "training_acceleration_rmse_mps2": 0.44174009561538696,
+    "training_correlation": 0.28421531941045675,
+    "training_rows": 72771
+  },
+  "status": "formal",
+  "training_rows": 72771
+}

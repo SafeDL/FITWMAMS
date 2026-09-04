@@ -22,6 +22,7 @@ from .reference import (
     response_relevance,
     soft_reference_controls,
 )
+from .reaction_controller import ReactionControllerContext, apply_handcrafted_response
 from .stochastic import CausalInteractionResponseField, GraphCoupledLatentTransition
 
 
@@ -41,6 +42,7 @@ class ResponseDistribution:
     agent_latent: torch.Tensor
     agent_latent_log_prob: torch.Tensor
     graph_latent_message: torch.Tensor
+    response_field_gain: torch.Tensor | None
     intervention_trigger: torch.Tensor
     intervention_memory: torch.Tensor
     lateral_intervention_memory: torch.Tensor
@@ -137,6 +139,8 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         stochastic: bool,
         response_field_gain: torch.Tensor | None = None,
         response_sensitivity_bounds: torch.Tensor | None = None,
+        apply_intervention_adapter: bool = True,
+        apply_explicit_ego_response: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         cfg = self.cfg
         batch, backgrounds = current.shape[0], current.shape[1] - 1
@@ -180,11 +184,18 @@ class DiffusionGuidedJerkDecoder(nn.Module):
             + torch.sigmoid(self.response_gain(gain_features)).squeeze(-1)
             * (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
         )
+        # The released decoder historically contains this explicit
+        # ego-acceleration actuator in addition to its learned nominal action
+        # head.  Controller-mode rollouts request the latter as their base
+        # action and apply exactly one post-HIQR controller afterwards.  Keep
+        # the default intact for checkpoint-compatible direct model calls.
         causal_longitudinal = (
             cfg.causal_response_scale
             * response_gain
             * relevance
             * ego_acceleration[:, None]
+            if apply_explicit_ego_response
+            else torch.zeros_like(relevance)
         )
         causal_knots = torch.stack(
             (causal_longitudinal, torch.zeros_like(causal_longitudinal)), dim=-1
@@ -252,112 +263,23 @@ class DiffusionGuidedJerkDecoder(nn.Module):
             mode = torch.tanh(self.behavior_mode(agent_style_state[:, 1:]))
             sampled_actions = sampled_actions + mode[:, None] * mode_limits
 
-        if cfg.intervention_adapter_enabled:
-            brake_limit = (
-                cfg.intervention_adapter_max_gain
-                if cfg.intervention_brake_adapter_max_gain is None
-                else cfg.intervention_brake_adapter_max_gain
+        if cfg.intervention_adapter_enabled and apply_intervention_adapter:
+            adapter_context = ReactionControllerContext(
+                history=current[:, None], history_valid=current_valid[:, None],
+                current=current, current_valid=current_valid,
+                committed_ego_controls=ego_acceleration[:, None, None].expand(-1, 1, 2),
+                base_actions=deterministic_actions, reference_actions=soft_actions,
+                intervention_trigger=intervention_trigger,
+                intervention_memory=intervention_trigger,
+                lateral_intervention_memory=lateral_intervention_trigger,
+                agent_style_state=agent_style_state,
+                response_field_gain=response_field_gain,
+                response_sensitivity_bounds=response_sensitivity_bounds,
+                adapter_gain=torch.sigmoid(self.intervention_logit), cfg=cfg,
+                reaction_enabled=None,
             )
-            accelerate_limit = (
-                cfg.intervention_adapter_max_gain
-                if cfg.intervention_accelerate_adapter_max_gain is None
-                else cfg.intervention_accelerate_adapter_max_gain
-            )
-            adapter_limit = torch.where(
-                intervention_trigger[:, None] < 0.0,
-                relevance.new_full((batch, 1), brake_limit),
-                relevance.new_full((batch, 1), accelerate_limit),
-            )
-            adapter_gain = adapter_limit[..., None] * torch.sigmoid(
-                self.intervention_logit
-            )
-            if response_field_gain is not None:
-                adapter_gain = adapter_gain * response_field_gain[:, None]
-            if (
-                cfg.natural_response_kernel_enabled
-                and response_sensitivity_bounds is not None
-                and torch.isfinite(response_sensitivity_bounds).all()
-            ):
-                # A persistent behavior coordinate selects a natural-response
-                # quantile for each agent.  The gain is derived from the
-                # causal intervention memory and the 0.8 s exponential-kernel
-                # average, not from future ego state or a post-hoc clip.
-                kind = (intervention_trigger >= 0.0).long()
-                bounds = response_sensitivity_bounds.to(adapter_gain)[kind]
-                quantile = torch.sigmoid(agent_style_state[:, 1:, 0])
-                sensitivity = bounds[:, :1] + quantile * (
-                    bounds[:, 1:] - bounds[:, :1]
-                )
-                effective_ego_delta = (
-                    intervention_trigger.abs()
-                    + cfg.intervention_trigger_threshold_mps2
-                )
-                desired_effect = sensitivity * effective_ego_delta[:, None]
-                horizon = 20
-                decay = float(cfg.intervention_memory_decay)
-                kernel_average = (1.0 - decay**horizon) / (
-                    horizon * (1.0 - decay)
-                )
-                expected_effect = (
-                    intervention_trigger.abs()[:, None]
-                    * relevance
-                    * kernel_average
-                )
-                calibrated_gain = desired_effect / expected_effect.clamp_min(1.0e-4)
-                brake_limit = (
-                    cfg.natural_response_kernel_max_gain
-                    if cfg.natural_response_kernel_brake_max_gain is None
-                    else cfg.natural_response_kernel_brake_max_gain
-                )
-                accelerate_limit = (
-                    cfg.natural_response_kernel_max_gain
-                    if cfg.natural_response_kernel_accelerate_max_gain is None
-                    else cfg.natural_response_kernel_accelerate_max_gain
-                )
-                kernel_limit = torch.where(
-                    intervention_trigger[:, None] < 0.0,
-                    calibrated_gain.new_full(calibrated_gain.shape, brake_limit),
-                    calibrated_gain.new_full(calibrated_gain.shape, accelerate_limit),
-                )
-                adapter_gain = calibrated_gain.clamp(
-                    min=0.0
-                ).minimum(kernel_limit)[:, None, :]
-            adjustment = (
-                intervention_trigger[:, None, None]
-                * relevance[:, None]
-                * adapter_gain
-            )
-            correction = torch.zeros_like(deterministic_actions)
-            correction[..., 0] = adjustment
-            if cfg.lateral_response_adapter_enabled:
-                # A left/right realized ego yaw change asks background cars to
-                # move away from the ego's current lateral side.  The signal
-                # is causal and relation-gated, unlike a shared lateral
-                # translation of the whole scene.
-                lateral_side = torch.sign(
-                    current[:, 1:, 1] - current[:, :1, 1]
-                )
-                lateral_side = torch.where(
-                    lateral_side == 0.0, torch.ones_like(lateral_side), lateral_side
-                )
-                # Normalize causal memory before bounding the response.  A
-                # short committed yaw step should yield a finite response
-                # that persists across response boundaries, while the bound
-                # retains the original action-space safety limit.
-                lateral_strength = (
-                    lateral_intervention_trigger.abs()
-                    / cfg.lateral_response_trigger_scale_rps
-                ).clamp(max=1.0)
-                lateral_adjustment = (
-                    -torch.sign(lateral_intervention_trigger)[:, None, None]
-                    * lateral_strength[:, None, None]
-                    * relevance[:, None]
-                    * lateral_side[:, None]
-                    * cfg.lateral_response_adapter_max_yaw_rate_rps
-                )
-                correction[..., 1] = correction[..., 1] + lateral_adjustment
-            deterministic_actions = deterministic_actions + correction
-            sampled_actions = sampled_actions + correction
+            deterministic_actions = apply_handcrafted_response(deterministic_actions, adapter_context)
+            sampled_actions = apply_handcrafted_response(sampled_actions, adapter_context)
 
         def bound(actions: torch.Tensor) -> torch.Tensor:
             return torch.stack(
@@ -513,6 +435,8 @@ class DiffusionGuidedHiQR(nn.Module):
         scene_standard_normal: torch.Tensor | None = None,
         agent_standard_normal: torch.Tensor | None = None,
         deterministic: bool = False,
+        apply_intervention_adapter: bool | None = None,
+        apply_explicit_ego_response: bool | None = None,
     ) -> ResponseDistribution:
         if not 1 <= history.shape[1] <= self.cfg.history_frames:
             raise ValueError("history must contain one to 25 observed frames")
@@ -755,6 +679,8 @@ class DiffusionGuidedHiQR(nn.Module):
             stochastic,
             response_field_gain,
             self.response_sensitivity_bounds,
+            self.cfg.intervention_adapter_enabled if apply_intervention_adapter is None else bool(apply_intervention_adapter),
+            True if apply_explicit_ego_response is None else bool(apply_explicit_ego_response),
         )
         mean = mean[:, : self.cfg.execute_frames]
         actions = actions[:, : self.cfg.execute_frames]
@@ -778,6 +704,7 @@ class DiffusionGuidedHiQR(nn.Module):
             agent_latent=agent_latent,
             agent_latent_log_prob=agent_log_prob,
             graph_latent_message=graph_message,
+            response_field_gain=response_field_gain,
             intervention_trigger=intervention_trigger,
             intervention_memory=intervention_memory,
             lateral_intervention_memory=lateral_intervention_memory,

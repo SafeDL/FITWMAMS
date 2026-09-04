@@ -1,0 +1,86 @@
+{
+  "artifact_metadata": {
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "highway_rows_sha256": "c4a0969c560919cde2fe058b9c23fadaa70ae6c2aaf1e2fa791ea8b416c3918d",
+    "training_rows_sha256": "844c8ba19e77fdca238a87f3fff56f549334530b882a52b82df9162cab46914e",
+    "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+  },
+  "bc_checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v4_temporal_smoke/human_prior_bc.pt",
+  "best_validation_nll": 4.736025810241699,
+  "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v4_temporal_smoke/human_prior.pt",
+  "expert_corpus_mode": "all distinct parent-child role/risk relations from every eligible highD training recording",
+  "expert_role_counts": {
+    "1": 288,
+    "2": 30,
+    "4": 340
+  },
+  "expert_samples": 658,
+  "full_training_split": false,
+  "gail_converged_no_admissible_update": false,
+  "highway_gail_ppo": [
+    {
+      "acceleration_w1_mps2": 0.7161312561739915,
+      "actor_update_accepted": 1.0,
+      "bc_anchor": 81.91683991750081,
+      "bc_validation_nll": 4.736025810241699,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.4796981923183418,
+      "discriminator_loss": 1.4034557342529297,
+      "generator_reward": 0.6531633337338766,
+      "jerk_w1_mps3": 10.712681678878885,
+      "label_shuffle_auc": 0.48187373917171,
+      "maximum_validation_nll": 4.9728271007537845,
+      "pass": 0,
+      "policy_loss": 0.06643160733143993,
+      "scenes": 318,
+      "selection_score": 5.634182591826079,
+      "trajectory_frames": 50,
+      "validation_nll": 4.790622711181641,
+      "value_loss": 60.83870283762614
+    },
+    {
+      "acceleration_w1_mps2": 0.33630098916449624,
+      "actor_update_accepted": 1.0,
+      "bc_anchor": 16.955161929130554,
+      "bc_validation_nll": 4.736025810241699,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.4938985799612357,
+      "discriminator_loss": 1.3976324796676636,
+      "generator_reward": 0.6516743501027426,
+      "jerk_w1_mps3": 8.435838640218146,
+      "label_shuffle_auc": 0.4730726632649025,
+      "maximum_validation_nll": 4.9728271007537845,
+      "pass": 1,
+      "policy_loss": 0.017904696101824175,
+      "scenes": 318,
+      "selection_score": 4.212898614895603,
+      "trajectory_frames": 50,
+      "validation_nll": 3.786137819290161,
+      "value_loss": 52.03123823801676
+    }
+  ],
+  "highway_refinement_pass_contract": "each GAIL pass visits every anchor-eligible train scene once with a continuous 2-second rollout",
+  "highway_refinement_source_rows": 318,
+  "history": [
+    {
+      "epoch": 0.0,
+      "loss": 5.566651344299316,
+      "phase": "bc",
+      "validation_nll": 4.736025810241699
+    },
+    {
+      "epoch": 1.0,
+      "loss": 4.859461307525635,
+      "phase": "bc",
+      "validation_nll": 4.995955467224121
+    },
+    {
+      "epoch": 2.0,
+      "loss": 4.791942596435547,
+      "phase": "bc",
+      "validation_nll": 4.781486511230469
+    }
+  ],
+  "schema": "longitudinal_gail_human_prior_v4",
+  "training_rows": 1000
+}

@@ -1,0 +1,248 @@
+{
+  "artifact_metadata": {
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "highway_rows_sha256": "ca99077a69739818a39f9ba5fc5e099d9b43608a3e0c5035ad3914cee1911ff2",
+    "training_rows_sha256": "eae80582b7b34df15eecef69c52b69944e5b53a6f169f63821773e94d49060c2",
+    "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+  },
+  "bc_checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v3_smooth_smoke2/human_prior_bc.pt",
+  "best_validation_nll": -0.6244103312492371,
+  "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v3_smooth_smoke2/human_prior.pt",
+  "expert_corpus_mode": "all distinct parent-child role/risk relations from every eligible highD training recording",
+  "expert_role_counts": {
+    "1": 18390,
+    "2": 2043,
+    "4": 22548
+  },
+  "expert_samples": 42981,
+  "full_training_split": true,
+  "gail_converged_no_admissible_update": false,
+  "highway_gail_ppo": [
+    {
+      "acceleration_w1_mps2": 0.6240009548485279,
+      "actor_update_accepted": 0.8,
+      "bc_anchor": 30.12849842309952,
+      "bc_validation_nll": -0.6244103312492371,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.4999221032872413,
+      "discriminator_loss": 1.3905245065689087,
+      "generator_reward": 0.646471095085144,
+      "jerk_w1_mps3": 6.315222700410572,
+      "label_shuffle_auc": 0.49797658538809664,
+      "maximum_validation_nll": -0.574410331249237,
+      "pass": 0,
+      "policy_loss": 0.0476055389288824,
+      "scenes": 513,
+      "selection_score": 0.06775869411257252,
+      "trajectory_frames": 50,
+      "validation_nll": -0.6194723844528198,
+      "value_loss": 55.082773971557614
+    },
+    {
+      "acceleration_w1_mps2": 0.17238777291178703,
+      "actor_update_accepted": 0.6,
+      "bc_anchor": 3.4592622578144074,
+      "bc_validation_nll": -0.6244103312492371,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.5120739904776018,
+      "discriminator_loss": 1.3873732566833497,
+      "generator_reward": 0.6677359938621521,
+      "jerk_w1_mps3": 4.438624709820278,
+      "label_shuffle_auc": 0.481473881802188,
+      "maximum_validation_nll": -0.574410331249237,
+      "pass": 1,
+      "policy_loss": 0.003428915848141112,
+      "scenes": 513,
+      "selection_score": -0.3485632238912231,
+      "trajectory_frames": 50,
+      "validation_nll": -0.5774112343788147,
+      "value_loss": 49.20842933654785
+    }
+  ],
+  "highway_refinement_pass_contract": "each GAIL pass visits every anchor-eligible train scene once with a continuous 2-second rollout",
+  "highway_refinement_source_rows": 513,
+  "history": [
+    {
+      "epoch": 0.0,
+      "loss": 68.517118817284,
+      "phase": "bc",
+      "validation_nll": 20.072175979614258
+    },
+    {
+      "epoch": 1.0,
+      "loss": 12.12238275437128,
+      "phase": "bc",
+      "validation_nll": 6.266539573669434
+    },
+    {
+      "epoch": 2.0,
+      "loss": 4.288268974849156,
+      "phase": "bc",
+      "validation_nll": 1.8367736339569092
+    },
+    {
+      "epoch": 3.0,
+      "loss": 1.5000349226452054,
+      "phase": "bc",
+      "validation_nll": 0.9090654850006104
+    },
+    {
+      "epoch": 4.0,
+      "loss": 0.70051699309122,
+      "phase": "bc",
+      "validation_nll": 0.3604486882686615
+    },
+    {
+      "epoch": 5.0,
+      "loss": 0.18845235051343306,
+      "phase": "bc",
+      "validation_nll": -0.04318099096417427
+    },
+    {
+      "epoch": 6.0,
+      "loss": -0.09074410068846885,
+      "phase": "bc",
+      "validation_nll": -0.21580146253108978
+    },
+    {
+      "epoch": 7.0,
+      "loss": -0.20895303927716755,
+      "phase": "bc",
+      "validation_nll": -0.33116379380226135
+    },
+    {
+      "epoch": 8.0,
+      "loss": -0.31710443255447207,
+      "phase": "bc",
+      "validation_nll": -0.3734865188598633
+    },
+    {
+      "epoch": 9.0,
+      "loss": -0.3616782838389987,
+      "phase": "bc",
+      "validation_nll": -0.42278918623924255
+    },
+    {
+      "epoch": 10.0,
+      "loss": -0.40040931815192815,
+      "phase": "bc",
+      "validation_nll": -0.3918153941631317
+    },
+    {
+      "epoch": 11.0,
+      "loss": -0.4086422934418633,
+      "phase": "bc",
+      "validation_nll": -0.47274407744407654
+    },
+    {
+      "epoch": 12.0,
+      "loss": -0.4152657531556629,
+      "phase": "bc",
+      "validation_nll": -0.45591944456100464
+    },
+    {
+      "epoch": 13.0,
+      "loss": -0.458371734335309,
+      "phase": "bc",
+      "validation_nll": -0.5061442255973816
+    },
+    {
+      "epoch": 14.0,
+      "loss": -0.47640018236069454,
+      "phase": "bc",
+      "validation_nll": -0.4999895989894867
+    },
+    {
+      "epoch": 15.0,
+      "loss": -0.45613972487903776,
+      "phase": "bc",
+      "validation_nll": -0.48927822709083557
+    },
+    {
+      "epoch": 16.0,
+      "loss": -0.47457684931300936,
+      "phase": "bc",
+      "validation_nll": -0.5350272059440613
+    },
+    {
+      "epoch": 17.0,
+      "loss": -0.5074795044603801,
+      "phase": "bc",
+      "validation_nll": -0.5421461462974548
+    },
+    {
+      "epoch": 18.0,
+      "loss": -0.4957605515207563,
+      "phase": "bc",
+      "validation_nll": -0.5574472546577454
+    },
+    {
+      "epoch": 19.0,
+      "loss": -0.5034553153174264,
+      "phase": "bc",
+      "validation_nll": -0.5477572679519653
+    },
+    {
+      "epoch": 20.0,
+      "loss": -0.5099451073578426,
+      "phase": "bc",
+      "validation_nll": -0.5647503733634949
+    },
+    {
+      "epoch": 21.0,
+      "loss": -0.5391340198970976,
+      "phase": "bc",
+      "validation_nll": -0.5726924538612366
+    },
+    {
+      "epoch": 22.0,
+      "loss": -0.5485148727893829,
+      "phase": "bc",
+      "validation_nll": -0.5915382504463196
+    },
+    {
+      "epoch": 23.0,
+      "loss": -0.5600739433651879,
+      "phase": "bc",
+      "validation_nll": -0.60153728723526
+    },
+    {
+      "epoch": 24.0,
+      "loss": -0.550877590974172,
+      "phase": "bc",
+      "validation_nll": -0.6027405261993408
+    },
+    {
+      "epoch": 25.0,
+      "loss": -0.536366845880236,
+      "phase": "bc",
+      "validation_nll": -0.6192030906677246
+    },
+    {
+      "epoch": 26.0,
+      "loss": -0.5772003815287635,
+      "phase": "bc",
+      "validation_nll": -0.6238425970077515
+    },
+    {
+      "epoch": 27.0,
+      "loss": -0.5563201180526188,
+      "phase": "bc",
+      "validation_nll": -0.6244103312492371
+    },
+    {
+      "epoch": 28.0,
+      "loss": -0.5891498213722592,
+      "phase": "bc",
+      "validation_nll": -0.6216320991516113
+    },
+    {
+      "epoch": 29.0,
+      "loss": -0.5638144058840615,
+      "phase": "bc",
+      "validation_nll": -0.6057218313217163
+    }
+  ],
+  "schema": "longitudinal_gail_human_prior_v3",
+  "training_rows": 72771
+}

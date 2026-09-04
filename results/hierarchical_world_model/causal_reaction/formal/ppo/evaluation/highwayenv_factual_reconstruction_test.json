@@ -1,0 +1,65 @@
+{
+  "all_background_slots": {
+    "ADE_m": 0.03957994654774666,
+    "FDE_m": 0.036680273711681366,
+    "per_scene_ADE_p50_m": 0.0,
+    "per_scene_ADE_p90_m": 0.04155240602941321
+  },
+  "backend": "HighwayEnvClosedLoopWorld",
+  "bridge_decomposition": {
+    "closed_loop_highway_vs_offline": {
+      "ADE_m": 4.0064896893454716e-05,
+      "FDE_m": 9.25275671761483e-05,
+      "per_scene_ADE_p50_m": 1.069063386386073e-05,
+      "per_scene_ADE_p90_m": 5.387062544390659e-05
+    },
+    "diagnostic_sequences": 32,
+    "logged_controls_highway_vs_highd": {
+      "background_ADE_m": 0.0773330107331276,
+      "background_FDE_m": 0.12623544037342072,
+      "background_P95_displacement_error_m": 0.200029107928276,
+      "ego_ADE_m": 0.13380709290504456,
+      "ego_FDE_m": 0.13386934995651245
+    },
+    "logged_controls_offline_vs_highd": {
+      "background_ADE_m": 0.07733102142810822,
+      "background_FDE_m": 0.1262378841638565,
+      "background_P95_displacement_error_m": 0.2000184312462806,
+      "ego_ADE_m": 0.13378238677978516,
+      "ego_FDE_m": 0.13378891348838806
+    },
+    "same_logged_controls_highway_vs_offline": {
+      "background_ADE_m": 5.030697138863616e-05,
+      "background_FDE_m": 0.00010686234600143507,
+      "background_P95_displacement_error_m": 0.0001983653346542269,
+      "ego_ADE_m": 5.965802847640589e-05,
+      "ego_FDE_m": 0.00016403509653173387
+    }
+  },
+  "comparison_note": "This is a HighwayEnv bridge metric and is not interchangeable with the model-internal rollout metric used by historical training summaries.",
+  "controller": "A0_none",
+  "ego_control": "logged highD ego replay",
+  "eligible_same_rear_sequences": 1014,
+  "evaluated_sequences": 10151,
+  "horizon_s": 5.96,
+  "per_slot_ADE_m": {
+    "1": 0.038421303033828735,
+    "2": 0.031150273978710175,
+    "3": 0.06122472509741783,
+    "4": 0.03835443779826164,
+    "5": 0.03277231752872467,
+    "6": 0.032340314239263535
+  },
+  "same_rear_slot": {
+    "ADE_m": 0.031150273978710175,
+    "FDE_m": 0.03421417251229286,
+    "per_scene_ADE_p50_m": 0.0,
+    "per_scene_ADE_p90_m": 0.024597950429724368
+  },
+  "schema": "highwayenv_factual_reconstruction_audit_v2",
+  "test_sequences": 10151,
+  "time_contract": {
+    "rollout_state_0": "post_step_state_at_anchor_plus_1",
+    "target_slice": "ANCHOR_INDEX+1:ANCHOR_INDEX+150"
+  }
+}

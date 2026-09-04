@@ -1,0 +1,67 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "cases": {
+    "near_ttc_safe_a2": {
+      "a0_collision": false,
+      "a0_first_target_rear_collision_frame": null,
+      "a2_ego_collision": false,
+      "a2_first_ego_collision_frame": null,
+      "a2_first_target_rear_collision_frame": null,
+      "a2_target_rear_collision": false,
+      "initial_closing_speed_mps": 17.529998779296875,
+      "initial_gap_m": 66.20501708984375,
+      "initial_ttc_s": 3.77666974067688,
+      "row": 67927
+    },
+    "rear_collision_rescued_by_a2": {
+      "a0_collision": true,
+      "a0_first_target_rear_collision_frame": 131,
+      "a2_ego_collision": false,
+      "a2_first_ego_collision_frame": null,
+      "a2_first_target_rear_collision_frame": null,
+      "a2_target_rear_collision": false,
+      "initial_closing_speed_mps": 10.799999237060547,
+      "initial_gap_m": 67.885009765625,
+      "initial_ttc_s": 6.285649299621582,
+      "row": 62272
+    },
+    "residual_ego_front_collision": {
+      "a0_collision": true,
+      "a0_first_target_rear_collision_frame": null,
+      "a2_ego_collision": true,
+      "a2_first_ego_collision_frame": 78,
+      "a2_first_target_rear_collision_frame": null,
+      "a2_target_rear_collision": false,
+      "initial_closing_speed_mps": 2.6200008392333984,
+      "initial_gap_m": 53.55500793457031,
+      "initial_ttc_s": 20.44083595275879,
+      "row": 22312
+    },
+    "residual_same_rear_collision": {
+      "a0_collision": false,
+      "a0_first_target_rear_collision_frame": null,
+      "a2_ego_collision": false,
+      "a2_first_ego_collision_frame": null,
+      "a2_first_target_rear_collision_frame": 79,
+      "a2_target_rear_collision": true,
+      "initial_closing_speed_mps": 2.440000534057617,
+      "initial_gap_m": 23.57000732421875,
+      "initial_ttc_s": 9.659836769104004,
+      "row": 3456
+    }
+  },
+  "counts": {
+    "a0_any_collision": 575,
+    "a2_any_collision": 12,
+    "a2_ego_collision": 9,
+    "a2_rescued_from_a0": 565,
+    "a2_target_rear_collision": 3
+  },
+  "eligible_same_rear_sequences": 1014,
+  "intervention": {
+    "dose_mps2": 8.0,
+    "duration_frames": 25
+  },
+  "schema": "full_test_same_rear_case_mining_v1",
+  "test_sequences": 10151
+}

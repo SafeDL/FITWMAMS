@@ -1,0 +1,52 @@
+{
+  "expert_samples": 44379,
+  "heldout": {
+    "test": {
+      "bounded_mixture_action_nll": 3.7965211868286133,
+      "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v2/human_prior.pt",
+      "conditional_mean_action_w1_mps2": 1.031963950190674,
+      "mean_absolute_error_mps2": 1.1706730127334595,
+      "note": "conditional sample selection balances ordinary following and TTC-critical following; distribution distances are reported with that fixed sampling scheme.",
+      "observed_brake_response_reference_groups": {
+        "dose_2_ttc_0": 0,
+        "dose_2_ttc_1": 0,
+        "dose_2_ttc_2": 512,
+        "dose_4_ttc_0": 0,
+        "dose_4_ttc_1": 0,
+        "dose_4_ttc_2": 0
+      },
+      "observed_brake_response_reference_samples": 512,
+      "sampled_action_ks": 0.4997472194135491,
+      "sampled_action_w1_mps2": 1.9210580357767573,
+      "samples": 3956,
+      "schema": "longitudinal_human_prior_heldout_v2",
+      "split": "test"
+    },
+    "validation": {
+      "bounded_mixture_action_nll": 3.7350897789001465,
+      "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v2/human_prior.pt",
+      "conditional_mean_action_w1_mps2": 1.0174853108795743,
+      "mean_absolute_error_mps2": 1.1583291292190552,
+      "note": "conditional sample selection balances ordinary following and TTC-critical following; distribution distances are reported with that fixed sampling scheme.",
+      "observed_brake_response_reference_groups": {
+        "dose_2_ttc_0": 0,
+        "dose_2_ttc_1": 110,
+        "dose_2_ttc_2": 512,
+        "dose_4_ttc_0": 0,
+        "dose_4_ttc_1": 0,
+        "dose_4_ttc_2": 20
+      },
+      "observed_brake_response_reference_samples": 642,
+      "sampled_action_ks": 0.4928946856141717,
+      "sampled_action_w1_mps2": 1.8919863482962236,
+      "samples": 5137,
+      "schema": "longitudinal_human_prior_heldout_v2",
+      "split": "validation"
+    }
+  },
+  "highway_refinement_updates": 13,
+  "important_limit": "Rare observed highD front-brake / low-TTC groups are reported by count and must not be interpreted from aggregate fit alone.",
+  "schema": "formal_longitudinal_gail_evidence_v2",
+  "training_rows": 72771,
+  "trajectory_frames": 50
+}

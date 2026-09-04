@@ -1,0 +1,15 @@
+{
+  "calibration_method": "full-training-observation-idm",
+  "idm_parameters": [
+    32.89958953857422,
+    0.30397701263427734,
+    6.993524074554443,
+    5.544829368591309,
+    0.2239711880683899,
+    2.002088785171509
+  ],
+  "mobil_incentive_threshold_mps2": 0.24995803833007812,
+  "mobil_politeness": 0.18892563537115026,
+  "mobil_safe_brake_mps2": 1.0,
+  "schema": "highd_global_rule_models_v2"
+}

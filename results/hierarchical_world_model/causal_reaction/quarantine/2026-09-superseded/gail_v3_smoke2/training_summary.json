@@ -1,0 +1,241 @@
+{
+  "artifact_metadata": {
+    "diffusion_checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "highway_rows_sha256": "c4a0969c560919cde2fe058b9c23fadaa70ae6c2aaf1e2fa791ea8b416c3918d",
+    "training_rows_sha256": "844c8ba19e77fdca238a87f3fff56f549334530b882a52b82df9162cab46914e",
+    "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+  },
+  "bc_checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v3_smoke2/human_prior_bc.pt",
+  "best_validation_nll": 2.2966725826263428,
+  "checkpoint": "results/hierarchical_world_model/causal_reaction/candidates/gail_v3_smoke2/human_prior.pt",
+  "expert_corpus_mode": "all distinct parent-child role/risk relations from every eligible highD training recording",
+  "expert_role_counts": {
+    "1": 288,
+    "2": 30,
+    "4": 340
+  },
+  "expert_samples": 658,
+  "full_training_split": false,
+  "highway_gail_ppo": [
+    {
+      "acceleration_w1_mps2": 2.5041828281849434,
+      "bc_anchor": 2.175938844680786,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.8397709742494364,
+      "discriminator_loss": 1.3753511428833007,
+      "generator_reward": 0.6296514391899108,
+      "jerk_w1_mps3": 86.13227855463019,
+      "label_shuffle_auc": 0.512272062022863,
+      "pass": 0,
+      "policy_loss": -0.0009070424026764278,
+      "scenes": 318,
+      "selection_score": 5.67817483283847,
+      "trajectory_frames": 50,
+      "validation_nll": 1.972898244857788,
+      "value_loss": 51.13005332946777
+    },
+    {
+      "acceleration_w1_mps2": 2.2536583407495008,
+      "bc_anchor": 1.9965383023023606,
+      "closed_loop_violation_rate": 0.0,
+      "discriminator_auc": 0.9979628970373008,
+      "discriminator_loss": 1.3449723362922668,
+      "generator_reward": 0.6238505661487579,
+      "jerk_w1_mps3": 75.84405184325351,
+      "label_shuffle_auc": 0.5194513666389778,
+      "pass": 1,
+      "policy_loss": -0.000558717379996021,
+      "scenes": 318,
+      "selection_score": 5.325282469834755,
+      "trajectory_frames": 50,
+      "validation_nll": 1.8152207136154175,
+      "value_loss": 53.70932121276856
+    }
+  ],
+  "highway_refinement_pass_contract": "each GAIL pass visits every anchor-eligible train scene once with a continuous 2-second rollout",
+  "highway_refinement_source_rows": 318,
+  "history": [
+    {
+      "epoch": 0.0,
+      "loss": 2.72462797164917,
+      "phase": "bc",
+      "validation_nll": 2.704218864440918
+    },
+    {
+      "epoch": 1.0,
+      "loss": 2.699209213256836,
+      "phase": "bc",
+      "validation_nll": 2.677309989929199
+    },
+    {
+      "epoch": 2.0,
+      "loss": 2.6754209995269775,
+      "phase": "bc",
+      "validation_nll": 2.652310609817505
+    },
+    {
+      "epoch": 3.0,
+      "loss": 2.6532092094421387,
+      "phase": "bc",
+      "validation_nll": 2.629115104675293
+    },
+    {
+      "epoch": 4.0,
+      "loss": 2.6324851512908936,
+      "phase": "bc",
+      "validation_nll": 2.607603073120117
+    },
+    {
+      "epoch": 5.0,
+      "loss": 2.6131484508514404,
+      "phase": "bc",
+      "validation_nll": 2.587670087814331
+    },
+    {
+      "epoch": 6.0,
+      "loss": 2.595113515853882,
+      "phase": "bc",
+      "validation_nll": 2.5692288875579834
+    },
+    {
+      "epoch": 7.0,
+      "loss": 2.5783092975616455,
+      "phase": "bc",
+      "validation_nll": 2.5521934032440186
+    },
+    {
+      "epoch": 8.0,
+      "loss": 2.5626654624938965,
+      "phase": "bc",
+      "validation_nll": 2.536471128463745
+    },
+    {
+      "epoch": 9.0,
+      "loss": 2.548107147216797,
+      "phase": "bc",
+      "validation_nll": 2.521960496902466
+    },
+    {
+      "epoch": 10.0,
+      "loss": 2.5345518589019775,
+      "phase": "bc",
+      "validation_nll": 2.50854754447937
+    },
+    {
+      "epoch": 11.0,
+      "loss": 2.5219080448150635,
+      "phase": "bc",
+      "validation_nll": 2.496107816696167
+    },
+    {
+      "epoch": 12.0,
+      "loss": 2.510075807571411,
+      "phase": "bc",
+      "validation_nll": 2.484508752822876
+    },
+    {
+      "epoch": 13.0,
+      "loss": 2.4989492893218994,
+      "phase": "bc",
+      "validation_nll": 2.4736125469207764
+    },
+    {
+      "epoch": 14.0,
+      "loss": 2.488417387008667,
+      "phase": "bc",
+      "validation_nll": 2.463273763656616
+    },
+    {
+      "epoch": 15.0,
+      "loss": 2.478365659713745,
+      "phase": "bc",
+      "validation_nll": 2.4533448219299316
+    },
+    {
+      "epoch": 16.0,
+      "loss": 2.468676805496216,
+      "phase": "bc",
+      "validation_nll": 2.443676471710205
+    },
+    {
+      "epoch": 17.0,
+      "loss": 2.459233283996582,
+      "phase": "bc",
+      "validation_nll": 2.43412446975708
+    },
+    {
+      "epoch": 18.0,
+      "loss": 2.4499218463897705,
+      "phase": "bc",
+      "validation_nll": 2.424553394317627
+    },
+    {
+      "epoch": 19.0,
+      "loss": 2.440636396408081,
+      "phase": "bc",
+      "validation_nll": 2.414842128753662
+    },
+    {
+      "epoch": 20.0,
+      "loss": 2.4312827587127686,
+      "phase": "bc",
+      "validation_nll": 2.404885768890381
+    },
+    {
+      "epoch": 21.0,
+      "loss": 2.4217798709869385,
+      "phase": "bc",
+      "validation_nll": 2.394599676132202
+    },
+    {
+      "epoch": 22.0,
+      "loss": 2.412061929702759,
+      "phase": "bc",
+      "validation_nll": 2.3839170932769775
+    },
+    {
+      "epoch": 23.0,
+      "loss": 2.402078866958618,
+      "phase": "bc",
+      "validation_nll": 2.372793436050415
+    },
+    {
+      "epoch": 24.0,
+      "loss": 2.3917970657348633,
+      "phase": "bc",
+      "validation_nll": 2.36120343208313
+    },
+    {
+      "epoch": 25.0,
+      "loss": 2.3811981678009033,
+      "phase": "bc",
+      "validation_nll": 2.349141836166382
+    },
+    {
+      "epoch": 26.0,
+      "loss": 2.37027907371521,
+      "phase": "bc",
+      "validation_nll": 2.3366215229034424
+    },
+    {
+      "epoch": 27.0,
+      "loss": 2.3590495586395264,
+      "phase": "bc",
+      "validation_nll": 2.323672294616699
+    },
+    {
+      "epoch": 28.0,
+      "loss": 2.3475325107574463,
+      "phase": "bc",
+      "validation_nll": 2.310337781906128
+    },
+    {
+      "epoch": 29.0,
+      "loss": 2.3357601165771484,
+      "phase": "bc",
+      "validation_nll": 2.2966725826263428
+    }
+  ],
+  "schema": "longitudinal_gail_human_prior_v3",
+  "training_rows": 1000
+}

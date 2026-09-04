@@ -1,0 +1,20 @@
+{
+  "arms": {
+    "A1 pure Residual PPO": {
+      "eligible_scenes_seen": 4267,
+      "finite": true,
+      "updates": 540
+    },
+    "A2 + global IDM": {
+      "eligible_scenes_seen": 4267,
+      "finite": true,
+      "updates": 540
+    },
+    "A3 + IDM + frozen GAIL": {
+      "eligible_scenes_seen": 4267,
+      "finite": true,
+      "updates": 540
+    }
+  },
+  "schema": "formal_reaction_ppo_training_evidence_v1"
+}

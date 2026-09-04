@@ -1,0 +1,198 @@
+{
+  "schema": "a2_a3_gail_v4_fast_validation_v1",
+  "evaluation": {
+    "validation": {
+      "rows": 512,
+      "conditions": {
+        "5": {
+          "A2": {
+            "response_dose_mps2": 4.886053562164307,
+            "natural_kl": 16.63517951965332,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.0,
+            "acceleration_w1_mps2": 2.5364879854365228,
+            "jerk_w1_mps3": 3.406526393299803,
+            "telemetry_active_samples": 218
+          },
+          "A3": {
+            "response_dose_mps2": 4.874930381774902,
+            "natural_kl": 16.400287628173828,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.0,
+            "acceleration_w1_mps2": 2.083385455464825,
+            "jerk_w1_mps3": 4.179551395801229,
+            "telemetry_active_samples": 218
+          },
+          "relative": {
+            "response_ratio": 0.9977234837383818,
+            "kl_improvement": 0.01412018975821594,
+            "acceleration_w1_improvement": 0.17863381674710366,
+            "jerk_w1_improvement": -0.2269247066518747
+          }
+        },
+        "15": {
+          "A2": {
+            "response_dose_mps2": 5.285518169403076,
+            "natural_kl": 21.103633880615234,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.0,
+            "acceleration_w1_mps2": 2.423319546300084,
+            "jerk_w1_mps3": 3.3378173426016073,
+            "telemetry_active_samples": 335
+          },
+          "A3": {
+            "response_dose_mps2": 4.795907974243164,
+            "natural_kl": 13.800917625427246,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.0,
+            "acceleration_w1_mps2": 1.819655535225548,
+            "jerk_w1_mps3": 3.363022662632502,
+            "telemetry_active_samples": 335
+          },
+          "relative": {
+            "response_ratio": 0.9073676072113084,
+            "kl_improvement": 0.34604070069164283,
+            "acceleration_w1_improvement": 0.24910623611162142,
+            "jerk_w1_improvement": -0.007551437794151017
+          }
+        },
+        "25": {
+          "A2": {
+            "response_dose_mps2": 5.285518169403076,
+            "natural_kl": 23.25422477722168,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.006230529595015576,
+            "acceleration_w1_mps2": 2.327550665151998,
+            "jerk_w1_mps3": 3.2034604947865004,
+            "telemetry_active_samples": 478
+          },
+          "A3": {
+            "response_dose_mps2": 4.795907974243164,
+            "natural_kl": 16.805906295776367,
+            "collision_sequence_rate": 0.0,
+            "rear_collision_sequence_rate": 0.0,
+            "positive_rebound_rate": 0.0020964360587002098,
+            "acceleration_w1_mps2": 2.3966664970076983,
+            "jerk_w1_mps3": 3.0866380288440056,
+            "telemetry_active_samples": 478
+          },
+          "relative": {
+            "response_ratio": 0.9073676072113084,
+            "kl_improvement": 0.27729664365168016,
+            "acceleration_w1_improvement": -0.02969466267286891,
+            "jerk_w1_improvement": 0.036467584392758545
+          }
+        }
+      }
+    },
+    "test": {
+      "rows": 5095,
+      "conditions": {
+        "5": {
+          "A2": {
+            "response_dose_mps2": 4.7526116371154785,
+            "natural_kl": 15.720328330993652,
+            "collision_sequence_rate": 0.00019627085377821394,
+            "rear_collision_sequence_rate": 0.00019627085377821394,
+            "positive_rebound_rate": 0.00411522633744856,
+            "acceleration_w1_mps2": 2.5616045303983626,
+            "jerk_w1_mps3": 4.0075476698106645,
+            "telemetry_active_samples": 459
+          },
+          "A3": {
+            "response_dose_mps2": 4.79282283782959,
+            "natural_kl": 16.2271785736084,
+            "collision_sequence_rate": 0.0003925417075564279,
+            "rear_collision_sequence_rate": 0.0003925417075564279,
+            "positive_rebound_rate": 0.05,
+            "acceleration_w1_mps2": 2.0691353070807352,
+            "jerk_w1_mps3": 4.506048807294018,
+            "telemetry_active_samples": 459
+          },
+          "relative": {
+            "response_ratio": 1.0084608640016117,
+            "kl_improvement": -0.03224170843909535,
+            "acceleration_w1_improvement": 0.1922502937020657,
+            "jerk_w1_improvement": -0.12439056963404882
+          }
+        },
+        "15": {
+          "A2": {
+            "response_dose_mps2": 5.169196605682373,
+            "natural_kl": 20.754493713378906,
+            "collision_sequence_rate": 0.0003925417075564279,
+            "rear_collision_sequence_rate": 0.0003925417075564279,
+            "positive_rebound_rate": 0.02407566638005159,
+            "acceleration_w1_mps2": 2.893737930236429,
+            "jerk_w1_mps3": 3.566841612897371,
+            "telemetry_active_samples": 623
+          },
+          "A3": {
+            "response_dose_mps2": 4.740288257598877,
+            "natural_kl": 13.899500846862793,
+            "collision_sequence_rate": 0.0003925417075564279,
+            "rear_collision_sequence_rate": 0.0003925417075564279,
+            "positive_rebound_rate": 0.03151862464183381,
+            "acceleration_w1_mps2": 2.4357866119372136,
+            "jerk_w1_mps3": 4.055901833751611,
+            "telemetry_active_samples": 623
+          },
+          "relative": {
+            "response_ratio": 0.9170261104768181,
+            "kl_improvement": 0.3302895730044815,
+            "acceleration_w1_improvement": 0.15825597526096602,
+            "jerk_w1_improvement": -0.13711296265184414
+          }
+        },
+        "25": {
+          "A2": {
+            "response_dose_mps2": 5.169196605682373,
+            "natural_kl": 23.828367233276367,
+            "collision_sequence_rate": 0.0021589793915603533,
+            "rear_collision_sequence_rate": 0.0021589793915603533,
+            "positive_rebound_rate": 0.008390243902439025,
+            "acceleration_w1_mps2": 2.910309008740801,
+            "jerk_w1_mps3": 3.309140675986303,
+            "telemetry_active_samples": 784
+          },
+          "A3": {
+            "response_dose_mps2": 4.740288257598877,
+            "natural_kl": 18.164270401000977,
+            "collision_sequence_rate": 0.001962708537782139,
+            "rear_collision_sequence_rate": 0.001962708537782139,
+            "positive_rebound_rate": 0.01391767841279242,
+            "acceleration_w1_mps2": 3.1613276265751646,
+            "jerk_w1_mps3": 3.264419330778174,
+            "telemetry_active_samples": 784
+          },
+          "relative": {
+            "response_ratio": 0.9170261104768181,
+            "kl_improvement": 0.2377039423987669,
+            "acceleration_w1_improvement": -0.08625153448670098,
+            "jerk_w1_improvement": 0.01351448898279306
+          }
+        }
+      }
+    }
+  },
+  "acceptance": {
+    "validation": {
+      "kl_improvement_at_least_10_percent_all_conditions": false,
+      "jerk_w1_improvement_at_least_10_percent_all_conditions": false,
+      "response_at_least_85_percent_all_conditions": true
+    },
+    "test": {
+      "kl_improvement_at_least_10_percent_all_conditions": false,
+      "jerk_w1_improvement_at_least_10_percent_all_conditions": false,
+      "response_at_least_85_percent_all_conditions": true
+    }
+  },
+  "accepted": false,
+  "selected_controller": "A2_rl_residual_idm",
+  "promotion": "candidate only; formal artifacts unchanged"
+}

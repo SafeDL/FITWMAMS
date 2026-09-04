@@ -1,0 +1,44 @@
+{
+  "backend": "HighwayEnvClosedLoopWorld",
+  "common_random_numbers": true,
+  "controllers": [
+    "A0_none",
+    "A1_rl_residual",
+    "A2_rl_residual_idm",
+    "A3_rl_residual_gail"
+  ],
+  "counterfactual_rows": 5095,
+  "eligible_rows_in_split": 5095,
+  "evaluation_limit": null,
+  "factual_reconstruction": {
+    "A0_none": {
+      "background_ADE_m": 0.03957994654774666,
+      "background_FDE_m": 0.036680273711681366
+    },
+    "A1_rl_residual": {
+      "background_ADE_m": 0.03957994654774666,
+      "background_FDE_m": 0.036680273711681366
+    },
+    "A2_rl_residual_idm": {
+      "background_ADE_m": 0.03957994654774666,
+      "background_FDE_m": 0.036680273711681366
+    },
+    "A3_rl_residual_gail": {
+      "background_ADE_m": 0.03957994654774666,
+      "background_FDE_m": 0.036680273711681366
+    }
+  },
+  "factual_rows": 10151,
+  "full_split_sequences": 10151,
+  "interventions": {},
+  "natural_exact_base": {
+    "A0_none": true,
+    "A1_rl_residual": true,
+    "A2_rl_residual_idm": true,
+    "A3_rl_residual_gail": true
+  },
+  "rows": 5095,
+  "schema": "naturalistic_four_arm_highwayenv_v2",
+  "split": "test",
+  "status": "complete_full_split_factual_only"
+}
