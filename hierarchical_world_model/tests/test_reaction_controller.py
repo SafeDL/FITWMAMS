@@ -20,6 +20,7 @@ from hierarchical_world_model.src.human_prior import HUMAN_PRIOR_FEATURE_DIM, Hu
 from hierarchical_world_model.src.rule_models import RuleModelBundle, fit_rule_models
 from hierarchical_world_model.src.reaction_ppo import _gae
 from hierarchical_world_model.src.reaction_ppo import PPOConfig, train_reaction_ppo
+from hierarchical_world_model.src.reaction_realism import ReactionRealismReference, SupportedEventPool
 from hierarchical_world_model.src.planner import complete_missing_background_plans
 
 
@@ -231,11 +232,16 @@ def test_tiny_idm_and_gail_ppo_training_smoke(tmp_path):
     cfg = PPOConfig(updates=1, rollout_steps=64, episodes_per_rollout=2, epochs_per_update=1, minibatch_size=32,
                     naturalness_weight=.05, naturalness_kl_scale=1.)
     prior = HumanActionPrior()
+    prior_before = [parameter.detach().clone() for parameter in prior.parameters()]
     for mode in ("rl_residual_idm", "rl_residual_gail"):
         summary = train_reaction_ppo(DiffusionGuidedHiQR().eval(), train_arrays=arrays,
             soft_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path / mode, config=cfg,
-            device=torch.device("cpu"), controller_mode=mode, rule_model=_rules(), human_prior=prior if mode.endswith("gail") else None)
+            device=torch.device("cpu"), controller_mode=mode, rule_model=_rules(), human_prior=prior if mode.endswith("gail") else None,
+            realism_reference=_test_realism_reference() if mode.endswith("gail") else None)
         assert Path(summary["checkpoint"]).is_file() and summary["controller_mode"] == mode
+    assert all(not parameter.requires_grad for parameter in prior.parameters())
+    for before, after in zip(prior_before, prior.parameters()):
+        torch.testing.assert_close(before, after)
 
 
 def test_authority_features_include_realized_phase_and_age():
@@ -280,6 +286,16 @@ def _rules():
     return RuleModelBundle((32., 2.5, 3.0, 2., 1.2, 4.), .3, .2, 3.)
 
 
+def _test_realism_reference() -> ReactionRealismReference:
+    return ReactionRealismReference(
+        distributions={0: np.zeros((16, 6), np.float32)}, scales={0: np.ones(6, np.float32)},
+        event_counts={0: 16}, supported_cells=(0,),
+        events=SupportedEventPool(np.asarray((0,), np.int64), np.asarray((8,), np.int16),
+            np.asarray((2,), np.int8), np.asarray((0,), np.int16)),
+        source_rows_sha256="test", window_frames=25, minimum_events=1,
+    )
+
+
 def test_idm_and_gail_controllers_are_causal_legal_and_keep_yaw():
     values = _inputs(); model = DiffusionGuidedHiQR().eval()
     history, history_valid, current, valid, reference, maps, controls = values
@@ -294,6 +310,29 @@ def test_idm_and_gail_controllers_are_causal_legal_and_keep_yaw():
     assert float(output.actions[..., 0].min()) >= -8. and float(output.actions[..., 0].max()) <= 4.
     disabled = controller(ReactionControllerContext(**{**context.__dict__, "reaction_enabled": torch.zeros(2, dtype=torch.bool)}), deterministic=True)
     torch.testing.assert_close(disabled.actions, response.actions)
+
+
+def test_frozen_human_prior_never_projects_or_fuses_the_idm_action():
+    values = _inputs(); model = DiffusionGuidedHiQR().eval()
+    history, history_valid, current, valid, reference, maps, controls = values
+    response = model(history, history_valid, current, valid, reference, current[:, 1:, :2], maps,
+        torch.ones(2, 8, 8, dtype=torch.bool), committed_ego_controls=controls, deterministic=True,
+        apply_intervention_adapter=False)
+    context = ReactionControllerContext(**{**_context(model, response, values).__dict__, "reaction_enabled": torch.ones(2, dtype=torch.bool)})
+    torch.manual_seed(11)
+    plain_controller = IDMResidualReactionController(_rules())
+    plain = plain_controller(context, deterministic=True)
+    torch.manual_seed(11)
+    prior_controller = IDMResidualReactionController(_rules(), HumanActionPrior())
+    # Match the policy parameters explicitly: constructing the frozen prior
+    # consumes its own RNG stream, so seeding only the two forward passes does
+    # not make independently initialized residual policies comparable.
+    prior_controller.load_state_dict(
+        {key: value for key, value in plain_controller.state_dict().items()}, strict=False
+    )
+    prior = prior_controller(context, deterministic=True)
+    torch.testing.assert_close(prior.actions, plain.actions)
+    assert prior.natural_kl is not None
 
 
 def test_dynamic_a3_kl_matches_a_bounded_executable_action_density():

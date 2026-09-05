@@ -21,7 +21,13 @@ from hierarchical_world_model.src.influence_graph import dynamic_candidate_scene
 from hierarchical_world_model.src.planner import complete_missing_background_plans, frozen_diffusion_plans  # noqa: E402
 from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: E402
 from hierarchical_world_model.src.reaction_controller import IDMResidualReactionController, RLResidualReactionController  # noqa: E402
-from hierarchical_world_model.src.reaction_ppo import HighwayControllerRollout, highway_controller_rollout  # noqa: E402
+from hierarchical_world_model.src.reaction_ppo import (  # noqa: E402
+    HighwayControllerRollout, PPOConfig, highway_controller_rollout,
+    supported_rollout_realism_metrics,
+)
+from hierarchical_world_model.src.reaction_realism import (  # noqa: E402
+    ReactionRealismReference, build_reaction_realism_reference,
+)
 from hierarchical_world_model.src.rule_models import RuleModelBundle  # noqa: E402
 from hierarchical_world_model.src.train import load_checkpoint  # noqa: E402
 from world_model.src.core.utils import ensure_dir, save_json, select_device  # noqa: E402
@@ -48,7 +54,7 @@ def _load_controller(
     if name == "A0_none":
         return "none"
     payload = torch.load(paths[name], map_location=device, weights_only=False)
-    expected = "reaction_residual_ppo_dynamic_v3" if name == "A3_rl_residual_gail" else "reaction_residual_ppo_dynamic_v2"
+    expected = "reaction_residual_ppo_dynamic_v4" if name in {"A3_rl_residual_gail", "A4_rl_residual_realism"} else "reaction_residual_ppo_dynamic_v2"
     if payload.get("schema") != expected:
         raise ValueError(f"{name} is a legacy fixed-scope checkpoint; retraining is required")
     if name == "A1_rl_residual":
@@ -64,17 +70,9 @@ def _load_controller(
             if human_prior_path is None else human_prior_path,
             device,
         )
-        result = IDMResidualReactionController(rule, prior, apply_human_projection=False).to(device)
+        result = IDMResidualReactionController(rule, prior).to(device)
     result.load_state_dict(payload["state_dict"], strict=(name != "A2_rl_residual_idm")); result.eval()
     return result
-
-
-def _w1(left: np.ndarray, right: np.ndarray) -> float:
-    a, b = np.sort(left.reshape(-1)), np.sort(right.reshape(-1))
-    count = min(len(a), len(b))
-    if not count:
-        return 0.0
-    return float(np.abs(np.interp(np.linspace(0, len(a) - 1, count), np.arange(len(a)), a) - np.interp(np.linspace(0, len(b) - 1, count), np.arange(len(b)), b)).mean())
 
 
 def _batched_rollout(*, batch_size: int, motion_seed: int, **kwargs) -> HighwayControllerRollout:
@@ -173,6 +171,19 @@ def _summary(base, rollout, *, onset: int) -> dict[str, float]:
     }
 
 
+def _acceptance_sequences(rollout: HighwayControllerRollout, *, onset: int) -> dict[str, list[float] | list[bool]]:
+    """Compact per-sequence evidence for paired acceptance bootstrap tests."""
+    delta = rollout.background_actions[..., 0] - rollout.base_background_actions[..., 0]
+    active = rollout.controller_diagnostics["active"].astype(bool)
+    window_active = active[:, onset + 1:onset + 11]
+    response = (-delta[:, onset + 1:onset + 11]).clip(0.)
+    count = window_active.sum(axis=(1, 2))
+    dose = np.divide((response * window_active).sum(axis=(1, 2)), count,
+                     out=np.zeros(len(delta), np.float32), where=count > 0)
+    rear_collision = (rollout.crashed[:, :, 1:] & active).any(axis=(1, 2))
+    return {"response_dose_mps2": dose.astype(float).tolist(), "rear_collision": rear_collision.astype(bool).tolist()}
+
+
 def _bootstrap_difference(left: np.ndarray, right: np.ndarray, *, seed: int = 7) -> dict[str, float]:
     rng, n = np.random.default_rng(seed), len(left)
     samples = np.asarray([(left[rng.integers(n, size=n)] - right[rng.integers(n, size=n)]).mean() for _ in range(500)])
@@ -224,7 +235,7 @@ def _append_counterfactual_telemetry(
     valid = influenced & np.isfinite(final) & window
     fields = {
         "arm_code": np.full(final.shape, {"A0_none": 0, "A1_rl_residual": 1,
-            "A2_rl_residual_idm": 2, "A3_rl_residual_gail": 3}[arm], np.int8),
+            "A2_rl_residual_idm": 2, "A3_rl_residual_gail": 3, "A4_rl_residual_realism": 4}[arm], np.int8),
         "dose_mps2": np.full(final.shape, float(dose), np.float32),
         "duration_frames": np.full(final.shape, int(duration), np.int16),
         "step": np.broadcast_to(step, final.shape).astype(np.int16),
@@ -289,10 +300,13 @@ def main() -> None:
         help="Pure PPO checkpoint; defaults to the A1 artifact produced by this experiment.")
     parser.add_argument("--a2-checkpoint", type=Path, default=None)
     parser.add_argument("--a3-checkpoint", type=Path, default=None)
+    parser.add_argument("--a4-checkpoint", type=Path, default=None)
+    parser.add_argument("--realism-reference", type=Path, default=None,
+        help="train-only support table; defaults to <output>/realism_reference/train")
     parser.add_argument("--human-prior", type=Path, default=None,
         help="candidate GAIL V4 prior used by A3")
-    parser.add_argument("--arms", default="A0,A1,A2,A3",
-        help="comma-separated arm subset; fast A3 validation uses A2,A3")
+    parser.add_argument("--arms", default="A0,A1,A2,A3,A4",
+        help="comma-separated arm subset; supports A4 rollout-realignment candidate")
     parser.add_argument("--doses", default="2,4,6,8",
         help="comma-separated positive brake magnitudes in m/s^2")
     parser.add_argument("--durations", default="5,15,25",
@@ -307,8 +321,8 @@ def main() -> None:
         help="candidate evaluation directory; formal release output is untouched")
     args = parser.parse_args()
     requested_arms = {item.strip() for item in args.arms.split(",") if item.strip()}
-    if not requested_arms <= {"A0", "A1", "A2", "A3"} or not requested_arms:
-        raise ValueError("--arms must be a nonempty subset of A0,A1,A2,A3")
+    if not requested_arms <= {"A0", "A1", "A2", "A3", "A4"} or not requested_arms:
+        raise ValueError("--arms must be a nonempty subset of A0,A1,A2,A3,A4")
     doses = tuple(float(item) for item in args.doses.split(",") if item.strip())
     durations = tuple(int(item) for item in args.durations.split(",") if item.strip())
     config = load_protocol_config(args.config.resolve())
@@ -337,17 +351,29 @@ def main() -> None:
     # the full factual benchmark.
     factual_rows = source_rows if args.limit is None else source_rows[:int(args.limit)]
     root = Path(config["paths"]["output_dir"]) if args.output_dir is None else args.output_dir
+    a2_default = root / "controllers/rl_residual_idm/reaction_ppo.pt"
+    if args.a2_checkpoint is None and a2_default.exists():
+        # The formal directory may contain the pre-dynamic A2 artifact.  Do
+        # not pass that legacy schema into the dynamic evaluator; fall back to
+        # the maintained v2 A2 candidate unless the caller supplied a path.
+        try:
+            a2_schema = torch.load(a2_default, map_location="cpu", weights_only=False).get("schema")
+        except Exception:
+            a2_schema = None
+        if a2_schema != "reaction_residual_ppo_dynamic_v2":
+            a2_default = ROOT / "results/hierarchical_world_model/causal_reaction/candidates/ppo_v7_final/controllers/rl_residual_idm/reaction_ppo.pt"
     paths = {
         "A1_rl_residual": args.a1_checkpoint or root / "controllers/rl_residual/reaction_ppo.pt",
-        "A2_rl_residual_idm": args.a2_checkpoint or root / "controllers/rl_residual_idm/reaction_ppo.pt",
+        "A2_rl_residual_idm": args.a2_checkpoint or a2_default,
         "A3_rl_residual_gail": args.a3_checkpoint or root / "controllers/rl_residual_gail/reaction_ppo.pt",
+        "A4_rl_residual_realism": args.a4_checkpoint or root / "controllers/rl_residual_realism/reaction_ppo.pt",
     }
     arm_names = {
         "A0": "A0_none", "A1": "A1_rl_residual",
-        "A2": "A2_rl_residual_idm", "A3": "A3_rl_residual_gail",
+        "A2": "A2_rl_residual_idm", "A3": "A3_rl_residual_gail", "A4": "A4_rl_residual_realism",
     }
     controllers = {}
-    for arm in ("A0", "A1", "A2", "A3"):
+    for arm in ("A0", "A1", "A2", "A3", "A4"):
         if arm not in requested_arms:
             continue
         name = arm_names[arm]
@@ -360,6 +386,32 @@ def main() -> None:
         ddim_steps=int(config["training"]["diffusion_ddim_steps"]), experiment_scope=base_config["training"].get("experiment_scope", "full"))
     states, valid = arrays["agent_states"][rows], arrays["agent_valid"][rows]
     plans = complete_missing_background_plans(plans, states, valid)
+    train_realism_reference = None
+    evaluation_realism_reference = None
+    reference_path = root / "realism_reference" / "train" if args.realism_reference is None else args.realism_reference
+    if reference_path.exists():
+        train_realism_reference = ReactionRealismReference.load(reference_path)
+        if train_realism_reference.source_split != "train":
+            raise ValueError("--realism-reference must be a train-split support table")
+        # The evaluation target distribution comes only from this held-out
+        # split, while its eligible cells remain frozen by the train table.
+        evaluation_realism_reference = build_reaction_realism_reference(
+            {
+                "agent_states": states, "agent_valid": valid,
+                "map_polylines": arrays["map_polylines"][rows],
+                "map_polyline_valid": arrays["map_polyline_valid"][rows],
+            },
+            rows, minimum_events=1,
+            window_frames=train_realism_reference.window_frames,
+            allowed_cells=train_realism_reference.supported_cells,
+            rollout_steps=int(config["training"].get("rollout_steps", 149)),
+            source_split=args.split,
+            replay_radius_m=train_realism_reference.replay_radius_m,
+        )
+        evaluation_realism_reference = evaluation_realism_reference.with_supported_cells(
+            train_realism_reference.supported_cells,
+            minimum_events=1,
+        )
     if args.counterfactual_only:
         factual_rows, factual_states, factual_valid, factual_plans = rows, states, valid, plans
     else:
@@ -400,6 +452,8 @@ def main() -> None:
         "status": ("complete_dynamic_counterfactual_only" if args.counterfactual_only else
                     ("complete_dynamic_eligible_split" if args.limit is None else "diagnostic_subset")),
         "interventions": {},
+        "supported_rollout_realism": {},
+        "acceptance_sequences": {},
     }
     if not args.counterfactual_only:
         for name, controller in controllers.items():
@@ -429,22 +483,59 @@ def main() -> None:
         report["natural_exact_base"] = {}
         report["factual_reconstruction"] = {}
     telemetry: dict[str, list[np.ndarray]] = {}
+    if evaluation_realism_reference is None:
+        report["supported_rollout_realism"] = {
+            "supported": False,
+            "reason": "no train realism reference found; pass --realism-reference after A3/A4 training",
+        }
+    elif not evaluation_realism_reference.supported_cells:
+        report["supported_rollout_realism"] = {
+            "supported": False,
+            "reason": "held-out split has no event in a train-admitted support cell",
+        }
+    elif not args.factual_only:
+        ppo_fields = {key: value for key, value in config["training"].items() if key in PPOConfig.__dataclass_fields__}
+        realism_config = PPOConfig(**ppo_fields)
+        report["supported_rollout_realism"] = {}
+        for name in ("A2_rl_residual_idm", "A3_rl_residual_gail", "A4_rl_residual_realism"):
+            if name not in controllers:
+                continue
+            print(f"[realism] arm={name} rows={len(rows)}", flush=True)
+            report["supported_rollout_realism"][name] = supported_rollout_realism_metrics(
+                model, controllers[name],
+                arrays={
+                    "agent_states": states, "agent_valid": valid,
+                    "map_polylines": arrays["map_polylines"][rows],
+                    "map_polyline_valid": arrays["map_polyline_valid"][rows],
+                },
+                plans=plans, reference=evaluation_realism_reference,
+                config=realism_config, device=device,
+            )
+    else:
+        report["supported_rollout_realism"] = {
+            "supported": False, "reason": "not run with --factual-only",
+        }
     if args.factual_only:
         report["interventions"] = {}
         report["status"] = "complete_full_split_factual_only"
         output = ensure_dir(root / "evaluation")
+        if evaluation_realism_reference is not None:
+            evaluation_realism_reference.save(output / f"realism_reference_{args.split}")
         save_json(report, output / f"four_arm_comparison_{args.split}.json")
-        save_json({"schema": "naturalistic_reaction_telemetry_v1", "backend": "HighwayEnvClosedLoopWorld",
+        save_json({"schema": "naturalistic_reaction_telemetry_v2", "backend": "HighwayEnvClosedLoopWorld",
                    "split": args.split, "counterfactual_samples": 0,
                    "counterfactual_telemetry_rows_per_condition": 0,
-                   "arm_codes": {"0": "A0_none", "1": "A1_rl_residual", "2": "A2_rl_residual_idm", "3": "A3_rl_residual_gail"},
+                   "arm_codes": {"0": "A0_none", "1": "A1_rl_residual", "2": "A2_rl_residual_idm", "3": "A3_rl_residual_gail", "4": "A4_rl_residual_realism"},
                    "human_reference_samples": 0, "counterfactual_window": "not run",
-                   "human_reference": "not run"}, output / f"telemetry_manifest_{args.split}.json")
+                   "human_reference": "not run",
+                   "supported_rollout_realism": report["supported_rollout_realism"]}, output / f"telemetry_manifest_{args.split}.json")
         return
     for duration in durations:
         key, per_arm = f"duration_{duration}_frames", {}
+        report["acceptance_sequences"][key] = {}
         for dose in doses:
             outcomes = {}
+            report["acceptance_sequences"][key][str(int(dose))] = {}
             for name, controller in controllers.items():
                 print(f"[counterfactual] duration={duration} dose={dose:g} arm={name} rows={len(rows)}", flush=True)
                 item = _batched_rollout(
@@ -455,6 +546,8 @@ def main() -> None:
                     intervention_duration_frames=duration, **authority,
                 )
                 outcomes[name] = _summary(base_rollout, item, onset=25)
+                if name in {"A2_rl_residual_idm", "A3_rl_residual_gail", "A4_rl_residual_realism"}:
+                    report["acceptance_sequences"][key][str(int(dose))][name] = _acceptance_sequences(item, onset=25)
                 _append_counterfactual_telemetry(telemetry, item, arm=name, dose=dose, duration=duration,
                     onset=25, max_rows=args.telemetry_max_rows)
             per_arm[str(int(dose))] = outcomes
@@ -475,17 +568,20 @@ def main() -> None:
                 idm.background_actions[:, :, 1, 0] - idm.base_background_actions[:, :, 1, 0],
                 pure.background_actions[:, :, 1, 0] - pure.base_background_actions[:, :, 1, 0])
     output = ensure_dir(root / "evaluation")
+    if evaluation_realism_reference is not None:
+        evaluation_realism_reference.save(output / f"realism_reference_{args.split}")
     save_json(report, output / f"four_arm_comparison_{args.split}.json")
     np.savez_compressed(output / f"counterfactual_telemetry_{args.split}.npz", **{name: np.concatenate(value) for name, value in telemetry.items()})
     np.savez_compressed(output / f"human_reference_telemetry_{args.split}.npz", **_human_reference_telemetry(states, valid))
     save_json({
-        "schema": "naturalistic_reaction_telemetry_v1", "backend": "HighwayEnvClosedLoopWorld",
+        "schema": "naturalistic_reaction_telemetry_v2", "backend": "HighwayEnvClosedLoopWorld",
         "split": args.split, "counterfactual_samples": int(sum(len(item) for item in telemetry["arm_code"])),
         "counterfactual_telemetry_rows_per_condition": int(args.telemetry_max_rows),
-        "arm_codes": {"0": "A0_none", "1": "A1_rl_residual", "2": "A2_rl_residual_idm", "3": "A3_rl_residual_gail"},
+        "arm_codes": {"0": "A0_none", "1": "A1_rl_residual", "2": "A2_rl_residual_idm", "3": "A3_rl_residual_gail", "4": "A4_rl_residual_realism"},
         "human_reference_samples": int(len(_human_reference_telemetry(states, valid)["final_ax_mps2"])),
         "counterfactual_window": "post-observation intervention plus 1.0 s recovery",
         "human_reference": "held-out highD same-lane same-rear 25 Hz action and jerk samples",
+        "supported_rollout_realism": report["supported_rollout_realism"],
     }, output / f"telemetry_manifest_{args.split}.json")
 
 

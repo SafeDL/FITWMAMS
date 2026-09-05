@@ -1,0 +1,270 @@
+{
+  "schema": "reaction_a3_a4_acceptance_v1",
+  "A3": {
+    "supported_kl_improvement": -0.9900079909777957,
+    "kl_passed": false,
+    "synthetic_passed": true,
+    "conditions": {
+      "duration_15_frames/2": {
+        "passed": true,
+        "response_ratio": 1.1770283670782689,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_15_frames/4": {
+        "passed": true,
+        "response_ratio": 1.2057644691858385,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_15_frames/6": {
+        "passed": true,
+        "response_ratio": 1.188748503195049,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0005888125613346418
+        }
+      },
+      "duration_15_frames/8": {
+        "passed": true,
+        "response_ratio": 1.1625036414056278,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_25_frames/2": {
+        "passed": true,
+        "response_ratio": 1.1770283670782689,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_25_frames/4": {
+        "passed": true,
+        "response_ratio": 1.2057644691858385,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0007850834151128558,
+          "ci95_high": 0.0003925417075564279
+        }
+      },
+      "duration_25_frames/6": {
+        "passed": true,
+        "response_ratio": 1.188748503195049,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": -0.0007850834151128558,
+          "ci95_high": 0.0007850834151128558
+        }
+      },
+      "duration_25_frames/8": {
+        "passed": true,
+        "response_ratio": 1.1625036414056278,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0005888125613346418,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0013738959764474975
+        }
+      },
+      "duration_5_frames/2": {
+        "passed": true,
+        "response_ratio": 1.0455121321140766,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/4": {
+        "passed": true,
+        "response_ratio": 0.9660609941152215,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.0003925417075564279,
+          "ci95_low": -0.0009813542688910696,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/6": {
+        "passed": true,
+        "response_ratio": 0.9535830221673736,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/8": {
+        "passed": true,
+        "response_ratio": 0.9521807765943336,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": -0.00019627085377821394,
+          "ci95_low": -0.0005888125613346418,
+          "ci95_high": 0.0
+        }
+      }
+    },
+    "accepted": false
+  },
+  "A4": {
+    "composite_improvement": -0.04473241329060573,
+    "composite_passed": false,
+    "acceleration_w1_change": 0.0801113814230281,
+    "jerk_w1_change": 0.14741938621969108,
+    "dynamic_w1_changes": [
+      -0.009506549116482854,
+      0.09331770588119093,
+      0.009549419649810265
+    ],
+    "w1_passed": false,
+    "supported_kl_change": 0.09416362945489976,
+    "kl_passed": false,
+    "synthetic_passed": true,
+    "conditions": {
+      "duration_15_frames/2": {
+        "passed": true,
+        "response_ratio": 1.0645759249451463,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_15_frames/4": {
+        "passed": true,
+        "response_ratio": 1.0153112852989274,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.00019627085377821394,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0005888125613346418
+        }
+      },
+      "duration_15_frames/6": {
+        "passed": true,
+        "response_ratio": 1.0006734682236997,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.00019627085377821394,
+          "ci95_low": -0.0003925417075564279,
+          "ci95_high": 0.0009813542688910696
+        }
+      },
+      "duration_15_frames/8": {
+        "passed": true,
+        "response_ratio": 0.9980564550877107,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0003925417075564279,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0009813542688910696
+        }
+      },
+      "duration_25_frames/2": {
+        "passed": true,
+        "response_ratio": 1.0645759249451463,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.00019627085377821394,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0005888125613346418
+        }
+      },
+      "duration_25_frames/4": {
+        "passed": true,
+        "response_ratio": 1.0153112852989274,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0003925417075564279,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0009813542688910696
+        }
+      },
+      "duration_25_frames/6": {
+        "passed": true,
+        "response_ratio": 1.0006734682236997,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_25_frames/8": {
+        "passed": true,
+        "response_ratio": 0.9980564550877107,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/2": {
+        "passed": true,
+        "response_ratio": 1.104612200680101,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/4": {
+        "passed": true,
+        "response_ratio": 1.0431939163824642,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/6": {
+        "passed": true,
+        "response_ratio": 1.0370451954389583,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      },
+      "duration_5_frames/8": {
+        "passed": true,
+        "response_ratio": 1.0306639107420996,
+        "response_floor": 0.85,
+        "rear_collision": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        }
+      }
+    },
+    "accepted": false
+  },
+  "selected_controller": "A2_rl_residual_idm"
+}

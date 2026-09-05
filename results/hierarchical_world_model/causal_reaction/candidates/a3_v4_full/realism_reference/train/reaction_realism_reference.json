@@ -1,0 +1,46 @@
+{
+  "schema": "highd_reaction_realism_reference_v1",
+  "feature_names": [
+    "final_ax_mps2",
+    "abs_jerk_mps3",
+    "speed_mps",
+    "gap_m",
+    "closing_mps",
+    "ttc_s"
+  ],
+  "brake_edges_mps2": [
+    0.5,
+    2.0,
+    4.0,
+    6.0,
+    8.0001
+  ],
+  "ttc_edges_s": [
+    0.0,
+    2.0,
+    4.0,
+    10.0001
+  ],
+  "window_frames": 25,
+  "minimum_events": 100,
+  "event_counts": {
+    "2": 6334,
+    "1": 59,
+    "5": 152,
+    "4": 14,
+    "8": 4,
+    "0": 4,
+    "7": 2
+  },
+  "supported_cells": [
+    2,
+    5
+  ],
+  "supported_cell_labels": [
+    "brake_0.5_2_ttc_4_10.0001",
+    "brake_2_4_ttc_4_10.0001"
+  ],
+  "source_rows_sha256": "e245531438a1199caea2a0e65ded5ecf0dbe5d957f2358a7e9181696ca3a7bca",
+  "source_split": "train",
+  "replay_radius_m": 50.0
+}

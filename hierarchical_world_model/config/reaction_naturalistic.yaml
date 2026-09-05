@@ -64,13 +64,22 @@ training:
   # Tuned on validation only.  The prior remains a soft constraint: response
   # reward still dominates when a realized rear TTC is unsafe.
   # Fixed as specified for A3: naturalness must regularize safe response,
-  # never dominate the causal braking objective.
+  # never dominate the causal braking objective.  It is applied only to
+  # supported natural highD replay events, never synthetic ADS interventions.
   naturalness_weight: 0.05
   # Zero requests automatic M calibration from the frozen A2 policy before
   # A3 starts; lambda_H remains fixed at 0.05.
   naturalness_kl_scale: 0.0
   naturalness_ttc_relax_s: 2.0
   naturalness_ttc_full_s: 4.0
+  # A4: train-only highD reaction reference and stratified MLOO objective.
+  # 64 episodes = four homogeneous 8-rollout support-cell groups plus 32
+  # unchanged synthetic response episodes.
+  supported_replay_fraction: 0.5
+  support_minimum_events: 100
+  realism_group_size: 8
+  realism_window_frames: 25
+  realism_advantage_weight: 0.10
   diffusion_ddim_steps: 20
 human_prior:
   # Formal training consumes the complete eligible highD train split through

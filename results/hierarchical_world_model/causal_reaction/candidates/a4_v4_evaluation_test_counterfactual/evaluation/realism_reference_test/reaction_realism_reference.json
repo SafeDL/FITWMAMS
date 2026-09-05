@@ -1,0 +1,41 @@
+{
+  "schema": "highd_reaction_realism_reference_v1",
+  "feature_names": [
+    "final_ax_mps2",
+    "abs_jerk_mps3",
+    "speed_mps",
+    "gap_m",
+    "closing_mps",
+    "ttc_s"
+  ],
+  "brake_edges_mps2": [
+    0.5,
+    2.0,
+    4.0,
+    6.0,
+    8.0001
+  ],
+  "ttc_edges_s": [
+    0.0,
+    2.0,
+    4.0,
+    10.0001
+  ],
+  "window_frames": 25,
+  "minimum_events": 1,
+  "event_counts": {
+    "2": 485,
+    "5": 15
+  },
+  "supported_cells": [
+    2,
+    5
+  ],
+  "supported_cell_labels": [
+    "brake_0.5_2_ttc_4_10.0001",
+    "brake_2_4_ttc_4_10.0001"
+  ],
+  "source_rows_sha256": "a80821784fad11ba0c058afa87fb528ff0fa4bef32403b57a4c0865a9661a521",
+  "source_split": "test",
+  "replay_radius_m": 50.0
+}

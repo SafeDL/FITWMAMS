@@ -19,7 +19,7 @@ from .reference import response_relevance
 from .rule_models import RuleModelBundle
 
 
-ControllerMode = Literal["none", "handcrafted", "rl_residual", "rl_residual_idm", "rl_residual_gail"]
+ControllerMode = Literal["none", "handcrafted", "rl_residual", "rl_residual_idm", "rl_residual_gail", "rl_residual_realism"]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
 # scalars (gap, closing speed, TTC, phase age).
@@ -677,11 +677,9 @@ class IDMResidualReactionController(ReactionController):
     def __init__(
         self, rule_model: RuleModelBundle, human_prior: HumanActionPrior | None = None,
         hidden_dim: int = 128, relevance_threshold: float = .10, target_slot_index: int = 1,
-        apply_human_projection: bool = False,
     ) -> None:
         super().__init__()
         self.rule_model, self.human_prior = rule_model, human_prior
-        self.apply_human_projection = bool(apply_human_projection)
         self.relevance_threshold, self.target_slot_index = float(relevance_threshold), int(target_slot_index)
         if not 0 <= self.target_slot_index < 6:
             raise ValueError("target_slot_index must address one of six background slots")
@@ -957,10 +955,10 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
         return HandcraftedReactionController(adapter_logit)
     if mode == "rl_residual":
         return RLResidualReactionController(**kwargs)
-    if mode in {"rl_residual_idm", "rl_residual_gail"}:
+    if mode in {"rl_residual_idm", "rl_residual_gail", "rl_residual_realism"}:
         if "rule_model" not in kwargs:
             raise ValueError(f"{mode} requires a calibrated rule_model")
-        if mode == "rl_residual_gail" and kwargs.get("human_prior") is None:
-            raise ValueError("rl_residual_gail requires a frozen human_prior")
+        if mode in {"rl_residual_gail", "rl_residual_realism"} and kwargs.get("human_prior") is None:
+            raise ValueError(f"{mode} requires a frozen human_prior")
         return IDMResidualReactionController(**kwargs)
     raise ValueError(f"unknown reaction controller mode {mode!r}")

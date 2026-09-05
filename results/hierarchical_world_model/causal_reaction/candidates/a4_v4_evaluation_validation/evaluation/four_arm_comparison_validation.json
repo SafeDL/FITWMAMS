@@ -1,0 +1,55 @@
+{
+  "acceptance_sequences": {},
+  "backend": "HighwayEnvClosedLoopWorld",
+  "common_random_numbers": true,
+  "controllers": [
+    "A0_none",
+    "A1_rl_residual",
+    "A2_rl_residual_idm",
+    "A3_rl_residual_gail",
+    "A4_rl_residual_realism"
+  ],
+  "counterfactual_rows": 6864,
+  "eligible_rows_in_split": 6864,
+  "evaluation_limit": null,
+  "factual_reconstruction": {
+    "A0_none": {
+      "background_ADE_m": 0.03665788099169731,
+      "background_FDE_m": 0.030055571347475052
+    },
+    "A1_rl_residual": {
+      "background_ADE_m": 0.03665788099169731,
+      "background_FDE_m": 0.030055571347475052
+    },
+    "A2_rl_residual_idm": {
+      "background_ADE_m": 0.03665788099169731,
+      "background_FDE_m": 0.030055571347475052
+    },
+    "A3_rl_residual_gail": {
+      "background_ADE_m": 0.03665788099169731,
+      "background_FDE_m": 0.030055571347475052
+    },
+    "A4_rl_residual_realism": {
+      "background_ADE_m": 0.03665788099169731,
+      "background_FDE_m": 0.030055571347475052
+    }
+  },
+  "factual_rows": 13133,
+  "full_split_sequences": 13133,
+  "interventions": {},
+  "natural_exact_base": {
+    "A0_none": true,
+    "A1_rl_residual": true,
+    "A2_rl_residual_idm": true,
+    "A3_rl_residual_gail": true,
+    "A4_rl_residual_realism": true
+  },
+  "rows": 6864,
+  "schema": "naturalistic_selected_arm_highwayenv_v3",
+  "split": "validation",
+  "status": "complete_full_split_factual_only",
+  "supported_rollout_realism": {
+    "reason": "not run with --factual-only",
+    "supported": false
+  }
+}

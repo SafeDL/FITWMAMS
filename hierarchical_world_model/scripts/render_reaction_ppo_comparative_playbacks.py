@@ -53,7 +53,7 @@ def _controller(arm: str, config: dict, device: torch.device, root: Path | None 
     root = Path(config["paths"]["output_dir"]) if root is None else root
     payload_path = checkpoint if checkpoint is not None else root / "controllers" / {"A1": "rl_residual", "A2": "rl_residual_idm", "A3": "rl_residual_gail"}[arm] / "reaction_ppo.pt"
     payload = torch.load(payload_path, map_location=device, weights_only=False)
-    expected = "reaction_residual_ppo_dynamic_v3" if arm == "A3" else "reaction_residual_ppo_dynamic_v2"
+    expected = "reaction_residual_ppo_dynamic_v4" if arm == "A3" else "reaction_residual_ppo_dynamic_v2"
     if payload.get("schema") != expected:
         raise ValueError(f"{arm} requires a dynamic-scope controller checkpoint")
     if arm == "A1":

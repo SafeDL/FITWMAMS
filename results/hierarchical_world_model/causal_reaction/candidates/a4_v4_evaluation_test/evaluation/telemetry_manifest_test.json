@@ -1,0 +1,21 @@
+{
+  "arm_codes": {
+    "0": "A0_none",
+    "1": "A1_rl_residual",
+    "2": "A2_rl_residual_idm",
+    "3": "A3_rl_residual_gail",
+    "4": "A4_rl_residual_realism"
+  },
+  "backend": "HighwayEnvClosedLoopWorld",
+  "counterfactual_samples": 0,
+  "counterfactual_telemetry_rows_per_condition": 0,
+  "counterfactual_window": "not run",
+  "human_reference": "not run",
+  "human_reference_samples": 0,
+  "schema": "naturalistic_reaction_telemetry_v2",
+  "split": "test",
+  "supported_rollout_realism": {
+    "reason": "not run with --factual-only",
+    "supported": false
+  }
+}

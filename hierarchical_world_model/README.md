@@ -145,19 +145,18 @@ conda run -n tread python hierarchical_world_model/scripts/calibrate_reaction_ru
 conda run -n tread python hierarchical_world_model/scripts/evaluate_reaction_rules.py --split validation
 conda run -n tread python hierarchical_world_model/scripts/evaluate_human_driving_prior.py --split validation
 conda run -n tread python hierarchical_world_model/scripts/visualize_human_prior_evidence.py
-conda run -n tread python hierarchical_world_model/scripts/visualize_a2_a3_fast_evidence.py \
-  --artifact-dir results/hierarchical_world_model/causal_reaction/candidates/a3_v4_balanced
-conda run -n tread python hierarchical_world_model/scripts/render_reaction_ppo_comparative_playbacks.py \
-  --artifact-dir results/hierarchical_world_model/causal_reaction/candidates/ppo_v7_final --row 3456
+conda run -n tread python hierarchical_world_model/scripts/build_reaction_realism_reference.py \
+  --split train --output-dir results/hierarchical_world_model/causal_reaction/candidates/gail_prior/realism_reference/train
 ```
 
 训练新的 prior 或 PPO controller 时必须显式使用 `--output` 或 `--output-dir` 指向新的
 candidate 目录，不能覆盖 `formal/`、`ppo_v7_final/`、`gail_v4_temporal/` 或
-`a3_v4_balanced/`。完整的保留工件和生命周期说明见
+已有候选目录。完整的保留工件和生命周期说明见
 `results/hierarchical_world_model/causal_reaction/README.md`。
 
 消融固定为 `A0_none`、已有纯 `A1_rl_residual`、IDM-referenced
-`A2_rl_residual_idm`、以及 GAIL-constrained `A3_rl_residual_gail`。MOBIL 在本轮
+`A2_rl_residual_idm`、GAIL-constrained `A3_rl_residual_gail`，以及增加支持区域
+rollout realism 对齐的 `A4_rl_residual_realism`。MOBIL 在本轮
 只作为从 highD 换道片段标定出的诊断规则；它不输出 yaw-rate，也不修改纵向 controller。
 V4 GAIL prior 使用两层128单元的单一 bounded Gaussian actor、独立 critic 和逐 tick
 轻量 MLP discriminator。它先经概率行为克隆初始化，再以“prior 控制目标 NPC、其余
@@ -168,12 +167,11 @@ V4 GAIL prior 使用两层128单元的单一 bounded Gaussian actor、独立 cri
 不再执行确定性 human-action projection。评估中，动作修正剂量定义为同一 tick 的
 `HighwayEnv 执行动作 − HiQR 基础动作`，而不是与已发生状态分叉的 A0 未来动作相减。
 
-最新快速修复工件位于 `causal_reaction/candidates/gail_v4_temporal/` 与
-`causal_reaction/candidates/a3_v4_balanced/`。V4 prior 在完整 highD train split 上进行
-连续两秒 HighwayEnv GAIL refinement；A3 完成全量动态训练和响应受限 fine-tune。在完整
-5,095条动态 test 上，A3 的 0.6/1.0秒 KL 改善约33%/24%，响应保持 A2 的约92%，但
-0.2秒 KL 与 jerk W1 未全面改善，因此自动验收仍选择 A2，不覆盖正式 controller 或 GIF。
-机器可读结论见 `a3_v4_balanced/evidence/a2_a3_v4_acceptance.json`。
+当前训练入口以同一个冻结 A2 checkpoint 初始化 A3 与 A4；两者共享随机种子、episode
+序列和预算，A4 仅额外接收按支持 cell 分组的轨迹级 MLOO advantage。评估分为完整 factual
+reconstruction、支持区域的 natural-event rollout realism 与 synthetic causal response；使用
+`check_reaction_acceptance.py` 对 validation report 选择候选。若验收失败，候选与证据保留，
+正式 A2 controller 不被覆盖。
 
 每次四臂评估还会保存逐 tick 的 `counterfactual_telemetry_<split>.npz`：最终/基础动作、
 残差、门控、IDM 动作、GAIL KL、gap、closing speed、TTC 与 jerk。随后运行
