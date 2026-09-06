@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import numpy as np
 import torch
@@ -57,10 +57,11 @@ def trajectory_event_risk(
     *,
     options: SafetyEnvelopeRiskOptions | None = None,
     dt_s: float = 0.04,
+    excluded_slots: Iterable[str] = (),
 ) -> np.ndarray:
-    """Evaluate the same safety-envelope severity used for highD EVT fitting."""
+    """Evaluate safety-envelope severity over an explicit vehicle scope."""
     values = np.asarray(states, np.float32)
-    present = np.asarray(scoped_agent_valid(valid), bool)
+    present = np.asarray(scoped_agent_valid(valid, excluded_slots=excluded_slots), bool)
     if values.ndim != 4 or values.shape[2:] != (7, 6):
         raise ValueError("states must have shape [batch,frames,7,6]")
     if present.shape != (values.shape[0], 7):
@@ -111,11 +112,19 @@ def rollout_world(
     steps: int | None = None,
     evt_model: GPDTailModel | None = None,
     risk_options: SafetyEnvelopeRiskOptions | None = None,
+    reaction_controller: Any = None,
+    reference_rebase_weights: tuple[float, float] | None = (1.0, 0.0),
+    excluded_risk_slots: Iterable[str] = (),
 ) -> WorldRollout:
     """Replay a complete world; no ADS future action reaches a current response."""
     sample = sampler.compose_exogenous(exogenous_state)
     idm_config = getattr(ads_policy, "highway_env_idm_config", None)
-    world = sampler.create_world(sample, idm_config=idm_config)
+    world = sampler.create_world(
+        sample,
+        idm_config=idm_config,
+        controller=reaction_controller,
+        reference_rebase_weights=reference_rebase_weights,
+    )
     horizon = min(sample.soft_plan.shape[1], exogenous_state.response_steps)
     if steps is not None:
         horizon = min(horizon, int(steps))
@@ -142,7 +151,12 @@ def rollout_world(
         background_actions.append(transition["background_actions"][:, 0].cpu().numpy())
     states = np.stack(state_frames, axis=1).astype(np.float32)
     numerical_valid = np.isfinite(states).all(axis=(1, 2, 3))
-    event_risk = trajectory_event_risk(states, sample.initial_valid, options=risk_options)
+    event_risk = trajectory_event_risk(
+        states,
+        sample.initial_valid,
+        options=risk_options,
+        excluded_slots=excluded_risk_slots,
+    )
     evt_score = None if evt_model is None else np.asarray(evt_model.score(event_risk), np.float64)
     return WorldRollout(
         states=states,

@@ -17,7 +17,7 @@ from hierarchical_world_model.src.rule_models import fit_rule_models  # noqa: E4
 from world_model.src.core.utils import ensure_dir, save_json  # noqa: E402
 
 
-DEFAULT = ROOT / "hierarchical_world_model/config/reaction_naturalistic.yaml"
+DEFAULT = ROOT / "hierarchical_world_model/config/reaction_policy.yaml"
 
 
 def main() -> None:

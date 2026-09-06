@@ -22,6 +22,8 @@ def rebase_soft_preview(
     dt_s: float = 0.04,
     velocity_horizon_s: float = 0.40,
     endpoint_offset_weight: float = 0.0,
+    longitudinal_endpoint_offset_weight: float | None = None,
+    lateral_endpoint_offset_weight: float | None = None,
 ) -> torch.Tensor:
     """Make the plan locally continuous while retaining a soft long-horizon anchor.
 
@@ -52,10 +54,24 @@ def rebase_soft_preview(
         * hermite_velocity[None, :, None, None]
         * velocity_delta[:, None]
     )
-    position_weight = endpoint_offset_weight + (
-        1.0 - endpoint_offset_weight
-    ) * hermite_position
-    position_correction = position_weight[None, :, None, None] * position_delta[:, None]
+    # The legacy scalar keeps the released checkpoint behaviour.  Reaction
+    # experiments may opt into a timing-invariant longitudinal reference:
+    # retain accumulated x-offset while still letting y return to lane
+    # geometry.  The split is explicit so callers cannot accidentally claim
+    # an absolute K reference after an interactive divergence.
+    longitudinal_weight = (
+        endpoint_offset_weight
+        if longitudinal_endpoint_offset_weight is None
+        else float(longitudinal_endpoint_offset_weight)
+    )
+    lateral_weight = (
+        endpoint_offset_weight
+        if lateral_endpoint_offset_weight is None
+        else float(lateral_endpoint_offset_weight)
+    )
+    endpoint_weights = position_delta.new_tensor((longitudinal_weight, lateral_weight))
+    position_weight = endpoint_weights + (1.0 - endpoint_weights) * hermite_position[:, None]
+    position_correction = position_weight[None, :, None] * position_delta[:, None]
     return reference + position_correction + velocity_correction
 
 

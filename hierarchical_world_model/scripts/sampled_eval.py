@@ -220,7 +220,11 @@ def main() -> None:
         sampled_parts["trajectory_constraint"].append(sample.scenario.trajectory_constraint)
         sampled_parts["trajectory_constraint_valid"].append(sample.scenario.trajectory_constraint_valid)
         for name, policy in policies.items():
-            values[name].append(rollout_world(sampler, subset, policy, steps=args.steps, evt_model=evt))
+            values[name].append(rollout_world(
+                sampler, subset, policy, steps=args.steps, evt_model=evt,
+                reference_rebase_weights=None,
+                excluded_risk_slots=("same_rear",),
+            ))
     # Concatenate only report-level vectors; trajectories remain in the NPZ-replayable world input.
     reports = {}
     paired = {}

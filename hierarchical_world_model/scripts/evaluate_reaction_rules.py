@@ -23,7 +23,7 @@ from hierarchical_world_model.src.rule_models import RuleModelBundle, _idm_numpy
 from world_model.src.core.utils import ensure_dir, save_json  # noqa: E402
 
 
-DEFAULT = ROOT / "hierarchical_world_model/config/reaction_naturalistic.yaml"
+DEFAULT = ROOT / "hierarchical_world_model/config/reaction_policy.yaml"
 
 
 def main() -> None:

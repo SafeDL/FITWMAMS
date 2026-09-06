@@ -268,6 +268,7 @@ def _summary(
         states,
         valid,
         options=SafetyEnvelopeRiskOptions(),
+        excluded_slots=("same_rear",),
     )
     score = np.asarray(evt_model.score(risk), np.float64)
     failed = score >= float(threshold)

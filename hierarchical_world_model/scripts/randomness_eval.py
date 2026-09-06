@@ -198,7 +198,7 @@ def main() -> None:
         ),
         "response_latent_is_used": quadrants["response_only_random"][
             "mean_pairwise_trajectory_distance_m"
-        ] > RANDOMNESS_ABLATION_GATES["response_response_floor_min_movement"],
+        ] > RANDOMNESS_ABLATION_GATES["response_minimum_observable_movement"],
     }
     gates["all_passed"] = all(gates.values())
     report = {

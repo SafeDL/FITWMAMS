@@ -64,6 +64,21 @@ def test_rebase_matches_realized_velocity_without_moving_preview_endpoint():
     torch.testing.assert_close(rebased[:, -1:], expected_endpoint)
 
 
+def test_reaction_reference_preserves_longitudinal_schedule_offset_only():
+    values = inputs(batch=1)
+    current, reference, base = values[2], values[4], values[5]
+    current[:, 1:, 0] = -10.0
+    current[:, 1:, 1] = 3.6
+    current[:, 1:, 2] = 25.0
+    rebased = rebase_soft_preview(
+        current[:, 1:], reference, base,
+        longitudinal_endpoint_offset_weight=1.0,
+        lateral_endpoint_offset_weight=0.0,
+    )
+    torch.testing.assert_close(rebased[..., 0], reference[..., 0] - 10.0)
+    assert torch.allclose(rebased[:, -1, :, 1], reference[:, -1, :, 1])
+
+
 def test_fixed_motion_noise_is_exactly_reproducible():
     model = DiffusionGuidedHiQR().eval()
     arguments = inputs()

@@ -20,6 +20,13 @@ def test_explicit_randomness_is_seed_replayable_and_block_mutable(tmp_path):
     proposal = first.pcn_mutate("diffusion_noise", beta=0.3, seed=17)
     assert not np.array_equal(first.diffusion_noise, proposal.diffusion_noise)
     assert np.array_equal(first.scenario_uniform, proposal.scenario_uniform)
+    policy_proposal = first.pcn_mutate("policy_response_innovations", beta=0.3, seed=18)
+    assert not np.array_equal(
+        first.policy_response_innovations, policy_proposal.policy_response_innovations,
+    )
+    assert np.array_equal(
+        first.agent_response_innovations, policy_proposal.agent_response_innovations,
+    )
 
 
 def test_scene_innovations_are_compressed_without_becoming_the_horizon_source():
@@ -27,6 +34,7 @@ def test_scene_innovations_are_compressed_without_becoming_the_horizon_source():
     assert state.response_steps == 149
     assert state.scene_innovations.shape == (2, 6, 16)
     assert state.agent_response_innovations.shape == (2, 149, 7, 16)
+    assert state.policy_response_innovations.shape == (2, 149, 6, 2)
     state.validate(response_steps=149)
 
 

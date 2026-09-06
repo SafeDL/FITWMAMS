@@ -21,12 +21,14 @@ from world_model.src.core.evaluation_scope import scoped_slot_mask
 from world_model.src.core.utils import file_sha256
 
 
-EMPIRICAL_K_RNG_SCHEMA = "empirical_test_fixed_k_gt_rng_v1"
+EMPIRICAL_K_RNG_SCHEMA_NAME = "empirical_fixed_k_world"
+EMPIRICAL_K_RNG_SCHEMA_VERSION = 2
 EMPIRICAL_K_RANDOM_BLOCKS = (
     "test_row_uniform",
     "diffusion_noise",
     "scene_innovations",
     "agent_response_innovations",
+    "policy_response_innovations",
 )
 
 
@@ -38,6 +40,7 @@ class EmpiricalKWorldState:
     diffusion_noise: np.ndarray
     scene_innovations: np.ndarray
     agent_response_innovations: np.ndarray
+    policy_response_innovations: np.ndarray
     scene_refresh_responses: int = 25
 
     @property
@@ -77,6 +80,10 @@ class EmpiricalKWorldState:
                 self.agent_response_innovations,
                 (n, steps, 7, int(agent_dim)),
             ),
+            "policy_response_innovations": (
+                self.policy_response_innovations,
+                (n, steps, 6, 2),
+            ),
         }
         for name, (value, shape) in expected.items():
             array = np.asarray(value)
@@ -101,7 +108,10 @@ class EmpiricalKWorldState:
             raise ValueError("n must be positive")
 
         def rng(name: str) -> np.random.Generator:
-            material = f"{EMPIRICAL_K_RNG_SCHEMA}:{int(seed)}:{name}".encode()
+            material = (
+                f"{EMPIRICAL_K_RNG_SCHEMA_NAME}:{EMPIRICAL_K_RNG_SCHEMA_VERSION}:"
+                f"{int(seed)}:{name}"
+            ).encode()
             child = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
             return np.random.default_rng(child)
 
@@ -116,6 +126,9 @@ class EmpiricalKWorldState:
             ),
             agent_response_innovations=rng("agent_response_innovations").standard_normal(
                 (int(n), int(response_steps), 7, int(agent_dim)), dtype=np.float32
+            ),
+            policy_response_innovations=rng("policy_response_innovations").standard_normal(
+                (int(n), int(response_steps), 6, 2), dtype=np.float32
             ),
             scene_refresh_responses=int(scene_refresh_responses),
         )
@@ -170,6 +183,7 @@ class EmpiricalKWorldState:
             "diffusion_noise",
             "scene_innovations",
             "agent_response_innovations",
+            "policy_response_innovations",
         }:
             current = values[block]
             innovation = rng.standard_normal(current.shape, dtype=np.float32)
@@ -192,13 +206,17 @@ class EmpiricalKWorldState:
             **self.as_dict(),
             response_steps=np.asarray(self.response_steps, dtype=np.int64),
             scene_refresh_responses=np.asarray(self.scene_refresh_responses, dtype=np.int64),
-            rng_schema=np.asarray(EMPIRICAL_K_RNG_SCHEMA),
+            schema_name=np.asarray(EMPIRICAL_K_RNG_SCHEMA_NAME),
+            schema_version=np.asarray(EMPIRICAL_K_RNG_SCHEMA_VERSION, dtype=np.int64),
         )
 
     @classmethod
     def load(cls, path: str | Path) -> "EmpiricalKWorldState":
         with np.load(path) as values:
-            if str(values["rng_schema"]) != EMPIRICAL_K_RNG_SCHEMA:
+            if (
+                str(values["schema_name"]) != EMPIRICAL_K_RNG_SCHEMA_NAME
+                or int(values["schema_version"]) != EMPIRICAL_K_RNG_SCHEMA_VERSION
+            ):
                 raise ValueError("not an empirical fixed-K world archive")
             result = cls(
                 **{name: np.asarray(values[name]) for name in EMPIRICAL_K_RANDOM_BLOCKS},
@@ -246,6 +264,7 @@ class EmpiricalKContextSampler:
                 "diffusion_noise",
                 "scene_innovations",
                 "agent_response_innovations",
+                "policy_response_innovations",
             ],
             "test_sequences": int(len(self.rows)),
             "test_sequence_id_sha256": self._row_hash,

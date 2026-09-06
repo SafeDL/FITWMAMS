@@ -58,7 +58,7 @@ RANDOMNESS_ABLATION_GATES = {
     "terminal_pairwise_min_m": 0.05,
     "speed_ax_degradation_max_ratio": 0.10,
     "windowed_jerk_degradation_max_ratio": 0.10,
-    "response_response_floor_min_movement": 0.001,
+    "response_minimum_observable_movement": 0.001,
 }
 SAMPLED_END_TO_END = {
     "schema": "sampled_end_to_end",

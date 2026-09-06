@@ -14,12 +14,14 @@ from typing import Any, Literal
 import torch
 from torch import nn
 
-from .human_prior import HumanActionPrior, human_prior_features, realized_parent_controls
 from .reference import response_relevance
 from .rule_models import RuleModelBundle
 
 
-ControllerMode = Literal["none", "handcrafted", "rl_residual", "rl_residual_idm", "rl_residual_gail", "rl_residual_realism"]
+ControllerMode = Literal[
+    "none", "handcrafted", "rl_residual", "rl_residual_idm",
+    "idm_only", "calibrated_residual",
+]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
 # scalars (gap, closing speed, TTC, phase age).
@@ -52,6 +54,7 @@ class ReactionControllerContext:
     reaction_phase: torch.Tensor | None = None
     reaction_age_frames: torch.Tensor | None = None
     reaction_max_frames: int = 1
+    reaction_safety_ttc_s: float = 2.0
     # A release threshold, not an action-window duration.  While the
     # realized same-rear relation is closing inside this horizon, a triggered
     # controller retains authority irrespective of how long the ADS command
@@ -66,6 +69,7 @@ class ReactionControllerContext:
     influence_secondary: torch.Tensor | None = None
     influence_predicted_ttc_s: torch.Tensor | None = None
     influence_predicted_min_gap_m: torch.Tensor | None = None
+    policy_standard_normal: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -79,7 +83,6 @@ class ReactionControllerOutput:
     value: torch.Tensor | None = None
     raw_action: torch.Tensor | None = None
     rule_action_ax: torch.Tensor | None = None
-    natural_kl: torch.Tensor | None = None
     policy_features: torch.Tensor | None = None
     desired_action_ax: torch.Tensor | None = None
 
@@ -188,6 +191,18 @@ class ReactionController(nn.Module):
         self, context: ReactionControllerContext, *, deterministic: bool = False
     ) -> ReactionControllerOutput:
         raise NotImplementedError
+
+
+def _policy_sample(
+    distribution: torch.distributions.Normal,
+    context: ReactionControllerContext,
+    deterministic: bool,
+) -> torch.Tensor:
+    if deterministic:
+        return distribution.mean
+    if context.policy_standard_normal is None:
+        return distribution.rsample()
+    return distribution.mean + distribution.stddev * context.policy_standard_normal.to(distribution.mean)
 
 
 class NoReactionController(ReactionController):
@@ -339,9 +354,8 @@ def unresolved_following_brake_guard(
 ) -> torch.Tensor:
     """Forbid a HiQR acceleration rebound while a realized risk is unresolved.
 
-    This is a controller-independent kinematic safety guard, shared by A1,
-    A2 and A3.  It is deliberately *not* an IDM action/reference: therefore
-    the A1--A2 ablation continues to isolate the calibrated IDM contribution.
+    This is a controller-independent kinematic safety guard shared by the
+    frozen transfer baselines.  It is deliberately not an IDM reference.
     It uses only the last committed ego acceleration and the state already
     realized by HighwayEnv.  In particular it cannot see a pending ego action.
     """
@@ -485,12 +499,12 @@ def dynamic_safety_and_jerk_guard(
         if context.influence_predicted_ttc_s is None
         else context.influence_predicted_ttc_s
     )
-    unresolved = active & following & (ttc < float(context.reaction_release_ttc_s))
+    unresolved = active & following & (ttc < float(context.reaction_safety_ttc_s))
     guarded = torch.where(unresolved, torch.minimum(desired_ax, torch.zeros_like(desired_ax)), desired_ax)
     if context.previous_background_actions is None:
         return guarded.clamp(context.cfg.min_acceleration_mps2, context.cfg.max_acceleration_mps2)
     prior = context.previous_background_actions[..., 0]
-    urgency = ((float(context.reaction_release_ttc_s) - ttc) / max(float(context.reaction_release_ttc_s) - 1.0, 1.0e-3)).clamp(0.0, 1.0)
+    urgency = ((float(context.reaction_safety_ttc_s) - ttc) / max(float(context.reaction_safety_ttc_s) - .25, 1.0e-3)).clamp(0.0, 1.0)
     brake_step = (20.0 + 40.0 * urgency) * float(context.cfg.dt_s)
     release_step = torch.full_like(brake_step, 8.0 * float(context.cfg.dt_s))
     executed = prior + (guarded - prior).clamp(-brake_step, release_step)
@@ -521,7 +535,7 @@ def dynamic_bounded_action_distribution(
     Returns final action, gate, effective target bounds, executable action
     bounds and the safety-imposed minimum gate. Because the
     bounds are inside the sigmoid transform, the executed action retains a
-    continuous density suitable for A3's KL calculation.
+    continuous density for the frozen transfer-policy action mapping.
     """
     alpha = torch.sigmoid(raw[..., 0]) * authority * active.float()
     lower, upper = nominal_lower.clone(), nominal_upper.clone()
@@ -615,7 +629,7 @@ class RLResidualReactionController(ReactionController):
     def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
         features = controller_features(context)
         distribution, value = self.distribution_and_value(features)
-        raw = distribution.mean if deterministic else distribution.rsample()
+        raw = _policy_sample(distribution, context, deterministic)
         relevance = response_relevance(context.current, context.current_valid)
         if context.influence_authority is not None:
             authority = context.influence_authority
@@ -670,16 +684,16 @@ class RLResidualReactionController(ReactionController):
 
 
 class IDMResidualReactionController(ReactionController):
-    """PPO residual with a calibrated IDM reference; optionally GAIL-constrained."""
+    """Legacy A2-transfer residual controller with its frozen IDM mapping."""
 
     mode = "rl_residual_idm"
 
     def __init__(
-        self, rule_model: RuleModelBundle, human_prior: HumanActionPrior | None = None,
+        self, rule_model: RuleModelBundle,
         hidden_dim: int = 128, relevance_threshold: float = .10, target_slot_index: int = 1,
     ) -> None:
         super().__init__()
-        self.rule_model, self.human_prior = rule_model, human_prior
+        self.rule_model = rule_model
         self.relevance_threshold, self.target_slot_index = float(relevance_threshold), int(target_slot_index)
         if not 0 <= self.target_slot_index < 6:
             raise ValueError("target_slot_index must address one of six background slots")
@@ -688,11 +702,6 @@ class IDMResidualReactionController(ReactionController):
         self.actor_mean = nn.Linear(hidden_dim, 2)
         self.actor_log_std = nn.Parameter(torch.full((2,), -.7))
         self.critic = nn.Sequential(nn.Linear(feature_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, 1))
-        if human_prior is not None:
-            self.mode = "rl_residual_gail"
-            for parameter in human_prior.parameters():
-                parameter.requires_grad_(False)
-            human_prior.eval()
 
     def _features(self, context: ReactionControllerContext, rule_actions: torch.Tensor) -> torch.Tensor:
         return torch.cat((controller_features(context), rule_actions[:, :, None] / 8.), dim=-1)
@@ -727,7 +736,7 @@ class IDMResidualReactionController(ReactionController):
                 )
         features = self._features(context, rule_actions)
         distribution, value = self.distribution_and_value(features)
-        raw = distribution.mean if deterministic else distribution.rsample()
+        raw = _policy_sample(distribution, context, deterministic)
         relevance = response_relevance(context.current, context.current_valid)
         if context.influence_authority is not None:
             authority = context.influence_authority
@@ -760,8 +769,6 @@ class IDMResidualReactionController(ReactionController):
                 torch.full_like(base, context.cfg.max_acceleration_mps2),
             )
             decreasing = brake_only
-            policy_nominal_lower = nominal_lower.clone()
-            policy_nominal_upper = nominal_upper.clone()
             (
                 final_ax, alpha, nominal_lower, nominal_upper,
                 execute_lower, execute_upper, minimum_gate,
@@ -773,11 +780,8 @@ class IDMResidualReactionController(ReactionController):
             safe_alpha = alpha.clamp_min(1.e-5)
             target_action = (final_ax - (1. - alpha) * base) / safe_alpha
             delta = torch.where(active, target_action - rule_actions, torch.zeros_like(base))
-        # IDM is a calibrated safety reference, not a second planner.  Once
-        # this already-observed same-rear relation is inside the emergency TTC
-        # region, a GAIL preference may not weaken the reference brake.  The
-        # PPO residual still controls all non-emergency and stronger-than-IDM
-        # responses; inactive vehicles remain exactly HiQR.
+        # This mapping is retained only for the frozen A2-transfer baseline.
+        # The calibrated policy below does not use IDM as an action bound.
         ego, rear = context.current[:, 0], context.current[:, self.target_slot_index + 1]
         gap = ego[:, 0] - rear[:, 0]
         closing = rear[:, 2] - ego[:, 2]
@@ -792,29 +796,6 @@ class IDMResidualReactionController(ReactionController):
         # Dynamic same-lane bounds above already include the IDM reference;
         # cut-in and secondary roles remain pure residual by construction.
         actions = context.base_actions.clone(); actions[:, 0, :, 0] = final_ax
-        natural_kl = None
-        human_features = None
-        if self.human_prior is not None:
-            if context.influence_parent is None:
-                human_features = human_prior_features(context.history, context.committed_ego_controls,
-                    target_slot_index=self.target_slot_index, role=1)
-            else:
-                human_features = torch.stack([
-                    human_prior_features(
-                        context.history,
-                        realized_parent_controls(
-                            context.history, context.influence_parent[:, slot],
-                            dt_s=float(context.cfg.dt_s),
-                        ),
-                        target_slot_index=slot,
-                        parent_index=context.influence_parent[:, slot],
-                        role=context.influence_role[:, slot],
-                    )
-                    for slot in range(6)
-                ], dim=1)
-            # V3 constrains the stochastic final-action distribution through
-            # KL only.  A deterministic projection would make the executed
-            # distribution differ from the one scored by the reward.
         if context.influence_authority is None:
             desired_ax = unresolved_following_brake_guard(final_ax, context, target_slot_index=self.target_slot_index)
             final_ax = jerk_limited_reaction_action(desired_ax, context, target_slot_index=self.target_slot_index)
@@ -830,120 +811,172 @@ class IDMResidualReactionController(ReactionController):
             final_ax = torch.where(active, final_ax.clamp(
                 context.cfg.min_acceleration_mps2, context.cfg.max_acceleration_mps2), base)
         actions[:, 0, :, 0] = final_ax
-        if self.human_prior is not None:
-            # The KL must describe the *executed final* action distribution,
-            # including the shared safety guard above, not the pre-guard
-            # residual proposal.
-            if context.influence_parent is None:
-                mean = final_ax[:, self.target_slot_index]
-                std = (.20 + alpha[:, self.target_slot_index] * self.actor_log_std[1].exp() * 2.).clamp_min(.10)
-                target_kl = self.human_prior.forward_kl_to(human_features, mean, std)
-                natural_kl = final_ax.new_zeros(final_ax.shape)
-                natural_kl[:, self.target_slot_index] = target_kl
-            else:
-                flat_features = human_features.reshape(-1, human_features.shape[-1])
-                natural_kl = self.human_prior.forward_kl_to_policy_interval(
-                    flat_features,
-                    base_action=base.reshape(-1),
-                    nominal_lower=policy_nominal_lower.reshape(-1),
-                    nominal_upper=policy_nominal_upper.reshape(-1),
-                    execute_lower=execute_lower.reshape(-1),
-                    execute_upper=execute_upper.reshape(-1),
-                    minimum_gate=minimum_gate.reshape(-1),
-                    authority=authority.reshape(-1),
-                    policy_gate_mean=distribution.loc[..., 0].reshape(-1),
-                    policy_gate_std=distribution.scale[..., 0].reshape(-1),
-                    policy_raw_mean=distribution.loc[..., 1].reshape(-1),
-                    policy_raw_std=distribution.scale[..., 1].reshape(-1),
-                    decreasing=decreasing.reshape(-1),
-                ).reshape_as(final_ax)
         log_prob = distribution.log_prob(raw).sum(-1) * active.float()
         entropy = distribution.entropy().sum(-1) * active.float()
         return ReactionControllerOutput(
             actions, alpha, delta, active, log_prob, entropy, value, raw,
-            rule_action_ax=rule_actions, natural_kl=natural_kl, policy_features=features,
+            rule_action_ax=rule_actions, policy_features=features,
             desired_action_ax=desired_ax,
         )
 
 
-class HumanPriorNominalController(ReactionController):
-    """GAIL generator adapter for nominal HighwayEnv rollouts only.
+def _dynamic_idm_reference(
+    rule_model: RuleModelBundle, context: ReactionControllerContext,
+) -> torch.Tensor:
+    """Compute a causal IDM feature for each currently scoped follower."""
+    from .influence_graph import ROLE_SAME_LANE_FOLLOWER
 
-    It is never a production response-controller mode: it lets the frozen
-    human prior generate the same-rear full acceleration while all remaining
-    cars continue with HiQR, so GAIL PPO observes actual HighwayEnv states.
-    """
+    reference = context.base_actions[:, 0, :, 0].clone()
+    if context.influence_role is None:
+        return reference
+    for slot in range(6):
+        candidate, _ = rule_model.idm_reference(
+            context.history, context.current, context.current_valid,
+            target_slot_index=slot,
+            min_acceleration=context.cfg.min_acceleration_mps2,
+            max_acceleration=context.cfg.max_acceleration_mps2,
+        )
+        reference[:, slot] = torch.where(
+            context.influence_role[:, slot] == ROLE_SAME_LANE_FOLLOWER,
+            candidate,
+            reference[:, slot],
+        )
+    return reference
 
-    mode = "none"
 
-    def __init__(
-        self,
-        human_prior: HumanActionPrior,
-        *,
-        target_slot_index: int | torch.Tensor = 1,
-        parent_index: torch.Tensor | None = None,
-        role: torch.Tensor | int | None = None,
-    ) -> None:
+class IDMOnlyReactionController(ReactionController):
+    """A rule-only local response under the same autonomous scope as PPO."""
+
+    mode = "idm_only"
+
+    def __init__(self, rule_model: RuleModelBundle) -> None:
         super().__init__()
-        self.human_prior = human_prior
-        if isinstance(target_slot_index, torch.Tensor):
-            self.register_buffer("target_slot_indices", target_slot_index.detach().long().clone())
-            self.target_slot_index = -1
-        else:
-            self.target_slot_indices = None
-            self.target_slot_index = int(target_slot_index)
-        if parent_index is None:
-            self.parent_indices = None
-        else:
-            self.register_buffer("parent_indices", parent_index.detach().long().clone())
-        if isinstance(role, torch.Tensor):
-            self.register_buffer("role_indices", role.detach().long().clone())
-            self.role_index = -1
-        else:
-            self.role_indices = None
-            self.role_index = 0 if role is None else int(role)
+        self.rule_model = rule_model
 
     def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
-        if self.target_slot_indices is None:
-            slots = torch.full(
-                (len(context.current),), self.target_slot_index,
-                dtype=torch.long, device=context.current.device,
-            )
-            features = human_prior_features(
-                context.history,
-                context.committed_ego_controls if self.parent_indices is None else realized_parent_controls(
-                    context.history, self.parent_indices,
-                    dt_s=float(context.cfg.dt_s),
-                ),
-                target_slot_index=self.target_slot_index,
-                parent_index=self.parent_indices,
-                role=self.role_index if self.role_indices is None else self.role_indices,
-            )
-        else:
-            slots = self.target_slot_indices.to(context.current.device)
-            if len(slots) != len(context.current):
-                raise ValueError("nominal prior target slots must match the HighwayEnv batch")
-            per_slot = torch.stack([
-                human_prior_features(
-                    context.history,
-                    context.committed_ego_controls if self.parent_indices is None else realized_parent_controls(
-                        context.history, self.parent_indices,
-                        dt_s=float(context.cfg.dt_s),
-                    ),
-                    target_slot_index=slot, parent_index=self.parent_indices,
-                    role=self.role_index if self.role_indices is None else self.role_indices,
-                )
-                for slot in range(6)
-            ], dim=1)
-            features = per_slot[torch.arange(len(slots), device=slots.device), slots]
-        action, raw, log_prob, value = self.human_prior(features, deterministic=deterministic)
+        del deterministic
+        from .influence_graph import ROLE_SAME_LANE_FOLLOWER
+
+        base = context.base_actions[:, 0, :, 0]
+        rule = _dynamic_idm_reference(self.rule_model, context)
+        authority = (
+            torch.zeros_like(base)
+            if context.influence_authority is None
+            else context.influence_authority
+        )
+        following = (
+            torch.zeros_like(base, dtype=torch.bool)
+            if context.influence_role is None
+            else context.influence_role == ROLE_SAME_LANE_FOLLOWER
+        )
+        active = context.current_valid[:, 1:] & following & authority.gt(0.0)
+        desired = torch.where(active, rule, base)
+        final = dynamic_safety_and_jerk_guard(desired, context)
         actions = context.base_actions.clone()
-        batch = torch.arange(len(slots), device=slots.device)
-        actions[batch, 0, slots, 0] = action
-        zeros = context.base_actions.new_zeros((len(actions), 6))
-        active = torch.zeros_like(zeros, dtype=torch.bool)
-        active[batch, slots] = context.current_valid[batch, slots + 1]
-        return ReactionControllerOutput(actions, zeros, zeros, active, log_prob, zeros, value, raw, policy_features=features)
+        actions[:, 0, :, 0] = torch.where(active, final, base)
+        delta = actions[:, 0, :, 0] - base
+        return ReactionControllerOutput(
+            actions=actions,
+            alpha=authority * active.float(),
+            delta_ax=delta,
+            active=active,
+            rule_action_ax=rule,
+            desired_action_ax=desired,
+        )
+
+
+class CalibratedResidualReactionController(ReactionController):
+    """Small signed residual policy trained against observed final behaviour.
+
+    IDM is an input feature only.  It never constrains this policy's nominal
+    interval, so a safe HiQR action can remain unchanged and a learned
+    correction can either brake or recover speed.
+    """
+
+    mode = "calibrated_residual"
+
+    def __init__(self, rule_model: RuleModelBundle, hidden_dim: int = 128) -> None:
+        super().__init__()
+        self.rule_model = rule_model
+        feature_dim = REACTION_FEATURE_DIM + 1
+        self.actor = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim), nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.SiLU(),
+        )
+        # [authority preference, signed bounded residual]
+        self.actor_mean = nn.Linear(hidden_dim, 2)
+        nn.init.zeros_(self.actor_mean.weight)
+        nn.init.zeros_(self.actor_mean.bias)
+        self.actor_log_std = nn.Parameter(torch.full((2,), -0.7))
+        self.critic = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim), nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, 1),
+        )
+
+    def _features(self, context: ReactionControllerContext, rule: torch.Tensor) -> torch.Tensor:
+        return torch.cat((controller_features(context), rule[:, :, None] / 8.0), dim=-1)
+
+    def distribution_and_value(self, features: torch.Tensor) -> tuple[torch.distributions.Normal, torch.Tensor]:
+        hidden = self.actor(features)
+        mean = self.actor_mean(hidden)
+        return torch.distributions.Normal(mean, self.actor_log_std.exp().expand_as(mean)), self.critic(features).squeeze(-1)
+
+    def evaluate_raw_action(self, features: torch.Tensor, raw_action: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        distribution, value = self.distribution_and_value(features)
+        return distribution.log_prob(raw_action).sum(-1), distribution.entropy().sum(-1), value
+
+    @staticmethod
+    def mapped_action(
+        base: torch.Tensor, authority: torch.Tensor, active: torch.Tensor,
+        raw: torch.Tensor, minimum: float, maximum: float,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Map actor output to the final desired acceleration interval."""
+        gate = torch.sigmoid(raw[..., 0]) * authority * active.float()
+        signed = torch.tanh(raw[..., 1])
+        span = torch.where(signed < 0.0, base - minimum, maximum - base)
+        return base + gate * signed * span, gate
+
+    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
+        rule = _dynamic_idm_reference(self.rule_model, context)
+        features = self._features(context, rule)
+        distribution, value = self.distribution_and_value(features)
+        raw = _policy_sample(distribution, context, deterministic)
+        base = context.base_actions[:, 0, :, 0]
+        authority = (
+            torch.zeros_like(base)
+            if context.influence_authority is None
+            else context.influence_authority
+        )
+        from .influence_graph import ROLE_SAME_LANE_FOLLOWER, ROLE_SECONDARY_FOLLOWER
+        same_lane = (
+            torch.zeros_like(authority, dtype=torch.bool)
+            if context.influence_role is None
+            else (context.influence_role == ROLE_SAME_LANE_FOLLOWER)
+            | (context.influence_role == ROLE_SECONDARY_FOLLOWER)
+        )
+        active = context.current_valid[:, 1:] & authority.gt(0.0) & same_lane
+        desired, gate = self.mapped_action(
+            base, authority, active, raw,
+            context.cfg.min_acceleration_mps2,
+            context.cfg.max_acceleration_mps2,
+        )
+        final = dynamic_safety_and_jerk_guard(desired, context)
+        final = torch.where(active, final, base)
+        actions = context.base_actions.clone()
+        actions[:, 0, :, 0] = final
+        return ReactionControllerOutput(
+            actions=actions,
+            alpha=gate,
+            delta_ax=final - base,
+            active=active,
+            log_prob=distribution.log_prob(raw).sum(-1) * active.float(),
+            entropy=distribution.entropy().sum(-1) * active.float(),
+            value=value,
+            raw_action=raw,
+            rule_action_ax=rule,
+            policy_features=features,
+            desired_action_ax=desired,
+        )
 
 
 def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tensor | float | None = None, **kwargs: Any) -> ReactionController:
@@ -955,10 +988,12 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
         return HandcraftedReactionController(adapter_logit)
     if mode == "rl_residual":
         return RLResidualReactionController(**kwargs)
-    if mode in {"rl_residual_idm", "rl_residual_gail", "rl_residual_realism"}:
+    if mode == "rl_residual_idm":
         if "rule_model" not in kwargs:
             raise ValueError(f"{mode} requires a calibrated rule_model")
-        if mode in {"rl_residual_gail", "rl_residual_realism"} and kwargs.get("human_prior") is None:
-            raise ValueError(f"{mode} requires a frozen human_prior")
         return IDMResidualReactionController(**kwargs)
+    if mode == "idm_only":
+        return IDMOnlyReactionController(**kwargs)
+    if mode == "calibrated_residual":
+        return CalibratedResidualReactionController(**kwargs)
     raise ValueError(f"unknown reaction controller mode {mode!r}")

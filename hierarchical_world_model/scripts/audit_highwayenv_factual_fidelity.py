@@ -14,12 +14,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.data import ANCHOR_INDEX  # noqa: E402
-from hierarchical_world_model.scripts.render_reaction_ppo_comparative_playbacks import _authority  # noqa: E402
 from hierarchical_world_model.src.data import prepare_experiment_data  # noqa: E402
 from hierarchical_world_model.src.evaluation import rollout as offline_rollout  # noqa: E402
 from hierarchical_world_model.src.planner import complete_missing_background_plans, frozen_diffusion_plans  # noqa: E402
 from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: E402
-from hierarchical_world_model.src.reaction_ppo import highway_controller_rollout  # noqa: E402
+from hierarchical_world_model.src.reaction_training import (  # noqa: E402
+    PolicyTrainingConfig, reaction_controller_rollout,
+)
 from hierarchical_world_model.src.train import load_checkpoint  # noqa: E402
 from hierarchical_world_model.scripts.risk_calibration import (  # noqa: E402
     _factual_fidelity,
@@ -29,7 +30,7 @@ from hierarchical_world_model.scripts.risk_calibration import (  # noqa: E402
 from world_model.src.core.utils import ensure_dir, save_json, select_device  # noqa: E402
 
 
-DEFAULT = ROOT / "hierarchical_world_model/config/reaction_naturalistic.yaml"
+DEFAULT = ROOT / "hierarchical_world_model/config/reaction_policy.yaml"
 
 
 def _metrics(error: np.ndarray, mask: np.ndarray) -> dict[str, float]:
@@ -68,10 +69,13 @@ def main() -> None:
     first_rollout = None
     for start in range(0, len(rows), int(args.batch_size)):
         stop = min(start + int(args.batch_size), len(rows))
-        rollout = highway_controller_rollout(model, states=states[start:stop], valid=valid[start:stop],
+        training = {name: value for name, value in config["training"].items()
+                    if name in PolicyTrainingConfig.__dataclass_fields__}
+        rollout = reaction_controller_rollout(model, states=states[start:stop], valid=valid[start:stop],
             soft_plans=plans[start:stop], maps=arrays["map_polylines"][rows[start:stop]],
             map_valid=arrays["map_polyline_valid"][rows[start:stop]], controller="none",
-            device=device, motion_seed=20260902 + start, **_authority(config))
+            device=device, motion_seed=20260902 + start,
+            config=PolicyTrainingConfig(**training))
         if first_rollout is None:
             first_rollout = rollout
         errors.append(np.linalg.norm(
@@ -129,7 +133,7 @@ def main() -> None:
         },
         "test_sequences": int(len(candidates)), "evaluated_sequences": int(len(rows)),
         "eligible_same_rear_sequences": int(eligible.sum()),
-        "controller": "A0_none", "ego_control": "logged highD ego replay", "horizon_s": 149 * .04,
+        "controller": "frozen_hiqr", "ego_control": "logged highD ego replay", "horizon_s": 149 * .04,
         "all_background_slots": _metrics(displacement[:, :, 1:], target_valid[:, :, 1:]),
         "same_rear_slot": _metrics(displacement[:, :, 2], target_valid[:, :, 2]),
         "per_slot_ADE_m": {str(slot): float(displacement[:, :, slot][target_valid[:, :, slot]].mean())

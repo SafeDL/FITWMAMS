@@ -103,6 +103,8 @@ def main() -> None:
         hold_current_ego_action,
         steps=args.steps,
         evt_model=evt,
+        reference_rebase_weights=None,
+        excluded_risk_slots=("same_rear",),
     )
     replay = rollout_world(
         sampler,
@@ -110,6 +112,8 @@ def main() -> None:
         hold_current_ego_action,
         steps=args.steps,
         evt_model=evt,
+        reference_rebase_weights=None,
+        excluded_risk_slots=("same_rear",),
     )
     branch = rollout_world(
         sampler,
@@ -117,6 +121,8 @@ def main() -> None:
         _brake_policy,
         steps=args.steps,
         evt_model=evt,
+        reference_rebase_weights=None,
+        excluded_risk_slots=("same_rear",),
     )
     response_mutated = exogenous.pcn_mutate(
         "agent_response_innovations",
@@ -129,6 +135,8 @@ def main() -> None:
         hold_current_ego_action,
         steps=args.steps,
         evt_model=evt,
+        reference_rebase_weights=None,
+        excluded_risk_slots=("same_rear",),
     )
     checkpoint_model, payload = load_checkpoint(
         config["paths"]["evaluation_checkpoint"],

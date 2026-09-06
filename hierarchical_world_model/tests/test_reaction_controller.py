@@ -8,6 +8,7 @@ from hierarchical_world_model.src.config import WorldModelConfig
 from hierarchical_world_model.src.model import DiffusionGuidedHiQR
 from hierarchical_world_model.src.reaction_controller import (
     HandcraftedReactionController,
+    CalibratedResidualReactionController,
     IDMResidualReactionController,
     NoReactionController,
     RLResidualReactionController,
@@ -16,11 +17,12 @@ from hierarchical_world_model.src.reaction_controller import (
     controller_features,
     jerk_limited_reaction_action,
 )
-from hierarchical_world_model.src.human_prior import HUMAN_PRIOR_FEATURE_DIM, HumanActionPrior, build_human_expert_samples, human_prior_features, train_human_prior, HumanPriorConfig
+from hierarchical_world_model.src.influence_graph import ROLE_SAME_LANE_FOLLOWER
 from hierarchical_world_model.src.rule_models import RuleModelBundle, fit_rule_models
-from hierarchical_world_model.src.reaction_ppo import _gae
-from hierarchical_world_model.src.reaction_ppo import PPOConfig, train_reaction_ppo
-from hierarchical_world_model.src.reaction_realism import ReactionRealismReference, SupportedEventPool
+from hierarchical_world_model.src.reaction_training import (
+    PolicyTrainingConfig, ReactionEpisode, ReactionTrainingEnvironment,
+    _gae, train_reaction_policy,
+)
 from hierarchical_world_model.src.planner import complete_missing_background_plans
 
 
@@ -192,11 +194,38 @@ def test_tiny_ppo_training_saves_a_reloadable_controller(tmp_path):
     states = current[:, None].expand(-1, 174, -1, -1).clone().numpy()
     arrays = {"agent_states": states, "agent_valid": valid[:, None].expand(-1, 174, -1).clone().numpy(),
               "map_polylines": maps.numpy(), "map_polyline_valid": torch.ones(1, 8, 8, dtype=torch.bool).numpy()}
-    cfg = PPOConfig(updates=1, rollout_steps=64, episodes_per_rollout=2, epochs_per_update=1, minibatch_size=32)
-    summary = train_reaction_ppo(DiffusionGuidedHiQR().eval(), train_arrays=arrays,
-        soft_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path, config=cfg, device=torch.device("cpu"))
+    cfg = PolicyTrainingConfig(updates=1, rollout_steps=64, episodes_per_rollout=2,
+        event_episodes=0, non_event_episodes=0, synthetic_episodes=2,
+        epochs_per_update=1, minibatch_size=32)
+    summary = train_reaction_policy(DiffusionGuidedHiQR().eval(), train_arrays=arrays,
+        train_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path, config=cfg,
+        device=torch.device("cpu"), controller_mode="rl_residual")
     payload = torch.load(summary["checkpoint"], map_location="cpu", weights_only=False)
     reloaded = RLResidualReactionController(); reloaded.load_state_dict(payload["state_dict"])
+
+
+def test_synthetic_stream_never_receives_a_human_target():
+    values = _inputs(batch=1)
+    _, _, current, valid, _, maps, _ = values
+    arrays = {
+        "agent_states": current[:, None].expand(-1, 174, -1, -1).clone().numpy(),
+        "agent_valid": valid[:, None].expand(-1, 174, -1).clone().numpy(),
+        "map_polylines": maps.numpy(),
+        "map_polyline_valid": torch.ones(1, 8, 8, dtype=torch.bool).numpy(),
+    }
+    config = PolicyTrainingConfig(
+        rollout_steps=1, episodes_per_rollout=1,
+        event_episodes=0, non_event_episodes=0, synthetic_episodes=1,
+    )
+    environment = ReactionTrainingEnvironment(
+        DiffusionGuidedHiQR().eval(), arrays=arrays,
+        soft_plans=torch.zeros(1, 149, 6, 2).numpy(),
+        controller=RLResidualReactionController(), device=torch.device("cpu"),
+        config=config,
+    )
+    environment.reset([ReactionEpisode(0, "synthetic")])
+    _, _, _, info = environment.step()
+    assert not info["human_target_gate"].any()
 
 
 def test_tiny_ppo_uses_post_full_pass_validation_checkpoint(tmp_path):
@@ -209,39 +238,32 @@ def test_tiny_ppo_uses_post_full_pass_validation_checkpoint(tmp_path):
         "map_polyline_valid": torch.ones(1, 8, 8, dtype=torch.bool).numpy(),
     }
     plans = torch.zeros(1, 149, 6, 2).numpy()
-    config = PPOConfig(
+    config = PolicyTrainingConfig(
         updates=1, rollout_steps=64, episodes_per_rollout=2,
+        event_episodes=0, non_event_episodes=0, synthetic_episodes=2,
         epochs_per_update=1, minibatch_size=16,
-        validation_interval_updates=1, validation_scenes=1,
     )
-    summary = train_reaction_ppo(
+    summary = train_reaction_policy(
         DiffusionGuidedHiQR().eval(), train_arrays=arrays,
-        soft_plans=plans, output_dir=tmp_path, config=config,
-        device=torch.device("cpu"), validation_arrays=arrays,
-        validation_plans=plans,
+        train_plans=plans, output_dir=tmp_path, config=config,
+        device=torch.device("cpu"), controller_mode="rl_residual",
     )
-    assert summary["validation_selected"]
-    assert np.isfinite(summary["best_validation_reward"])
+    assert summary["best_validation_energy_score"] is None
 
 
-def test_tiny_idm_and_gail_ppo_training_smoke(tmp_path):
+def test_tiny_idm_and_calibrated_ppo_training_smoke(tmp_path):
     values = _inputs(batch=1); _, _, current, valid, _, maps, _ = values
     states = current[:, None].expand(-1, 174, -1, -1).clone().numpy()
     arrays = {"agent_states": states, "agent_valid": valid[:, None].expand(-1, 174, -1).clone().numpy(),
               "map_polylines": maps.numpy(), "map_polyline_valid": torch.ones(1, 8, 8, dtype=torch.bool).numpy()}
-    cfg = PPOConfig(updates=1, rollout_steps=64, episodes_per_rollout=2, epochs_per_update=1, minibatch_size=32,
-                    naturalness_weight=.05, naturalness_kl_scale=1.)
-    prior = HumanActionPrior()
-    prior_before = [parameter.detach().clone() for parameter in prior.parameters()]
-    for mode in ("rl_residual_idm", "rl_residual_gail"):
-        summary = train_reaction_ppo(DiffusionGuidedHiQR().eval(), train_arrays=arrays,
-            soft_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path / mode, config=cfg,
-            device=torch.device("cpu"), controller_mode=mode, rule_model=_rules(), human_prior=prior if mode.endswith("gail") else None,
-            realism_reference=_test_realism_reference() if mode.endswith("gail") else None)
+    cfg = PolicyTrainingConfig(updates=1, rollout_steps=64, episodes_per_rollout=2,
+        event_episodes=0, non_event_episodes=0, synthetic_episodes=2,
+        epochs_per_update=1, minibatch_size=32)
+    for mode in ("rl_residual_idm", "calibrated_residual"):
+        summary = train_reaction_policy(DiffusionGuidedHiQR().eval(), train_arrays=arrays,
+            train_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path / mode, config=cfg,
+            device=torch.device("cpu"), controller_mode=mode, rule_model=_rules())
         assert Path(summary["checkpoint"]).is_file() and summary["controller_mode"] == mode
-    assert all(not parameter.requires_grad for parameter in prior.parameters())
-    for before, after in zip(prior_before, prior.parameters()):
-        torch.testing.assert_close(before, after)
 
 
 def test_authority_features_include_realized_phase_and_age():
@@ -286,134 +308,56 @@ def _rules():
     return RuleModelBundle((32., 2.5, 3.0, 2., 1.2, 4.), .3, .2, 3.)
 
 
-def _test_realism_reference() -> ReactionRealismReference:
-    return ReactionRealismReference(
-        distributions={0: np.zeros((16, 6), np.float32)}, scales={0: np.ones(6, np.float32)},
-        event_counts={0: 16}, supported_cells=(0,),
-        events=SupportedEventPool(np.asarray((0,), np.int64), np.asarray((8,), np.int16),
-            np.asarray((2,), np.int8), np.asarray((0,), np.int16)),
-        source_rows_sha256="test", window_frames=25, minimum_events=1,
-    )
-
-
-def test_idm_and_gail_controllers_are_causal_legal_and_keep_yaw():
+def test_idm_and_calibrated_controllers_are_causal_legal_and_keep_yaw():
     values = _inputs(); model = DiffusionGuidedHiQR().eval()
     history, history_valid, current, valid, reference, maps, controls = values
     response = model(history, history_valid, current, valid, reference, current[:, 1:, :2], maps,
         torch.ones(2, 8, 8, dtype=torch.bool), committed_ego_controls=controls, deterministic=True, apply_intervention_adapter=False)
     context = ReactionControllerContext(**{**_context(model, response, values).__dict__, "reaction_enabled": torch.ones(2, dtype=torch.bool)})
-    prior = HumanActionPrior(); controller = IDMResidualReactionController(_rules(), prior)
+    controller = CalibratedResidualReactionController(_rules())
     output = controller(context, deterministic=True)
-    assert controller.mode == "rl_residual_gail" and output.natural_kl is not None
-    assert torch.isfinite(output.natural_kl).all()
     torch.testing.assert_close(output.actions[..., 1], response.actions[..., 1])
     assert float(output.actions[..., 0].min()) >= -8. and float(output.actions[..., 0].max()) <= 4.
-    disabled = controller(ReactionControllerContext(**{**context.__dict__, "reaction_enabled": torch.zeros(2, dtype=torch.bool)}), deterministic=True)
+    zero_authority = torch.zeros(2, 6)
+    disabled = controller(ReactionControllerContext(**{**context.__dict__, "influence_authority": zero_authority}), deterministic=True)
     torch.testing.assert_close(disabled.actions, response.actions)
 
 
-def test_frozen_human_prior_never_projects_or_fuses_the_idm_action():
+def test_calibrated_policy_has_exact_zero_residual_before_learning():
     values = _inputs(); model = DiffusionGuidedHiQR().eval()
     history, history_valid, current, valid, reference, maps, controls = values
-    response = model(history, history_valid, current, valid, reference, current[:, 1:, :2], maps,
-        torch.ones(2, 8, 8, dtype=torch.bool), committed_ego_controls=controls, deterministic=True,
-        apply_intervention_adapter=False)
-    context = ReactionControllerContext(**{**_context(model, response, values).__dict__, "reaction_enabled": torch.ones(2, dtype=torch.bool)})
-    torch.manual_seed(11)
-    plain_controller = IDMResidualReactionController(_rules())
-    plain = plain_controller(context, deterministic=True)
-    torch.manual_seed(11)
-    prior_controller = IDMResidualReactionController(_rules(), HumanActionPrior())
-    # Match the policy parameters explicitly: constructing the frozen prior
-    # consumes its own RNG stream, so seeding only the two forward passes does
-    # not make independently initialized residual policies comparable.
-    prior_controller.load_state_dict(
-        {key: value for key, value in plain_controller.state_dict().items()}, strict=False
-    )
-    prior = prior_controller(context, deterministic=True)
-    torch.testing.assert_close(prior.actions, plain.actions)
-    assert prior.natural_kl is not None
-
-
-def test_dynamic_a3_kl_matches_a_bounded_executable_action_density():
-    values = _inputs(); model = DiffusionGuidedHiQR().eval()
-    history, history_valid, current, valid, reference, maps, controls = values
-    current[:, 0, 0], current[:, 0, 2] = 20., 20.
-    current[:, 2, 0], current[:, 2, 2] = 10., 25.
-    history[:, -1] = current
     response = model(
-        history, history_valid, current, valid, reference, current[:, 1:, :2],
-        maps, torch.ones(2, 8, 8, dtype=torch.bool),
-        committed_ego_controls=controls, deterministic=True,
-        apply_intervention_adapter=False,
+        history, history_valid, current, valid, reference, current[:, 1:, :2], maps,
+        torch.ones(2, 8, 8, dtype=torch.bool), committed_ego_controls=controls,
+        deterministic=True, apply_intervention_adapter=False,
     )
-    shape = (2, 6)
-    authority = torch.zeros(shape); authority[:, 1] = 1.
-    role = torch.zeros(shape, dtype=torch.long); role[:, 1] = 1
-    parent = torch.full(shape, -1, dtype=torch.long); parent[:, 1] = 0
-    phase = torch.zeros(shape, dtype=torch.long); phase[:, 1] = 1
-    ttc = torch.full(shape, float("inf")); ttc[:, 1] = 2.
-    previous = response.actions[:, 0].clone(); previous[:, 1, 0] = -1.
+    authority = torch.zeros(2, 6); authority[:, 1] = 1.0
+    roles = torch.zeros(2, 6, dtype=torch.long); roles[:, 1] = ROLE_SAME_LANE_FOLLOWER
     context = ReactionControllerContext(**{
         **_context(model, response, values).__dict__,
-        "reaction_enabled": authority.bool(), "reaction_phase": phase,
-        "previous_background_actions": previous,
-        "influence_authority": authority, "influence_role": role,
-        "influence_parent": parent, "influence_direct": authority.bool(),
-        "influence_secondary": torch.zeros_like(authority, dtype=torch.bool),
-        "influence_predicted_ttc_s": ttc,
-        "influence_predicted_min_gap_m": torch.full(shape, 5.),
+        "influence_authority": authority,
+        "influence_role": roles,
+        "influence_predicted_ttc_s": torch.full((2, 6), 5.0),
+        "previous_background_actions": response.actions[:, 0].detach().clone(),
     })
-    output = IDMResidualReactionController(_rules(), HumanActionPrior())(
-        context, deterministic=True
+    output = CalibratedResidualReactionController(_rules())(context, deterministic=True)
+    torch.testing.assert_close(output.actions, response.actions, rtol=0.0, atol=0.0)
+
+
+def test_idm_feature_does_not_define_calibrated_action_bounds():
+    base = torch.tensor(((-7.0, 3.0),), dtype=torch.float32)
+    authority = torch.ones_like(base)
+    active = torch.ones_like(base, dtype=torch.bool)
+    raw = torch.tensor((((20.0, -20.0), (20.0, 20.0))), dtype=torch.float32)
+    mapped, _ = CalibratedResidualReactionController.mapped_action(
+        base, authority, active, raw, -8.0, 4.0,
     )
-    assert torch.isfinite(output.natural_kl).all()
-    assert torch.all(output.actions[:, 0, 1, 0] <= previous[:, 1, 0] + 1.e-6)
-    assert torch.all(output.actions[:, 0, 1, 0] >= previous[:, 1, 0] - 2.4 - 1.e-6)
-
-
-def test_human_prior_features_and_bc_gail_smoke_are_finite():
-    values = _inputs(batch=3); history, _, _, _, _, _, controls = values
-    feature = human_prior_features(history, controls)
-    assert feature.shape == (3, HUMAN_PRIOR_FEATURE_DIM)
-    prior, result = train_human_prior(feature.numpy(), torch.tensor((-2., -1., 0.)).numpy(),
-        config=HumanPriorConfig(bc_epochs=1, gail_epochs=1, batch_size=3), device=torch.device("cpu"))
-    action, _, _, _ = prior(feature, deterministic=True)
-    assert torch.isfinite(action).all() and result["expert_samples"] == 3
-
-
-def test_human_prior_v3_is_single_bounded_gaussian_with_tick_discriminator():
-    values = _inputs(batch=3); history, _, _, _, _, _, controls = values
-    features = human_prior_features(history, controls, role=torch.tensor((1, 2, 4)))
-    prior = HumanActionPrior()
-    distribution = prior.distribution(features)
-    assert isinstance(distribution, torch.distributions.Normal)
-    assert distribution.loc.shape == (3,) and distribution.scale.shape == (3,)
-    action, _, _, _ = prior(features)
-    assert torch.all(action >= -8.) and torch.all(action <= 4.)
-    logits = prior.discriminator_step_logits(
-        features[:, None].expand(-1, 50, -1), action[:, None].expand(-1, 50)
-    )
-    assert logits.shape == (3, 50) and torch.isfinite(logits).all()
-
-
-def test_human_prior_v2_mines_secondary_parent_child_relations():
-    states = np.zeros((1, 174, 7, 6), np.float32)
-    valid = np.zeros((1, 174, 7), bool)
-    valid[:, :, :3] = True
-    states[:, :, 0, 0] = -100.0
-    states[:, :, 0, 2] = 20.0
-    states[:, :, 1, 0] = 10.0
-    states[:, :, 1, 2] = 20.0
-    states[:, :, 2, 0] = 0.0
-    states[:, :, 2, 2] = 20.0
-    features, actions, metadata = build_human_expert_samples(
-        {"agent_states": states, "agent_valid": valid}, np.asarray((0,)),
-        max_samples=0, seed=3, return_metadata=True,
-    )
-    assert features.shape[1] == HUMAN_PRIOR_FEATURE_DIM
-    assert np.isfinite(actions).all()
-    assert ((metadata["child"] == 2) & (metadata["parent"] == 1) & (metadata["role"] == 4)).any()
+    assert mapped[0, 0] >= -8.0 and mapped[0, 1] <= 4.0
+    # The mapping accepts no IDM value: changing IDM can only change the
+    # actor feature upstream, never the executable interval itself.
+    assert list(CalibratedResidualReactionController.mapped_action.__annotations__) == [
+        "base", "authority", "active", "raw", "minimum", "maximum", "return",
+    ]
 
 
 def test_rule_calibration_returns_one_global_bounded_model():

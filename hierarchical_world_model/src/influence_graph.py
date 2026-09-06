@@ -95,8 +95,9 @@ class CausalInfluenceGraph:
     """Build a one-hop ego/NPC influence graph from already-realized states.
 
     Coordinates in the current highD bridge are road aligned, so longitudinal
-    and lateral tests use x/y directly.  No pending ego command is accepted by
-    this API: ``armed`` is set only after the preceding HighwayEnv step.
+    and lateral tests use x/y directly.  The graph deliberately receives no
+    intervention label or pending ego command: candidate authority is a
+    function only of traffic that HighwayEnv has already realised.
     """
 
     def __init__(
@@ -136,7 +137,6 @@ class CausalInfluenceGraph:
         current: torch.Tensor,
         valid: torch.Tensor,
         history: torch.Tensor,
-        armed: torch.Tensor,
         previous: InfluenceGraphState | None,
         previous_background_actions: torch.Tensor | None = None,
     ) -> InfluenceGraphState:
@@ -161,7 +161,11 @@ class CausalInfluenceGraph:
             (ttc < self.release_ttc_s) | (gap < 30.0)
         )
         cutin_risk = adjacent & (swept_gap < 12.0)
-        direct = armed[:, None] & valid[:, 1:] & (following_risk | cutin_risk | (rear_sector & same_lane))
+        # Scope is intentionally broader than an emergency trigger.  It says
+        # which local relations a residual policy may inspect; the policy can
+        # still select an exact zero correction when HiQR is already suitable.
+        # Crucially, no logged/synthetic/ADS experiment class enters here.
+        direct = valid[:, 1:] & (following_risk | cutin_risk | (rear_sector & same_lane))
 
         role = torch.where(
             direct & same_lane,

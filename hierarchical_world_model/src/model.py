@@ -435,6 +435,7 @@ class DiffusionGuidedHiQR(nn.Module):
         scene_standard_normal: torch.Tensor | None = None,
         agent_standard_normal: torch.Tensor | None = None,
         deterministic: bool = False,
+        reference_rebase_weights: tuple[float, float] | None = None,
         apply_intervention_adapter: bool | None = None,
         apply_explicit_ego_response: bool | None = None,
     ) -> ResponseDistribution:
@@ -468,6 +469,7 @@ class DiffusionGuidedHiQR(nn.Module):
             else previous_current,
             current_valid,
         )
+        rebase_weights = (None, None) if reference_rebase_weights is None else reference_rebase_weights
         rebased = rebase_soft_preview(
             current[:, 1:],
             soft_reference[:, : self.cfg.preview_frames],
@@ -475,6 +477,8 @@ class DiffusionGuidedHiQR(nn.Module):
             dt_s=self.cfg.dt_s,
             velocity_horizon_s=self.cfg.velocity_rebase_horizon_s,
             endpoint_offset_weight=self.cfg.soft_anchor_final_weight,
+            longitudinal_endpoint_offset_weight=rebase_weights[0],
+            lateral_endpoint_offset_weight=rebase_weights[1],
         )
         preview_agents, preview_scene = self._preview_context(
             current, current_valid, rebased, reference_base

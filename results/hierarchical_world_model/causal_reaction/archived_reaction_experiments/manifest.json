@@ -1,0 +1,16 @@
+{
+  "schema_name": "reaction_experiment_archive",
+  "schema_version": 1,
+  "archive_ref": "archive/reaction-gail-mloo",
+  "source_commit": "bc9d765bf429b9c1833bf79a32ba8f9de86bc3c7",
+  "source_provenance": "best_known_source_not_verified_as_exact_training_tree",
+  "protocol": "fixed-K_GT conditional HighwayEnv evaluation",
+  "status": "historical_rejected_candidates",
+  "artifacts": [
+    "candidates/a3_v4_full",
+    "candidates/a4_v4_full",
+    "candidates/a4_v4_evaluation_validation_counterfactual",
+    "candidates/a4_v4_evaluation_test_counterfactual"
+  ],
+  "retention": "weights and reports remain at their historical paths"
+}

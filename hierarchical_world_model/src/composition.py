@@ -276,6 +276,8 @@ class HierarchicalWorldSampler:
         sample: SampledWorldBatch,
         *,
         idm_config: dict[str, Any] | None = None,
+        controller: Any = None,
+        reference_rebase_weights: tuple[float, float] | None = None,
     ) -> HighwayEnvClosedLoopWorld:
         """Create the formal HighwayEnv execution world for one sampled batch."""
         if sample.exogenous_state is None:
@@ -296,6 +298,8 @@ class HierarchicalWorldSampler:
             self.response,
             device=self.device,
             idm_config=idm_config,
+            controller=controller,
+            reference_rebase_weights=reference_rebase_weights,
         )
         world.reset(
             torch.from_numpy(sample.initial_states),
