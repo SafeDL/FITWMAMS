@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -58,6 +59,9 @@ def _load_controller(name: str, path: Path | None, rule: RuleModelBundle, device
         "a1_transfer": ("rl_residual", RLResidualReactionController),
         "a2_transfer": ("rl_residual_idm", lambda: IDMResidualReactionController(rule)),
         "calibrated_residual": (
+            "calibrated_residual", lambda: CalibratedResidualReactionController(rule),
+        ),
+        "calibrated_supervised": (
             "calibrated_residual", lambda: CalibratedResidualReactionController(rule),
         ),
     }
@@ -195,6 +199,7 @@ def evaluate_events(
     observed = event_window(reference.events, recovery=True)
     arm_scores = {name: [] for name in controllers}
     arm_errors = {name: [] for name in controllers}
+    arm_collision = {name: [] for name in controllers}
     records = reference.events.recording_id[selected]
     cells = reference.events.cell[selected]
     for order, event_index in enumerate(selected):
@@ -227,8 +232,12 @@ def evaluate_events(
                 futures, np.full(repeats, target_initial, np.float32),
             )
             arm_errors[name].append(np.abs(future_statistics - target_statistics).mean(0))
+            # Event labels identify the actual leader/follower relation; do
+            # not call unrelated NPC crashes a rear collision.
+            arm_collision[name].append(float(rollout.crashed[:, :, follower].any(axis=1).mean()))
     scores = {name: np.asarray(values, np.float64) for name, values in arm_scores.items()}
     errors = {name: np.asarray(values, np.float64) for name, values in arm_errors.items()}
+    collisions = {name: np.asarray(values, np.float64) for name, values in arm_collision.items()}
     paired = recording_cluster_bootstrap(
         scores["a2_transfer"] - scores["calibrated_residual"], records,
     )
@@ -256,11 +265,20 @@ def evaluate_events(
             },
         }
     arms["calibrated_residual"]["paired_energy_score"] = paired
+    collision_delta = collisions["calibrated_residual"] - collisions["a2_transfer"]
+    collision_comparison = recording_cluster_bootstrap(collision_delta, records)
+    collision_comparison.update({
+        "candidate_rate": float(collisions["calibrated_residual"].mean()),
+        "a2_rate": float(collisions["a2_transfer"].mean()),
+        "comparison": "candidate_minus_a2; positive is worse",
+        "sparse_event_caveat": "zero paired bootstrap interval does not imply zero population risk",
+    })
     return {
         "events": len(selected),
         "futures_per_event": config.validation_futures,
         "arms": arms,
         "paired_diagnostics": diagnostics,
+        "paired_rear_collision": collision_comparison,
     }
 
 
@@ -288,6 +306,7 @@ def _physical_summary(
     jerk = np.abs(np.diff(actions, axis=1)) / 0.04
     active = rollout.controller_diagnostics["active"].astype(bool)
     ttc = rollout.controller_diagnostics["influence_predicted_ttc_s"]
+    desired = rollout.controller_diagnostics["desired_action_ax"]
     correction = actions - rollout.base_background_actions[..., 0]
     end = int(np.flatnonzero(profile).max()) + 1
     recovery = slice(end, min(end + 75, actions.shape[1]))
@@ -303,8 +322,10 @@ def _physical_summary(
         "action_bounds_valid": bool((actions >= -8.0001).all() and (actions <= 4.0001).all()),
         "jerk_limiter_failed": bool((jerk[active[:, 1:]] > 60.01).any()) if active[:, 1:].any() else False,
         "inactive_max_abs_correction_mps2": float(np.abs(correction[~active]).max()) if (~active).any() else 0.0,
-        "rear_collision_rate": float(rollout.crashed[:, :, 1:].any(axis=(1, 2)).mean()),
-        "emergency_guard_rate": float((active & (ttc < 2.0)).mean()),
+        "npc_involved_collision_rate": float(rollout.crashed[:, :, 1:].any(axis=(1, 2)).mean()),
+        "guard_activation_condition_rate": float((active & (ttc < 2.0)).mean()),
+        "guard_action_rewrite_rate": float((active & (np.abs(actions - desired) > 1.0e-5)).mean()),
+        "guard_mean_rewrite_mps2": float(np.abs(actions - desired)[active].mean()) if active.any() else 0.0,
         "recovery_final_abs_correction_mps2": float(
             np.abs(correction[:, recovery]).mean()
         ),
@@ -348,6 +369,7 @@ def main() -> None:
     parser.add_argument("--a1-checkpoint", type=Path)
     parser.add_argument("--a2-checkpoint", type=Path, required=True)
     parser.add_argument("--candidate-checkpoint", type=Path, required=True)
+    parser.add_argument("--supervised-checkpoint", type=Path)
     parser.add_argument("--events-dir", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int)
@@ -396,6 +418,10 @@ def main() -> None:
             ("calibrated_residual", args.candidate_checkpoint),
         )
     }
+    if args.supervised_checkpoint is not None:
+        controllers["calibrated_supervised"] = _load_controller(
+            "calibrated_supervised", args.supervised_checkpoint, rule, device,
+        )
     if args.a1_checkpoint is not None:
         controllers["a1_transfer"] = _load_controller(
             "a1_transfer", args.a1_checkpoint, rule, device,
@@ -447,6 +473,34 @@ def main() -> None:
         "physical_ood": physical_ood,
     }
     save_json(report, args.output)
+    with args.output.with_name("comparison.csv").open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=(
+            "controller", "factual_ade_m", "factual_fde_m", "factual_p95_m",
+            "event_energy_score", "event_count", "futures_per_event",
+        ))
+        writer.writeheader()
+        for name, arm in event_report["arms"].items():
+            writer.writerow({
+                "controller": name,
+                "factual_ade_m": factual[name]["ade_m"],
+                "factual_fde_m": factual[name]["fde_m"],
+                "factual_p95_m": factual[name]["p95_m"],
+                "event_energy_score": arm["energy_score_mean"],
+                "event_count": event_report["events"],
+                "futures_per_event": event_report["futures_per_event"],
+            })
+    if "calibrated_supervised" in event_report["arms"]:
+        supervised = event_report["arms"]["calibrated_supervised"]
+        ppo = event_report["arms"]["calibrated_residual"]
+        save_json({
+            "schema_name": "reaction_policy_ppo_increment", "schema_version": 1,
+            "supervised_energy_score": supervised["energy_score_mean"],
+            "ppo_energy_score": ppo["energy_score_mean"],
+            "ppo_minus_supervised_energy_score": (
+                ppo["energy_score_mean"] - supervised["energy_score_mean"]
+            ),
+            "interpretation": "negative supports a PPO natural-response increment; this single training seed is not cross-seed evidence",
+        }, args.output.with_name("ppo_increment_report.json"))
     print(json.dumps({"output": str(args.output), "events": event_report["events"]}))
 
 

@@ -98,6 +98,27 @@ def main() -> None:
         references.append(reference)
         print({"split": split, "events": len(reference.events.row_index), "supported_cells": reference.supported_cells})
     assert_split_isolation(*references)
+    audit = {
+        "schema_name": "reaction_evidence_data_audit", "schema_version": 1,
+        "source": "canonical seven-slot highD sequence cache and source metadata; not a scan of all raw recordings",
+        "recording_isolated": True,
+        "support_threshold": {
+            "events_per_cell": int(evidence["minimum_events_per_cell"]),
+            "recordings_per_cell": int(evidence["minimum_recordings_per_cell"]),
+        },
+        "splits": {
+            reference.split: {
+                "all_events": int(len(reference.events.row_index)),
+                "replayable_events": int(sum(reference.events.leader_slot == 0)),
+                "leader_slot_zero_events": int(sum(reference.events.leader_slot == 0)),
+                "supported_events": int(len(reference.events.indices(reference.supported_cells))),
+                "event_counts": {str(key): int(value) for key, value in reference.event_counts.items()},
+                "recording_counts": {str(key): int(value) for key, value in reference.recording_counts.items()},
+            }
+            for reference in references
+        },
+    }
+    (args.output_dir / "data_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
 
 
 if __name__ == "__main__":

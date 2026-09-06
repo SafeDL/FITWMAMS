@@ -1,0 +1,382 @@
+{
+  "a2_actor_hidden_layers_copied": [
+    "actor.0.weight",
+    "actor.0.bias",
+    "actor.2.weight",
+    "actor.2.bias"
+  ],
+  "best_validation_energy_score": 68.67574526978038,
+  "candidate_training_rows": 42192,
+  "checkpoint": "results/hierarchical_world_model/causal_reaction/ppo_response_20260906/controllers/calibrated_residual/reaction_policy.pt",
+  "controller_mode": "calibrated_residual",
+  "frozen_world_model": true,
+  "full_training_split": true,
+  "history": [
+    {
+      "human_target_actions": 2313.0,
+      "loss": 136.83514595031738,
+      "physical_target_actions": 851.0,
+      "reward": -0.018681295216083527,
+      "update": 0.0
+    },
+    {
+      "human_target_actions": 1901.0,
+      "loss": 22.595699548721313,
+      "physical_target_actions": 1104.0,
+      "reward": -0.010621131397783756,
+      "update": 1.0
+    },
+    {
+      "human_target_actions": 1851.0,
+      "loss": 59.48000558217367,
+      "physical_target_actions": 578.0,
+      "reward": -0.015044701285660267,
+      "update": 2.0
+    },
+    {
+      "human_target_actions": 2567.0,
+      "loss": 5.048444966475169,
+      "physical_target_actions": 447.0,
+      "reward": -0.00540844164788723,
+      "update": 3.0
+    },
+    {
+      "human_target_actions": 2379.0,
+      "loss": 3.770502857863903,
+      "physical_target_actions": 1202.0,
+      "reward": -0.004235944710671902,
+      "update": 4.0
+    },
+    {
+      "human_target_actions": 2430.0,
+      "loss": 15.383896430333456,
+      "physical_target_actions": 559.0,
+      "reward": -0.006100310944020748,
+      "update": 5.0
+    },
+    {
+      "human_target_actions": 1878.0,
+      "loss": 5.162740866343181,
+      "physical_target_actions": 1082.0,
+      "reward": -0.00384712521918118,
+      "update": 6.0
+    },
+    {
+      "human_target_actions": 2137.0,
+      "loss": 1.6202002962430317,
+      "physical_target_actions": 775.0,
+      "reward": -0.003191211959347129,
+      "update": 7.0
+    },
+    {
+      "human_target_actions": 2218.0,
+      "loss": 130.76868947347006,
+      "physical_target_actions": 823.0,
+      "reward": -0.014913381077349186,
+      "update": 8.0
+    },
+    {
+      "human_target_actions": 2449.0,
+      "loss": 86.78047007322311,
+      "physical_target_actions": 894.0,
+      "reward": -0.012685957364737988,
+      "update": 9.0,
+      "validation_energy_score": 68.67574526978038
+    },
+    {
+      "human_target_actions": 2678.0,
+      "loss": 39.549787640571594,
+      "physical_target_actions": 1043.0,
+      "reward": -0.009855103679001331,
+      "update": 10.0
+    },
+    {
+      "human_target_actions": 2306.0,
+      "loss": 31.405490543693304,
+      "physical_target_actions": 1043.0,
+      "reward": -0.00877832155674696,
+      "update": 11.0
+    },
+    {
+      "human_target_actions": 2219.0,
+      "loss": 40.05035126209259,
+      "physical_target_actions": 913.0,
+      "reward": -0.013028099201619625,
+      "update": 12.0
+    },
+    {
+      "human_target_actions": 2542.0,
+      "loss": 52.43064206838608,
+      "physical_target_actions": 1639.0,
+      "reward": -0.009674781002104282,
+      "update": 13.0
+    },
+    {
+      "human_target_actions": 2213.0,
+      "loss": 16.707895119984943,
+      "physical_target_actions": 215.0,
+      "reward": -0.006211044732481241,
+      "update": 14.0
+    },
+    {
+      "human_target_actions": 2152.0,
+      "loss": 14.546785275141398,
+      "physical_target_actions": 857.0,
+      "reward": -0.009045334532856941,
+      "update": 15.0
+    },
+    {
+      "human_target_actions": 2310.0,
+      "loss": 21.959971964359283,
+      "physical_target_actions": 929.0,
+      "reward": -0.009705748409032822,
+      "update": 16.0
+    },
+    {
+      "human_target_actions": 2282.0,
+      "loss": 1.9176159302393596,
+      "physical_target_actions": 1089.0,
+      "reward": -0.0030057814437896013,
+      "update": 17.0
+    },
+    {
+      "human_target_actions": 2073.0,
+      "loss": 20.79902728398641,
+      "physical_target_actions": 1088.0,
+      "reward": -0.007775203324854374,
+      "update": 18.0
+    },
+    {
+      "human_target_actions": 2154.0,
+      "loss": 1.3462790455669165,
+      "physical_target_actions": 932.0,
+      "reward": -0.002268994925543666,
+      "update": 19.0,
+      "validation_energy_score": 68.8676330095733
+    },
+    {
+      "human_target_actions": 2231.0,
+      "loss": 49.464146196842194,
+      "physical_target_actions": 745.0,
+      "reward": -0.012280679307878017,
+      "update": 20.0
+    },
+    {
+      "human_target_actions": 2029.0,
+      "loss": 5.069183170795441,
+      "physical_target_actions": 149.0,
+      "reward": -0.0032737692818045616,
+      "update": 21.0
+    },
+    {
+      "human_target_actions": 2323.0,
+      "loss": 16.458524763584137,
+      "physical_target_actions": 711.0,
+      "reward": -0.008166568353772163,
+      "update": 22.0
+    },
+    {
+      "human_target_actions": 2591.0,
+      "loss": 3.019403763115406,
+      "physical_target_actions": 752.0,
+      "reward": -0.003107914002612233,
+      "update": 23.0
+    },
+    {
+      "human_target_actions": 2153.0,
+      "loss": 12.562328100204468,
+      "physical_target_actions": 1633.0,
+      "reward": -0.010305310599505901,
+      "update": 24.0
+    },
+    {
+      "human_target_actions": 1763.0,
+      "loss": 12.852850516637167,
+      "physical_target_actions": 1490.0,
+      "reward": -0.004567166790366173,
+      "update": 25.0
+    },
+    {
+      "human_target_actions": 2381.0,
+      "loss": 10.83337370554606,
+      "physical_target_actions": 348.0,
+      "reward": -0.007320894859731197,
+      "update": 26.0
+    },
+    {
+      "human_target_actions": 2541.0,
+      "loss": 35.5241893529892,
+      "physical_target_actions": 878.0,
+      "reward": -0.013734711334109306,
+      "update": 27.0
+    },
+    {
+      "human_target_actions": 2130.0,
+      "loss": 23.66218177477519,
+      "physical_target_actions": 383.0,
+      "reward": -0.007732911966741085,
+      "update": 28.0
+    },
+    {
+      "human_target_actions": 2458.0,
+      "loss": 17.060150464375813,
+      "physical_target_actions": 298.0,
+      "reward": -0.006215787027031183,
+      "update": 29.0,
+      "validation_energy_score": 68.826485898587
+    },
+    {
+      "human_target_actions": 2584.0,
+      "loss": 6.710454076528549,
+      "physical_target_actions": 1192.0,
+      "reward": -0.005622611381113529,
+      "update": 30.0
+    },
+    {
+      "human_target_actions": 1809.0,
+      "loss": 227.49144490559897,
+      "physical_target_actions": 990.0,
+      "reward": -0.02165202610194683,
+      "update": 31.0
+    },
+    {
+      "human_target_actions": 2154.0,
+      "loss": 49.057596365610756,
+      "physical_target_actions": 718.0,
+      "reward": -0.013091825880110264,
+      "update": 32.0
+    },
+    {
+      "human_target_actions": 2461.0,
+      "loss": 58.37746965885162,
+      "physical_target_actions": 967.0,
+      "reward": -0.011322308331727982,
+      "update": 33.0
+    },
+    {
+      "human_target_actions": 2035.0,
+      "loss": 64.8837821483612,
+      "physical_target_actions": 1415.0,
+      "reward": -0.013555698096752167,
+      "update": 34.0
+    },
+    {
+      "human_target_actions": 2370.0,
+      "loss": 72.11484551429749,
+      "physical_target_actions": 1267.0,
+      "reward": -0.01795419678092003,
+      "update": 35.0
+    },
+    {
+      "human_target_actions": 2205.0,
+      "loss": 69.94605731964111,
+      "physical_target_actions": 567.0,
+      "reward": -0.013143431395292282,
+      "update": 36.0
+    },
+    {
+      "human_target_actions": 2209.0,
+      "loss": 25.350423336029053,
+      "physical_target_actions": 678.0,
+      "reward": -0.00956881046295166,
+      "update": 37.0
+    },
+    {
+      "human_target_actions": 2407.0,
+      "loss": 14.764951825141907,
+      "physical_target_actions": 1092.0,
+      "reward": -0.004210422746837139,
+      "update": 38.0
+    },
+    {
+      "human_target_actions": 1836.0,
+      "loss": 3.9201050996780396,
+      "physical_target_actions": 894.0,
+      "reward": -0.0024257421027868986,
+      "update": 39.0,
+      "validation_energy_score": 69.03108843209608
+    },
+    {
+      "human_target_actions": 2005.0,
+      "loss": 5.316283305486043,
+      "physical_target_actions": 1012.0,
+      "reward": -0.006577680818736553,
+      "update": 40.0
+    },
+    {
+      "human_target_actions": 2437.0,
+      "loss": 6.448051109910011,
+      "physical_target_actions": 596.0,
+      "reward": -0.004624390974640846,
+      "update": 41.0
+    },
+    {
+      "human_target_actions": 2130.0,
+      "loss": 98.14450645446777,
+      "physical_target_actions": 1099.0,
+      "reward": -0.01601499691605568,
+      "update": 42.0
+    },
+    {
+      "human_target_actions": 2286.0,
+      "loss": 35.41133737564087,
+      "physical_target_actions": 900.0,
+      "reward": -0.014321547001600266,
+      "update": 43.0
+    },
+    {
+      "human_target_actions": 2061.0,
+      "loss": 12.104013522466024,
+      "physical_target_actions": 1030.0,
+      "reward": -0.005614269990473986,
+      "update": 44.0
+    },
+    {
+      "human_target_actions": 2073.0,
+      "loss": 22.71206792195638,
+      "physical_target_actions": 1094.0,
+      "reward": -0.008946919813752174,
+      "update": 45.0
+    },
+    {
+      "human_target_actions": 2373.0,
+      "loss": 16.075320303440094,
+      "physical_target_actions": 1179.0,
+      "reward": -0.009832074865698814,
+      "update": 46.0
+    },
+    {
+      "human_target_actions": 1912.0,
+      "loss": 66.18709405263265,
+      "physical_target_actions": 663.0,
+      "reward": -0.009523870423436165,
+      "update": 47.0
+    },
+    {
+      "human_target_actions": 2819.0,
+      "loss": 15.071842789649963,
+      "physical_target_actions": 1032.0,
+      "reward": -0.007261528633534908,
+      "update": 48.0
+    },
+    {
+      "human_target_actions": 2055.0,
+      "loss": 6.865962704022725,
+      "physical_target_actions": 894.0,
+      "reward": -0.0038068671710789204,
+      "update": 49.0,
+      "validation_energy_score": 69.35356458704106
+    }
+  ],
+  "initial_checkpoint": "results/hierarchical_world_model/causal_reaction/ppo_response_20260906/controllers/calibrated_residual/initial.pt",
+  "objective_check": {
+    "after_energy_score": 26.911072090538433,
+    "before_energy_score": 27.000063847287127
+  },
+  "pretraining_loss": [
+    1.0075126886367798,
+    0.8814317584037781,
+    0.9461202025413513
+  ],
+  "supervised_checkpoint": "results/hierarchical_world_model/causal_reaction/ppo_response_20260906/controllers/calibrated_residual/supervised.pt"
+}

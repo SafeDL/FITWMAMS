@@ -21,7 +21,7 @@ from hierarchical_world_model.src.influence_graph import ROLE_SAME_LANE_FOLLOWER
 from hierarchical_world_model.src.rule_models import RuleModelBundle, fit_rule_models
 from hierarchical_world_model.src.reaction_training import (
     PolicyTrainingConfig, ReactionEpisode, ReactionTrainingEnvironment,
-    _gae, train_reaction_policy,
+    _gae, initialise_calibrated_actor_features, train_reaction_policy,
 )
 from hierarchical_world_model.src.planner import complete_missing_background_plans
 
@@ -186,6 +186,20 @@ def test_ppo_evaluation_has_actor_and_critic_gradients():
     rewards, values = torch.ones(3, 2), torch.zeros(3, 2)
     advantages, returns = _gae(rewards, values, torch.zeros(3, 2, dtype=torch.bool), .99, .95)
     assert torch.isfinite(advantages).all() and torch.isfinite(returns).all()
+
+
+def test_a2_initialization_copies_only_compatible_actor_hidden_layers():
+    rule = RuleModelBundle((32.0, 2.5, 3.0, 2.0, 1.2, 4.0), .3, .2, 3.0)
+    a2 = IDMResidualReactionController(rule)
+    candidate = CalibratedResidualReactionController(rule)
+    critic_before = candidate.critic[0].weight.detach().clone()
+    copied = initialise_calibrated_actor_features(candidate, a2.state_dict())
+    assert copied == ("actor.0.weight", "actor.0.bias", "actor.2.weight", "actor.2.bias")
+    torch.testing.assert_close(candidate.actor[0].weight, a2.actor[0].weight)
+    torch.testing.assert_close(candidate.actor[2].bias, a2.actor[2].bias)
+    torch.testing.assert_close(candidate.actor_mean.weight, torch.zeros_like(candidate.actor_mean.weight))
+    torch.testing.assert_close(candidate.actor_mean.bias, torch.zeros_like(candidate.actor_mean.bias))
+    torch.testing.assert_close(candidate.critic[0].weight, critic_before)
 
 
 def test_tiny_ppo_training_saves_a_reloadable_controller(tmp_path):

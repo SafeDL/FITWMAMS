@@ -580,11 +580,46 @@ def _controller(mode: str, rule_model: RuleModelBundle | None, device: torch.dev
     raise ValueError(f"unsupported training mode: {mode}")
 
 
+def initialise_calibrated_actor_features(
+    controller: CalibratedResidualReactionController,
+    source_state_dict: dict[str, torch.Tensor] | None,
+) -> tuple[str, ...]:
+    """Copy only A2 actor hidden layers with identical feature semantics.
+
+    A2's output head, variance and critic encode its IDM-constrained action
+    mapping.  They must never initialise the signed calibrated-residual
+    mapping, whose zero-mean head is the explicit zero-correction baseline.
+    """
+    if source_state_dict is None:
+        return ()
+    names = ("actor.0.weight", "actor.0.bias", "actor.2.weight", "actor.2.bias")
+    target = controller.state_dict()
+    for name in names:
+        if name not in source_state_dict or source_state_dict[name].shape != target[name].shape:
+            raise ValueError(f"A2 actor feature layer {name} is incompatible with calibrated residual")
+    with torch.no_grad():
+        for name in names:
+            target[name].copy_(source_state_dict[name].to(target[name]))
+    return names
+
+
+def _policy_payload(
+    controller: ReactionController,
+    config: PolicyTrainingConfig,
+    artifact_metadata: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "schema_name": "reaction_policy", "schema_version": 1,
+        "controller_mode": controller.mode, "config": config.__dict__,
+        "state_dict": controller.state_dict(), "artifact_metadata": artifact_metadata or {},
+    }
+
+
 def train_reaction_policy(
     model, *, train_arrays: dict[str, np.ndarray], train_plans: np.ndarray,
     output_dir: str | Path, config: PolicyTrainingConfig, device: torch.device,
     controller_mode: str = "calibrated_residual", rule_model: RuleModelBundle | None = None,
-    initial_state_dict: dict[str, torch.Tensor] | None = None,
+    initial_actor_hidden_state_dict: dict[str, torch.Tensor] | None = None,
     train_events: ReactionEventReference | None = None,
     validation_arrays: dict[str, np.ndarray] | None = None,
     validation_plans: np.ndarray | None = None,
@@ -594,8 +629,11 @@ def train_reaction_policy(
     for parameter in model.parameters():
         parameter.requires_grad_(False)
     controller = _controller(controller_mode, rule_model, device)
-    if initial_state_dict is not None:
-        controller.load_state_dict(initial_state_dict, strict=True)
+    copied_layers: tuple[str, ...] = ()
+    if isinstance(controller, CalibratedResidualReactionController):
+        copied_layers = initialise_calibrated_actor_features(
+            controller, initial_actor_hidden_state_dict,
+        )
     environment = ReactionTrainingEnvironment(
         model, arrays=train_arrays, soft_plans=train_plans, controller=controller,
         device=device, config=config, event_reference=train_events,
@@ -627,6 +665,8 @@ def train_reaction_policy(
             pretraining = list(progress.get("pretraining", []))
             objective_check = progress.get("objective_check")
     elif isinstance(controller, CalibratedResidualReactionController) and train_events is not None:
+        initial_checkpoint = target / "initial.pt"
+        torch.save(_policy_payload(controller, config, artifact_metadata), initial_checkpoint)
         check_config = replace(
             config,
             validation_events=config.objective_check_events,
@@ -637,6 +677,8 @@ def train_reaction_policy(
             reference=train_events, device=device, config=check_config,
         )
         pretraining = pretrain_final_action(controller, environment, config)
+        supervised_checkpoint = target / "supervised.pt"
+        torch.save(_policy_payload(controller, config, artifact_metadata), supervised_checkpoint)
         after = validation_energy_score(
             model, controller, arrays=train_arrays, soft_plans=train_plans,
             reference=train_events, device=device, config=check_config,
@@ -724,17 +766,16 @@ def train_reaction_policy(
     if best_state is not None:
         controller.load_state_dict(best_state)
     checkpoint = target / "reaction_policy.pt"
-    torch.save({
-        "schema_name": "reaction_policy", "schema_version": 1,
-        "controller_mode": controller_mode, "config": config.__dict__,
-        "state_dict": controller.state_dict(), "artifact_metadata": artifact_metadata or {},
-    }, checkpoint)
+    torch.save(_policy_payload(controller, config, artifact_metadata), checkpoint)
     summary = {
         "checkpoint": str(checkpoint), "controller_mode": controller_mode,
         "pretraining_loss": pretraining, "history": history,
         "objective_check": objective_check,
         "best_validation_energy_score": None if best_state is None else best_score,
         "frozen_world_model": True,
+        "a2_actor_hidden_layers_copied": list(copied_layers),
+        "initial_checkpoint": str(target / "initial.pt"),
+        "supervised_checkpoint": str(target / "supervised.pt"),
     }
     save_json(summary, target / "training_summary.json")
     return summary

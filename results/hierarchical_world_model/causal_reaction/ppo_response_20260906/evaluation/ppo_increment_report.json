@@ -1,0 +1,8 @@
+{
+  "interpretation": "negative supports a PPO natural-response increment; this single training seed is not cross-seed evidence",
+  "ppo_energy_score": 51.85083548504762,
+  "ppo_minus_supervised_energy_score": 0.002635665419894906,
+  "schema_name": "reaction_policy_ppo_increment",
+  "schema_version": 1,
+  "supervised_energy_score": 51.84819981962772
+}

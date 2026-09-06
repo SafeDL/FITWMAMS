@@ -22,6 +22,7 @@ def evaluate(report: dict) -> dict:
     ood = report.get("physical_ood", {})
     comparison = event.get("arms", {}).get("calibrated_residual", {})
     bootstrap = comparison.get("paired_energy_score", {})
+    collision = event.get("paired_rear_collision", {})
     diagnostic_gates = {
         name: float(values.get("ci95_high", np.inf)) <= float(values.get("allowed_degradation", -np.inf))
         for name, values in event.get("paired_diagnostics", {}).items()
@@ -32,12 +33,23 @@ def evaluate(report: dict) -> dict:
         "factual_noninferior": bool(factual.get("calibrated_residual", {}).get("noninferior", False)),
         "physical_valid": bool(ood.get("calibrated_residual", {}).get("valid", False)),
         "no_jerk_limiter_failure": not bool(ood.get("calibrated_residual", {}).get("jerk_limiter_failed", True)),
+        "collision_not_clearly_worse": float(collision.get("ci95_low", np.inf)) <= 0.0,
+        "collision_evidence_sufficient": int(collision.get("events", 0)) >= 100 and int(collision.get("recordings", 0)) >= 5,
     }
     accepted = all(gates.values())
+    if accepted:
+        decision = "accept"
+    elif not gates["collision_evidence_sufficient"] and all(
+        value for name, value in gates.items() if name != "collision_evidence_sufficient"
+    ):
+        decision = "inconclusive"
+    else:
+        decision = "reject"
     return {
         "schema_name": "reaction_policy_acceptance", "schema_version": 1,
         "candidate": "calibrated_residual", "baseline": "a2_transfer",
         "gates": gates, "diagnostic_gates": diagnostic_gates, "accepted": accepted,
+        "decision": decision,
         "selected_controller": "calibrated_residual" if accepted else "a2_transfer",
         "reason": "all frozen human-evidence, factual, and physical gates passed" if accepted else "candidate retained as evidence; A2-transfer remains active",
     }
@@ -51,6 +63,17 @@ def main() -> None:
     result = evaluate(json.loads(args.report.read_text()))
     output = args.output or args.report.with_name("reaction_policy_acceptance.json")
     output.write_text(json.dumps(result, indent=2) + "\n")
+    decision_path = (
+        output.parent.parent / "decision.md"
+        if output.parent.name == "evaluation" else output.with_name("decision.md")
+    )
+    decision_path.write_text(
+        f"# Reaction PPO decision\n\n"
+        f"Decision: **{result['decision']}**. Selected controller: "
+        f"`{result['selected_controller']}`.\n\n"
+        f"{result['reason']}.\n\n"
+        f"The report is `{args.report.name}`; this validation result does not authorize a test rerun or release-config change.\n"
+    )
     print(json.dumps({"selected_controller": result["selected_controller"], "output": str(output)}))
 
 

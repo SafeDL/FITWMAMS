@@ -1,0 +1,56 @@
+{
+  "schema_name": "reaction_evidence_data_audit",
+  "schema_version": 1,
+  "source": "canonical seven-slot highD sequence cache and source metadata; not a scan of all raw recordings",
+  "recording_isolated": true,
+  "support_threshold": {
+    "events_per_cell": 100,
+    "recordings_per_cell": 5
+  },
+  "splits": {
+    "train": {
+      "all_events": 12078,
+      "replayable_events": 1845,
+      "leader_slot_zero_events": 1845,
+      "supported_events": 12057,
+      "event_counts": {
+        "0": 2,
+        "1": 19,
+        "2": 12057
+      },
+      "recording_counts": {
+        "0": 2,
+        "1": 11,
+        "2": 42
+      }
+    },
+    "validation": {
+      "all_events": 2021,
+      "replayable_events": 266,
+      "leader_slot_zero_events": 266,
+      "supported_events": 2017,
+      "event_counts": {
+        "1": 4,
+        "2": 2017
+      },
+      "recording_counts": {
+        "1": 4,
+        "2": 9
+      }
+    },
+    "test": {
+      "all_events": 1510,
+      "replayable_events": 206,
+      "leader_slot_zero_events": 206,
+      "supported_events": 1505,
+      "event_counts": {
+        "1": 5,
+        "2": 1505
+      },
+      "recording_counts": {
+        "1": 3,
+        "2": 9
+      }
+    }
+  }
+}

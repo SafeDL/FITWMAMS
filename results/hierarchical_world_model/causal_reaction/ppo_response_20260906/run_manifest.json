@@ -1,0 +1,100 @@
+{
+  "acceptance_thresholds": {
+    "factual_absolute_m": {
+      "ade": 0.02,
+      "fde": 0.06,
+      "p95": 0.1
+    },
+    "factual_relative": 0.05,
+    "human_lcb95": 0.0
+  },
+  "artifacts": {
+    "a2_transfer": {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+      "sha256": "ffa9f934b6b2236c2ab75d007c84958076b2bfea1851644bfef681d40e42a4d5"
+    },
+    "diffusion": {
+      "path": "/home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt",
+      "sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad"
+    },
+    "idm": {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json",
+      "sha256": "95288f6c3cf56400abd56b438087855723d918f87b3fa475c30369605e7df43a"
+    },
+    "world_model": {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/world_model/checkpoints/final_world_model.pt",
+      "sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+    }
+  },
+  "config": {
+    "base": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "base_sha256": "e8e5af84d6cd000bbcf06eaae7caf3d828ab569b07ea32cc0495f34fd85d3483",
+    "reaction": "/home/hp/FITWMAMS/hierarchical_world_model/config/reaction_policy.yaml",
+    "reaction_sha256": "189ca35596132009152850711c14fdae0cca19cf80d16745667cc5bd216427b0"
+  },
+  "event_reference": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/ppo_response_20260906/evidence",
+  "randomness": {
+    "seed": 20260906,
+    "shared_exogenous_arrays": true
+  },
+  "reference_protocol": "fixed_k_gt_conditional_resimulation_no_longitudinal_rebase",
+  "reference_slot_sources": "diffusion_from_K_GT with logged_future_completion for missing valid slots",
+  "same_rear_runtime_valid": true,
+  "schema_name": "reaction_policy_run_manifest",
+  "schema_version": 1,
+  "source_commit": "3ce752e0576ccbd4a8c77d527e3f8aff5e0055b1",
+  "training": {
+    "clip_ratio": 0.2,
+    "device": "auto",
+    "diffusion_ddim_steps": 20,
+    "entropy_coefficient": 0.01,
+    "episodes_per_rollout": 64,
+    "epochs_per_update": 4,
+    "event_episodes": 32,
+    "gae_lambda": 0.95,
+    "gamma": 0.99,
+    "influence_prediction_horizon_s": 1.5,
+    "influence_radius_m": 50.0,
+    "influence_secondary_radius_m": 35.0,
+    "influence_stable_release_frames": 13,
+    "invalid_penalty": 10.0,
+    "jerk_limit_mps3": 12.0,
+    "lateral_reference_offset_weight": 0.0,
+    "learning_rate": 0.0003,
+    "longitudinal_reference_offset_weight": 1.0,
+    "max_grad_norm": 1.0,
+    "minibatch_size": 2048,
+    "non_event_episodes": 16,
+    "objective_check_events": 4,
+    "objective_check_futures": 8,
+    "physical_jerk_weight": 0.1,
+    "physical_safety_weight": 2.0,
+    "pretrain_epochs": 3,
+    "reaction_max_frames": 149,
+    "reaction_min_frames": 5,
+    "reaction_recovery_frames": 15,
+    "reaction_release_ttc_s": 4.0,
+    "rollout_steps": 149,
+    "safety_ttc_s": 2.0,
+    "seed": 20260906,
+    "synthetic_episodes": 16,
+    "updates": 700,
+    "validation_events": 32,
+    "validation_futures": 32,
+    "validation_interval_updates": 10,
+    "validation_minimum_improvement": 0.002,
+    "validation_patience": 4,
+    "value_coefficient": 0.5
+  },
+  "worktree_diff_sha256": "6f05ccb6885fbae9fb0e1e1d25c5be372309ace434a718d8e10a41bf7da57f94",
+  "worktree_status": [
+    " M hierarchical_world_model/scripts/evaluate_reaction_policy.py",
+    " M hierarchical_world_model/scripts/prepare_reaction_evidence.py",
+    " M hierarchical_world_model/scripts/train_reaction_policy.py",
+    " M hierarchical_world_model/scripts/validate_reaction_policy.py",
+    " M hierarchical_world_model/src/reaction_training.py",
+    " M hierarchical_world_model/tests/test_reaction_controller.py",
+    "?? doc/FITWMAMS_Reaction_PPO_Training_Evaluation_goal.md",
+    "?? results/hierarchical_world_model/causal_reaction/ppo_response_20260906/"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "a2_initialization": "compatible actor hidden layers only; action head, log std and critic freshly initialized",
+  "candidate_training_rows": 42192,
+  "device": "cuda",
+  "passed": true,
+  "same_rear_valid_rows": 20636,
+  "train_supported_events": 12057,
+  "validation_rows": 6864,
+  "validation_supported_events": 2017
+}

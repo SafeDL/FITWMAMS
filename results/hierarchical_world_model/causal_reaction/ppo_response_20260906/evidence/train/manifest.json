@@ -1,0 +1,41 @@
+{
+  "schema_name": "reaction_event_reference",
+  "schema_version": 1,
+  "split": "train",
+  "feature_names": [
+    "acceleration_mps2",
+    "abs_jerk_mps3",
+    "speed_mps",
+    "gap_m",
+    "closing_mps",
+    "ttc_s"
+  ],
+  "initial_condition_names": [
+    "leader_brake_mps2",
+    "gap_m",
+    "closing_mps",
+    "ttc_s",
+    "follower_acceleration_mps2"
+  ],
+  "pre_event_frames": 25,
+  "evaluation_frames": 25,
+  "recovery_frames": 75,
+  "minimum_events": 100,
+  "minimum_recordings": 5,
+  "event_counts": {
+    "0": 2,
+    "1": 19,
+    "2": 12057
+  },
+  "recording_counts": {
+    "0": 2,
+    "1": 11,
+    "2": 42
+  },
+  "supported_cells": [
+    2
+  ],
+  "supported_cell_labels": [
+    "brake_0.5_2_ttc_4_inf"
+  ]
+}

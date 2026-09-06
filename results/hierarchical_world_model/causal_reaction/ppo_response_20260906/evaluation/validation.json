@@ -1,0 +1,598 @@
+{
+  "autonomous_response_scope": true,
+  "factual": {
+    "a2_transfer": {
+      "ade_m": 1.0772987604141235,
+      "fde_m": 2.686235189437866,
+      "p95_m": 2.6333749294281006
+    },
+    "calibrated_residual": {
+      "ade_m": 0.1701662540435791,
+      "fde_m": 0.3283998668193817,
+      "noninferior": true,
+      "p95_m": 0.5017842054367065
+    },
+    "calibrated_supervised": {
+      "ade_m": 0.1673871874809265,
+      "fde_m": 0.32229217886924744,
+      "p95_m": 0.5135373473167419
+    },
+    "frozen_hiqr": {
+      "ade_m": 0.16921955347061157,
+      "fde_m": 0.3287540078163147,
+      "p95_m": 0.48972107470035553
+    },
+    "idm_only": {
+      "ade_m": 0.2877795398235321,
+      "fde_m": 0.622101366519928,
+      "p95_m": 0.8125104606151581
+    }
+  },
+  "held_out_events": {
+    "arms": {
+      "a2_transfer": {
+        "cell_energy_score": {
+          "2": 57.02262315922923
+        },
+        "diagnostic_error_mean": {
+          "closing": 2.442250935981671,
+          "gap": 2.5091897398233414,
+          "jerk": 29.386723731954874,
+          "latency": 6.963541666666667,
+          "peak_acceleration": 2.6831591042379537,
+          "recovery": 7.715888808170955
+        },
+        "energy_score_mean": 57.02262315922923
+      },
+      "calibrated_residual": {
+        "cell_energy_score": {
+          "2": 51.85083548504762
+        },
+        "diagnostic_error_mean": {
+          "closing": 0.0914343180290113,
+          "gap": 0.24655313789844513,
+          "jerk": 18.876166609923043,
+          "latency": 5.333333333333333,
+          "peak_acceleration": 1.034323156811297,
+          "recovery": 0.16758323709170023
+        },
+        "energy_score_mean": 51.85083548504762,
+        "paired_energy_score": {
+          "ci95_high": 5.171787674181606,
+          "ci95_low": 5.171787674181606,
+          "events": 6,
+          "lcb95": 5.171787674181606,
+          "mean": 5.171787674181606,
+          "recordings": 1
+        }
+      },
+      "calibrated_supervised": {
+        "cell_energy_score": {
+          "2": 51.84819981962772
+        },
+        "diagnostic_error_mean": {
+          "closing": 0.10787974494451191,
+          "gap": 0.278414785861969,
+          "jerk": 18.874429913361865,
+          "latency": 5.28125,
+          "peak_acceleration": 1.0631540125856798,
+          "recovery": 0.1952750782171885
+        },
+        "energy_score_mean": 51.84819981962772
+      },
+      "frozen_hiqr": {
+        "cell_energy_score": {
+          "2": 112.30138516262593
+        },
+        "diagnostic_error_mean": {
+          "closing": 0.12663406506180763,
+          "gap": 0.09468418856461842,
+          "jerk": 34.12619135181108,
+          "latency": 4.8125,
+          "peak_acceleration": 1.1425113491714,
+          "recovery": 0.17551513512929282
+        },
+        "energy_score_mean": 112.30138516262593
+      },
+      "idm_only": {
+        "cell_energy_score": {
+          "2": 47.204880653464734
+        },
+        "diagnostic_error_mean": {
+          "closing": 0.2646642355248332,
+          "gap": 0.442492996652921,
+          "jerk": 13.77432946379607,
+          "latency": 9.479166666666666,
+          "peak_acceleration": 0.6438866183937838,
+          "recovery": 0.5157787799835205
+        },
+        "energy_score_mean": 47.204880653464734
+      }
+    },
+    "events": 6,
+    "futures_per_event": 32,
+    "paired_diagnostics": {
+      "closing": {
+        "allowed_degradation": 0.18632000461220743,
+        "ci95_high": -2.3508166179526597,
+        "ci95_low": -2.3508166179526597,
+        "events": 6,
+        "lcb95": -2.3508166179526597,
+        "mean": -2.3508166179526597,
+        "recordings": 1
+      },
+      "gap": {
+        "allowed_degradation": 3.5905397415161135,
+        "ci95_high": -2.2626366019248962,
+        "ci95_low": -2.2626366019248962,
+        "events": 6,
+        "lcb95": -2.2626366019248962,
+        "mean": -2.2626366019248962,
+        "recordings": 1
+      },
+      "jerk": {
+        "allowed_degradation": 0.00011920928955078125,
+        "ci95_high": -10.510557122031821,
+        "ci95_low": -10.510557122031821,
+        "events": 6,
+        "lcb95": -10.510557122031821,
+        "mean": -10.510557122031821,
+        "recordings": 1
+      },
+      "latency": {
+        "allowed_degradation": 2.5,
+        "ci95_high": -1.6302083333333333,
+        "ci95_low": -1.6302083333333333,
+        "events": 6,
+        "lcb95": -1.6302083333333333,
+        "mean": -1.6302083333333333,
+        "recordings": 1
+      },
+      "peak_acceleration": {
+        "allowed_degradation": 0.05000114440917969,
+        "ci95_high": -1.648835947426657,
+        "ci95_low": -1.648835947426657,
+        "events": 6,
+        "lcb95": -1.648835947426657,
+        "mean": -1.648835947426657,
+        "recordings": 1
+      },
+      "recovery": {
+        "allowed_degradation": 2.999786376953125,
+        "ci95_high": -7.548305571079254,
+        "ci95_low": -7.548305571079254,
+        "events": 6,
+        "lcb95": -7.548305571079254,
+        "mean": -7.548305571079254,
+        "recordings": 1
+      }
+    },
+    "paired_rear_collision": {
+      "a2_rate": 0.0,
+      "candidate_rate": 0.0,
+      "ci95_high": 0.0,
+      "ci95_low": 0.0,
+      "comparison": "candidate_minus_a2; positive is worse",
+      "events": 6,
+      "lcb95": 0.0,
+      "mean": 0.0,
+      "recordings": 1,
+      "sparse_event_caveat": "zero paired bootstrap interval does not imply zero population risk"
+    }
+  },
+  "physical_ood": {
+    "calibrated_residual": {
+      "jerk_limiter_failed": false,
+      "valid": true
+    },
+    "conditions": {
+      "constant_brake_2": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00012238386261742562,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.19274522364139557,
+          "recovery_minimum_predicted_gap_m": 22.92471694946289,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.017932046979865772,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.4039772152900696,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.01453360915184021,
+          "recovery_minimum_predicted_gap_m": 4.878808975219727,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.01821168903803132,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.4094080626964569,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.014090578071773052,
+          "recovery_minimum_predicted_gap_m": 5.113804817199707,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": 4.600743293762207,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 5.5299067753367126e-05,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.10493210703134537,
+          "recovery_minimum_predicted_gap_m": 12.877264976501465,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      },
+      "constant_brake_4": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00010848737292690203,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.2034086138010025,
+          "recovery_minimum_predicted_gap_m": 18.121383666992188,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.01901565995525727,
+          "guard_activation_condition_rate": 0.0022371364653243847,
+          "guard_mean_rewrite_mps2": 0.5259261131286621,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.01604517363011837,
+          "recovery_minimum_predicted_gap_m": -0.8647956848144531,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.019190436241610737,
+          "guard_activation_condition_rate": 0.0020973154362416107,
+          "guard_mean_rewrite_mps2": 0.5203744769096375,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.015896368771791458,
+          "recovery_minimum_predicted_gap_m": -0.5144481658935547,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": -1.6983613967895508,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 2.80253489685911e-12,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.13709186017513275,
+          "recovery_minimum_predicted_gap_m": 9.8488130569458,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      },
+      "constant_brake_6": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.00013982102908277405,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0075979153625667095,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.22596053779125214,
+          "recovery_minimum_predicted_gap_m": 16.22860336303711,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.022511185682326622,
+          "guard_activation_condition_rate": 0.0091582774049217,
+          "guard_mean_rewrite_mps2": 1.070823311805725,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0625,
+          "recovery_final_abs_correction_mps2": 0.03239735588431358,
+          "recovery_minimum_predicted_gap_m": -4.698319435119629,
+          "schedule_chasing_positive_correction_rate": 3.495525727069351e-05,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.022616051454138704,
+          "guard_activation_condition_rate": 0.009018456375838927,
+          "guard_mean_rewrite_mps2": 1.085716962814331,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.03125,
+          "recovery_final_abs_correction_mps2": 0.03308561071753502,
+          "recovery_minimum_predicted_gap_m": -4.7646331787109375,
+          "schedule_chasing_positive_correction_rate": 3.495525727069351e-05,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0625,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": -4.796567916870117,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 4.451886775891367e-12,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.17315444350242615,
+          "recovery_minimum_predicted_gap_m": 7.720456123352051,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      },
+      "constant_brake_8": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.00017477628635346757,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.009687059558928013,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.24133148789405823,
+          "recovery_minimum_predicted_gap_m": 12.00522518157959,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.024853187919463088,
+          "guard_activation_condition_rate": 0.012129474272930648,
+          "guard_mean_rewrite_mps2": 1.6288981437683105,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.125,
+          "recovery_final_abs_correction_mps2": 0.06947308778762817,
+          "recovery_minimum_predicted_gap_m": -4.7854413986206055,
+          "schedule_chasing_positive_correction_rate": 0.0002446868008948546,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.024853187919463088,
+          "guard_activation_condition_rate": 0.011989653243847875,
+          "guard_mean_rewrite_mps2": 1.6014927625656128,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.125,
+          "recovery_final_abs_correction_mps2": 0.06885628402233124,
+          "recovery_minimum_predicted_gap_m": -4.7983903884887695,
+          "schedule_chasing_positive_correction_rate": 0.0002796420581655481,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.125,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": -6.0495805740356445,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.00013982102908277405,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00286247581243515,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.19195744395256042,
+          "recovery_minimum_predicted_gap_m": 6.560235977172852,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      },
+      "unseen_pulse": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00011645112681435421,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.21960031986236572,
+          "recovery_minimum_predicted_gap_m": 17.99947738647461,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.017932046979865772,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.40412279963493347,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.015197845175862312,
+          "recovery_minimum_predicted_gap_m": 6.632146835327148,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.018176733780760627,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.40973085165023804,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.014708423987030983,
+          "recovery_minimum_predicted_gap_m": 6.850258827209473,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": 6.399557113647461,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00021070882212370634,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.10404466092586517,
+          "recovery_minimum_predicted_gap_m": 15.682040214538574,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      },
+      "unseen_ramp": {
+        "a2_transfer": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.00010919183841906488,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.2020733505487442,
+          "recovery_minimum_predicted_gap_m": 18.409774780273438,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_residual": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0183165548098434,
+          "guard_activation_condition_rate": 0.001223434004474273,
+          "guard_mean_rewrite_mps2": 0.46622100472450256,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.015898780897259712,
+          "recovery_minimum_predicted_gap_m": 0.4058380126953125,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "calibrated_supervised": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.01859619686800895,
+          "guard_activation_condition_rate": 0.0011185682326621924,
+          "guard_mean_rewrite_mps2": 0.4657776653766632,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.015086481347680092,
+          "recovery_minimum_predicted_gap_m": 0.4264039993286133,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "frozen_hiqr": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 0.0,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 0.0,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.0,
+          "recovery_minimum_predicted_gap_m": -0.4389686584472656,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        },
+        "idm_only": {
+          "action_bounds_valid": true,
+          "guard_action_rewrite_rate": 3.495525727069351e-05,
+          "guard_activation_condition_rate": 0.0,
+          "guard_mean_rewrite_mps2": 3.6701701901620254e-05,
+          "inactive_max_abs_correction_mps2": 0.0,
+          "jerk_limiter_failed": false,
+          "npc_involved_collision_rate": 0.0,
+          "recovery_final_abs_correction_mps2": 0.12640368938446045,
+          "recovery_minimum_predicted_gap_m": 10.430672645568848,
+          "schedule_chasing_positive_correction_rate": 0.0,
+          "valid": true
+        }
+      }
+    },
+    "human_target_used": false
+  },
+  "protocol": "fixed_k_gt_conditional_resimulation_no_longitudinal_rebase",
+  "schema_name": "reaction_policy_evaluation",
+  "schema_version": 1,
+  "split": "validation"
+}

@@ -1,0 +1,27 @@
+{
+  "schema_name": "reaction_policy_acceptance",
+  "schema_version": 1,
+  "candidate": "calibrated_residual",
+  "baseline": "a2_transfer",
+  "gates": {
+    "human_energy_score": true,
+    "human_diagnostics": true,
+    "factual_noninferior": true,
+    "physical_valid": true,
+    "no_jerk_limiter_failure": true,
+    "collision_not_clearly_worse": true,
+    "collision_evidence_sufficient": false
+  },
+  "diagnostic_gates": {
+    "closing": true,
+    "gap": true,
+    "jerk": true,
+    "latency": true,
+    "peak_acceleration": true,
+    "recovery": true
+  },
+  "accepted": false,
+  "decision": "inconclusive",
+  "selected_controller": "a2_transfer",
+  "reason": "candidate retained as evidence; A2-transfer remains active"
+}
