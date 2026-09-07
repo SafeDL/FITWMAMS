@@ -21,7 +21,8 @@ from hierarchical_world_model.src.influence_graph import ROLE_SAME_LANE_FOLLOWER
 from hierarchical_world_model.src.rule_models import RuleModelBundle, fit_rule_models
 from hierarchical_world_model.src.reaction_training import (
     PolicyTrainingConfig, ReactionEpisode, ReactionTrainingEnvironment,
-    _gae, initialise_calibrated_actor_features, train_reaction_policy,
+    _gae, initialise_calibrated_actor_features, synthetic_safety_supervision,
+    train_reaction_policy,
 )
 from hierarchical_world_model.src.planner import complete_missing_background_plans
 
@@ -242,6 +243,32 @@ def test_synthetic_stream_never_receives_a_human_target():
     assert not info["human_target_gate"].any()
 
 
+def test_synthetic_safety_supervision_is_risk_gated_and_brake_only():
+    base = torch.tensor(((1.0, -2.0), (0.5, 0.0)))
+    rule = torch.tensor(((-3.0, -1.0), (-4.0, -2.0)))
+    active = torch.tensor(((True, True), (False, True)))
+    target, gate = synthetic_safety_supervision(
+        base, rule, active, torch.tensor((True, False)),
+    )
+    torch.testing.assert_close(target, torch.minimum(base, rule))
+    assert torch.equal(gate, torch.tensor(((True, False), (False, False))))
+
+
+def test_synthetic_safety_target_has_actor_gradient():
+    controller = CalibratedResidualReactionController(_rules())
+    base = torch.tensor(((1.0,),))
+    authority = torch.ones_like(base)
+    safety_gate = torch.ones_like(base, dtype=torch.bool)
+    features = torch.randn(1, 1, REACTION_FEATURE_DIM + 1)
+    distribution, _ = controller.distribution_and_value(features)
+    desired, _ = controller.mapped_action(
+        base, authority, safety_gate, distribution.mean, -8.0, 4.0,
+    )
+    torch.nn.functional.smooth_l1_loss(desired, torch.full_like(desired, -3.0)).backward()
+    assert controller.actor_mean.weight.grad is not None
+    assert float(controller.actor_mean.weight.grad.abs().sum()) > 0.0
+
+
 def test_tiny_ppo_uses_post_full_pass_validation_checkpoint(tmp_path):
     values = _inputs(batch=1)
     _, _, current, valid, _, maps, _ = values
@@ -278,6 +305,28 @@ def test_tiny_idm_and_calibrated_ppo_training_smoke(tmp_path):
             train_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path / mode, config=cfg,
             device=torch.device("cpu"), controller_mode=mode, rule_model=_rules())
         assert Path(summary["checkpoint"]).is_file() and summary["controller_mode"] == mode
+
+
+def test_ppo_stage_starts_exactly_from_supervised_without_pretraining(tmp_path):
+    values = _inputs(batch=1); _, _, current, valid, _, maps, _ = values
+    arrays = {
+        "agent_states": current[:, None].expand(-1, 174, -1, -1).clone().numpy(),
+        "agent_valid": valid[:, None].expand(-1, 174, -1).clone().numpy(),
+        "map_polylines": maps.numpy(),
+        "map_polyline_valid": torch.ones(1, 8, 8, dtype=torch.bool).numpy(),
+    }
+    supervised = CalibratedResidualReactionController(_rules()).state_dict()
+    summary = train_reaction_policy(
+        DiffusionGuidedHiQR().eval(), train_arrays=arrays,
+        train_plans=torch.zeros(1, 149, 6, 2).numpy(), output_dir=tmp_path,
+        config=PolicyTrainingConfig(updates=0), device=torch.device("cpu"),
+        controller_mode="calibrated_residual", rule_model=_rules(),
+        supervised_state_dict=supervised, stage="ppo",
+    )
+    payload = torch.load(summary["checkpoint"], map_location="cpu", weights_only=False)
+    assert summary["pretraining_loss"] == []
+    for name, value in supervised.items():
+        torch.testing.assert_close(payload["state_dict"][name], value)
 
 
 def test_authority_features_include_realized_phase_and_age():

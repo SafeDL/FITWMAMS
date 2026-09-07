@@ -1,0 +1,76 @@
+{
+  "acceptance_thresholds": {
+    "factual_absolute_m": {
+      "ade": 0.02,
+      "fde": 0.06,
+      "p95": 0.1
+    },
+    "factual_relative": 0.05,
+    "human_lcb95": 0.0
+  },
+  "artifacts": {
+    "a2_transfer": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+    "diffusion": "/home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt",
+    "idm": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json",
+    "world_model": "/home/hp/FITWMAMS/results/hierarchical_world_model/world_model/checkpoints/final_world_model.pt"
+  },
+  "config": {
+    "base": "/home/hp/FITWMAMS/hierarchical_world_model/config/release.yaml",
+    "reaction": "/home/hp/FITWMAMS/hierarchical_world_model/config/reaction_policy.yaml"
+  },
+  "event_reference": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/ppo_response_20260906/evidence",
+  "randomness": {
+    "seed": 20260906,
+    "shared_exogenous_arrays": true
+  },
+  "reference_protocol": "fixed_k_gt_conditional_resimulation_no_longitudinal_rebase",
+  "reference_slot_sources": "diffusion_from_K_GT with logged_future_completion for missing valid slots",
+  "same_rear_runtime_valid": true,
+  "schema_name": "reaction_policy_run",
+  "schema_version": 2,
+  "stage": "supervised",
+  "training": {
+    "clip_ratio": 0.2,
+    "device": "auto",
+    "diffusion_ddim_steps": 20,
+    "entropy_coefficient": 0.01,
+    "episodes_per_rollout": 64,
+    "epochs_per_update": 4,
+    "event_episodes": 32,
+    "gae_lambda": 0.95,
+    "gamma": 0.99,
+    "influence_prediction_horizon_s": 1.5,
+    "influence_radius_m": 50.0,
+    "influence_secondary_radius_m": 35.0,
+    "influence_stable_release_frames": 13,
+    "invalid_penalty": 10.0,
+    "jerk_limit_mps3": 12.0,
+    "lateral_reference_offset_weight": 0.0,
+    "learning_rate": 0.0003,
+    "longitudinal_reference_offset_weight": 1.0,
+    "max_grad_norm": 1.0,
+    "minibatch_size": 2048,
+    "non_event_episodes": 16,
+    "objective_check_events": 4,
+    "objective_check_futures": 8,
+    "physical_jerk_weight": 0.1,
+    "physical_safety_weight": 2.0,
+    "pretrain_epochs": 3,
+    "reaction_max_frames": 149,
+    "reaction_min_frames": 5,
+    "reaction_recovery_frames": 15,
+    "reaction_release_ttc_s": 4.0,
+    "rollout_steps": 149,
+    "safety_supervision_weight": 1.0,
+    "safety_ttc_s": 2.0,
+    "seed": 20260906,
+    "synthetic_episodes": 16,
+    "updates": 700,
+    "validation_events": 32,
+    "validation_futures": 32,
+    "validation_interval_updates": 10,
+    "validation_minimum_improvement": 0.002,
+    "validation_patience": 4,
+    "value_coefficient": 0.5
+  }
+}

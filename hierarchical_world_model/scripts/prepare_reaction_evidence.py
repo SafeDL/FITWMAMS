@@ -20,6 +20,7 @@ from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: 
 from hierarchical_world_model.src.reaction_evidence import (  # noqa: E402
     SLOT_NAMES, assert_split_isolation, build_reaction_event_reference,
 )
+from world_model.src.core.utils import save_json  # noqa: E402
 
 
 DEFAULT = ROOT / "hierarchical_world_model/config/reaction_policy.yaml"
@@ -118,7 +119,7 @@ def main() -> None:
             for reference in references
         },
     }
-    (args.output_dir / "data_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
+    save_json(audit, args.output_dir / "data_audit.json")
 
 
 if __name__ == "__main__":

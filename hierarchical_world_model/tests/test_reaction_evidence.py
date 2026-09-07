@@ -4,10 +4,17 @@ import numpy as np
 import pytest
 
 from hierarchical_world_model.src.reaction_evidence import (
-    ReactionEventReference, assert_split_isolation,
+    ReactionEventReference, ReactionEvents, assert_split_isolation,
     build_reaction_event_reference, energy_score, event_window,
     recording_cluster_bootstrap,
 )
+from hierarchical_world_model.scripts.evaluate_reaction_policy import (
+    _factual_noninferiority, _paired_failures, event_selection, mechanism_events,
+)
+from hierarchical_world_model.scripts.validate_reaction_policy import (
+    evaluate as evaluate_acceptance,
+)
+from hierarchical_world_model.src.reaction_training import ReactionRollout
 
 
 def _arrays(rows: int = 3) -> dict[str, np.ndarray]:
@@ -105,3 +112,116 @@ def test_energy_score_and_recording_bootstrap_are_event_level():
         np.asarray((0.2, 0.1, -0.1, 0.4)), np.asarray((1, 1, 2, 3)), draws=100, seed=3,
     )
     assert result["events"] == 4 and result["recordings"] == 3
+
+
+def test_evaluation_selection_reports_each_filter_and_balances_recordings():
+    count = 12
+    reference = ReactionEventReference(
+        split="validation",
+        events=ReactionEvents(
+            row_index=np.arange(count),
+            recording_id=np.repeat((1, 2, 3), 4),
+            leader_id=np.arange(count) + 100,
+            follower_id=np.arange(count) + 200,
+            absolute_onset_frame=np.arange(count) + 1000,
+            local_onset_frame=np.full(count, 40),
+            leader_slot=np.asarray((0,) * 11 + (1,)),
+            follower_slot=np.full(count, 2),
+            cell=np.asarray((2,) * 10 + (1, 2)),
+            initial_conditions=np.column_stack((
+                np.arange(count), np.ones((count, 4)),
+            )).astype(np.float32),
+            trajectory=np.zeros((count, 100, 6), np.float32),
+        ),
+        supported_cells=(2,), event_counts={1: 1, 2: 11},
+        recording_counts={1: 1, 2: 3},
+    )
+    selected, audit = event_selection(reference, np.arange(10), limit=6)
+    assert audit == {
+        "all_events": 12,
+        "supported_events": 11,
+        "ego_leader_events": 11,
+        "supported_ego_leader_events": 10,
+        "mapped_scene_events": 10,
+        "evaluated_events": 6,
+        "unique_scene_rows": 6,
+        "recordings": 3,
+        "events_per_recording": {"1": 2, "2": 2, "3": 2},
+    }
+    mechanism = mechanism_events(reference, np.arange(10))
+    assert len(mechanism) == 6
+    assert set(reference.events.recording_id[mechanism]) == {1, 2, 3}
+
+
+def _rollout(*, crash: bool, role: int = 1) -> ReactionRollout:
+    diagnostics = {
+        name: np.zeros((1, 2, 6), dtype=dtype)
+        for name, dtype in (
+            ("alpha", np.float32), ("active", bool),
+            ("rule_action_ax", np.float32), ("influence_authority", np.float32),
+            ("influence_role", np.int64), ("influence_parent", np.int64),
+            ("influence_predicted_ttc_s", np.float32),
+            ("desired_action_ax", np.float32),
+        )
+    }
+    diagnostics["active"][:, :, 1] = True
+    diagnostics["influence_role"][:, :, 1] = role
+    crashed = np.zeros((1, 2, 7), bool)
+    if crash:
+        crashed[0, 1, (0, 2)] = True
+    return ReactionRollout(
+        states=np.zeros((1, 2, 7, 6), np.float32),
+        background_actions=np.zeros((1, 2, 6, 2), np.float32),
+        base_background_actions=np.zeros((1, 2, 6, 2), np.float32),
+        ego_actions=np.zeros((1, 2, 2), np.float32),
+        controller_diagnostics=diagnostics,
+        collision=crashed.any(-1), crashed=crashed,
+    )
+
+
+def test_paired_failure_attributes_execution_and_records_telemetry():
+    telemetry = []
+    failures = _paired_failures(
+        "constant_brake_6", np.asarray((42,)),
+        {
+            "calibrated_residual": _rollout(crash=True),
+            "a2_transfer": _rollout(crash=False),
+            "idm_only": _rollout(crash=False),
+        },
+        _rollout(crash=False), telemetry,
+    )
+    assert failures[0]["cause"] == "execution_jerk_limited"
+    assert failures[0]["causal_slots"] == [2]
+    assert telemetry and telemetry[0]["row_index"] == 42
+
+
+def test_factual_gate_uses_hiqr_and_evidence_requirement_is_shared():
+    assert _factual_noninferiority({
+        "frozen_hiqr": {"ade_m": 1.0, "fde_m": 1.0, "p95_m": 1.0},
+        "a2_transfer": {"ade_m": 10.0, "fde_m": 10.0, "p95_m": 10.0},
+        "calibrated_residual": {"ade_m": 1.01, "fde_m": 1.01, "p95_m": 1.01},
+    })
+    report = {
+        "factual": {"calibrated_residual": {"noninferior": True}},
+        "held_out_events": {
+            "events": 100, "recordings": 5,
+            "arms": {"calibrated_supervised": {"energy_score_mean": 10.0}},
+            "paired_energy_score": {
+                "a2_transfer_minus_calibrated_residual": {"lcb95": 1.0},
+                "calibrated_supervised_minus_calibrated_residual": {"lcb95": 0.0},
+            },
+            "paired_diagnostics": {
+                "gap": {"ci95_high": 0.0, "allowed_degradation": 0.0},
+            },
+            "paired_rear_collision": {"a2_transfer": {"ci95_high": 0.0}},
+        },
+        "physical_ood": {
+            "calibrated_residual": {"valid": True, "jerk_limiter_failed": False},
+            "failure_analysis": {"strict_causal_regressions": 0},
+        },
+    }
+    assert evaluate_acceptance(report, stage="supervised")["accepted"]
+    report["held_out_events"]["events"] = 99
+    result = evaluate_acceptance(report, stage="supervised")
+    assert not result["gates"]["human_evidence_sufficient"]
+    assert not result["accepted"]

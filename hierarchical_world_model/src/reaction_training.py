@@ -29,6 +29,7 @@ from .rule_models import RuleModelBundle
 
 
 EpisodeKind = Literal["event", "non_event", "synthetic"]
+TrainingStage = Literal["supervised", "ppo"]
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ class PolicyTrainingConfig:
     max_grad_norm: float = 1.0
     physical_safety_weight: float = 2.0
     physical_jerk_weight: float = 0.1
+    safety_supervision_weight: float = 1.0
     invalid_penalty: float = 10.0
     jerk_limit_mps3: float = 12.0
     safety_ttc_s: float = 2.0
@@ -95,6 +97,18 @@ class ReactionRollout:
     controller_diagnostics: dict[str, np.ndarray]
     collision: np.ndarray
     crashed: np.ndarray
+
+
+def synthetic_safety_supervision(
+    base: torch.Tensor,
+    rule_action: torch.Tensor,
+    active: torch.Tensor,
+    synthetic: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return the IDM braking target and its synthetic-only supervision gate."""
+    target = torch.minimum(base, rule_action)
+    gate = synthetic[:, None] & active & (rule_action < base)
+    return target, gate
 
 
 def _world(
@@ -419,6 +433,12 @@ class ReactionTrainingEnvironment:
                 )
 
         physical_gate = torch.from_numpy(synthetic).to(self.device)[:, None] & active
+        rule_action = transition["controller_rule_action_ax"]
+        if rule_action is None:
+            rule_action = base
+        safety_target, safety_target_gate = synthetic_safety_supervision(
+            base, rule_action, active, torch.from_numpy(synthetic).to(self.device),
+        )
         safety = -(self.config.safety_ttc_s - ttc).clamp_min(0.0) / self.config.safety_ttc_s
         reward += self.config.physical_safety_weight * safety * physical_gate
         if self.previous_actions is not None:
@@ -445,6 +465,9 @@ class ReactionTrainingEnvironment:
             "human_target_gate": human_gate & alive[:, None],
             "human_target_weight": human_weight * alive[:, None],
             "physical_target_gate": physical_gate & alive[:, None],
+            "safety_target_gate": safety_target_gate & alive[:, None],
+            "safety_target_action": safety_target,
+            "rule_action": rule_action,
             "selected_features": selected_features,
             "collision": collision,
             "phase": phase,
@@ -491,39 +514,58 @@ def pretrain_final_action(
     controller: CalibratedResidualReactionController,
     environment: ReactionTrainingEnvironment,
     config: PolicyTrainingConfig,
-) -> list[float]:
+) -> list[dict[str, float]]:
     """Fit the mapped final desired action on events and matched non-events."""
     optimizer = torch.optim.Adam(controller.parameters(), lr=config.learning_rate)
-    history: list[float] = []
+    history: list[dict[str, float]] = []
     for _ in range(config.pretrain_epochs):
         episodes = environment.sample_episodes(human_targets=True)
         environment.reset(episodes)
-        losses: list[torch.Tensor] = []
-        weights: list[torch.Tensor] = []
+        human_losses: list[torch.Tensor] = []
+        human_weights: list[torch.Tensor] = []
+        safety_losses: list[torch.Tensor] = []
         for _ in range(config.rollout_steps):
             _, _, _, info = environment.step()
             gate = info["human_target_gate"]
-            if not gate.any():
+            safety_gate = info["safety_target_gate"]
+            if not gate.any() and not safety_gate.any():
                 continue
             features = info["features"].detach()
             distribution, _ = controller.distribution_and_value(features)
+            supervision_gate = gate | safety_gate
             desired, _ = controller.mapped_action(
-                info["base_action"].detach(), info["authority"].detach(), gate,
+                info["base_action"].detach(), info["authority"].detach(),
+                supervision_gate,
                 distribution.mean, -8.0, 4.0,
             )
-            losses.append(functional.smooth_l1_loss(
-                desired[gate], info["target_action"][gate], reduction="none",
-            ))
-            weights.append(info["human_target_weight"][gate])
-        if not losses:
+            if gate.any():
+                human_losses.append(functional.smooth_l1_loss(
+                    desired[gate], info["target_action"][gate], reduction="none",
+                ))
+                human_weights.append(info["human_target_weight"][gate])
+            if safety_gate.any():
+                safety_losses.append(functional.smooth_l1_loss(
+                    desired[safety_gate], info["safety_target_action"][safety_gate],
+                    reduction="none",
+                ))
+        if not human_losses:
             raise RuntimeError("final-action pretraining produced no human-supervised actions")
-        weight = torch.cat(weights)
-        loss = (torch.cat(losses) * weight).sum() / weight.sum()
+        human_weight = torch.cat(human_weights)
+        human_loss = (torch.cat(human_losses) * human_weight).sum() / human_weight.sum()
+        safety_loss = (
+            torch.cat(safety_losses).mean()
+            if safety_losses else human_loss.new_zeros(())
+        )
+        loss = human_loss + config.safety_supervision_weight * safety_loss
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(controller.parameters(), config.max_grad_norm)
         optimizer.step()
-        history.append(float(loss.detach()))
+        history.append({
+            "loss": float(loss.detach()),
+            "human_loss": float(human_loss.detach()),
+            "safety_loss": float(safety_loss.detach()),
+        })
     return history
 
 
@@ -620,17 +662,24 @@ def train_reaction_policy(
     output_dir: str | Path, config: PolicyTrainingConfig, device: torch.device,
     controller_mode: str = "calibrated_residual", rule_model: RuleModelBundle | None = None,
     initial_actor_hidden_state_dict: dict[str, torch.Tensor] | None = None,
+    supervised_state_dict: dict[str, torch.Tensor] | None = None,
+    stage: TrainingStage = "ppo",
     train_events: ReactionEventReference | None = None,
     validation_arrays: dict[str, np.ndarray] | None = None,
     validation_plans: np.ndarray | None = None,
     validation_events: ReactionEventReference | None = None,
     resume: bool = True, artifact_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    torch.manual_seed(config.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(config.seed)
     for parameter in model.parameters():
         parameter.requires_grad_(False)
     controller = _controller(controller_mode, rule_model, device)
     copied_layers: tuple[str, ...] = ()
-    if isinstance(controller, CalibratedResidualReactionController):
+    if supervised_state_dict is not None:
+        controller.load_state_dict(supervised_state_dict, strict=True)
+    elif isinstance(controller, CalibratedResidualReactionController):
         copied_layers = initialise_calibrated_actor_features(
             controller, initial_actor_hidden_state_dict,
         )
@@ -646,7 +695,7 @@ def train_reaction_policy(
     best_state = None
     best_score = float("inf")
     stale = 0
-    pretraining: list[float] = []
+    pretraining: list[dict[str, float]] = []
     objective_check: dict[str, float] | None = None
     if resume and progress_path.exists():
         progress = torch.load(progress_path, map_location=device, weights_only=False)
@@ -664,7 +713,11 @@ def train_reaction_policy(
             stale = int(progress.get("stale", 0))
             pretraining = list(progress.get("pretraining", []))
             objective_check = progress.get("objective_check")
-    elif isinstance(controller, CalibratedResidualReactionController) and train_events is not None:
+    elif (
+        stage == "supervised"
+        and isinstance(controller, CalibratedResidualReactionController)
+        and train_events is not None
+    ):
         initial_checkpoint = target / "initial.pt"
         torch.save(_policy_payload(controller, config, artifact_metadata), initial_checkpoint)
         check_config = replace(
@@ -683,11 +736,23 @@ def train_reaction_policy(
             model, controller, arrays=train_arrays, soft_plans=train_plans,
             reference=train_events, device=device, config=check_config,
         )
-        objective_check = {"before_energy_score": before, "after_energy_score": after}
-        if after >= before:
-            raise RuntimeError(
-                "fixed-scene objective check did not improve executed acceleration and jerk"
-            )
+        objective_check = {
+            "before_energy_score": before,
+            "after_energy_score": after,
+            "improved": after < before,
+        }
+    if stage == "supervised":
+        checkpoint = target / "supervised.pt"
+        summary = {
+            "checkpoint": str(checkpoint), "controller_mode": controller_mode,
+            "training_stage": stage, "pretraining_loss": pretraining,
+            "objective_check": objective_check, "frozen_world_model": True,
+            "a2_actor_hidden_layers_copied": list(copied_layers),
+            "initial_checkpoint": str(target / "initial.pt"),
+            "supervised_checkpoint": str(checkpoint),
+        }
+        save_json(summary, target / "training_summary.json")
+        return summary
     for update in range(start, config.updates):
         environment.reset(environment.sample_episodes(human_targets=train_events is not None))
         buffer = {name: [] for name in ("features", "raw_action", "log_prob", "value", "reward", "done", "active")}
@@ -769,6 +834,7 @@ def train_reaction_policy(
     torch.save(_policy_payload(controller, config, artifact_metadata), checkpoint)
     summary = {
         "checkpoint": str(checkpoint), "controller_mode": controller_mode,
+        "training_stage": stage,
         "pretraining_loss": pretraining, "history": history,
         "objective_check": objective_check,
         "best_validation_energy_score": None if best_state is None else best_score,

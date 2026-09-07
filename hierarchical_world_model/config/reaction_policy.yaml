@@ -31,6 +31,7 @@ training:
   safety_ttc_s: 2.0
   physical_safety_weight: 2.0
   physical_jerk_weight: 0.10
+  safety_supervision_weight: 1.0
   reaction_min_frames: 5
   reaction_max_frames: 149
   reaction_recovery_frames: 15
