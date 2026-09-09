@@ -41,7 +41,7 @@ from world_model.src.core.evaluation_scope import (  # noqa: E402
 
 CONFIG = (
     ROOT
-    / "hierarchical_world_model/config/release.yaml"
+    / "hierarchical_world_model/config/world_model.yaml"
 )
 
 

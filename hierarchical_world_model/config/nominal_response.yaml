@@ -1,0 +1,59 @@
+# Active configuration for the nominal-preserving response candidate.
+schema_name: nominal_response
+schema_version: 1
+base_commit: 889e57c74f7a7a543ef8ec8bebb59f1e34e22dd0
+base_config: hierarchical_world_model/config/world_model.yaml
+output_dir: results/hierarchical_world_model/nominal_response
+paths:
+  event_reference: results/hierarchical_world_model/reaction_events
+freeze: {flow: true, diffusion: true, hiqr: true, idm_parameters: true, legacy_release: true}
+protocol:
+  dt_s: 0.04
+  factual_steps: 149
+  decision_horizon_frames: 25
+  decision_parameterization: full_action_increment
+  reference_rebase_weights: [1.0, 0.0]
+  independent_reference: prefix_c0_sampled_k
+  nominal_ego_policy: existing_fixed_idm
+  npc_future_completion_allowed: false
+  require_same_rear: true
+  sampling_excluded_slots: []  # explicit research-only all-slot opt-in
+  train_scope: longitudinal_following
+model:
+  mode: nominal_preserving_response
+  cost_bases: [gap_deficit, positive_closing, reference_speed]
+  hidden_dim: 64
+  hidden_layers: 2
+  nonnegative_weight_floor: 0.0001
+  learn_R: false
+  driver_latent_dim: 2
+  driver_latent_source: policy_response_innovations_first_frame
+  driver_latent_persistent: true
+  solver_returns_executed_actions: true
+  posthoc_ttc_guard: false
+physics:
+  acceleration_min_mps2: -8.0
+  acceleration_max_mps2: 4.0
+  jerk_brake_mps3: 12.0
+  jerk_release_mps3: 12.0
+  speed_min_mps: 0.0
+  speed_max_mps: 50.0
+idm: {a_max: 1.0, b_comfort: 2.0, desired_speed: 30.0, time_headway: 1.5, minimum_gap: 2.0}
+training:
+  seed: 20260907
+  optimizer: adam
+  learning_rate: 0.0003
+  grad_clip: 1.0
+  smoke_updates: 100
+  supervised_max_updates_including_smoke: 2000
+  supervised_batch_queries: 64
+  event_queries: 48
+  non_event_queries: 16
+  closed_loop_max_updates: 150
+acceptance:
+  minimum_events: 100
+  minimum_recordings: 5
+  bootstrap_unit: recording
+  bootstrap_draws: 2000
+  formal_event_futures: 32
+budget: {new_model_families: 1, training_seeds: 1, risk_worlds: 2000, run_formal_ams: false, auto_promote_release: false}

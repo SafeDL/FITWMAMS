@@ -567,6 +567,9 @@ class HighwayEnvClosedLoopWorld:
         self.deterministic_response = False
         self.previous_background_actions: torch.Tensor | None = None
         self.influence_state: InfluenceGraphState | None = None
+        self.nominal_reference_states: torch.Tensor | None = None
+        self.nominal_reference_actions: torch.Tensor | None = None
+        self.nominal_initial_states: torch.Tensor | None = None
 
     def _controller_context(self, response) -> ReactionControllerContext:
         assert self.history is not None and self.history_valid is not None
@@ -608,6 +611,13 @@ class HighwayEnvClosedLoopWorld:
             influence_predicted_ttc_s=self.influence_state.predicted_ttc_s,
             influence_predicted_min_gap_m=self.influence_state.predicted_min_gap_m,
             policy_standard_normal=self.policy_response_innovations[:, self.reference_index],
+            nominal_current=(None if self.nominal_reference_states is None else (
+                self.nominal_initial_states if self.reference_index == 0 else self.nominal_reference_states[:, self.reference_index - 1]
+            )),
+            nominal_action_horizon=(None if self.nominal_reference_actions is None else torch.cat((
+                self.nominal_reference_actions[:, self.reference_index:, :, 0],
+                self.nominal_reference_actions[:, -1:, :, 0].expand(-1, max(0, self.model.cfg.preview_frames - self.nominal_reference_actions[:, self.reference_index:].shape[1]), -1),
+            ), dim=1)[:, :self.model.cfg.preview_frames].permute(0, 2, 1)),
         )
 
     def _require(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -633,6 +643,9 @@ class HighwayEnvClosedLoopWorld:
         initial_history_valid: torch.Tensor | None = None,
         committed_ego_controls: torch.Tensor | None = None,
         deterministic_response: bool = False,
+        nominal_reference_states: torch.Tensor | None = None,
+        nominal_reference_actions: torch.Tensor | None = None,
+        nominal_initial_states: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | int]:
         states = torch.as_tensor(initial_states, dtype=torch.float32, device=self.device)
         present = torch.as_tensor(valid, dtype=torch.bool, device=self.device)
@@ -668,6 +681,20 @@ class HighwayEnvClosedLoopWorld:
                     "initial history must be [batch,1..history_frames,7,6] "
                     "with a matching validity mask"
                 )
+        if (nominal_reference_states is None) != (nominal_reference_actions is None) or (nominal_reference_states is None) != (nominal_initial_states is None):
+            raise ValueError("nominal reference states and actions must be provided together")
+        if nominal_reference_states is not None:
+            nominal_states = torch.as_tensor(nominal_reference_states, dtype=states.dtype, device=self.device)
+            nominal_actions = torch.as_tensor(nominal_reference_actions, dtype=states.dtype, device=self.device)
+            if nominal_states.ndim != 4 or nominal_states.shape[:1] != states.shape[:1] or nominal_states.shape[2:] != (7, 6):
+                raise ValueError("nominal reference states must be [batch,steps,7,6]")
+            if nominal_actions.shape != (*nominal_states.shape[:2], 6, 2):
+                raise ValueError("nominal reference actions must be [batch,steps,6,2]")
+            nominal_initial = torch.as_tensor(nominal_initial_states, dtype=states.dtype, device=self.device)
+            if nominal_initial.shape != states.shape:
+                raise ValueError("nominal initial states must be [batch,7,6]")
+        else:
+            nominal_states = nominal_actions = nominal_initial = None
         controls = None
         if committed_ego_controls is not None:
             controls = torch.as_tensor(
@@ -734,6 +761,9 @@ class HighwayEnvClosedLoopWorld:
         self.deterministic_response = bool(deterministic_response)
         self.previous_background_actions = None
         self.influence_state = InfluenceGraphState.empty(len(self.traffic), device=self.device)
+        self.nominal_reference_states = nominal_states
+        self.nominal_reference_actions = nominal_actions
+        self.nominal_initial_states = nominal_initial
         return self.observe()
 
     def observe(self) -> dict[str, torch.Tensor | int]:

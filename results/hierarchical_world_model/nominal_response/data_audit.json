@@ -1,0 +1,36 @@
+{
+  "source": "results/hierarchical_world_model/reaction_events",
+  "splits": {
+    "test": {
+      "all_events": 1510,
+      "distinct_recordings": 8,
+      "ego_leader_events": 205,
+      "evaluated_events": null,
+      "mapped_events": 205,
+      "status": "prefix_mapping_audited",
+      "supported_events": 1505,
+      "vehicle_pairs": 168
+    },
+    "train": {
+      "all_events": 12078,
+      "distinct_recordings": 42,
+      "ego_leader_events": 1841,
+      "evaluated_events": null,
+      "mapped_events": 1841,
+      "status": "prefix_mapping_audited",
+      "supported_events": 12057,
+      "vehicle_pairs": 1520
+    },
+    "validation": {
+      "all_events": 2021,
+      "distinct_recordings": 9,
+      "ego_leader_events": 265,
+      "evaluated_events": null,
+      "mapped_events": 265,
+      "status": "prefix_mapping_audited",
+      "supported_events": 2017,
+      "vehicle_pairs": 217
+    }
+  },
+  "status": "passed"
+}

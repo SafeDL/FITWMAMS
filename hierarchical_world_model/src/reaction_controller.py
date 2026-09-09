@@ -16,11 +16,13 @@ from torch import nn
 
 from .reference import response_relevance
 from .rule_models import RuleModelBundle
+from .decision_cost import DecisionCostInputs, PositiveCostWeights
+from .nominal_preserving_controller import solve_hinge_calibrated_qp
 
 
 ControllerMode = Literal[
     "none", "handcrafted", "rl_residual", "rl_residual_idm",
-    "idm_only", "calibrated_residual",
+    "idm_only", "calibrated_residual", "nominal_preserving_response", "common_physics",
 ]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
@@ -70,6 +72,11 @@ class ReactionControllerContext:
     influence_predicted_ttc_s: torch.Tensor | None = None
     influence_predicted_min_gap_m: torch.Tensor | None = None
     policy_standard_normal: torch.Tensor | None = None
+    # Immutable nominal-world values for research-only calibrated controllers.
+    # They are supplied from a separately executed frozen world, never from
+    # the actual world's pending ego action or from highD future completion.
+    nominal_current: torch.Tensor | None = None
+    nominal_action_horizon: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -979,6 +986,153 @@ class CalibratedResidualReactionController(ReactionController):
         )
 
 
+class NominalPreservingReactionController(ReactionController):
+    """Research-only 25-frame convex response layer; executes its first action."""
+    mode = "nominal_preserving_response"  # type: ignore[assignment]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.weights = PositiveCostWeights(7, hidden_dim=64, layers=2)
+
+    @staticmethod
+    def _inputs(state: torch.Tensor) -> DecisionCostInputs:
+        ego, npc = state[:, :1], state[:, 1:]
+        gap = ego[..., 0] - npc[..., 0] - 4.8
+        return DecisionCostInputs(
+            gap.reshape(-1), speed_mps=npc[..., 2].reshape(-1),
+            leader_speed_mps=ego[..., 2].expand_as(npc[..., 2]).reshape(-1),
+            # This is the realized parent acceleration in the current state.
+            # It must match the prefix-only supervised feature and must never
+            # be replaced by a pending HiQR action.
+            leader_acceleration_mps2=ego[..., 4].expand_as(npc[..., 2]).reshape(-1),
+            reference_speed_mps=npc[..., 2].reshape(-1),
+        )
+
+    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
+        del deterministic
+        if context.nominal_current is None or context.nominal_action_horizon is None:
+            raise RuntimeError("nominal_preserving_response requires an executable nominal reference cache")
+        batch = context.current.shape[0]
+        horizon = context.nominal_action_horizon.shape[-1]
+        nominal = context.nominal_action_horizon.reshape(batch * 6, horizon)
+        # The supervised head is scoped to causally related followers at the
+        # declared braking onset.  Establish that scope before constructing
+        # the QPs, so ordinary factual rows (which are the overwhelming
+        # majority of P0) do not pay for an unused 25-frame solve.
+        from .influence_graph import ROLE_SAME_LANE_FOLLOWER
+        if context.influence_authority is None or context.influence_role is None:
+            active = context.current_valid[:, 1:]
+        else:
+            parent_acceleration = context.current[:, 0, 4]
+            parent_braking = parent_acceleration.lt(-0.3) & parent_acceleration.gt(-1.0)
+            if context.history is not None and context.history.shape[1] >= 2:
+                prior_acceleration = context.history[:, -2, 0, 4]
+                prior_braking = prior_acceleration.lt(-0.3) & prior_acceleration.gt(-1.0)
+                # Activate on the onset edge and retain a short causal
+                # response window.  This captures the event follower's
+                # braking transient without rewriting a factual replay for
+                # as long as the logged parent remains in the band.
+                onset = parent_braking & ~prior_braking
+                recent = context.history[:, -5:, 0, 4]
+                recent_band = recent.lt(-0.3) & recent.gt(-1.0)
+                parent_braking = onset | recent_band.any(dim=1)
+            trigger = parent_braking[:, None].expand_as(context.current_valid[:, 1:])
+            active = (
+                context.current_valid[:, 1:]
+                & context.influence_authority.gt(0.0)
+                & (context.influence_role == ROLE_SAME_LANE_FOLLOWER)
+                & trigger
+            )
+            if context.reaction_age_frames is not None:
+                active = active & context.reaction_age_frames.le(24)
+        if not active.any():
+            zeros = torch.zeros_like(active, dtype=context.base_actions.dtype)
+            released = context.base_actions[:, 0, :, 0]
+            previous_ax = (
+                context.current[:, 1:, 4]
+                if context.previous_background_actions is None
+                else context.previous_background_actions[:, :, 0]
+            )
+            released = released.clamp(-8.0, 4.0).minimum(
+                previous_ax + 12.0 * float(context.cfg.dt_s)
+            ).maximum(previous_ax - 12.0 * float(context.cfg.dt_s))
+            actions = context.base_actions.clone()
+            actions[:, 0, :, 0] = torch.where(
+                context.current_valid[:, 1:], released, context.base_actions[:, 0, :, 0]
+            )
+            return ReactionControllerOutput(
+                actions=actions,
+                alpha=zeros,
+                delta_ax=zeros,
+                active=active,
+                desired_action_ax=released,
+            )
+        previous = (
+            context.current[:, 1:, 4] if context.previous_background_actions is None
+            else context.previous_background_actions[:, :, 0]
+        ).reshape(-1)
+        actual_inputs, nominal_inputs = self._inputs(context.current), self._inputs(context.nominal_current)
+        # Causal feature vector: gap, speeds, realized ego command summary and z.
+        feature = torch.stack((actual_inputs.gap_m, actual_inputs.speed_mps, actual_inputs.leader_speed_mps,
+                               actual_inputs.leader_acceleration_mps2, actual_inputs.reference_speed_mps,
+                               nominal_inputs.gap_m, nominal_inputs.speed_mps), dim=-1)
+        actual_weight = self.weights(feature)
+        nominal_weight = self.weights(torch.stack((nominal_inputs.gap_m, nominal_inputs.speed_mps, nominal_inputs.leader_speed_mps,
+                                                    nominal_inputs.leader_acceleration_mps2, nominal_inputs.reference_speed_mps,
+                                                    nominal_inputs.gap_m, nominal_inputs.speed_mps), dim=-1))
+        # QP tensors are flattened slot-wise.  Solving only active slots is
+        # numerically identical to solving the full batch and masking the
+        # result, while avoiding thousands of inert P0 solves.
+        active_flat = active.reshape(-1)
+        actual_active = DecisionCostInputs(*(value[active_flat] for value in actual_inputs.__dict__.values()))
+        nominal_active = DecisionCostInputs(*(value[active_flat] for value in nominal_inputs.__dict__.values()))
+        solved_active, _ = solve_hinge_calibrated_qp(
+            nominal[active_flat], actual_active, nominal_active,
+            actual_weight[active_flat], nominal_weight[active_flat], previous[active_flat],
+        )
+        final = nominal[:, 0].clone()
+        final[active_flat] = solved_active[:, 0]
+        final = final.reshape(batch, 6)
+        base_ax = context.base_actions[:, 0, :, 0]
+        # The calibrated QP is a response residual.  A conservative execution
+        # envelope keeps the learned residual from replacing the frozen HiQR
+        # command wholesale when its factual/nominal cost mismatch is large.
+        selected = torch.where(active, base_ax + 0.10 * (final - base_ax), base_ax)
+        # The post-HiQR response must share the frozen transfer arms' plant
+        # envelope.  Applying the same causal jerk limiter on the inactive
+        # release path prevents a one-frame hand-back from creating an
+        # artificial absolute-jerk spike when the onset window closes.
+        previous_ax = (
+            context.current[:, 1:, 4]
+            if context.previous_background_actions is None
+            else context.previous_background_actions[:, :, 0]
+        )
+        selected = selected.clamp(-8.0, 4.0)
+        selected = selected.minimum(previous_ax + 12.0 * float(context.cfg.dt_s)).maximum(
+            previous_ax - 12.0 * float(context.cfg.dt_s)
+        )
+        actions = context.base_actions.clone(); actions[:, 0, :, 0] = torch.where(
+            context.current_valid[:, 1:], selected, context.base_actions[:, 0, :, 0]
+        )
+        return ReactionControllerOutput(actions=actions, alpha=active.float(), delta_ax=actions[:, 0, :, 0] - context.base_actions[:, 0, :, 0], active=active, desired_action_ax=final)
+
+
+class CommonPhysicsReactionController(ReactionController):
+    """Shared pre-plant longitudinal bounds for research comparison arms."""
+    mode = "common_physics"  # type: ignore[assignment]
+
+    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
+        del deterministic
+        raw = context.base_actions[:, 0, :, 0]
+        previous = context.current[:, 1:, 4] if context.previous_background_actions is None else context.previous_background_actions[:, :, 0]
+        bounded = raw.clamp(-8.0, 4.0)
+        step = 12.0 * 0.04
+        final = bounded.minimum(previous + step).maximum(previous - step)
+        active = context.current_valid[:, 1:]
+        actions = context.base_actions.clone(); actions[:, 0, :, 0] = torch.where(active, final, raw)
+        return ReactionControllerOutput(actions=actions, alpha=active.float(), delta_ax=actions[:, 0, :, 0] - raw, active=active, desired_action_ax=final)
+
+
 def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tensor | float | None = None, **kwargs: Any) -> ReactionController:
     if mode == "none":
         return NoReactionController()
@@ -996,4 +1150,8 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
         return IDMOnlyReactionController(**kwargs)
     if mode == "calibrated_residual":
         return CalibratedResidualReactionController(**kwargs)
+    if mode == "nominal_preserving_response":
+        return NominalPreservingReactionController()
+    if mode == "common_physics":
+        return CommonPhysicsReactionController()
     raise ValueError(f"unknown reaction controller mode {mode!r}")

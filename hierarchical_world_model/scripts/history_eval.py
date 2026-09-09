@@ -25,7 +25,7 @@ from world_model.src.core.evaluation_scope import (  # noqa: E402
     scoped_canonical_trajectory,
 )
 
-CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
+CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 
 
 def _response(

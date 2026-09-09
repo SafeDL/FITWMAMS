@@ -1,0 +1,39 @@
+{
+  "role": "all eligible highD test intervention effects",
+  "arm": "archived_a2_idm",
+  "candidate": "archived A2 PPO + IDM",
+  "baseline": "frozen HiQR",
+  "checkpoint": "results/hierarchical_world_model/archive/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+  "events": 205,
+  "recordings": 8,
+  "intervention": "logged ego controls plus -8 m/s\u00b2 from 1.00 s to 2.00 s",
+  "comparison": "archived A2 PPO + IDM minus frozen HiQR",
+  "randomness": "one shared prefix sample and exogenous seed per event and controller",
+  "statistics": {
+    "rear_braking_increment_mps2": {
+      "mean": -1.7532604839743637,
+      "median": -1.794319748878479
+    },
+    "minimum_gap_change_m": {
+      "mean": 3.56304137067097,
+      "median": 1.8638954162597656
+    },
+    "collision_change_counts": {
+      "-1": 1,
+      "0": 202,
+      "1": 2
+    }
+  },
+  "max_absolute_rear_response_event": {
+    "event_index": 1266,
+    "row_index": 4581,
+    "recording": 42,
+    "follower_slot": 2,
+    "rear_braking_increment_mps2": -5.622348308563232,
+    "minimum_gap_change_m": 0.00244903564453125,
+    "collision_change": 0,
+    "candidate_collision": false,
+    "baseline_collision": false
+  },
+  "warning": "The selected event maximizes response magnitude and is diagnostic, not representative or evidence of improvement."
+}

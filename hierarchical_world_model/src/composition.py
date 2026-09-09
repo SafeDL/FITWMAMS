@@ -19,6 +19,7 @@ from normalizing_flow.src.sampling import (
 )
 from normalizing_flow.src.features import feature_valid_from_slot_mask
 from world_model.src.core.evaluation_scope import (
+    EXCLUDED_EVALUATION_SLOTS,
     evaluation_scope_contract,
     scoped_slot_mask,
 )
@@ -65,6 +66,7 @@ class HierarchicalWorldSampler:
         repo_root: str | Path,
         device: str | torch.device = "cpu",
         ddim_steps: int = 20,
+        excluded_slots: tuple[str, ...] = EXCLUDED_EVALUATION_SLOTS,
     ) -> None:
         self.device = torch.device(device)
         self.flow, _, self.flow_schema, _ = load_checkpoint_and_dataset(
@@ -87,13 +89,19 @@ class HierarchicalWorldSampler:
         self.diffusion.eval()
         self.response.eval()
         self.ddim_steps = int(ddim_steps)
-        self.evaluation_scope = evaluation_scope_contract()
+        self.excluded_slots = tuple(str(slot) for slot in excluded_slots)
+        # The default remains byte-for-byte the released evaluation scope.
+        # Research callers must opt in explicitly to restore all trained slots.
+        self.evaluation_scope = (
+            evaluation_scope_contract() if self.excluded_slots == EXCLUDED_EVALUATION_SLOTS
+            else {"schema": "explicit_local_scope_v1", "excluded_background_slots": list(self.excluded_slots), "training_population_modified": False}
+        )
 
     def _scope_condition(
         self, c0: np.ndarray, slot_mask: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         """Remove excluded agents before sampling K or invoking downstream models."""
-        slots = np.asarray(scoped_slot_mask(slot_mask), bool)
+        slots = np.asarray(scoped_slot_mask(slot_mask, excluded_slots=self.excluded_slots), bool)
         values = np.asarray(c0, np.float32).copy()
         values[~feature_valid_from_slot_mask(self.flow_schema, slots)] = 0.0
         return values, slots
@@ -278,6 +286,7 @@ class HierarchicalWorldSampler:
         idm_config: dict[str, Any] | None = None,
         controller: Any = None,
         reference_rebase_weights: tuple[float, float] | None = None,
+        nominal_reference: Any = None,
     ) -> HighwayEnvClosedLoopWorld:
         """Create the formal HighwayEnv execution world for one sampled batch."""
         if sample.exogenous_state is None:
@@ -308,5 +317,8 @@ class HierarchicalWorldSampler:
             torch.from_numpy(maps),
             torch.from_numpy(map_valid),
             exogenous_state=sample.exogenous_state,
+            nominal_reference_states=(None if nominal_reference is None else nominal_reference.states),
+            nominal_reference_actions=(None if nominal_reference is None else nominal_reference.background_actions),
+            nominal_initial_states=(None if nominal_reference is None else nominal_reference.initial_states),
         )
         return world

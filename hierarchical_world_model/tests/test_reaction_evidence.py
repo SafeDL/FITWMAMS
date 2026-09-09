@@ -8,10 +8,10 @@ from hierarchical_world_model.src.reaction_evidence import (
     build_reaction_event_reference, energy_score, event_window,
     recording_cluster_bootstrap,
 )
-from hierarchical_world_model.scripts.evaluate_reaction_policy import (
+from hierarchical_world_model.scripts.archive.reaction_policy.evaluate import (
     _factual_noninferiority, _paired_failures, event_selection, mechanism_events,
 )
-from hierarchical_world_model.scripts.validate_reaction_policy import (
+from hierarchical_world_model.scripts.archive.reaction_policy.validate import (
     evaluate as evaluate_acceptance,
 )
 from hierarchical_world_model.src.reaction_training import ReactionRollout

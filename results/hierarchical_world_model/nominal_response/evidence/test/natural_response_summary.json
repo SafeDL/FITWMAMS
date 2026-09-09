@@ -1,0 +1,24 @@
+{
+  "events": 205,
+  "futures": 32,
+  "hiqr_common_minus_selected": {
+    "es_acceleration": {
+      "mean": 0.011036695657803875,
+      "lcb95": 0.009487917211871396,
+      "ci95_low": 0.009060141527178316,
+      "ci95_high": 0.01241316187728858,
+      "recordings": 8,
+      "events": 205,
+      "positive_events": 124
+    },
+    "es_acceleration_abs_jerk": {
+      "mean": 0.1629357134829935,
+      "lcb95": 0.1425530544153134,
+      "ci95_low": 0.13619811821293806,
+      "ci95_high": 0.1754479927945085,
+      "recordings": 8,
+      "events": 205,
+      "positive_events": 118
+    }
+  }
+}

@@ -61,7 +61,7 @@ from world_model.src.core.evaluation_scope import (  # noqa: E402
 )
 
 
-DEFAULT_CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
+DEFAULT_CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 IDM_CONFIG = ROOT / "tools/idm_ego.yaml"
 
 

@@ -37,7 +37,7 @@ from world_model.src.core.evaluation_scope import (  # noqa: E402
     require_scoped_evt_model,
 )
 
-CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
+CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 
 
 def _digest(values: np.ndarray) -> str:

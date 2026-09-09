@@ -22,7 +22,7 @@ from hierarchical_world_model.src.protocol import (  # noqa: E402
 )
 from world_model.src.core.utils import load_json, save_json  # noqa: E402
 
-CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
+CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 
 
 def main() -> None:

@@ -27,7 +27,7 @@ from world_model.src.core.utils import (  # noqa: E402
     select_device,
 )
 
-CONFIG = ROOT / "hierarchical_world_model/config/release.yaml"
+CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 
 
 def _probe(model: DiffusionGuidedHiQR, device: torch.device) -> torch.Tensor:

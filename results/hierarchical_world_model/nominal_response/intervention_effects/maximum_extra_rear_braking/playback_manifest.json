@@ -1,0 +1,46 @@
+{
+  "role": "current nominal-response checkpoint visual diagnostics",
+  "checkpoint": "results/hierarchical_world_model/nominal_response/checkpoint.pt",
+  "event": {
+    "split": "test",
+    "event_index": 1072,
+    "row_index": 20016,
+    "recording": 42,
+    "local_onset_frame": 79,
+    "requested_steps": 125,
+    "rendered_steps": 94
+  },
+  "common_randomness": "same prefix sample and exogenous seed per controller comparison",
+  "natural_replay": {
+    "gif": "natural_replay.gif",
+    "frames": 48,
+    "ego_command": "logged highD ego controls",
+    "reference_overlay": "dotted highD trajectories",
+    "focus_slot": 4
+  },
+  "braking_probe": {
+    "gif": "braking_probe.gif",
+    "frames": 48,
+    "ego_command": "logged highD controls plus -8 m/s\u00b2 from 1.00 s to 2.00 s",
+    "comparison": "current checkpoint versus frozen common-physics controller",
+    "affected_same_rear_slot": 2,
+    "current_nominal_response": {
+      "controller_active_rate": 0.0425531914893617,
+      "any_collision": false,
+      "minimum_background_acceleration_mps2": -1.4135490655899048
+    },
+    "frozen_common_physics": {
+      "controller_active_rate": 1.0,
+      "any_collision": false,
+      "minimum_background_acceleration_mps2": -1.4800000190734863
+    },
+    "mean_absolute_background_action_difference": 0.0010547449346631765,
+    "affected_rear": {
+      "current_minimum_acceleration_mps2": -1.4135490655899048,
+      "common_minimum_acceleration_mps2": -1.4800000190734863,
+      "current_mean_acceleration_in_brake_window_mps2": -0.05077638477087021,
+      "common_mean_acceleration_in_brake_window_mps2": -0.0527840219438076
+    }
+  },
+  "warning": "These GIFs diagnose one selected event; they do not establish safety, risk reduction, or aggregate performance."
+}

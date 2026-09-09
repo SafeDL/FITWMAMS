@@ -1,0 +1,2 @@
+# Optional dependency for the nominal-response research candidate.
+qpth==0.0.16

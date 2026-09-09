@@ -231,7 +231,11 @@ def are_polygons_intersecting(
                 break
             if abs(distance) < min_distance:
                 min_distance = abs(distance)
-                d = a[:-1].mean(axis=0) - b[:-1].mean(axis=0)  # center difference
+                # Avoid NumPy 1.26's internal ``_no_nep50_warning`` context
+                # manager here: under the Python/torch rollout thread it can
+                # retain a ContextVar token whose reset is no longer callable.
+                # This is algebraically identical to the polygon centroid.
+                d = a[:-1].sum(axis=0) / len(a[:-1]) - b[:-1].sum(axis=0) / len(b[:-1])
                 translation_axis = normal if d.dot(normal) > 0 else -normal
 
     if will_intersect:

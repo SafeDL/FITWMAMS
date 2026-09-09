@@ -19,7 +19,7 @@ from world_model.src.core.utils import setup_logging  # noqa: E402
 
 CONFIG = (
     ROOT
-    / "hierarchical_world_model/config/release.yaml"
+    / "hierarchical_world_model/config/world_model.yaml"
 )
 
 
