@@ -17,7 +17,7 @@ def load_response_config(config_path: Path = CONFIG) -> tuple[dict, dict]:
 
 
 def result_directory(response: dict) -> Path:
-    return ROOT / response["output_dir"]
+    return ROOT / response["paths"]["output_dir"]
 
 
 def event_directory(response: dict) -> Path:

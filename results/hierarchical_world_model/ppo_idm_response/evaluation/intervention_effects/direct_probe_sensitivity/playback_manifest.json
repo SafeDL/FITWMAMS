@@ -1,48 +1,54 @@
 {
   "role": "hierarchical response-controller visual diagnostics",
-  "candidate": "PPO + IDM response",
+  "candidate": "frozen legacy A2 (PPO + IDM)",
   "baseline": "frozen HiQR baseline",
   "checkpoint": "results/hierarchical_world_model/ppo_idm_response/checkpoint.pt",
   "event": {
     "split": "test",
-    "event_index": 1266,
-    "row_index": 4581,
+    "event_index": 1321,
+    "row_index": 33531,
     "recording": 42,
-    "local_onset_frame": 81,
+    "local_onset_frame": 75,
     "requested_steps": 125,
-    "rendered_steps": 92
+    "rendered_steps": 98
   },
   "common_randomness": "same prefix sample and exogenous seed per controller comparison",
   "natural_replay": {
     "gif": "natural_replay.gif",
-    "frames": 47,
+    "frames": 50,
     "ego_command": "logged highD ego controls",
     "reference_overlay": "dotted highD trajectories",
     "focus_slot": 2
   },
   "braking_probe": {
     "gif": "braking_probe.gif",
-    "frames": 47,
+    "frames": 50,
     "ego_command": "logged highD controls plus -8 m/s\u00b2 from 1.00 s to 2.00 s",
-    "comparison": "PPO + IDM response versus frozen HiQR baseline",
+    "comparison": "frozen legacy A2 (PPO + IDM) versus frozen HiQR baseline",
     "affected_same_rear_slot": 2,
     "ppo_idm_response": {
       "controller_active_rate": 0.16666666666666666,
       "any_collision": false,
-      "minimum_background_acceleration_mps2": -7.702528953552246
+      "minimum_background_acceleration_mps2": -8.0
     },
     "frozen_hiqr": {
       "controller_active_rate": 0.0,
       "any_collision": false,
-      "minimum_background_acceleration_mps2": -7.702528953552246
+      "minimum_background_acceleration_mps2": -8.0
     },
-    "mean_absolute_background_action_difference": 0.2674500644207001,
+    "mean_absolute_background_action_difference": 0.13887731730937958,
     "affected_rear": {
-      "ppo_idm_minimum_acceleration_mps2": -5.814418792724609,
-      "frozen_hiqr_minimum_acceleration_mps2": -1.2428175210952759,
-      "ppo_idm_mean_acceleration_in_brake_window_mps2": -3.978219509124756,
-      "frozen_hiqr_mean_acceleration_in_brake_window_mps2": -0.8733049035072327
+      "ppo_idm_minimum_acceleration_mps2": -8.0,
+      "frozen_hiqr_minimum_acceleration_mps2": -8.0,
+      "ppo_idm_mean_acceleration_in_brake_window_mps2": -2.134369373321533,
+      "frozen_hiqr_mean_acceleration_in_brake_window_mps2": 1.0061782598495483
     }
+  },
+  "a2_probe_sensitivity": {
+    "gif": "a2_probe_sensitivity.gif",
+    "frames": 50,
+    "comparison": "the same frozen A2 with logged ego controls versus the same A2 with the documented added ego braking probe",
+    "pre_probe_controls": "identical by construction"
   },
   "warning": "These GIFs diagnose one selected event; they do not establish safety, risk reduction, or aggregate performance."
 }

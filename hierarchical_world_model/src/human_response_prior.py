@@ -218,3 +218,126 @@ def build_human_response_priors(
         "weakly_supported": int((labels == SUPPORT_LABELS[1]).sum()),
         "unsupported_by_training_evidence": int((labels == SUPPORT_LABELS[2]).sum()),
     }
+
+
+@dataclass(frozen=True)
+class TrainHumanResponseLibrary:
+    """Train-only response corpus used solely for empirical coverage."""
+
+    descriptor: np.ndarray
+    response: np.ndarray
+    recording_id: np.ndarray
+    leader_id: np.ndarray
+    follower_id: np.ndarray
+    event_key: np.ndarray
+    descriptor_median: np.ndarray
+    descriptor_iqr: np.ndarray
+    response_iqr: np.ndarray
+
+    def normalized(self, descriptor: np.ndarray) -> np.ndarray:
+        return (np.asarray(descriptor, np.float32) - self.descriptor_median) / self.descriptor_iqr
+
+    def neighbor_indices(self, descriptor: np.ndarray, *, recording_id: int, leader_id: int, follower_id: int, event_key: int, neighbors: int = 16) -> np.ndarray:
+        distance = np.square(self.normalized(self.descriptor) - self.normalized(descriptor)).sum(-1)
+        allowed = (self.recording_id != recording_id) & ~((self.leader_id == leader_id) & (self.follower_id == follower_id)) & (self.event_key != event_key)
+        candidates = np.flatnonzero(allowed)
+        if len(candidates) < neighbors:
+            return np.empty(0, np.int64)
+        chosen = candidates[np.argpartition(distance[candidates], neighbors - 1)[:neighbors]]
+        return chosen[np.argsort(distance[chosen], kind="stable")]
+
+    def save(self, root: str | Path) -> None:
+        path = Path(root); path.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path / "library.npz", **self.__dict__)
+
+    @classmethod
+    def load(cls, root: str | Path) -> "TrainHumanResponseLibrary":
+        with np.load(Path(root) / "library.npz") as values:
+            return cls(**{name: values[name].copy() for name in cls.__dataclass_fields__})
+
+
+@dataclass(frozen=True)
+class HumanResponseQuerySet:
+    """Split-local event targets and train-derived support annotations."""
+
+    split: str
+    indices: np.ndarray
+    descriptor: np.ndarray
+    response: np.ndarray
+    metrics: np.ndarray
+    recording_id: np.ndarray
+    leader_id: np.ndarray
+    follower_id: np.ndarray
+    event_key: np.ndarray
+    support_label: np.ndarray
+    neighbor_distance: np.ndarray
+    recording_count: np.ndarray
+    response_iqr: np.ndarray
+    supported_distance: float
+    weak_distance: float
+
+    def save(self, root: str | Path) -> None:
+        path = Path(root); path.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path / "queries.npz", **{name: value for name, value in self.__dict__.items() if name != "split"})
+        (path / "manifest.json").write_text(__import__("json").dumps({"split": self.split, "schema": "human_response_queries", "schema_version": 2}, indent=2) + "\n")
+
+    @classmethod
+    def load(cls, root: str | Path) -> "HumanResponseQuerySet":
+        path = Path(root)
+        manifest = __import__("json").loads((path / "manifest.json").read_text())
+        with np.load(path / "queries.npz") as values:
+            fields = {name: values[name].copy() for name in cls.__dataclass_fields__ if name != "split"}
+        return cls(split=str(manifest["split"]), **fields)
+
+
+def build_human_response_support(
+    *, train_reference: ReactionEventReference, split_reference: ReactionEventReference,
+    train_arrays: dict[str, np.ndarray], split_arrays: dict[str, np.ndarray], split: str,
+) -> tuple[TrainHumanResponseLibrary, HumanResponseQuerySet, dict[str, int]]:
+    """Build one train library and a disjoint split query set.
+
+    The response sequences remain on QuerySet only: neighbor responses are
+    never returned to callers as a modelling target.
+    """
+    library_values = _event_arrays(train_reference, train_arrays, ego_leader_only=False)
+    query_values = _event_arrays(split_reference, split_arrays, ego_leader_only=True)
+    train_query = _event_arrays(train_reference, train_arrays, ego_leader_only=True)
+    median = np.median(library_values["descriptor"], axis=0).astype(np.float32)
+    iqr = np.maximum(np.quantile(library_values["descriptor"], .75, axis=0) - np.quantile(library_values["descriptor"], .25, axis=0), 1.e-3).astype(np.float32)
+    response_iqr = np.maximum(np.quantile(library_values["response"].reshape(-1, 2), .75, axis=0) - np.quantile(library_values["response"].reshape(-1, 2), .25, axis=0), 1.e-3).astype(np.float32)
+    events = train_reference.events
+    keys = events.absolute_onset_frame[library_values["indices"]] + 10_000_000 * events.recording_id[library_values["indices"]]
+    library = TrainHumanResponseLibrary(
+        descriptor=library_values["descriptor"], response=library_values["response"],
+        recording_id=events.recording_id[library_values["indices"]], leader_id=events.leader_id[library_values["indices"]],
+        follower_id=events.follower_id[library_values["indices"]], event_key=keys,
+        descriptor_median=median, descriptor_iqr=iqr, response_iqr=response_iqr,
+    )
+    def coverage(values: dict[str, np.ndarray], reference: ReactionEventReference) -> tuple[np.ndarray, np.ndarray]:
+        distances, recordings = [], []
+        event = reference.events
+        for row, index in enumerate(values["indices"]):
+            key = int(event.absolute_onset_frame[index] + 10_000_000 * event.recording_id[index])
+            neighbors = library.neighbor_indices(values["descriptor"][row], recording_id=int(event.recording_id[index]), leader_id=int(event.leader_id[index]), follower_id=int(event.follower_id[index]), event_key=key)
+            if len(neighbors):
+                distances.append(float(np.linalg.norm(library.normalized(values["descriptor"][row]) - library.normalized(library.descriptor[neighbors[-1]]))))
+                recordings.append(len(np.unique(library.recording_id[neighbors])))
+            else:
+                distances.append(float("inf")); recordings.append(0)
+        return np.asarray(distances, np.float32), np.asarray(recordings, np.int16)
+    train_distance, _ = coverage(train_query, train_reference)
+    supported_distance, weak_distance = np.quantile(train_distance[np.isfinite(train_distance)], (.95, .99))
+    distance, records = coverage(query_values, split_reference)
+    labels = np.full(len(distance), SUPPORT_LABELS[2], "U32")
+    labels[(distance <= weak_distance) & (records >= 3)] = SUPPORT_LABELS[1]
+    labels[(distance <= supported_distance) & (records >= 5)] = SUPPORT_LABELS[0]
+    event = split_reference.events
+    indices = query_values["indices"]
+    query = HumanResponseQuerySet(
+        split=split, indices=indices, descriptor=query_values["descriptor"], response=query_values["response"], metrics=query_values["metrics"],
+        recording_id=event.recording_id[indices], leader_id=event.leader_id[indices], follower_id=event.follower_id[indices],
+        event_key=event.absolute_onset_frame[indices] + 10_000_000 * event.recording_id[indices],
+        support_label=labels, neighbor_distance=distance, recording_count=records, response_iqr=response_iqr,
+        supported_distance=float(supported_distance), weak_distance=float(weak_distance),
+    )
+    return library, query, {label: int((labels == label).sum()) for label in SUPPORT_LABELS}

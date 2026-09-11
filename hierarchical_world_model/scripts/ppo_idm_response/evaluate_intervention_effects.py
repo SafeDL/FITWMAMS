@@ -54,7 +54,7 @@ def _ego_probe(states: np.ndarray, onsets: np.ndarray) -> np.ndarray:
 @torch.no_grad()
 def _simulate(
     *, controller, sampler, bundle, reference: ReactionEventReference, events: np.ndarray,
-    seed: int, steps: int,
+    seed: int, steps: int, apply_braking_probe: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rows = np.asarray(reference.events.row_index[events], np.int64)
     onsets = np.asarray(reference.events.local_onset_frame[events], np.int64)
@@ -84,6 +84,8 @@ def _simulate(
             state[int(onset) - 24 : int(onset), 0], state[int(onset) - 23 : int(onset) + 1, 0], DT_S,
         ))
     commands = _ego_probe(states, onsets)[:, :steps]
+    if not apply_braking_probe:
+        commands[:, BRAKE_WINDOW, 0] += 8.0
     world = HighwayEnvClosedLoopWorld(sampler.response, device="cuda", controller=controller, idm_config=IDM)
     world.reset(
         torch.as_tensor(states[np.arange(len(states)), onsets]), torch.as_tensor(valid[np.arange(len(valid)), onsets]),
@@ -141,7 +143,7 @@ def main() -> None:
     output = args.output or result_directory(response) / "evaluation/intervention_effects"
     checkpoint = args.checkpoint or ROOT / response["paths"]["checkpoint"]
     baseline_label = "frozen HiQR"
-    candidate_label = "PPO + IDM response"
+    candidate_label = "frozen legacy A2 (PPO + IDM)"
     output.mkdir(parents=True, exist_ok=True)
     data = prepare_experiment_data(base, ROOT)
     reference = ReactionEventReference.load(event_directory(response) / "test")
@@ -158,22 +160,32 @@ def main() -> None:
     baseline = NoReactionController().to("cuda").eval()
     candidate.eval()
     seed = int(response["training"]["seed"])
-    candidate_states, candidate_actions, candidate_collisions = _simulate_all(batch_size=args.batch_size, controller=candidate, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149)
-    baseline_states, baseline_actions, baseline_collisions = _simulate_all(batch_size=args.batch_size, controller=baseline, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149)
+    candidate_states, candidate_actions, candidate_collisions = _simulate_all(batch_size=args.batch_size, controller=candidate, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149, apply_braking_probe=True)
+    natural_states, natural_actions, natural_collisions = _simulate_all(batch_size=args.batch_size, controller=candidate, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149, apply_braking_probe=False)
+    baseline_states, baseline_actions, baseline_collisions = _simulate_all(batch_size=args.batch_size, controller=baseline, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149, apply_braking_probe=True)
     records: list[dict[str, object]] = []
     for index, event_index in enumerate(events):
         follower = int(event.follower_slot[event_index])
         rear = follower - 1
         candidate_ax = candidate_actions[index, BRAKE_WINDOW, rear, 0]
+        natural_ax = natural_actions[index, BRAKE_WINDOW, rear, 0]
         baseline_ax = baseline_actions[index, BRAKE_WINDOW, rear, 0]
         candidate_gap = candidate_states[index, :, 0, 0] - candidate_states[index, :, follower, 0] - 4.8
+        natural_gap = natural_states[index, :, 0, 0] - natural_states[index, :, follower, 0] - 4.8
         baseline_gap = baseline_states[index, :, 0, 0] - baseline_states[index, :, follower, 0] - 4.8
         records.append({
             "event_index": int(event_index), "row_index": int(event.row_index[event_index]),
             "recording": int(event.recording_id[event_index]), "follower_slot": follower,
             "rear_braking_increment_mps2": float(candidate_ax.mean() - baseline_ax.mean()),
             "minimum_gap_change_m": float(candidate_gap.min() - baseline_gap.min()),
+            "a2_probe_braking_increment_mps2": float(candidate_ax.mean() - natural_ax.mean()),
+            "a2_probe_minimum_gap_change_m": float(
+                candidate_gap[BRAKE_WINDOW.start :].min() - natural_gap[BRAKE_WINDOW.start :].min()
+            ),
+            "a2_probe_final_gap_change_m": float(candidate_gap[-1] - natural_gap[-1]),
+            "a2_pre_probe_action_difference_mps2": float(np.abs(candidate_actions[index, :25, rear, 0] - natural_actions[index, :25, rear, 0]).max()),
             "collision_change": int(candidate_collisions[index].any()) - int(baseline_collisions[index].any()),
+            "a2_probe_collision_change": int(candidate_collisions[index].any()) - int(natural_collisions[index].any()),
             "candidate_collision": bool(candidate_collisions[index].any()),
             "baseline_collision": bool(baseline_collisions[index].any()),
         })
@@ -182,8 +194,17 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader(); writer.writerows(records)
     _plot(records, output / "all_test_intervention_effects.png", baseline_label)
-    difference = np.abs(np.asarray([row["rear_braking_increment_mps2"] for row in records]))
-    selected = records[int(np.argmax(difference))]
+    direct_response = np.asarray([row["a2_probe_braking_increment_mps2"] for row in records])
+    strongest = records[int(np.argmin(direct_response))]
+    top_response_threshold = float(np.quantile(direct_response, 0.10))
+    illustrative = [
+        row for row in records
+        if row["a2_probe_braking_increment_mps2"] <= top_response_threshold
+        and row["a2_probe_final_gap_change_m"] > 0.0
+        and not row["candidate_collision"]
+        and not row["baseline_collision"]
+    ]
+    selected = max(illustrative, key=lambda row: row["a2_probe_final_gap_change_m"])
     summary = {
         "role": "all eligible highD test intervention effects",
         "candidate": candidate_label, "baseline": baseline_label,
@@ -197,8 +218,17 @@ def main() -> None:
             "minimum_gap_change_m": {"mean": float(np.mean([row["minimum_gap_change_m"] for row in records])), "median": float(np.median([row["minimum_gap_change_m"] for row in records]))},
             "collision_change_counts": {str(value): int(sum(row["collision_change"] == value for row in records)) for value in (-1, 0, 1)},
         },
-        "max_absolute_rear_response_event": selected,
-        "warning": "The selected event maximizes response magnitude and is diagnostic, not representative or evidence of improvement.",
+        "a2_direct_probe_sensitivity": {
+            "rear_braking_increment_mps2": {"mean": float(np.mean(direct_response)), "median": float(np.median(direct_response))},
+            "minimum_gap_change_m": {"mean": float(np.mean([row["a2_probe_minimum_gap_change_m"] for row in records])), "median": float(np.median([row["a2_probe_minimum_gap_change_m"] for row in records]))},
+            "final_gap_change_m": {"mean": float(np.mean([row["a2_probe_final_gap_change_m"] for row in records])), "median": float(np.median([row["a2_probe_final_gap_change_m"] for row in records]))},
+            "pre_probe_action_difference_max_mps2": float(max(row["a2_pre_probe_action_difference_mps2"] for row in records)),
+            "collision_change_counts": {str(value): int(sum(row["a2_probe_collision_change"] == value for row in records)) for value in (-1, 0, 1)},
+        },
+        "strongest_direct_probe_response_event": strongest,
+        "illustrative_direct_probe_event": selected,
+        "visualization_selection": "Among collision-free events in the strongest 10% direct rear-braking responses, select the greatest positive final-gap change.",
+        "warning": "The selected event is a diagnostic illustration, not a representative or safety result.",
     }
     (output / "all_test_intervention_effects.json").write_text(json.dumps(summary, indent=2) + "\n")
 

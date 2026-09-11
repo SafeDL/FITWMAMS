@@ -210,7 +210,8 @@ def _draw_probe_world(
 def _write_probe_gif(
     path: Path, *, candidate: dict[str, np.ndarray], common: dict[str, np.ndarray],
     valid: np.ndarray, follower: int, event_label: str, frame_stride: int,
-    candidate_label: str, baseline_label: str,
+    candidate_label: str, baseline_label: str, baseline_status: str,
+    candidate_status: str, comparison_note: str,
 ) -> int:
     plt = get_pyplot()
     steps = len(candidate["states"])
@@ -226,7 +227,7 @@ def _write_probe_gif(
     figure, axes = plt.subplots(2, 2, figsize=(16.0, 9.0), dpi=100)
     figure.subplots_adjust(left=0.05, right=0.985, bottom=0.08, top=0.90, hspace=0.42, wspace=0.10)
     figure.suptitle(
-        f"{event_label} | same prefix sample and exogenous seed | counterfactual: no highD future target",
+        f"{event_label} | same prefix sample and exogenous seed | {comparison_note}",
         fontsize=10,
     )
     with imageio.get_writer(path, mode="I", duration=DT_S * frame_stride * 1000.0, loop=0) as writer:
@@ -234,12 +235,12 @@ def _write_probe_gif(
             _draw_probe_world(
                 axes[0, 0], rollout=common, valid=valid, follower=follower, frame=int(frame),
                 label=baseline_label, affected_color="#ffbf00",
-                status=f"forced ego brake: -8 m/s² at 1.00–2.00 s | rear ax={common_ax[frame]:+.2f} m/s²",
+                status=f"{baseline_status} | rear ax={common_ax[frame]:+.2f} m/s²",
             )
             _draw_probe_world(
                 axes[0, 1], rollout=candidate, valid=valid, follower=follower, frame=int(frame),
                 label=candidate_label, affected_color=COMMON_COLOR,
-                status=(f"learned authority: {int(candidate['active'][frame].sum())}/6 | "
+                status=(f"{candidate_status}; authority: {int(candidate['active'][frame].sum())}/6 | "
                         f"rear ax={candidate_ax[frame]:+.2f} m/s²"),
             )
             axes[1, 0].clear()
@@ -301,7 +302,7 @@ def main() -> None:
     response, base = load_response_config()
     output = args.output or result_directory(response) / "evaluation/playbacks"
     checkpoint = args.checkpoint or ROOT / response["paths"]["checkpoint"]
-    candidate_label, baseline_label = "PPO + IDM response", "frozen HiQR baseline"
+    candidate_label, baseline_label = "frozen legacy A2 (PPO + IDM)", "frozen HiQR baseline"
     output.mkdir(parents=True, exist_ok=True)
     data = prepare_experiment_data(base, ROOT)
     event_reference = ReactionEventReference.load(event_directory(response) / args.split)
@@ -365,6 +366,19 @@ def main() -> None:
         probe_path, candidate=candidate_probe, common=common_probe, valid=valid,
         follower=follower, event_label=event_label, frame_stride=args.frame_stride,
         candidate_label=candidate_label, baseline_label=baseline_label,
+        baseline_status="ego braking probe: −8 m/s² at 1.00–2.00 s",
+        candidate_status="same ego braking probe",
+        comparison_note="controller contrast; no highD future target",
+    )
+    sensitivity_path = output / "a2_probe_sensitivity.gif"
+    sensitivity_frames = _write_probe_gif(
+        sensitivity_path, candidate=candidate_probe, common=natural, valid=valid,
+        follower=follower, event_label=event_label, frame_stride=args.frame_stride,
+        candidate_label="frozen legacy A2 + ego braking probe",
+        baseline_label="frozen legacy A2 + logged ego",
+        baseline_status="logged ego controls",
+        candidate_status="additional ego brake −8 m/s² at 1.00–2.00 s",
+        comparison_note="direct A2 sensitivity; no highD future target",
     )
     manifest = {
         "role": "hierarchical response-controller visual diagnostics",
@@ -405,6 +419,12 @@ def main() -> None:
                 "ppo_idm_mean_acceleration_in_brake_window_mps2": float(candidate_probe["actions"][25:50, follower - 1, 0].mean()),
                 "frozen_hiqr_mean_acceleration_in_brake_window_mps2": float(common_probe["actions"][25:50, follower - 1, 0].mean()),
             },
+        },
+        "a2_probe_sensitivity": {
+            "gif": sensitivity_path.name,
+            "frames": sensitivity_frames,
+            "comparison": "the same frozen A2 with logged ego controls versus the same A2 with the documented added ego braking probe",
+            "pre_probe_controls": "identical by construction",
         },
         "warning": "These GIFs diagnose one selected event; they do not establish safety, risk reduction, or aggregate performance.",
     }

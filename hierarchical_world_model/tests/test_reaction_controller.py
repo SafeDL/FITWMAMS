@@ -203,6 +203,26 @@ def test_a2_initialization_copies_only_compatible_actor_hidden_layers():
     torch.testing.assert_close(candidate.critic[0].weight, critic_before)
 
 
+def test_legacy_a2_split_execution_is_bitwise_identical_for_fixed_noise():
+    """The proposal split may not alter the maintained A2 baseline path."""
+    values = _inputs(); model = DiffusionGuidedHiQR().eval()
+    history, history_valid, current, valid, reference, maps, controls = values
+    response = model(history, history_valid, current, valid, reference, current[:, 1:, :2], maps,
+        torch.ones(2, 8, 8, dtype=torch.bool), committed_ego_controls=controls,
+        deterministic=True, apply_intervention_adapter=False)
+    context = ReactionControllerContext(**{
+        **_context(model, response, values).__dict__,
+        "influence_authority": torch.ones(2, 6),
+        "influence_role": torch.full((2, 6), ROLE_SAME_LANE_FOLLOWER, dtype=torch.long),
+        "policy_standard_normal": torch.zeros(2, 6, 2),
+    })
+    controller = IDMResidualReactionController(_rules()).eval()
+    direct = controller(context, deterministic=False)
+    split = controller.legacy_execute(context, controller.proposal(context, deterministic=False))
+    assert torch.equal(direct.actions, split.actions)
+    assert torch.equal(direct.raw_action, split.raw_action)
+
+
 def test_tiny_ppo_training_saves_a_reloadable_controller(tmp_path):
     values = _inputs(batch=1)
     _, _, current, valid, _, maps, _ = values

@@ -18,7 +18,7 @@ import numpy as np
 
 DIFFUSION_HORIZON_STEPS = 149
 RNG_SCHEMA_NAME = "world_rng"
-RNG_SCHEMA_VERSION = 3
+RNG_SCHEMA_VERSION = 4
 WORLD_RANDOM_BLOCKS = (
     "scenario_uniform",
     "c0_base_latent",
@@ -27,7 +27,7 @@ WORLD_RANDOM_BLOCKS = (
     "scene_innovations",
     "agent_response_innovations",
     "policy_response_innovations",
-    "policy_response_extra_innovations",
+    "policy_calibration_innovations",
 )
 
 
@@ -42,7 +42,9 @@ class WorldExogenousState:
     scene_innovations: np.ndarray
     agent_response_innovations: np.ndarray
     policy_response_innovations: np.ndarray
-    policy_response_extra_innovations: np.ndarray
+    # This block belongs exclusively to the A2 calibration adapter.  It is
+    # deliberately independent from the frozen A2 policy innovations.
+    policy_calibration_innovations: np.ndarray
     # Contract metadata only; runtime consumption still has one mutable
     # response index.  It is retained so custom archives can be validated
     # without making scene length a second horizon source of truth.
@@ -104,9 +106,9 @@ class WorldExogenousState:
                 self.policy_response_innovations,
                 (n, expected_response_steps, 6, 2),
             ),
-            "policy_response_extra_innovations": (
-                self.policy_response_extra_innovations,
-                (n, expected_response_steps, 6, 1),
+            "policy_calibration_innovations": (
+                self.policy_calibration_innovations,
+                (n, expected_response_steps, 6, 2),
             ),
         }
         for name, (value, shape) in arrays.items():
@@ -137,10 +139,10 @@ class WorldExogenousState:
         # These streams define the probability space.  They must stay
         # independent when another block changes shape or a new block is added.
         def rng(block: str) -> np.random.Generator:
-            # Preserve every pre-v3 stream bitwise so the frozen A2 remains a
-            # valid common-random-number baseline.  Only the added block uses
-            # the new schema seed namespace.
-            version = 3 if block == "policy_response_extra_innovations" else 2
+            # Preserve every legacy stream bitwise so the frozen A2 remains a
+            # valid common-random-number baseline.  Only calibration owns the
+            # new namespace.
+            version = 4 if block == "policy_calibration_innovations" else 2
             material = f"{RNG_SCHEMA_NAME}:{version}:{int(seed)}:{block}".encode("utf-8")
             child_seed = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
             return np.random.default_rng(child_seed)
@@ -162,10 +164,9 @@ class WorldExogenousState:
             policy_response_innovations=rng("policy_response_innovations").standard_normal(
                 (int(n), int(response_steps), 6, 2), dtype=np.float32
             ),
-            # This is intentionally a separate block.  Adding it must not
-            # change any draw consumed by the frozen two-action A2 policy.
-            policy_response_extra_innovations=rng("policy_response_extra_innovations").standard_normal(
-                (int(n), int(response_steps), 6, 1), dtype=np.float32
+            # Adding this block must not change any draw consumed by A2.
+            policy_calibration_innovations=rng("policy_calibration_innovations").standard_normal(
+                (int(n), int(response_steps), 6, 2), dtype=np.float32
             ),
             scene_refresh_responses=int(scene_refresh_responses),
         )
@@ -213,7 +214,7 @@ class WorldExogenousState:
                 scene_innovations=np.asarray(values["scene_innovations"]),
                 agent_response_innovations=np.asarray(values["agent_response_innovations"]),
                 policy_response_innovations=np.asarray(values["policy_response_innovations"]),
-                policy_response_extra_innovations=np.asarray(values["policy_response_extra_innovations"]),
+                policy_calibration_innovations=np.asarray(values["policy_calibration_innovations"]),
             )
             refresh = int(values["scene_refresh_responses"]) if "scene_refresh_responses" in values else 25
             state = cls(**{**state.as_dict(), "scene_refresh_responses": refresh})
@@ -291,7 +292,7 @@ class WorldExogenousState:
             "scene_innovations",
             "agent_response_innovations",
             "policy_response_innovations",
-            "policy_response_extra_innovations",
+            "policy_calibration_innovations",
         }:
             current = values[block]
             innovation = np.random.default_rng(int(seed)).standard_normal(

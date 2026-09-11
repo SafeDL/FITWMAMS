@@ -120,6 +120,8 @@ def _concatenate(parts: list[ReactionRollout]) -> ReactionRollout:
         },
         collision=np.concatenate([part.collision for part in parts]),
         crashed=np.concatenate([part.crashed for part in parts]),
+        collision_pairs=np.concatenate([part.collision_pairs for part in parts]),
+        offroad=np.concatenate([part.offroad for part in parts]),
     )
 
 

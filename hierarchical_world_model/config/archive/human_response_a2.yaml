@@ -1,4 +1,5 @@
-# The sole new candidate: human-response-calibrated A2 over the frozen world.
+# Historical rejected candidate. The maintained response baseline is
+# ``ppo_idm_response.yaml``; calibration is paused. This file is provenance only.
 schema_name: human_response_a2
 schema_version: 1
 base_config: hierarchical_world_model/config/world_model.yaml

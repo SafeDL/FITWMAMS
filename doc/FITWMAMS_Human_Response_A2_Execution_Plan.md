@@ -1,6 +1,11 @@
 # FITWMAMS 下一轮目标实验任务书  
 ## Human-Response-Calibrated A2：事实锚定、事件条件化的人类响应闭环校准
 
+> **状态（已替代）**：这是 rejected `human_response_a2` 分支的历史执行计划，含
+> `release.yaml` 等过期路径，不能直接执行。当前 A2 证据边界与 calibration 前置条件
+> 以 [`FITWMAMS_A2_Factual_Protocol_Correction.md`](FITWMAMS_A2_Factual_Protocol_Correction.md)
+> 为准。
+
 > **用途**：作为下一轮 Codex 的唯一主线执行目标。  
 > **代码仓库**：`https://github.com/SafeDL/FITWMAMS`  
 > **冻结基线提交**：`889e57c74f7a7a543ef8ec8bebb59f1e34e22dd0`  

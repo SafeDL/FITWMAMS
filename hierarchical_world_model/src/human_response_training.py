@@ -37,6 +37,41 @@ def loo_energy_rewards(
     return score.mean() - score
 
 
+def event_energy_score(
+    futures: torch.Tensor, observed: torch.Tensor, response_iqr: torch.Tensor,
+) -> torch.Tensor:
+    """Proper Energy Score for one observed response and stochastic futures."""
+    model = normalized_response(futures, response_iqr).flatten(1)
+    target = normalized_response(observed[None], response_iqr).flatten(1)
+    return torch.cdist(model, target).mean() - 0.5 * torch.cdist(model, model).mean()
+
+
+def loo_event_energy_rewards(
+    futures: torch.Tensor, observed: torch.Tensor, response_iqr: torch.Tensor,
+) -> torch.Tensor:
+    """Exact contribution reward for an event-level Energy Score."""
+    if len(futures) < 3:
+        raise ValueError("LOO Event Energy Score requires at least three futures")
+    scores = []
+    for index in range(len(futures)):
+        kept = torch.cat((futures[:index], futures[index + 1:]), dim=0)
+        scores.append(event_energy_score(kept, observed, response_iqr))
+    score = torch.stack(scores)
+    return score - score.mean()
+
+
+def prefix_loo_event_energy_rewards(
+    futures: torch.Tensor, observed: torch.Tensor, response_iqr: torch.Tensor,
+    prefixes: tuple[int, ...] = (5, 10, 25), weights: tuple[float, ...] = (.25, .35, .40),
+) -> dict[int, torch.Tensor]:
+    if len(prefixes) != len(weights) or abs(sum(weights) - 1.0) > 1.e-6:
+        raise ValueError("prefix weights must align and sum to one")
+    return {
+        int(prefix): float(weight) * loo_event_energy_rewards(futures[:, :prefix], observed[:prefix], response_iqr)
+        for prefix, weight in zip(prefixes, weights)
+    }
+
+
 def mechanism_auxiliary_loss(
     *, model_intervention: torch.Tensor, model_baseline: torch.Tensor,
     idm_intervention: torch.Tensor, idm_baseline: torch.Tensor,
