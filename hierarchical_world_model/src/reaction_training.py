@@ -19,7 +19,7 @@ from .influence_graph import dynamic_candidate_scene_mask
 from .randomness import WorldExogenousState
 from .reaction_controller import (
     CalibratedResidualReactionController, IDMResidualReactionController,
-    RLResidualReactionController, ReactionController,
+    HumanResponseA2Controller, RLResidualReactionController, ReactionController,
 )
 from .reaction_evidence import (
     EVALUATION_FRAMES, FEATURE_NAMES, PRE_EVENT_FRAMES,
@@ -168,6 +168,9 @@ def reaction_controller_rollout(
         "influence_role", "influence_parent", "influence_direct",
         "influence_secondary", "influence_predicted_ttc_s",
         "influence_predicted_min_gap_m", "controller_desired_action_ax",
+        "controller_features", "controller_raw_action", "controller_mechanism_scale",
+        "controller_residual_action_ax", "controller_pre_guard_action_ax",
+        "controller_physical_rewrite", "controller_correction_release",
     )
     recorded = {name: [] for name in names}
     for step in range(149):
@@ -201,6 +204,13 @@ def reaction_controller_rollout(
             "influence_predicted_ttc_s": torch.stack(recorded["influence_predicted_ttc_s"], 1).numpy(),
             "influence_predicted_min_gap_m": torch.stack(recorded["influence_predicted_min_gap_m"], 1).numpy(),
             "desired_action_ax": torch.stack(recorded["controller_desired_action_ax"], 1).numpy(),
+            "features": torch.stack(recorded["controller_features"], 1).numpy(),
+            "raw_action": torch.stack(recorded["controller_raw_action"], 1).numpy(),
+            "mechanism_scale": torch.stack(recorded["controller_mechanism_scale"], 1).numpy(),
+            "residual_action_ax": torch.stack(recorded["controller_residual_action_ax"], 1).numpy(),
+            "pre_guard_action_ax": torch.stack(recorded["controller_pre_guard_action_ax"], 1).numpy(),
+            "physical_rewrite": torch.stack(recorded["controller_physical_rewrite"], 1).numpy(),
+            "correction_release": torch.stack(recorded["controller_correction_release"], 1).numpy(),
         },
         collision=torch.stack(recorded["collision"], 1).numpy(),
         crashed=torch.stack(recorded["crashed"], 1).numpy(),
@@ -619,6 +629,8 @@ def _controller(mode: str, rule_model: RuleModelBundle | None, device: torch.dev
         return IDMResidualReactionController(rule_model).to(device)
     if mode == "calibrated_residual":
         return CalibratedResidualReactionController(rule_model).to(device)
+    if mode == "human_response_a2":
+        return HumanResponseA2Controller(rule_model).to(device)
     raise ValueError(f"unsupported training mode: {mode}")
 
 

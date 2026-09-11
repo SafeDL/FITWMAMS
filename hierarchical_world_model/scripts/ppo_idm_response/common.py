@@ -1,4 +1,4 @@
-"""Shared configuration for the active nominal-response workflow."""
+"""Shared configuration for the active PPO--IDM response workflow."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,7 +7,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[3]
-CONFIG = ROOT / "hierarchical_world_model/config/nominal_response.yaml"
+CONFIG = ROOT / "hierarchical_world_model/config/ppo_idm_response.yaml"
 
 
 def load_response_config(config_path: Path = CONFIG) -> tuple[dict, dict]:

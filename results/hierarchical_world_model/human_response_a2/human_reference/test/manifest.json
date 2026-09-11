@@ -1,0 +1,46 @@
+{
+  "schema_name": "human_response_prior",
+  "schema_version": 1,
+  "split": "test",
+  "descriptor_names": [
+    "gap_m",
+    "closing_mps",
+    "ttc_s",
+    "follower_previous_acceleration_mps2",
+    "follower_speed_mps",
+    "leader_onset_acceleration_mps2",
+    "leader_short_brake_dose_mps"
+  ],
+  "response_names": [
+    "acceleration_mps2",
+    "abs_jerk_mps3"
+  ],
+  "response_frames": 25,
+  "online_safe_fields": [
+    "gap_m",
+    "closing_mps",
+    "ttc_s",
+    "follower_previous_acceleration_mps2",
+    "follower_speed_mps"
+  ],
+  "offline_only_fields": [
+    "leader_peak_brake_mps2",
+    "leader_brake_dose_mps",
+    "leader_brake_ramp_mps3",
+    "leader_brake_duration_s",
+    "response_latency_s",
+    "follower_peak_brake_mps2",
+    "follower_peak_abs_jerk_mps3",
+    "follower_brake_dose_mps",
+    "recovery_time_s"
+  ],
+  "neighbors": 16,
+  "minimum_recordings": 5,
+  "supported_distance": 64.09353637695312,
+  "weak_distance": 149.03576354980464,
+  "support_labels": [
+    "empirically_supported",
+    "weakly_supported",
+    "unsupported_by_training_evidence"
+  ]
+}

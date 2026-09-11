@@ -1,13 +1,12 @@
 {
   "role": "all eligible highD test intervention effects",
-  "arm": "archived_a2_idm",
-  "candidate": "archived A2 PPO + IDM",
+  "candidate": "PPO + IDM response",
   "baseline": "frozen HiQR",
-  "checkpoint": "results/hierarchical_world_model/archive/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+  "checkpoint": "results/hierarchical_world_model/ppo_idm_response/checkpoint.pt",
   "events": 205,
   "recordings": 8,
   "intervention": "logged ego controls plus -8 m/s\u00b2 from 1.00 s to 2.00 s",
-  "comparison": "archived A2 PPO + IDM minus frozen HiQR",
+  "comparison": "PPO + IDM response minus frozen HiQR",
   "randomness": "one shared prefix sample and exogenous seed per event and controller",
   "statistics": {
     "rear_braking_increment_mps2": {

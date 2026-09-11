@@ -1,7 +1,7 @@
 {
   "candidate_training_rows": 72771,
   "causally_eligible_training_rows": 4267,
-  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+  "checkpoint": "results/hierarchical_world_model/ppo_idm_response/checkpoint.pt",
   "controller_mode": "rl_residual_idm",
   "eligibility": "valid same-lane, closing same-rear follower within 30 m at highD anchor",
   "frozen_world_model": true,

@@ -1,9 +1,8 @@
 {
   "role": "hierarchical response-controller visual diagnostics",
-  "arm": "archived_a2_idm",
-  "candidate": "archived A2 PPO + IDM",
+  "candidate": "PPO + IDM response",
   "baseline": "frozen HiQR baseline",
-  "checkpoint": "results/hierarchical_world_model/archive/causal_reaction/formal/ppo/controllers/rl_residual_idm/reaction_ppo.pt",
+  "checkpoint": "results/hierarchical_world_model/ppo_idm_response/checkpoint.pt",
   "event": {
     "split": "test",
     "event_index": 1266,
@@ -25,24 +24,24 @@
     "gif": "braking_probe.gif",
     "frames": 47,
     "ego_command": "logged highD controls plus -8 m/s\u00b2 from 1.00 s to 2.00 s",
-    "comparison": "archived A2 PPO + IDM versus frozen HiQR baseline",
+    "comparison": "PPO + IDM response versus frozen HiQR baseline",
     "affected_same_rear_slot": 2,
-    "current_nominal_response": {
+    "ppo_idm_response": {
       "controller_active_rate": 0.16666666666666666,
       "any_collision": false,
       "minimum_background_acceleration_mps2": -7.702528953552246
     },
-    "frozen_common_physics": {
+    "frozen_hiqr": {
       "controller_active_rate": 0.0,
       "any_collision": false,
       "minimum_background_acceleration_mps2": -7.702528953552246
     },
     "mean_absolute_background_action_difference": 0.2674500644207001,
     "affected_rear": {
-      "current_minimum_acceleration_mps2": -5.814418792724609,
-      "common_minimum_acceleration_mps2": -1.2428175210952759,
-      "current_mean_acceleration_in_brake_window_mps2": -3.978219509124756,
-      "common_mean_acceleration_in_brake_window_mps2": -0.8733049035072327
+      "ppo_idm_minimum_acceleration_mps2": -5.814418792724609,
+      "frozen_hiqr_minimum_acceleration_mps2": -1.2428175210952759,
+      "ppo_idm_mean_acceleration_in_brake_window_mps2": -3.978219509124756,
+      "frozen_hiqr_mean_acceleration_in_brake_window_mps2": -0.8733049035072327
     }
   },
   "warning": "These GIFs diagnose one selected event; they do not establish safety, risk reduction, or aggregate performance."

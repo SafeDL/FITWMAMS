@@ -168,6 +168,7 @@ class HighwayEnvWorldSnapshot:
     intervention_memory: torch.Tensor | None
     lateral_intervention_memory: torch.Tensor | None
     previous_background_actions: torch.Tensor | None
+    previous_base_background_actions: torch.Tensor | None
     influence_state: InfluenceGraphState | None
     traffic: tuple[HighwayEnvSnapshot, ...]
 
@@ -564,8 +565,10 @@ class HighwayEnvClosedLoopWorld:
         self.response_innovations: torch.Tensor | None = None
         self.response_agent_innovations: torch.Tensor | None = None
         self.policy_response_innovations: torch.Tensor | None = None
+        self.policy_response_extra_innovations: torch.Tensor | None = None
         self.deterministic_response = False
         self.previous_background_actions: torch.Tensor | None = None
+        self.previous_base_background_actions: torch.Tensor | None = None
         self.influence_state: InfluenceGraphState | None = None
         self.nominal_reference_states: torch.Tensor | None = None
         self.nominal_reference_actions: torch.Tensor | None = None
@@ -603,6 +606,7 @@ class HighwayEnvClosedLoopWorld:
             reaction_recovery_remaining=self.influence_state.recovery_remaining,
             reaction_recovery_frames=self.reaction_recovery_frames,
             previous_background_actions=self.previous_background_actions,
+            previous_base_background_actions=self.previous_base_background_actions,
             influence_authority=self.influence_state.authority,
             influence_role=self.influence_state.role,
             influence_parent=self.influence_state.parent,
@@ -611,6 +615,7 @@ class HighwayEnvClosedLoopWorld:
             influence_predicted_ttc_s=self.influence_state.predicted_ttc_s,
             influence_predicted_min_gap_m=self.influence_state.predicted_min_gap_m,
             policy_standard_normal=self.policy_response_innovations[:, self.reference_index],
+            policy_extra_standard_normal=self.policy_response_extra_innovations[:, self.reference_index],
             nominal_current=(None if self.nominal_reference_states is None else (
                 self.nominal_initial_states if self.reference_index == 0 else self.nominal_reference_states[:, self.reference_index - 1]
             )),
@@ -758,8 +763,14 @@ class HighwayEnvClosedLoopWorld:
             dtype=states.dtype,
             device=self.device,
         )
+        self.policy_response_extra_innovations = torch.as_tensor(
+            exogenous_state.policy_response_extra_innovations,
+            dtype=states.dtype,
+            device=self.device,
+        )
         self.deterministic_response = bool(deterministic_response)
         self.previous_background_actions = None
+        self.previous_base_background_actions = None
         self.influence_state = InfluenceGraphState.empty(len(self.traffic), device=self.device)
         self.nominal_reference_states = nominal_states
         self.nominal_reference_actions = nominal_actions
@@ -882,6 +893,7 @@ class HighwayEnvClosedLoopWorld:
             crashed.append(step.crashed)
         self.states = torch.from_numpy(np.stack(realized)).to(self.device)
         self.previous_background_actions = torch.from_numpy(np.stack(executed_background)).to(self.device)
+        self.previous_base_background_actions = base_actions[:, 0].detach().clone()
         self.committed_ego_controls = torch.cat((self.committed_ego_controls, action), dim=1)[
             :, -self.model.cfg.intervention_trigger_history_frames - 1 :
         ]
@@ -920,6 +932,11 @@ class HighwayEnvClosedLoopWorld:
                 "controller_value": None if controller_output is None or controller_output.value is None else controller_output.value.detach().clone(),
                 "controller_rule_action_ax": None if controller_output is None or controller_output.rule_action_ax is None else controller_output.rule_action_ax.detach().clone(),
                 "controller_desired_action_ax": None if controller_output is None or controller_output.desired_action_ax is None else controller_output.desired_action_ax.detach().clone(),
+                "controller_mechanism_scale": None if controller_output is None or controller_output.mechanism_scale is None else controller_output.mechanism_scale.detach().clone(),
+                "controller_residual_action_ax": None if controller_output is None or controller_output.residual_action_ax is None else controller_output.residual_action_ax.detach().clone(),
+                "controller_pre_guard_action_ax": None if controller_output is None or controller_output.pre_guard_action_ax is None else controller_output.pre_guard_action_ax.detach().clone(),
+                "controller_physical_rewrite": None if controller_output is None or controller_output.physical_rewrite is None else controller_output.physical_rewrite.detach().clone(),
+                "controller_correction_release": None if controller_output is None or controller_output.correction_release is None else controller_output.correction_release.detach().clone(),
                 "influence_authority": None if self.influence_state is None else self.influence_state.authority.detach().clone(),
                 "influence_role": None if self.influence_state is None else self.influence_state.role.detach().clone(),
                 "influence_parent": None if self.influence_state is None else self.influence_state.parent.detach().clone(),
@@ -951,6 +968,7 @@ class HighwayEnvClosedLoopWorld:
             intervention_memory=self._clone(self.intervention_memory),
             lateral_intervention_memory=self._clone(self.lateral_intervention_memory),
             previous_background_actions=self._clone(self.previous_background_actions),
+            previous_base_background_actions=self._clone(self.previous_base_background_actions),
             influence_state=self.influence_state,
             traffic=tuple(traffic.snapshot() for traffic in self.traffic),
         )
@@ -977,5 +995,6 @@ class HighwayEnvClosedLoopWorld:
         self.intervention_memory = self._clone(snapshot.intervention_memory)
         self.lateral_intervention_memory = self._clone(snapshot.lateral_intervention_memory)
         self.previous_background_actions = self._clone(snapshot.previous_background_actions)
+        self.previous_base_background_actions = self._clone(snapshot.previous_base_background_actions)
         self.influence_state = snapshot.influence_state
         return self.observe()

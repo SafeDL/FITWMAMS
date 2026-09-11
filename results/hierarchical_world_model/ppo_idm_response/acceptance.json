@@ -1,0 +1,9 @@
+{
+  "response_effect_verified": true,
+  "paired_test_interventions": 205,
+  "held_out_recordings": 8,
+  "factual_bridge_verified": true,
+  "risk_release_validated": false,
+  "safety_improvement_claimed": false,
+  "reason": "The paired audit observes two added collisions despite stronger rear braking and larger mean minimum gap."
+}

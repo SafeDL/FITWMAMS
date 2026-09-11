@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Render current nominal-response checkpoint playbacks for one highD event.
+"""Render PPO--IDM response playbacks for one highD event.
 
 The natural replay keeps the logged ego control and overlays highD reference
 trajectories.  The braking probe applies a fixed, documented ego braking
-offset and contrasts the learned controller with frozen common physics under
+offset and contrasts the learned controller with frozen HiQR under
 identical prefix samples and exogenous randomness.  It is a diagnostic, not a
 safety or closed-loop validation claim.
 """
@@ -24,12 +24,7 @@ from hierarchical_world_model.src.highway import HighwayEnvClosedLoopWorld
 from hierarchical_world_model.src.nominal_reference import build_nominal_reference
 from hierarchical_world_model.src.prefix_reference import prefix_only_sample, row_prefix_inputs
 from hierarchical_world_model.src.randomness import WorldExogenousState
-from hierarchical_world_model.src.reaction_controller import (
-    CommonPhysicsReactionController,
-    IDMResidualReactionController,
-    NominalPreservingReactionController,
-    NoReactionController,
-)
+from hierarchical_world_model.src.reaction_controller import IDMResidualReactionController, NoReactionController
 from hierarchical_world_model.src.reaction_evidence import ReactionEventReference
 from hierarchical_world_model.src.rule_models import RuleModelBundle
 from hierarchical_world_model.src.visualization import (
@@ -54,9 +49,6 @@ IDM = {
 }
 DT_S = 0.04
 COMMON_COLOR = "#2ca25f"
-ARCHIVED_A2_ROOT = ROOT / "results/hierarchical_world_model/archive/causal_reaction/formal/ppo"
-
-
 def _load_sampler(base: dict) -> HierarchicalWorldSampler:
     return HierarchicalWorldSampler(
         flow_checkpoint=base["paths"]["flow_checkpoint"],
@@ -296,7 +288,6 @@ def _rollout_summary(rollout: dict[str, np.ndarray]) -> dict[str, float | bool]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("nominal_response", "archived_a2_idm"), default="nominal_response")
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--split", choices=("validation", "test"), default="test")
     parser.add_argument("--event-index", type=int, default=901)
@@ -308,14 +299,9 @@ def main() -> None:
         raise ValueError("--steps must be in 2..149")
 
     response, base = load_response_config()
-    if args.arm == "archived_a2_idm":
-        output = args.output or ARCHIVED_A2_ROOT / "revalidated_intervention_effects/playbacks"
-        checkpoint = args.checkpoint or ARCHIVED_A2_ROOT / "controllers/rl_residual_idm/reaction_ppo.pt"
-        candidate_label, baseline_label = "archived A2 PPO + IDM", "frozen HiQR baseline"
-    else:
-        output = args.output or result_directory(response) / "playbacks"
-        checkpoint = args.checkpoint or result_directory(response) / "checkpoint.pt"
-        candidate_label, baseline_label = "current nominal-response", "frozen common-physics baseline"
+    output = args.output or result_directory(response) / "evaluation/playbacks"
+    checkpoint = args.checkpoint or ROOT / response["paths"]["checkpoint"]
+    candidate_label, baseline_label = "PPO + IDM response", "frozen HiQR baseline"
     output.mkdir(parents=True, exist_ok=True)
     data = prepare_experiment_data(base, ROOT)
     event_reference = ReactionEventReference.load(event_directory(response) / args.split)
@@ -335,18 +321,13 @@ def main() -> None:
     probe_ego[25:50, 0] -= 8.0
 
     sampler = _load_sampler(base)
-    if args.arm == "archived_a2_idm":
-        rule = RuleModelBundle.load(ROOT / "results/hierarchical_world_model/archive/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json")
-        payload = torch.load(checkpoint, map_location="cuda", weights_only=False)
-        if payload.get("controller_mode") != "rl_residual_idm":
-            raise ValueError("--checkpoint is not an archived A2 PPO + IDM controller")
-        candidate = IDMResidualReactionController(rule).to("cuda")
-        candidate.load_state_dict(payload["state_dict"], strict=True)
-        common = NoReactionController().to("cuda").eval()
-    else:
-        candidate = NominalPreservingReactionController().to("cuda")
-        candidate.load_state_dict(torch.load(checkpoint, map_location="cuda", weights_only=False)["state_dict"])
-        common = CommonPhysicsReactionController().to("cuda").eval()
+    rule = RuleModelBundle.load(ROOT / response["paths"]["rule_model"])
+    payload = torch.load(checkpoint, map_location="cuda", weights_only=False)
+    if payload.get("controller_mode") != response["model"]["controller_mode"]:
+        raise ValueError("--checkpoint is not a PPO + IDM response controller")
+    candidate = IDMResidualReactionController(rule).to("cuda")
+    candidate.load_state_dict(payload["state_dict"], strict=True)
+    common = NoReactionController().to("cuda").eval()
     candidate.eval()
     natural = _simulate(
         sampler=sampler, controller=candidate, bundle=data.bundle,
@@ -387,7 +368,6 @@ def main() -> None:
     )
     manifest = {
         "role": "hierarchical response-controller visual diagnostics",
-        "arm": args.arm,
         "candidate": candidate_label,
         "baseline": baseline_label,
         "checkpoint": str(checkpoint.relative_to(ROOT)),
@@ -414,16 +394,16 @@ def main() -> None:
             "ego_command": "logged highD controls plus -8 m/s² from 1.00 s to 2.00 s",
             "comparison": f"{candidate_label} versus {baseline_label}",
             "affected_same_rear_slot": follower,
-            "current_nominal_response": _rollout_summary(candidate_probe),
-            "frozen_common_physics": _rollout_summary(common_probe),
+            "ppo_idm_response": _rollout_summary(candidate_probe),
+            "frozen_hiqr": _rollout_summary(common_probe),
             "mean_absolute_background_action_difference": float(
                 np.abs(candidate_probe["actions"] - common_probe["actions"]).mean()
             ),
             "affected_rear": {
-                "current_minimum_acceleration_mps2": float(candidate_probe["actions"][:, follower - 1, 0].min()),
-                "common_minimum_acceleration_mps2": float(common_probe["actions"][:, follower - 1, 0].min()),
-                "current_mean_acceleration_in_brake_window_mps2": float(candidate_probe["actions"][25:50, follower - 1, 0].mean()),
-                "common_mean_acceleration_in_brake_window_mps2": float(common_probe["actions"][25:50, follower - 1, 0].mean()),
+                "ppo_idm_minimum_acceleration_mps2": float(candidate_probe["actions"][:, follower - 1, 0].min()),
+                "frozen_hiqr_minimum_acceleration_mps2": float(common_probe["actions"][:, follower - 1, 0].min()),
+                "ppo_idm_mean_acceleration_in_brake_window_mps2": float(candidate_probe["actions"][25:50, follower - 1, 0].mean()),
+                "frozen_hiqr_mean_acceleration_in_brake_window_mps2": float(common_probe["actions"][25:50, follower - 1, 0].mean()),
             },
         },
         "warning": "These GIFs diagnose one selected event; they do not establish safety, risk reduction, or aggregate performance.",

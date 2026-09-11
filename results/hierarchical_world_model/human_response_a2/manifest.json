@@ -1,0 +1,59 @@
+{
+  "a2_hidden_initialization": [
+    "actor.0.weight",
+    "actor.0.bias",
+    "actor.2.weight",
+    "actor.2.bias"
+  ],
+  "anchor": "teacher-forced logged initial histories only",
+  "artifact_sha256": {
+    "baseline_a2": "ffa9f934b6b2236c2ab75d007c84958076b2bfea1851644bfef681d40e42a4d5",
+    "idm": "95288f6c3cf56400abd56b438087855723d918f87b3fa475c30369605e7df43a",
+    "world": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+  },
+  "baseline_a2": "/home/hp/FITWMAMS/results/hierarchical_world_model/ppo_idm_response/checkpoint.pt",
+  "controller": "human_response_a2",
+  "frozen": [
+    "flow",
+    "diffusion",
+    "HiQR",
+    "HighwayEnv"
+  ],
+  "schema_name": "human_response_a2_run",
+  "schema_version": 1,
+  "synthetic": "detached on-policy visited-state auxiliary semi-gradient; not PPO reward",
+  "training": {
+    "anchor_weight": 0.1,
+    "clip_ratio": 0.2,
+    "device": "auto",
+    "early_stopping_patience": 5,
+    "entropy_end": 0.001,
+    "entropy_start": 0.005,
+    "event_groups_per_update": 8,
+    "futures_per_event": 8,
+    "gae_lambda": 0.95,
+    "gamma": 0.99,
+    "inner_epoch_stop_kl": 0.03,
+    "learning_rate_end": 3e-05,
+    "learning_rate_start": 0.0003,
+    "max_grad_norm": 1.0,
+    "max_ppo_updates": 500,
+    "mechanism_direction_weight": 1.0,
+    "mechanism_magnitude_weight": 0.1,
+    "mechanism_weight": 0.2,
+    "minibatch_size": 2048,
+    "minimum_ppo_updates": 120,
+    "ppo_epochs_per_update": 8,
+    "pretrain_minibatch_size": 2048,
+    "pretrain_updates": 400,
+    "quick_improvement_fraction": 0.005,
+    "quick_validation_events": 32,
+    "quick_validation_futures": 8,
+    "quick_validation_interval": 20,
+    "rollout_steps": 149,
+    "seed": 20260910,
+    "synthetic_pairs_per_update": 8,
+    "target_kl": 0.015,
+    "value_coefficient": 0.5
+  }
+}

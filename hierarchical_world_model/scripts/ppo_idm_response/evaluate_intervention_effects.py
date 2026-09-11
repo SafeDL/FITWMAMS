@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Measure current-controller effects on every eligible test intervention.
+"""Measure PPO--IDM response effects on every eligible test intervention.
 
 Each test event applies the fixed front-ego braking probe used by the causal
-playbacks.  Candidate and frozen common-physics worlds use the same prefix
+playbacks. Candidate and frozen HiQR worlds use the same prefix
 sample and exogenous seed.  The report describes behavioural differences; it
 does not label stronger braking as a safety improvement.
 """
@@ -23,12 +23,7 @@ from hierarchical_world_model.src.highway import HighwayEnvClosedLoopWorld
 from hierarchical_world_model.src.nominal_reference import build_nominal_reference
 from hierarchical_world_model.src.prefix_reference import prefix_only_sample, row_prefix_inputs
 from hierarchical_world_model.src.randomness import WorldExogenousState
-from hierarchical_world_model.src.reaction_controller import (
-    CommonPhysicsReactionController,
-    IDMResidualReactionController,
-    NominalPreservingReactionController,
-    NoReactionController,
-)
+from hierarchical_world_model.src.reaction_controller import IDMResidualReactionController, NoReactionController
 from hierarchical_world_model.src.reaction_evidence import ReactionEventReference
 from hierarchical_world_model.src.rule_models import RuleModelBundle
 
@@ -38,9 +33,6 @@ from render_playbacks import IDM, _load_sampler
 
 DT_S = 0.04
 BRAKE_WINDOW = slice(25, 50)
-ARCHIVED_A2_ROOT = ROOT / "results/hierarchical_world_model/archive/causal_reaction/formal/ppo"
-
-
 def _ego_probe(states: np.ndarray, onsets: np.ndarray) -> np.ndarray:
     commands = []
     for state, onset in zip(states, onsets):
@@ -141,22 +133,15 @@ def _plot(records: list[dict[str, object]], output: Path, baseline_label: str) -
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("nominal_response", "archived_a2_idm"), default="nominal_response")
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
     response, base = load_response_config()
-    if args.arm == "archived_a2_idm":
-        output = args.output or ARCHIVED_A2_ROOT / "revalidated_intervention_effects"
-        checkpoint = args.checkpoint or ARCHIVED_A2_ROOT / "controllers/rl_residual_idm/reaction_ppo.pt"
-        baseline_label = "frozen HiQR"
-        candidate_label = "archived A2 PPO + IDM"
-    else:
-        output = args.output or result_directory(response) / "intervention_effects"
-        checkpoint = args.checkpoint or result_directory(response) / "checkpoint.pt"
-        baseline_label = "common physics"
-        candidate_label = "current nominal-response"
+    output = args.output or result_directory(response) / "evaluation/intervention_effects"
+    checkpoint = args.checkpoint or ROOT / response["paths"]["checkpoint"]
+    baseline_label = "frozen HiQR"
+    candidate_label = "PPO + IDM response"
     output.mkdir(parents=True, exist_ok=True)
     data = prepare_experiment_data(base, ROOT)
     reference = ReactionEventReference.load(event_directory(response) / "test")
@@ -164,18 +149,13 @@ def main() -> None:
     events = event.indices(reference.supported_cells)
     events = events[(event.leader_slot[events] == 0) & (event.follower_slot[events] > 0)]
     sampler = _load_sampler(base)
-    if args.arm == "archived_a2_idm":
-        rule = RuleModelBundle.load(ROOT / "results/hierarchical_world_model/archive/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json")
-        payload = torch.load(checkpoint, map_location="cuda", weights_only=False)
-        if payload.get("controller_mode") != "rl_residual_idm":
-            raise ValueError("--checkpoint is not an archived A2 PPO + IDM controller")
-        candidate = IDMResidualReactionController(rule).to("cuda")
-        candidate.load_state_dict(payload["state_dict"], strict=True)
-        baseline = NoReactionController().to("cuda").eval()
-    else:
-        candidate = NominalPreservingReactionController().to("cuda")
-        candidate.load_state_dict(torch.load(checkpoint, map_location="cuda", weights_only=False)["state_dict"])
-        baseline = CommonPhysicsReactionController().to("cuda").eval()
+    rule = RuleModelBundle.load(ROOT / response["paths"]["rule_model"])
+    payload = torch.load(checkpoint, map_location="cuda", weights_only=False)
+    if payload.get("controller_mode") != response["model"]["controller_mode"]:
+        raise ValueError("--checkpoint is not a PPO + IDM response controller")
+    candidate = IDMResidualReactionController(rule).to("cuda")
+    candidate.load_state_dict(payload["state_dict"], strict=True)
+    baseline = NoReactionController().to("cuda").eval()
     candidate.eval()
     seed = int(response["training"]["seed"])
     candidate_states, candidate_actions, candidate_collisions = _simulate_all(batch_size=args.batch_size, controller=candidate, sampler=sampler, bundle=data.bundle, reference=reference, events=events, seed=seed, steps=149)
@@ -206,7 +186,7 @@ def main() -> None:
     selected = records[int(np.argmax(difference))]
     summary = {
         "role": "all eligible highD test intervention effects",
-        "arm": args.arm, "candidate": candidate_label, "baseline": baseline_label,
+        "candidate": candidate_label, "baseline": baseline_label,
         "checkpoint": str(checkpoint.relative_to(ROOT)), "events": len(records),
         "recordings": len({row["recording"] for row in records}),
         "intervention": "logged ego controls plus -8 m/s² from 1.00 s to 2.00 s",

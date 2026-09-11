@@ -1,9 +1,14 @@
-# Archived calibrated-residual/PPO protocol; not an active candidate.
+# Active response protocol: IDM prior with a PPO residual controller.
+schema_name: ppo_idm_response
+schema_version: 1
 base_config: hierarchical_world_model/config/world_model.yaml
 paths:
-  output_dir: results/hierarchical_world_model/archive/causal_reaction/calibrated_residual
-  rule_model: results/hierarchical_world_model/archive/causal_reaction/formal/idm_mobil/highd_global_idm_mobil.json
+  output_dir: results/hierarchical_world_model/ppo_idm_response
+  checkpoint: results/hierarchical_world_model/ppo_idm_response/checkpoint.pt
+  rule_model: results/hierarchical_world_model/ppo_idm_response/rules/idm_mobil.json
   event_reference: results/hierarchical_world_model/reaction_events
+model:
+  controller_mode: rl_residual_idm
 training:
   device: auto
   seed: 20260906
@@ -45,8 +50,6 @@ training:
   validation_futures: 32
   validation_patience: 4
   validation_minimum_improvement: 0.002
-  # Preserve the longitudinal schedule offset; lateral structure may return
-  # to the conditional macro reference.
   longitudinal_reference_offset_weight: 1.0
   lateral_reference_offset_weight: 0.0
 evidence:

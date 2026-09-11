@@ -23,6 +23,7 @@ from .nominal_preserving_controller import solve_hinge_calibrated_qp
 ControllerMode = Literal[
     "none", "handcrafted", "rl_residual", "rl_residual_idm",
     "idm_only", "calibrated_residual", "nominal_preserving_response", "common_physics",
+    "human_response_a2",
 ]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
@@ -72,6 +73,8 @@ class ReactionControllerContext:
     influence_predicted_ttc_s: torch.Tensor | None = None
     influence_predicted_min_gap_m: torch.Tensor | None = None
     policy_standard_normal: torch.Tensor | None = None
+    policy_extra_standard_normal: torch.Tensor | None = None
+    previous_base_background_actions: torch.Tensor | None = None
     # Immutable nominal-world values for research-only calibrated controllers.
     # They are supplied from a separately executed frozen world, never from
     # the actual world's pending ego action or from highD future completion.
@@ -92,6 +95,11 @@ class ReactionControllerOutput:
     rule_action_ax: torch.Tensor | None = None
     policy_features: torch.Tensor | None = None
     desired_action_ax: torch.Tensor | None = None
+    mechanism_scale: torch.Tensor | None = None
+    residual_action_ax: torch.Tensor | None = None
+    pre_guard_action_ax: torch.Tensor | None = None
+    physical_rewrite: torch.Tensor | None = None
+    correction_release: torch.Tensor | None = None
 
 
 def apply_handcrafted_response(
@@ -209,7 +217,12 @@ def _policy_sample(
         return distribution.mean
     if context.policy_standard_normal is None:
         return distribution.rsample()
-    return distribution.mean + distribution.stddev * context.policy_standard_normal.to(distribution.mean)
+    noise = context.policy_standard_normal.to(distribution.mean)
+    if distribution.mean.shape[-1] > noise.shape[-1]:
+        if context.policy_extra_standard_normal is None:
+            raise ValueError("three-action policy requires policy_response_extra_innovations")
+        noise = torch.cat((noise, context.policy_extra_standard_normal.to(distribution.mean)), dim=-1)
+    return distribution.mean + distribution.stddev * noise[..., :distribution.mean.shape[-1]]
 
 
 class NoReactionController(ReactionController):
@@ -986,6 +999,130 @@ class CalibratedResidualReactionController(ReactionController):
         )
 
 
+class HumanResponseA2Controller(ReactionController):
+    """Event-conditioned A2 with a HiQR anchor and physical-only release."""
+
+    mode = "human_response_a2"
+
+    def __init__(self, rule_model: RuleModelBundle, hidden_dim: int = 128) -> None:
+        super().__init__()
+        self.rule_model = rule_model
+        feature_dim = REACTION_FEATURE_DIM + 1
+        self.actor = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim), nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.SiLU(),
+        )
+        self.actor_mean = nn.Linear(hidden_dim, 3)
+        nn.init.zeros_(self.actor_mean.weight)
+        nn.init.zeros_(self.actor_mean.bias)
+        # The factual base is HiQR.  A new response head must begin as a
+        # local, nearly inactive correction rather than silently replacing
+        # normal driving before it has seen an interaction.
+        nn.init.constant_(self.actor_mean.bias[:1], -4.0)
+        self.actor_log_std = nn.Parameter(torch.full((3,), -0.7))
+        self.critic = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim), nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, 1),
+        )
+
+    def _features(self, context: ReactionControllerContext, rule: torch.Tensor) -> torch.Tensor:
+        return torch.cat((controller_features(context), rule[:, :, None] / 8.0), dim=-1)
+
+    def distribution_and_value(self, features: torch.Tensor) -> tuple[torch.distributions.Normal, torch.Tensor]:
+        hidden = self.actor(features)
+        mean = self.actor_mean(hidden)
+        return torch.distributions.Normal(mean, self.actor_log_std.exp().expand_as(mean)), self.critic(features).squeeze(-1)
+
+    def evaluate_raw_action(self, features: torch.Tensor, raw_action: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        distribution, value = self.distribution_and_value(features)
+        return distribution.log_prob(raw_action).sum(-1), distribution.entropy().sum(-1), value
+
+    @staticmethod
+    def map_final_action(
+        *, base: torch.Tensor, rule: torch.Tensor, authority: torch.Tensor,
+        active: torch.Tensor, mechanism_allowed: torch.Tensor, raw: torch.Tensor,
+        previous_correction: torch.Tensor, minimum: float, maximum: float,
+        dt_s: float, correction_jerk_limit_mps3: float = 12.0,
+    ) -> dict[str, torch.Tensor]:
+        """Apply the exact same differentiable physical map in training/runtime."""
+        gate = torch.sigmoid(raw[..., 0]) * authority * active.float()
+        scale = 1.5 * torch.sigmoid(raw[..., 1]) * mechanism_allowed.float()
+        residual = 4.0 * torch.tanh(raw[..., 2])
+        requested = gate * (scale * (rule - base) + residual)
+        pre_guard = base + requested
+        bounded = pre_guard.clamp(minimum, maximum)
+        target_correction = bounded - base
+        step = float(correction_jerk_limit_mps3) * float(dt_s)
+        release = ~active & previous_correction.abs().gt(1.0e-6)
+        effective = active | release
+        limited = previous_correction + (target_correction - previous_correction).clamp(-step, step)
+        correction = torch.where(effective, limited, torch.zeros_like(limited))
+        final = (base + correction).clamp(minimum, maximum)
+        correction = final - base
+        return {
+            "final": final,
+            "gate": gate,
+            "scale": scale,
+            "residual": residual,
+            "pre_guard": pre_guard,
+            "physical_rewrite": (final - pre_guard).abs().gt(1.0e-6),
+            "release": release,
+            "active": effective,
+        }
+
+    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
+        from .influence_graph import ROLE_CUTIN_CONFLICT, ROLE_SAME_LANE_FOLLOWER, ROLE_SECONDARY_FOLLOWER
+
+        base = context.base_actions[:, 0, :, 0]
+        rule = _dynamic_idm_reference(self.rule_model, context)
+        features = self._features(context, rule)
+        distribution, value = self.distribution_and_value(features)
+        raw = _policy_sample(distribution, context, deterministic)
+        authority = torch.zeros_like(base) if context.influence_authority is None else context.influence_authority
+        role = torch.zeros_like(authority, dtype=torch.long) if context.influence_role is None else context.influence_role
+        following = (role == ROLE_SAME_LANE_FOLLOWER) | (role == ROLE_SECONDARY_FOLLOWER)
+        response_role = following | (role == ROLE_CUTIN_CONFLICT)
+        active = context.current_valid[:, 1:] & authority.gt(0.0) & response_role
+        if context.previous_background_actions is None or context.previous_base_background_actions is None:
+            previous_correction = torch.zeros_like(base)
+        else:
+            previous_correction = (
+                context.previous_background_actions[..., 0]
+                - context.previous_base_background_actions[..., 0]
+            )
+        mapped = self.map_final_action(
+            base=base, rule=rule, authority=authority, active=active,
+            mechanism_allowed=following, raw=raw,
+            previous_correction=previous_correction,
+            minimum=float(context.cfg.min_acceleration_mps2),
+            maximum=float(context.cfg.max_acceleration_mps2),
+            dt_s=float(context.cfg.dt_s),
+            correction_jerk_limit_mps3=float(getattr(context.cfg, "controller_correction_jerk_limit_mps3", 12.0)),
+        )
+        actions = context.base_actions.clone()
+        actions[:, 0, :, 0] = mapped["final"]
+        log_prob = distribution.log_prob(raw).sum(-1) * mapped["active"].float()
+        entropy = distribution.entropy().sum(-1) * mapped["active"].float()
+        return ReactionControllerOutput(
+            actions=actions,
+            alpha=mapped["gate"],
+            delta_ax=mapped["final"] - base,
+            active=mapped["active"],
+            log_prob=log_prob,
+            entropy=entropy,
+            value=value,
+            raw_action=raw,
+            rule_action_ax=rule,
+            policy_features=features,
+            desired_action_ax=mapped["final"],
+            mechanism_scale=mapped["scale"],
+            residual_action_ax=mapped["residual"],
+            pre_guard_action_ax=mapped["pre_guard"],
+            physical_rewrite=mapped["physical_rewrite"],
+            correction_release=mapped["release"],
+        )
+
+
 class NominalPreservingReactionController(ReactionController):
     """Research-only 25-frame convex response layer; executes its first action."""
     mode = "nominal_preserving_response"  # type: ignore[assignment]
@@ -1150,6 +1287,8 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
         return IDMOnlyReactionController(**kwargs)
     if mode == "calibrated_residual":
         return CalibratedResidualReactionController(**kwargs)
+    if mode == "human_response_a2":
+        return HumanResponseA2Controller(**kwargs)
     if mode == "nominal_preserving_response":
         return NominalPreservingReactionController()
     if mode == "common_physics":
