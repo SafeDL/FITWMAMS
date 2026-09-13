@@ -1,0 +1,14 @@
+{
+  "schema": "cih_replay_snapshot_prefix_tests",
+  "sequences": 2,
+  "same_world_same_policy_states_exact": true,
+  "same_world_same_policy_actions_exact": true,
+  "snapshot_restore_states_exact": true,
+  "snapshot_restore_actions_exact": true,
+  "future_intervention_npc_prefix_exact": true,
+  "pending_ego_command_current_npc_action_exact": true,
+  "future_noise_suffix_prefix_states_exact": true,
+  "future_noise_suffix_prefix_actions_exact": true,
+  "future_noise_suffix_changes_future": true,
+  "passed": true
+}

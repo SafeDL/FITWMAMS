@@ -40,7 +40,20 @@ def loo_energy_rewards(
 def event_energy_score(
     futures: torch.Tensor, observed: torch.Tensor, response_iqr: torch.Tensor,
 ) -> torch.Tensor:
-    """Proper Energy Score for one observed response and stochastic futures."""
+    """Fair/U-statistic Energy Score for one observed response."""
+    model = normalized_response(futures, response_iqr).flatten(1)
+    target = normalized_response(observed[None], response_iqr).flatten(1)
+    count = len(model)
+    if count < 2:
+        raise ValueError("fair Energy Score requires at least two futures")
+    pairwise = torch.cdist(model, model)
+    return torch.cdist(model, target).mean() - pairwise.sum() / (2.0 * count * (count - 1))
+
+
+def legacy_event_energy_score(
+    futures: torch.Tensor, observed: torch.Tensor, response_iqr: torch.Tensor,
+) -> torch.Tensor:
+    """Historical finite-ensemble V-statistic, retained for reporting only."""
     model = normalized_response(futures, response_iqr).flatten(1)
     target = normalized_response(observed[None], response_iqr).flatten(1)
     return torch.cdist(model, target).mean() - 0.5 * torch.cdist(model, model).mean()
@@ -52,12 +65,13 @@ def loo_event_energy_rewards(
     """Exact contribution reward for an event-level Energy Score."""
     if len(futures) < 3:
         raise ValueError("LOO Event Energy Score requires at least three futures")
+    full = event_energy_score(futures, observed, response_iqr)
     scores = []
     for index in range(len(futures)):
         kept = torch.cat((futures[:index], futures[index + 1:]), dim=0)
         scores.append(event_energy_score(kept, observed, response_iqr))
-    score = torch.stack(scores)
-    return score - score.mean()
+    leave_one_out = torch.stack(scores)
+    return len(futures) * (-full + leave_one_out)
 
 
 def prefix_loo_event_energy_rewards(

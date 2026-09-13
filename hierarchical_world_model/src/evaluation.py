@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -29,6 +30,7 @@ from .calibration import evaluation_response_calibration
 from .planner import frozen_diffusion_plans, stochastic_diffusion_plan_samples
 from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
 from .influence_graph import CausalInfluenceGraph, InfluenceGraphState
+from .randomness import WorldExogenousState
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,31 @@ class Rollout:
     reference_actions: np.ndarray
     base_background_actions: np.ndarray | None = None
     controller_diagnostics: dict[str, np.ndarray] | None = None
+    snapshots: dict[int, "RolloutState"] | None = None
+
+
+@dataclass(frozen=True)
+class RolloutState:
+    """Complete mutable state at one formal rollout decision boundary."""
+
+    response_index: int
+    states: torch.Tensor
+    valid: torch.Tensor
+    history: torch.Tensor
+    history_valid: torch.Tensor
+    filter_state: Any
+    slow_scene: Any
+    slow_scene_noise: Any
+    agent_noise_state: Any
+    agent_style_state: Any
+    previous_current: Any
+    committed_ego_controls: torch.Tensor
+    intervention_memory: Any
+    lateral_intervention_memory: Any
+    influence_state: InfluenceGraphState | None
+    previous_background_actions: Any
+    previous_calibration_correction: Any
+    previous_causal_gate: Any
 
 
 EgoActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
@@ -101,14 +128,17 @@ def rollout(
     excluded_slots: tuple[str, ...] | None = None,
     nominal_reference: Rollout | None = None,
     influence_graph_config: dict[str, float | int] | None = None,
+    exogenous_state: WorldExogenousState | None = None,
+    teacher_forced_logged_context: bool = False,
+    resume_state: RolloutState | None = None,
+    snapshot_at_steps: tuple[int, ...] = (),
+    record_policy_trace: bool = True,
 ) -> Rollout:
     """Run one causal offline response rollout for a matched batch.
 
-    ``nominal_reference`` is an already-executed matched model rollout.  It
-    is only used for paired interventions and exposes current nominal model
-    actions, rule actions and submitted ego commands to a post-HiQR
-    controller.  It never supplies a logged future state or future human
-    action.
+    ``nominal_reference`` is a legacy paired-evaluator alignment assertion.
+    Its shapes and required traces are validated, but none of its values are
+    exposed to the controller or used to produce this rollout.
     """
     if excluded_slots is None:
         logged_states, logged_valid = scoped_canonical_trajectory(
@@ -134,6 +164,15 @@ def rollout(
         _logged_ego_actions(logged_states, logged_valid)
     ).to(device)
     scheduled_ego = _intervene(logged_ego, intervention, dose)
+    if exogenous_state is not None:
+        exogenous_state.validate(
+            response_steps=149,
+            scene_refresh_responses=model.cfg.scene_refresh_responses,
+            scene_dim=model.cfg.scene_latent_dim,
+            agent_dim=model.cfg.agent_latent_dim,
+        )
+        if exogenous_state.batch_size != len(states):
+            raise ValueError("exogenous state batch does not match rollout batch")
     if nominal_reference is not None:
         if nominal_reference.background_actions.shape[:2] != (len(states), 149):
             raise ValueError("nominal reference actions must align with the current 149-frame rollout")
@@ -194,6 +233,14 @@ def rollout(
     controller_value: list[torch.Tensor] = []
     controller_prior_nominal: list[torch.Tensor] = []
     controller_prior_correction: list[torch.Tensor] = []
+    controller_extra: dict[str, list[torch.Tensor]] = {
+        name: [] for name in (
+            "policy_active", "execution_active", "release_active",
+            "requested_total_correction_ax", "projected_total_correction_ax",
+            "executed_total_correction_ax", "calibration_relative_to_prior_ax",
+            "correction_constraint_infeasible",
+        )
+    }
     filter_state = None
     slow_scene = None
     slow_scene_noise = None
@@ -218,7 +265,38 @@ def rollout(
     # factual effect of a controller-on policy.
     controller_enabled = torch.zeros(len(states), dtype=torch.bool, device=device)
     execute = model.cfg.execute_frames
-    for start in range(0, 149, execute):
+    first_step = 0
+    if resume_state is not None:
+        if resume_state.states.shape[0] != len(states):
+            raise ValueError("rollout snapshot batch does not match input batch")
+        first_step = int(resume_state.response_index)
+        for name in (
+            "states", "valid", "history", "history_valid", "filter_state", "slow_scene",
+            "slow_scene_noise", "agent_noise_state", "agent_style_state", "previous_current",
+            "committed_ego_controls", "intervention_memory", "lateral_intervention_memory",
+            "influence_state", "previous_background_actions", "previous_calibration_correction",
+            "previous_causal_gate",
+        ):
+            locals_value = copy.deepcopy(getattr(resume_state, name))
+            if name == "states": states = locals_value
+            elif name == "valid": valid = locals_value
+            elif name == "history": history = locals_value
+            elif name == "history_valid": history_valid = locals_value
+            elif name == "filter_state": filter_state = locals_value
+            elif name == "slow_scene": slow_scene = locals_value
+            elif name == "slow_scene_noise": slow_scene_noise = locals_value
+            elif name == "agent_noise_state": agent_noise_state = locals_value
+            elif name == "agent_style_state": agent_style_state = locals_value
+            elif name == "previous_current": previous_current = locals_value
+            elif name == "committed_ego_controls": committed_ego_controls = locals_value
+            elif name == "intervention_memory": intervention_memory = locals_value
+            elif name == "lateral_intervention_memory": lateral_intervention_memory = locals_value
+            elif name == "influence_state": influence_state = locals_value
+            elif name == "previous_background_actions": previous_background_actions = locals_value
+            elif name == "previous_calibration_correction": previous_calibration_correction = locals_value
+            elif name == "previous_causal_gate": previous_causal_gate = locals_value
+    snapshots: dict[int, RolloutState] = {}
+    for start in range(first_step, 149, execute):
         count = min(execute, 149 - start)
         preview = reference[:, start : start + model.cfg.preview_frames]
         if preview.shape[1] < model.cfg.preview_frames:
@@ -272,7 +350,18 @@ def rollout(
             device=device,
             dtype=states.dtype,
         )
-        if generator is not None:
+        if exogenous_state is not None:
+            scene_index = min(
+                start // int(exogenous_state.scene_refresh_responses),
+                exogenous_state.scene_innovation_count - 1,
+            )
+            scene_noise = torch.from_numpy(
+                exogenous_state.scene_innovations[:, scene_index]
+            ).to(device=device, dtype=states.dtype)
+            agent_noise = torch.from_numpy(
+                exogenous_state.agent_response_innovations[:, start]
+            ).to(device=device, dtype=states.dtype)
+        elif generator is not None:
             scene_noise.normal_(generator=generator)
             agent_noise.normal_(generator=generator)
         response = model(
@@ -296,7 +385,7 @@ def rollout(
             response_index=start // execute,
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
-            deterministic=motion_seed is None,
+            deterministic=motion_seed is None and exogenous_state is None,
             apply_intervention_adapter=controller is None,
             apply_explicit_ego_response=True,
         )
@@ -323,21 +412,11 @@ def rollout(
                 model.cfg.intervention_trigger_threshold_mps2,
             ))
             controller_enabled = (
-                ego_block[:, 0, 0] - committed_ego_controls[:, -1, 0] < -threshold
+                committed_ego_controls[:, -1, 0] - committed_ego_controls[:, -2, 0]
+                < -threshold
+            ) if committed_ego_controls.shape[1] >= 2 else torch.zeros(
+                len(states), dtype=torch.bool, device=device
             )
-            nominal_current_action = None
-            nominal_rule_action = None
-            nominal_ego_action = None
-            if nominal_reference is not None:
-                nominal_current_action = torch.from_numpy(
-                    nominal_reference.background_actions[:, start, :, 0]
-                ).to(device=device, dtype=states.dtype)
-                nominal_rule_action = torch.from_numpy(
-                    nominal_reference.controller_diagnostics["rule_action_ax"][:, start]
-                ).to(device=device, dtype=states.dtype)
-                nominal_ego_action = torch.from_numpy(
-                    nominal_reference.ego_actions[:, start]
-                ).to(device=device, dtype=states.dtype)
             context = ReactionControllerContext(
                 history=history, history_valid=history_valid, current=states,
                 current_valid=valid, committed_ego_controls=committed_ego_controls,
@@ -366,10 +445,16 @@ def rollout(
                 influence_predicted_min_gap_m=influence_state.predicted_min_gap_m,
                 previous_calibration_correction=previous_calibration_correction,
                 previous_causal_gate=previous_causal_gate,
-                nominal_current_action=nominal_current_action,
-                nominal_rule_action_ax=nominal_rule_action,
-                ego_action=ego_block[:, 0],
-                nominal_ego_action=nominal_ego_action,
+                policy_standard_normal=(
+                    None if exogenous_state is None else torch.from_numpy(
+                        exogenous_state.policy_response_innovations[:, start]
+                    ).to(device=device, dtype=states.dtype)
+                ),
+                policy_calibration_standard_normal=(
+                    None if exogenous_state is None else torch.from_numpy(
+                        exogenous_state.policy_calibration_innovations[:, start]
+                    ).to(device=device, dtype=states.dtype)
+                ),
             )
             output = controller(context, deterministic=controller_deterministic)
             response_actions = output.actions
@@ -397,18 +482,26 @@ def rollout(
             controller_influence_role.append(influence_state.role.detach())
             controller_influence_direct.append(influence_state.direct.detach())
             controller_influence_secondary.append(influence_state.secondary.detach())
-            if output.policy_features is not None:
-                controller_policy_features.append(output.policy_features.detach())
-            if output.raw_action is not None:
-                controller_raw_action.append(output.raw_action.detach())
-            if output.log_prob is not None:
-                controller_log_prob.append(output.log_prob.detach())
-            if output.value is not None:
-                controller_value.append(output.value.detach())
+            # PPO training consumes these tensors. Formal evaluation does not,
+            # and a complete split otherwise retains tens of gigabytes of
+            # per-frame policy features before metrics are reduced.
+            if record_policy_trace:
+                if output.policy_features is not None:
+                    controller_policy_features.append(output.policy_features.detach())
+                if output.raw_action is not None:
+                    controller_raw_action.append(output.raw_action.detach())
+                if output.log_prob is not None:
+                    controller_log_prob.append(output.log_prob.detach())
+                if output.value is not None:
+                    controller_value.append(output.value.detach())
             if output.response_prior_nominal_action_ax is not None:
                 controller_prior_nominal.append(output.response_prior_nominal_action_ax.detach())
             if output.response_prior_correction_ax is not None:
                 controller_prior_correction.append(output.response_prior_correction_ax.detach())
+            for name, values in controller_extra.items():
+                value = getattr(output, name)
+                if value is not None:
+                    values.append(value.detach())
             # ``rollout`` evaluates the one-frame execution contract, whereas
             # controllers may still expose an explicit horizon dimension.  The
             # carried actuator state must therefore be the action actually
@@ -435,6 +528,13 @@ def rollout(
                 (ego_block[:, frame, None], response_actions[:, frame]), dim=1
             )
             states = model.dynamics.step(states, controls, valid, model.cfg.dt_s)
+            if teacher_forced_logged_context:
+                states = torch.from_numpy(
+                    logged_states[:, ANCHOR_INDEX + start + frame + 1].copy()
+                ).to(device)
+                valid = torch.from_numpy(
+                    logged_valid[:, ANCHOR_INDEX + start + frame + 1].copy()
+                ).to(device)
             new_frames.append(states)
         executed_ego.append(ego_block[:, :count])
         committed_ego_controls = torch.cat(
@@ -450,6 +550,22 @@ def rollout(
         history_valid = torch.cat((history_valid, block_valid), dim=1)[
             :, -history_frames:
         ]
+        boundary = start + count
+        if boundary in snapshot_at_steps:
+            snapshots[boundary] = copy.deepcopy(RolloutState(
+                response_index=boundary, states=states, valid=valid,
+                history=history, history_valid=history_valid, filter_state=filter_state,
+                slow_scene=slow_scene, slow_scene_noise=slow_scene_noise,
+                agent_noise_state=agent_noise_state, agent_style_state=agent_style_state,
+                previous_current=previous_current,
+                committed_ego_controls=committed_ego_controls,
+                intervention_memory=intervention_memory,
+                lateral_intervention_memory=lateral_intervention_memory,
+                influence_state=influence_state,
+                previous_background_actions=previous_background_actions,
+                previous_calibration_correction=previous_calibration_correction,
+                previous_causal_gate=previous_causal_gate,
+            ))
     return Rollout(
         torch.cat(generated, dim=1).cpu().numpy(),
         torch.cat(background_actions, dim=1).cpu().numpy(),
@@ -492,7 +608,13 @@ def rollout(
                 {"response_prior_correction_ax": torch.stack(controller_prior_correction, dim=1).cpu().numpy()}
                 if len(controller_prior_correction) == len(controller_alpha) else {}
             ),
+            **{
+                name: torch.stack(values, dim=1).cpu().numpy()
+                for name, values in controller_extra.items()
+                if len(values) == len(controller_alpha)
+            },
         },
+        snapshots or None,
     )
 
 

@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import inspect
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,13 +38,14 @@ from hierarchical_world_model.src.cih_training import (
 from hierarchical_world_model.src.human_response_prior import HumanResponseQuerySet
 from hierarchical_world_model.src.cih_model import build_response_policy
 from hierarchical_world_model.src.reaction_controller import CausalInfluenceResponsePolicy
-from hierarchical_world_model.src.reaction_evidence import ReactionEventReference
+from hierarchical_world_model.src.reaction_evidence import ReactionEventReference, event_identity
 from hierarchical_world_model.src.train import load_checkpoint
 from hierarchical_world_model.src.planner import (
     complete_endogenous_response_plans,
     frozen_diffusion_plans,
 )
 from world_model.src.core.utils import file_sha256, select_device
+from hierarchical_world_model.src.protocol import canonical_hash
 
 
 def _arrays(bundle, rows: np.ndarray) -> dict[str, np.ndarray]:
@@ -55,9 +59,12 @@ def _controller(config: dict, device: torch.device) -> CausalInfluenceResponsePo
     return build_response_policy(config, root=ROOT, device=device)
 
 
-def _event_key(reference: ReactionEventReference, index: int) -> int:
+def _event_key(reference: ReactionEventReference, index: int) -> str:
     event = reference.events
-    return int(event.absolute_onset_frame[index] + 10_000_000 * event.recording_id[index])
+    return event_identity(
+        event.recording_id[index], event.leader_id[index],
+        event.follower_id[index], event.absolute_onset_frame[index],
+    )
 
 
 def main() -> None:
@@ -79,7 +86,7 @@ def main() -> None:
     device = select_device(world["training"].get("device", "auto"))
     seed = int(config["policy_optimization"]["seed"])
     torch.manual_seed(seed); np.random.seed(seed)
-    root = (ROOT / args.output_dir) if args.output_dir is not None else cih_result_root(ROOT, config) / "runs" / "training"
+    root = (ROOT / args.output_dir) if args.output_dir is not None else cih_result_root(ROOT, config) / "continuation"
     root.mkdir(parents=True, exist_ok=True)
     if (root / "response_policy.pt").exists():
         raise RuntimeError("training output is immutable; choose a new --output-dir")
@@ -159,6 +166,28 @@ def main() -> None:
         "event_pool": int(len(event_pool)),
         "event_limit": args.event_limit,
         "seed": seed,
+        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "working_tree_diff_hash": hashlib.sha256(
+            subprocess.check_output(["git", "diff", "--binary"], cwd=ROOT)
+        ).hexdigest(),
+        "resolved_config_hash": canonical_hash({"cih": config, "world": world}),
+        "dataset_split_hash": hashlib.sha256(np.asarray(event_rows, np.int64).tobytes()).hexdigest(),
+        "event_schema_hash": file_sha256(
+            ROOT / config["paths"]["event_reference"] / "train" / "manifest.json"
+        ),
+        "reference_contract_hash": canonical_hash({
+            "mode": "conditioned_reconstruction", "future_ego_action_is_model_input": False,
+            "excluded_slots": [],
+        }),
+        "plan_cache_hash": file_sha256(root / "frozen_diffusion_plans" / "frozen_diffusion_test_plans.npz"),
+        "action_map_hash": hashlib.sha256(
+            inspect.getsource(CausalInfluenceResponsePolicy.map_calibration_tensors).encode()
+        ).hexdigest(),
+        "observation_timing_hash": canonical_hash({
+            "decision": "observe H_t,x_t", "action": "applied [t,t+dt)",
+            "next_state": "x_t_plus_1", "dt_s": 0.04,
+        }),
+        "randomness_spec_hash": file_sha256(ROOT / "hierarchical_world_model/src/randomness.py"),
         "training_schedule": {
             "supervised_updates": supervised_updates,
             "policy_updates": policy_updates,
@@ -250,9 +279,9 @@ def main() -> None:
     optimizer = torch.optim.Adam(controller.adapter.parameters(), lr=float(optimization["learning_rate_start"]))
     reference_adapter = copy.deepcopy(controller.adapter).eval()
     query = HumanResponseQuerySet.load(
-        cih_result_root(ROOT, config) / "evidence" / "human_response" / "train"
+        ROOT / config["paths"]["human_response_evidence"] / "train"
     )
-    lookup = {int(key): index for index, key in enumerate(query.event_key)}
+    lookup = {str(key): index for index, key in enumerate(query.event_key)}
     if futures < 3:
         raise ValueError("policy optimization requires at least three futures for leave-one-out Energy Score rewards")
     coefficient = float(optimization["reference_kl_coefficient"])
@@ -281,10 +310,47 @@ def main() -> None:
                 break
         if buffer is None:
             raise RuntimeError("formal PPO batch has no active supported response samples after 16 fixed-population draws")
-        entry, coefficient = response_policy_update(controller, reference_adapter, optimizer, buffer, runtime, optimization, coefficient)
+        def auxiliary_loss() -> torch.Tensor:
+            teacher_indices = torch.randint(
+                len(cache["features"]),
+                (min(int(config["supervised"]["minibatch_size"]), len(cache["features"])),),
+            )
+            teacher = response_supervised_loss(
+                controller, cache, teacher_indices,
+                prior_weight=float(config["supervised"]["prior_regularization"]),
+                non_weight=float(config["supervised"]["non_event_calibration_weight"]),
+                event_weight=float(config["supervised"].get("event_weight", 1.0)),
+                non_event_weight=float(config["supervised"].get("non_event_weight", 1.0)),
+            )
+            contrast_indices = torch.randint(
+                len(contrast["nominal_features"]),
+                (min(256, len(contrast["nominal_features"])),),
+            )
+            mechanism, _ = causal_contrast_loss(
+                controller, contrast, contrast_indices,
+                direction_margin_mps2=float(config["auxiliary"].get("direction_margin_mps2", 0.05)),
+                direction_weight=float(config["auxiliary"].get("causal_direction_weight", 1.0)),
+                magnitude_weight=float(config["auxiliary"].get("causal_magnitude_weight", 0.1)),
+                monotonic_weight=float(config["auxiliary"].get("causal_monotonic_weight", 1.0)),
+            )
+            return 0.1 * teacher + float(config["auxiliary"].get("causal_contrast_weight", 1.0)) * mechanism
+
+        entry, coefficient = response_policy_update(
+            controller, reference_adapter, optimizer, buffer, runtime,
+            optimization, coefficient, auxiliary_loss=auxiliary_loss,
+        )
         history.append({"update": update + 1, **entry})
     (root / "training_history.json").write_text(json.dumps(history, indent=2) + "\n")
+    manifest["actual_optimizer_steps"] = {
+        "supervised": supervised_updates,
+        "policy_updates_attempted": len(history),
+        "policy_updates_rolled_back": int(sum(bool(item.get("rolled_back")) for item in history)),
+    }
+    manifest["termination_reason"] = "fixed_budget_complete"
+    (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     torch.save({"schema": "cih_world_model", "stage": "response_policy_unselected", "calibrator_state_dict": controller.adapter.state_dict()}, root / "response_policy.pt")
+    manifest["calibrator_checkpoint_hash"] = file_sha256(root / "response_policy.pt")
+    (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (root / "selection_status.json").write_text(json.dumps({
         "selected": False,
         "promotion_status": "requires_complete_validation_before_candidate_selection",

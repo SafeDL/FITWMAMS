@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 from pathlib import Path
 
@@ -24,6 +25,17 @@ TTC_EDGES = (0.0, 2.0, 4.0, np.inf)
 PRE_EVENT_FRAMES = 25
 EVALUATION_FRAMES = 25
 RECOVERY_FRAMES = 75
+
+
+def event_identity(
+    recording_id: int, leader_id: int, follower_id: int, absolute_onset_frame: int,
+) -> str:
+    """Collision-resistant identity for one physical leader/follower event."""
+    material = (
+        f"{int(recording_id)}:{int(leader_id)}:{int(follower_id)}:"
+        f"{int(absolute_onset_frame)}"
+    ).encode("ascii")
+    return hashlib.sha256(material).hexdigest()
 
 
 def support_cell(brake_mps2: float, ttc_s: float) -> int:
@@ -302,6 +314,20 @@ def event_window(events: ReactionEvents, *, recovery: bool = False) -> np.ndarra
 
 
 def energy_score(futures: np.ndarray, observed: np.ndarray) -> float:
+    """Fair/U-statistic Energy Score for an ensemble."""
+    samples = np.asarray(futures, np.float64).reshape(len(futures), -1)
+    target = np.asarray(observed, np.float64).reshape(1, -1)
+    if len(samples) < 2:
+        raise ValueError("Energy Score requires at least two futures")
+    pairwise = np.linalg.norm(samples[:, None] - samples[None, :], axis=-1)
+    return float(
+        np.linalg.norm(samples - target, axis=1).mean()
+        - pairwise.sum() / (2.0 * len(samples) * (len(samples) - 1))
+    )
+
+
+def legacy_energy_score(futures: np.ndarray, observed: np.ndarray) -> float:
+    """Historical V-statistic retained under an explicit compatibility name."""
     samples = np.asarray(futures, np.float64).reshape(len(futures), -1)
     target = np.asarray(observed, np.float64).reshape(1, -1)
     if len(samples) < 2:

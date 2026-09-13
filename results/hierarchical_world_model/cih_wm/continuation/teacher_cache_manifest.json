@@ -1,0 +1,59 @@
+{
+  "causal_contrast": {
+    "doses": [
+      1.5,
+      2.25,
+      3.0
+    ],
+    "frames": 46126,
+    "future_logged_state_used": false,
+    "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/causal_contrast_cache.pt",
+    "sha256": "866b38e36c2972c911e02cd3bae35bcb5c4e52bc0d94846df2d36831391de0a5"
+  },
+  "event_rows": 138075,
+  "feature_dim": 133,
+  "fields": {
+    "active": [
+      184100
+    ],
+    "authority": [
+      184100
+    ],
+    "base_action": [
+      184100
+    ],
+    "event": [
+      184100
+    ],
+    "features": [
+      184100,
+      133
+    ],
+    "following": [
+      184100
+    ],
+    "nominal": [
+      184100
+    ],
+    "previous": [
+      184100
+    ],
+    "response_prior_correction": [
+      184100
+    ],
+    "rule_target": [
+      184100
+    ],
+    "target": [
+      184100
+    ]
+  },
+  "history_frames": 25,
+  "logged_context": true,
+  "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/response_teacher_cache.pt",
+  "response_horizon_frames": 75,
+  "rows": 184100,
+  "same_rear_masked": false,
+  "schema": "cih_teacher_cache_manifest",
+  "sha256": "271c22c865168ce9c02f36c74a2221d6c4dc317c03242f80d58c3af0cbd70bc4"
+}

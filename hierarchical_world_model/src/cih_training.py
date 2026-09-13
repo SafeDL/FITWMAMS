@@ -21,9 +21,10 @@ import yaml
 from diffusion.src.data import ANCHOR_INDEX
 
 from .evaluation import Rollout, rollout
-from .human_response_training import prefix_loo_event_energy_rewards
+from .human_response_training import loo_event_energy_rewards
 from .reaction_controller import CausalInfluenceResponsePolicy
-from .reaction_evidence import EVALUATION_FRAMES, ReactionEventReference
+from .reaction_evidence import PRE_EVENT_FRAMES, RECOVERY_FRAMES, ReactionEventReference
+from .randomness import WorldExogenousState
 
 
 @dataclass(frozen=True)
@@ -104,10 +105,9 @@ def response_supervised_loss(
     magnitude_weight: float = 0.1,
     direction_margin_mps2: float = 0.05,
 ) -> torch.Tensor:
-    """Fit the adapter on formal rollout states; logged actions are targets only."""
+    """Fit executable actions on logged physical histories."""
     features = cache["features"][indices].to(next(controller.adapter.parameters()).device)
     distribution, _ = controller.adapter.distribution_and_value(features)
-    event_gate_logits = controller.adapter.event_gate_logits(features)
     mapped = controller.map_calibration_tensors(
         nominal=cache["nominal"][indices].to(features),
         prior_correction=cache["response_prior_correction"][indices].to(features),
@@ -115,38 +115,24 @@ def response_supervised_loss(
         authority=cache["authority"][indices].to(features), raw=distribution.mean,
         previous_calibration=cache["previous"][indices].to(features),
         minimum=-8.0, maximum=4.0, dt_s=.04,
-        event_gate=controller.adapter.event_gate_probability(features, controller.event_gate_temperature),
-        calibration_strength=controller.event_calibration_strength,
+        jerk_limit_mps3=controller.correction_jerk_limit_mps3,
+        residual_max_mps2=controller.calibration_residual_max_mps2,
     )
     target, event = cache["target"][indices].to(features), cache["event"][indices].to(features).bool()
     zero = mapped["final"].sum() * 0.0
     event_loss = functional.huber_loss(mapped["final"][event], target[event]) if event.any() else zero
     non_loss = functional.huber_loss(mapped["final"][~event], target[~event]) if (~event).any() else zero
     non_calibration = mapped["calibration"][~event].abs().mean() if (~event).any() else zero
-    gate_loss = functional.binary_cross_entropy_with_logits(event_gate_logits, event.float())
-    rule = cache["rule_target"][indices].to(features)
     base = cache["base_action"][indices].to(features)
-    following = cache["following"][indices].to(features).bool()
-    rule_delta = rule - base
-    response_delta = mapped["final"] - base
-    mechanism = event & following & rule_delta.abs().ge(float(direction_margin_mps2))
-    if mechanism.any():
-        aligned = rule_delta[mechanism].sign() * response_delta[mechanism]
-        direction_loss = torch.relu(float(direction_margin_mps2) - aligned).mean()
-        magnitude_loss = functional.huber_loss(
-            mapped["final"][mechanism], rule[mechanism]
-        )
-    else:
-        direction_loss = zero
-        magnitude_loss = zero
+    factual_anchor = (mapped["final"] - base).abs().mean()
+    # Compatibility arguments remain accepted so old launchers fail neither
+    # parsing nor checkpoint loading.  Event-gate BCE and absolute rule-action
+    # regression are deliberately absent from the human teacher objective.
+    del event_gate_weight, mechanism_weight, direction_weight, magnitude_weight, direction_margin_mps2
     return (
         float(event_weight) * event_loss + float(non_event_weight) * non_loss
         + float(prior_weight) * distribution.mean.square().mean()
-        + float(non_weight) * non_calibration + float(event_gate_weight) * gate_loss
-        + float(mechanism_weight) * (
-            float(direction_weight) * direction_loss
-            + float(magnitude_weight) * magnitude_loss
-        )
+        + float(non_weight) * (non_calibration + factual_anchor)
     )
 
 
@@ -164,6 +150,7 @@ def response_policy_update(
     controller: CausalInfluenceResponsePolicy, reference_adapter: torch.nn.Module,
     optimizer: torch.optim.Optimizer, buffer: dict[str, torch.Tensor], config: ResponseOptimizationConfig,
     values: dict[str, Any], coefficient: float,
+    auxiliary_loss: Callable[[], torch.Tensor] | None = None,
 ) -> tuple[dict[str, float], float]:
     """One clipped policy update over samples emitted by the CIH-WM executor."""
     advantage, returns = _gae(buffer["reward"], buffer["value"], buffer["done"], config.gamma, config.gae_lambda)
@@ -174,6 +161,22 @@ def response_policy_update(
     raw, old = buffer["raw_action"].reshape(-1, 2)[active], buffer["log_prob"].reshape(-1)[active]
     advantage, returns = advantage.reshape(-1)[active], returns.reshape(-1)[active]
     advantage = (advantage - advantage.mean()) / advantage.std().clamp_min(1.e-6)
+    with torch.no_grad():
+        recomputed, _, _ = controller.evaluate_raw_action(features, raw)
+    # The trace crosses a NumPy serialization boundary; CUDA Normal.log_prob
+    # can differ by a few float32 ulps when recomputed from that buffer.
+    if not torch.allclose(recomputed, old, rtol=1.e-5, atol=2.e-5):
+        difference = (recomputed - old).abs()
+        raise RuntimeError(
+            "stored and recomputed PPO log probabilities differ before update: "
+            f"max={float(difference.max()):.9g}, mean={float(difference.mean()):.9g}, "
+            f"stored_range=({float(old.min()):.9g},{float(old.max()):.9g})"
+        )
+    before = {name: value.detach().clone() for name, value in controller.adapter.state_dict().items()}
+    with torch.no_grad():
+        before_distribution, _ = controller.adapter.distribution_and_value(features)
+        before_mean = before_distribution.mean.clone()
+        before_std = before_distribution.stddev.clone()
     losses: list[float] = []; kls: list[float] = []; references: list[float] = []
     for _ in range(config.epochs_per_update):
         current_kls: list[float] = []
@@ -185,24 +188,38 @@ def response_policy_update(
             with torch.no_grad():
                 reference, _ = reference_adapter.distribution_and_value(features[subset])
             reference_kl = torch.distributions.kl_divergence(current, reference).sum(-1).mean()
-            loss = policy + config.value_coefficient * functional.mse_loss(value, returns[subset]) - float(values["entropy_coefficient"]) * entropy.mean() + coefficient * reference_kl
+            auxiliary = policy.new_zeros(()) if auxiliary_loss is None else auxiliary_loss()
+            loss = policy + config.value_coefficient * functional.mse_loss(value, returns[subset]) - float(values["entropy_coefficient"]) * entropy.mean() + coefficient * reference_kl + auxiliary
             optimizer.zero_grad(set_to_none=True); loss.backward()
             torch.nn.utils.clip_grad_norm_(controller.adapter.parameters(), config.max_grad_norm); optimizer.step()
             approximate = float((old[subset] - log_prob).mean().detach())
             current_kls.append(approximate); kls.append(approximate); references.append(float(reference_kl.detach())); losses.append(float(loss.detach()))
         if current_kls and max(current_kls) > float(values["inner_stop_kl"]):
             break
+    with torch.no_grad():
+        current_distribution, _ = controller.adapter.distribution_and_value(features)
+        frozen_before = torch.distributions.Normal(before_mean, before_std)
+        full_update_kl = float(
+            torch.distributions.kl_divergence(frozen_before, current_distribution).sum(-1).mean()
+        )
+    rolled_back = full_update_kl > float(values.get("full_update_kl_limit", float("inf")))
+    if rolled_back:
+        controller.adapter.load_state_dict(before, strict=True)
     mean_reference = float(np.mean(references)); target = float(values["reference_kl_target"])
     coefficient = coefficient * (2.0 if mean_reference > 1.5 * target else .5 if mean_reference < target / 1.5 else 1.0)
     coefficient = float(np.clip(coefficient, values["reference_kl_minimum"], values["reference_kl_maximum"]))
-    return {"policy_loss": float(np.mean(losses)), "approx_kl": float(np.mean(kls)), "reference_kl": mean_reference}, coefficient
+    return {
+        "policy_loss": float(np.mean(losses)), "approx_kl": float(np.mean(kls)),
+        "reference_kl": mean_reference, "full_update_kl": full_update_kl,
+        "rolled_back": bool(rolled_back),
+    }, coefficient
 
 
 def _required_trace(
     result: Rollout, *, device: torch.device, expected_steps: int = 149,
 ) -> ResponsePolicyTrace:
     diagnostics = result.controller_diagnostics
-    required = ("policy_features", "raw_action", "log_prob", "value", "active")
+    required = ("policy_features", "raw_action", "log_prob", "value", "policy_active")
     if diagnostics is None or any(name not in diagnostics for name in required):
         missing = required if diagnostics is None else tuple(name for name in required if name not in diagnostics)
         raise RuntimeError(f"formal rollout did not expose complete PPO trace: {missing}")
@@ -227,7 +244,7 @@ def _required_trace(
         raw_action=tensors["raw_action"].detach(),
         log_prob=tensors["log_prob"].detach(),
         value=tensors["value"].detach(),
-        active=tensors["active"].bool().detach(),
+        active=tensors["policy_active"].bool().detach(),
     )
 
 
@@ -245,6 +262,8 @@ def response_policy_trace(
     influence_graph_config: dict[str, float | int] | None = None,
     intervention: str | None = None,
     dose: float = 0.0,
+    exogenous_state: WorldExogenousState | None = None,
+    teacher_forced_logged_context: bool = False,
 ) -> ResponsePolicyTrace:
     """Collect one policy trace under the CIH-WM factual executor.
 
@@ -260,6 +279,8 @@ def response_policy_trace(
         influence_graph_config=influence_graph_config,
         intervention=intervention,
         dose=dose,
+        exogenous_state=exogenous_state,
+        teacher_forced_logged_context=teacher_forced_logged_context,
     )
     return _required_trace(result, device=device)
 
@@ -411,9 +432,6 @@ def causal_contrast_loss(
         if dose_index is not None:
             features = features[:, dose_index]
         distribution, _ = controller.adapter.distribution_and_value(features)
-        event_gate = controller.adapter.event_gate_probability(
-            features, controller.event_gate_temperature
-        )
         values = {}
         for name in ("action", "prior_correction", "authority", "active", "previous"):
             value = take(name)
@@ -429,8 +447,6 @@ def causal_contrast_loss(
             maximum=4.0,
             dt_s=.04,
             jerk_limit_mps3=controller.correction_jerk_limit_mps3,
-            event_gate=event_gate,
-            calibration_strength=controller.event_calibration_strength,
             scale_radius=controller.calibration_scale_radius,
             residual_max_mps2=controller.calibration_residual_max_mps2,
         )["final"]
@@ -476,12 +492,7 @@ def response_teacher_cache(
     batch_size: int = 16,
     influence_graph_config: dict[str, float | int] | None = None,
 ) -> dict[str, torch.Tensor]:
-    """Build supervised adapter records on formal, causally generated states.
-
-    The logged follower acceleration is an offline target only.  Controller
-    inputs are produced by a formal rollout and contain no logged future
-    state/action completion.
-    """
+    """Build supervised records from strictly logged, already-realized history."""
     lookup = {int(row): index for index, row in enumerate(np.asarray(arrays["row_index"], np.int64))}
     records: dict[str, list[torch.Tensor]] = {
         name: [] for name in (
@@ -499,6 +510,7 @@ def response_teacher_cache(
             map_valid=arrays["map_polyline_valid"][positions], controller=controller,
             device=device, deterministic=True,
             influence_graph_config=influence_graph_config,
+            teacher_forced_logged_context=True,
         )
         diagnostics = trace.rollout.controller_diagnostics
         assert diagnostics is not None
@@ -508,22 +520,35 @@ def response_teacher_cache(
         rule_target = torch.from_numpy(diagnostics["rule_action_ax"]).to(device)
         base_action = torch.from_numpy(trace.rollout.base_background_actions[..., 0]).to(device)
         influence_role = torch.from_numpy(diagnostics["influence_role"]).to(device)
-        calibration = torch.from_numpy(diagnostics["calibration_correction_ax"]).to(device)
         logged = torch.from_numpy(
             (arrays["agent_states"][positions, ANCHOR_INDEX + 1:174, 1:, 2]
              - arrays["agent_states"][positions, ANCHOR_INDEX:173, 1:, 2]) / .04
         ).to(device)
+        logged_before_anchor = torch.from_numpy(
+            (arrays["agent_states"][positions, ANCHOR_INDEX, 1:, 2]
+             - arrays["agent_states"][positions, ANCHOR_INDEX - 1, 1:, 2]) / .04
+        ).to(device)
         for batch, event_index in enumerate(selected):
             onset = int(reference.events.local_onset_frame[event_index]) - ANCHOR_INDEX
             follower = int(reference.events.follower_slot[event_index]) - 1
-            lower, upper = max(0, onset - EVALUATION_FRAMES), min(149, onset + EVALUATION_FRAMES)
+            lower, upper = max(0, onset - PRE_EVENT_FRAMES), min(149, onset + RECOVERY_FRAMES)
             for frame in range(lower, upper):
-                records["features"].append(trace.features[batch, frame, follower].cpu())
+                previous_logged = (
+                    logged_before_anchor[batch, follower]
+                    if frame == 0 else logged[batch, frame - 1, follower]
+                )
+                previous_base = (
+                    base_action[batch, frame, follower]
+                    if frame == 0 else base_action[batch, frame - 1, follower]
+                )
+                previous = previous_logged - previous_base
+                feature = trace.features[batch, frame, follower].clone()
+                feature[-1] = previous / 2.0
+                records["features"].append(feature.cpu())
                 records["nominal"].append(nominal[batch, frame, follower].cpu())
                 records["response_prior_correction"].append(correction[batch, frame, follower].cpu())
                 records["authority"].append(authority[batch, frame, follower].cpu())
                 records["active"].append(trace.active[batch, frame, follower].cpu())
-                previous = torch.zeros_like(calibration[batch, frame, follower]) if frame == 0 else calibration[batch, frame - 1, follower]
                 records["previous"].append(previous.cpu())
                 records["target"].append(logged[batch, frame, follower].cpu())
                 records["event"].append(torch.tensor(frame >= onset))
@@ -551,8 +576,8 @@ def response_policy_buffer(
     query_response: np.ndarray,
     query_iqr: np.ndarray,
     query_support: np.ndarray,
-    query_lookup: dict[int, int],
-    event_key: Callable[[ReactionEventReference, int], int],
+    query_lookup: dict[str, int],
+    event_key: Callable[[ReactionEventReference, int], str],
     support_weights: dict[str, float],
     device: torch.device,
     influence_graph_config: dict[str, float | int] | None = None,
@@ -563,12 +588,20 @@ def response_policy_buffer(
         [row_lookup[int(reference.events.row_index[index])] for index in groups for _ in range(futures)],
         np.int64,
     )
+    exogenous = WorldExogenousState.sample(
+        len(positions), seed=int(np.random.randint(0, 2**31 - 1)),
+        response_steps=149,
+        scene_refresh_responses=int(model.cfg.scene_refresh_responses),
+        scene_dim=int(model.cfg.scene_latent_dim),
+        agent_dim=int(model.cfg.agent_latent_dim),
+    )
     trace = response_policy_trace(
         model, states=arrays["agent_states"][positions], valid=arrays["agent_valid"][positions],
         soft_plans=plans[positions], maps=arrays["map_polylines"][positions],
         map_valid=arrays["map_polyline_valid"][positions], controller=controller,
         device=device, deterministic=False,
         influence_graph_config=influence_graph_config,
+        exogenous_state=exogenous,
     )
     action = torch.from_numpy(trace.rollout.background_actions[..., 0]).to(device).transpose(0, 1)
     reward = torch.zeros_like(action)
@@ -583,19 +616,24 @@ def response_policy_buffer(
             continue
         onset = int(reference.events.local_onset_frame[event_index]) - ANCHOR_INDEX
         follower = int(reference.events.follower_slot[event_index]) - 1
-        if onset <= 0 or onset + EVALUATION_FRAMES > 149:
+        if onset <= 0 or onset + RECOVERY_FRAMES > 149:
             continue
         begin, end = group * futures, (group + 1) * futures
-        acceleration = action[onset:onset + EVALUATION_FRAMES, begin:end, follower].transpose(0, 1)
+        acceleration = action[onset:onset + RECOVERY_FRAMES, begin:end, follower].transpose(0, 1)
         prior = action[onset - 1, begin:end, follower][:, None]
         jerk = (acceleration - torch.cat((prior, acceleration[:, :-1]), dim=1)).abs() / .04
         response = torch.stack((acceleration, jerk), dim=-1)
         observed = torch.as_tensor(query_response[query_index], device=device)
-        # Preserve the existing prefix leave-one-out reward exactly; only the
-        # rollout/backend is different.
-        for prefix, contribution in prefix_loo_event_energy_rewards(response, observed, scale).items():
-            reward[onset + prefix - 1, begin:end, follower] += weight * contribution
-        mask[onset:onset + EVALUATION_FRAMES, begin:end, follower] = True
+        if observed.shape[0] < RECOVERY_FRAMES:
+            raise ValueError("human-response query cache must contain the 75-frame target")
+        contribution = loo_event_energy_rewards(
+            response, observed[:RECOVERY_FRAMES], scale
+        )
+        reward[onset + RECOVERY_FRAMES - 1, begin:end, follower] += weight * contribution
+        # Actions before onset can alter the state at which the response score
+        # begins, so every policy-active step through the score endpoint owns
+        # credit under the finite-horizon Monte Carlo objective.
+        mask[:onset + RECOVERY_FRAMES, begin:end, follower] = True
     steps = trace.active.shape[1]
     done = torch.zeros((steps, len(positions), 6), device=device, dtype=torch.bool)
     done[-1] = True

@@ -1,0 +1,10 @@
+{
+  "guard": "evaluate_cih_world_model.py rejects test without an accepted hash-bound validation report",
+  "reason": "complete validation was not accepted",
+  "run": false,
+  "schema": "cih_confirmation_test_status",
+  "validation_reports": [
+    "../validation/full_supervised.json",
+    "../validation/full_policy.json"
+  ]
+}

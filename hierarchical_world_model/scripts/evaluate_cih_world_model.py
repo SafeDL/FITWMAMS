@@ -10,9 +10,11 @@ follower used by ADS causal tests.
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
+import hashlib
 import json
 import sys
-import tempfile
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -28,8 +30,11 @@ from diffusion.src.data import ANCHOR_INDEX  # noqa: E402
 from hierarchical_world_model.src.data import prepare_experiment_data  # noqa: E402
 from hierarchical_world_model.src.cih_model import (  # noqa: E402
     CausalInfluenceHierarchicalWorldModel,
+    build_response_policy,
 )
 from hierarchical_world_model.src.evaluation import _factual_metrics, rollout  # noqa: E402
+from hierarchical_world_model.src.human_response_prior import HumanResponseQuerySet  # noqa: E402
+from hierarchical_world_model.src.human_response_training import event_energy_score, legacy_event_energy_score  # noqa: E402
 from hierarchical_world_model.src.planner import (  # noqa: E402
     complete_endogenous_response_plans,
     frozen_diffusion_plans,
@@ -40,9 +45,14 @@ from hierarchical_world_model.src.protocol import (  # noqa: E402
 )
 from hierarchical_world_model.src.reaction_controller import (  # noqa: E402
     CausalInfluenceResponsePolicy,
+    NoReactionController,
 )
+from hierarchical_world_model.src.reaction_evidence import (  # noqa: E402
+    ReactionEventReference, event_identity, recording_cluster_bootstrap,
+)
+from hierarchical_world_model.src.randomness import WorldExogenousState  # noqa: E402
 from world_model.src.core.evaluation_scope import scoped_canonical_trajectory  # noqa: E402
-from world_model.src.core.utils import select_device, set_seed  # noqa: E402
+from world_model.src.core.utils import file_sha256, select_device, set_seed  # noqa: E402
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -61,20 +71,20 @@ def _training_provenance(candidate: Path, config: dict[str, Any]) -> dict[str, A
         return {"passed": False, "reason": "formal training manifest is not valid JSON"}
     protocol = manifest.get("protocol", {})
     schedule = manifest.get("training_schedule", {})
+    actual = manifest.get("actual_optimizer_steps", {})
     passed = (
         manifest.get("schema") == "cih_world_model_training"
         and protocol.get("world_executor") == "hierarchical_world_model.src.evaluation.rollout"
         and protocol.get("highwayenv") == "not imported or executed"
         and protocol.get("selection") == "none during training; full formal validation is mandatory"
         and manifest.get("event_limit") is None
-        and int(schedule.get("supervised_updates", -1))
-        >= int(config["supervised"]["updates"])
-        and int(schedule.get("policy_updates", -1))
-        >= int(config["policy_optimization"]["maximum_updates"])
+        and int(actual.get("supervised", -1)) > 0
+        and int(actual.get("policy_updates_attempted", -1)) > 0
         and int(schedule.get("event_groups_per_policy_update", -1))
         >= int(config["policy_optimization"]["event_groups_per_update"])
         and int(schedule.get("futures_per_event", -1))
         >= int(config["policy_optimization"]["futures_per_event"])
+        and bool(manifest.get("termination_reason"))
     )
     return {"passed": bool(passed), "manifest": str(manifest_path), "reason": None if passed else "manifest does not attest CIH-WM training"}
 
@@ -91,11 +101,11 @@ def _rollout_chunks(
     maps: np.ndarray,
     map_valid: np.ndarray,
     *,
-    controller: CausalInfluenceResponsePolicy | None,
+    controller: Any,
     device: torch.device,
     intervention: str | None = None,
     dose: float = 0.0,
-    chunk: int = 64,
+    chunk: int = 256,
     excluded_slots: tuple[str, ...] | None = None,
     nominal_reference: list[Any] | None = None,
     influence_graph_config: dict[str, float | int] | None = None,
@@ -112,6 +122,7 @@ def _rollout_chunks(
             excluded_slots=excluded_slots,
             nominal_reference=(None if nominal_reference is None else nominal_reference[index]),
             influence_graph_config=influence_graph_config,
+            record_policy_trace=False,
         )
         for index, start in enumerate(range(0, len(states), chunk))
     ]
@@ -156,6 +167,24 @@ def _causal_probe(
     jerk_ok = True
     maximum_controller_step = 0.0
     dose_effects: list[float] = []
+    infeasible_count = 0
+    window_effects: list[np.ndarray] = []
+    window_rules: list[np.ndarray] = []
+    preprobe = _concat(nominal, "states")[:, 24]
+    ego, npc = preprobe[:, :1], preprobe[:, 1:]
+    dx = npc[..., 0] - ego[..., 0]
+    dy = np.abs(npc[..., 1] - ego[..., 1])
+    distance = np.linalg.norm(npc[..., :2] - ego[..., :2], axis=-1)
+    geometric = (
+        valid[:count, ANCHOR_INDEX, 1:] & (dx < 0.0) & (dy < 1.8)
+        & (distance <= 50.0) & (-dx - 4.8 > 0.0)
+    )
+    # Freeze one nearest direct follower per scene before the probe.  This
+    # denominator is independent of whether the policy later responds.
+    nearest = np.where(geometric, dx, -np.inf).argmax(axis=1)
+    fixed_eligibility = np.zeros_like(geometric)
+    rows_with_follower = geometric.any(axis=1)
+    fixed_eligibility[np.flatnonzero(rows_with_follower), nearest[rows_with_follower]] = True
     for dose in (1.5, 2.25, 3.0):
         treated = _rollout_chunks(
             model, states[:count], valid[:count], plans[:count], maps[:count], map_valid[:count],
@@ -174,6 +203,9 @@ def _causal_probe(
         executed = selected & (np.abs(action_delta) >= 1.0e-4)
         executed_agreement = np.sign(action_delta[executed]) == np.sign(rule_delta[executed])
         calibration = _controller_diagnostics(treated, "calibration_correction_ax")
+        infeasible_count += int(
+            _controller_diagnostics(treated, "correction_constraint_infeasible").sum()
+        )
         if calibration.shape[1] > 1:
             maximum_controller_step = max(
                 maximum_controller_step, float(np.abs(np.diff(calibration, axis=1)).max(initial=0.0))
@@ -189,6 +221,8 @@ def _causal_probe(
         aligned = np.sign(rule_delta[executed]) * action_delta[executed]
         dose_effect = float(aligned.mean()) if executed_count else 0.0
         dose_effects.append(dose_effect)
+        window_effects.append(action_delta[:, 25:75].sum(axis=1) * .04)
+        window_rules.append(rule_delta[:, 25:75].sum(axis=1) * .04)
         level_report: dict[str, Any] = {}
         for name, mask in (("direct", direct),):
             level_selected = selected & mask
@@ -232,6 +266,17 @@ def _causal_probe(
                 else values["agreed"] / values["executed"]
             ),
         }
+    window_effect = np.stack(window_effects)
+    window_rule = np.stack(window_rules)
+    comparable = fixed_eligibility[None] & (np.abs(window_rule) >= .05)
+    response = np.abs(window_effect) >= .02
+    window_success = comparable & response & (np.sign(window_effect) == np.sign(window_rule))
+    all_doses_comparable = comparable.all(axis=0)
+    aligned_window = np.sign(window_rule) * window_effect
+    monotonic_events = all_doses_comparable & (
+        (aligned_window[1] + 1.e-6 >= aligned_window[0])
+        & (aligned_window[2] + 1.e-6 >= aligned_window[1])
+    )
     result.update({
         "selected_slot_frames": total_selected,
         "executed_action_slot_frames": total_executed,
@@ -241,14 +286,169 @@ def _causal_probe(
         "maximum_controller_correction_step_mps2": maximum_controller_step,
         "controller_correction_step_limit_mps2": jerk_limit,
         "controller_induced_jerk_within_limit": bool(jerk_ok),
+        "correction_constraint_infeasible_slot_frames": infeasible_count,
         "dose_effects_mps2": dose_effects,
         "dose_monotonic": bool(
             dose_effects[0] <= dose_effects[1] + 1.0e-6
             and dose_effects[1] <= dose_effects[2] + 1.0e-6
         ),
+        "fixed_window_audit": {
+            "eligibility_slot_events": int(fixed_eligibility.sum()),
+            "comparable_dose_slot_events": int(comparable.sum()),
+            "direction_success_rate": (
+                None if not comparable.any() else float(window_success.sum() / comparable.sum())
+            ),
+            "no_response_rate": (
+                None if not comparable.any() else float((comparable & ~response).sum() / comparable.sum())
+            ),
+            "all_doses_comparable_slot_events": int(all_doses_comparable.sum()),
+            "dose_monotonicity_rate": (
+                None if not all_doses_comparable.any()
+                else float(monotonic_events.sum() / all_doses_comparable.sum())
+            ),
+            "window_frames": [25, 75],
+            "eligibility": "nearest nominal same-lane follower geometry at frame 24",
+        },
         "influence_levels": influence_levels,
     })
     return result
+
+
+def _natural_response_scores(
+    model: torch.nn.Module,
+    controller: CausalInfluenceResponsePolicy,
+    *,
+    states: np.ndarray,
+    valid: np.ndarray,
+    plans: np.ndarray,
+    maps: np.ndarray,
+    map_valid: np.ndarray,
+    split_rows: np.ndarray,
+    reference: ReactionEventReference,
+    query: HumanResponseQuerySet,
+    device: torch.device,
+    influence_graph_config: dict[str, float | int],
+    futures: int = 32,
+    event_batch: int = 8,
+    seed: int = 20260913,
+) -> dict[str, Any]:
+    """Score independent stochastic response futures on every natural event."""
+    row_lookup = {int(row): index for index, row in enumerate(np.asarray(split_rows, np.int64))}
+    scores_75: list[float] = []
+    scores_25: list[float] = []
+    legacy_25: list[float] = []
+    recordings: list[int] = []
+    event_keys: list[str] = []
+    generated_diagnostics: list[dict[str, float | bool]] = []
+    observed_diagnostics: list[dict[str, float | bool]] = []
+
+    def response_diagnostic(sequence: np.ndarray, previous: float) -> dict[str, float | bool]:
+        acceleration = np.asarray(sequence)[:, 0]
+        jerk = np.asarray(sequence)[:, 1]
+        below = acceleration <= float(previous) - .1
+        starts = np.flatnonzero(np.convolve(below.astype(np.int8), np.ones(3, np.int8), mode="valid") == 3)
+        latency = float(starts[0] * .04) if len(starts) else float(len(acceleration) * .04)
+        peak_index = int(np.argmin(acceleration))
+        recovered = acceleration >= float(previous) - .1
+        recovery_starts = np.flatnonzero(
+            np.convolve(recovered.astype(np.int8), np.ones(5, np.int8), mode="valid") == 5
+        )
+        recovery_starts = recovery_starts[recovery_starts >= peak_index]
+        censored = not len(recovery_starts)
+        return {
+            "sustained_latency_s": latency,
+            "peak_deceleration_mps2": float(acceleration.min()),
+            "p95_abs_jerk_mps3": float(np.quantile(jerk, .95)),
+            "peak_abs_jerk_mps3": float(jerk.max(initial=0.0)),
+            "braking_dose_mps": float(np.maximum(-acceleration, 0.0).sum() * .04),
+            "sustained_recovery_time_s": (
+                float(recovery_starts[0] * .04) if not censored else float(len(acceleration) * .04)
+            ),
+            "recovery_censored": censored,
+        }
+    kept_query_indices = [
+        q for q, event_index in enumerate(query.indices)
+        if int(reference.events.row_index[int(event_index)]) in row_lookup
+    ]
+    for begin in range(0, len(kept_query_indices), event_batch):
+        selected = kept_query_indices[begin:begin + event_batch]
+        event_indices = [int(query.indices[q]) for q in selected]
+        positions = np.asarray([
+            row_lookup[int(reference.events.row_index[event_index])]
+            for event_index in event_indices for _ in range(futures)
+        ], np.int64)
+        exogenous = WorldExogenousState.sample(
+            len(positions), seed=seed + begin, response_steps=149,
+            scene_refresh_responses=int(model.cfg.scene_refresh_responses),
+            scene_dim=int(model.cfg.scene_latent_dim), agent_dim=int(model.cfg.agent_latent_dim),
+        )
+        sample = rollout(
+            model, states[positions], valid[positions], plans[positions],
+            maps[positions], map_valid[positions], device=device, history_frames=25,
+            motion_seed=None, controller=controller, controller_deterministic=False,
+            excluded_slots=(), influence_graph_config=influence_graph_config,
+            exogenous_state=exogenous,
+            record_policy_trace=False,
+        )
+        actions = torch.from_numpy(sample.background_actions[..., 0]).to(device)
+        actions = actions.reshape(len(selected), futures, 149, 6)
+        scale = torch.as_tensor(query.response_iqr, device=device)
+        for local, (q, event_index) in enumerate(zip(selected, event_indices)):
+            onset = int(reference.events.local_onset_frame[event_index]) - ANCHOR_INDEX
+            follower = int(reference.events.follower_slot[event_index]) - 1
+            if onset <= 0 or onset + 75 > 149:
+                continue
+            acceleration = actions[local, :, onset:onset + 75, follower]
+            previous = actions[local, :, onset - 1, follower, None]
+            jerk = (acceleration - torch.cat((previous, acceleration[:, :-1]), dim=1)).abs() / .04
+            response = torch.stack((acceleration, jerk), dim=-1)
+            observed = torch.as_tensor(query.response[q], device=device)
+            scores_75.append(float(event_energy_score(response, observed[:75], scale) / np.sqrt(75.0)))
+            scores_25.append(float(event_energy_score(response[:, :25], observed[:25], scale) / 5.0))
+            legacy_25.append(float(legacy_event_energy_score(response[:, :25], observed[:25], torch.ones_like(scale))))
+            recordings.append(int(reference.events.recording_id[event_index]))
+            event_keys.append(event_identity(
+                reference.events.recording_id[event_index], reference.events.leader_id[event_index],
+                reference.events.follower_id[event_index], reference.events.absolute_onset_frame[event_index],
+            ))
+            response_np = response.detach().cpu().numpy()
+            observed_np = observed[:75].detach().cpu().numpy()
+            previous_np = previous[:, 0].detach().cpu().numpy()
+            for future, previous_value in zip(response_np, previous_np):
+                generated_diagnostics.append(response_diagnostic(future, float(previous_value)))
+            observed_previous = float(reference.events.initial_conditions[event_index, 4])
+            observed_diagnostics.append(response_diagnostic(observed_np, observed_previous))
+    if not scores_75:
+        raise RuntimeError("natural response evaluation found no replayable events")
+    diagnostic_names = tuple(generated_diagnostics[0])
+    return {
+        "events": len(scores_75), "recordings": len(np.unique(recordings)), "futures_per_event": futures,
+        "event_keys": event_keys, "recording_id": recordings,
+        "fair_energy_75_normalized": scores_75,
+        "fair_energy_25_normalized": scores_25,
+        "legacy_raw_v_25": legacy_25,
+        "means": {
+            "fair_energy_75_normalized": float(np.mean(scores_75)),
+            "fair_energy_25_normalized": float(np.mean(scores_25)),
+            "legacy_raw_v_25": float(np.mean(legacy_25)),
+        },
+        "response_diagnostics": {
+            "generated": {
+                name: (
+                    float(np.mean([float(item[name]) for item in generated_diagnostics]))
+                    if name != "recovery_censored"
+                    else float(np.mean([bool(item[name]) for item in generated_diagnostics]))
+                ) for name in diagnostic_names
+            },
+            "observed": {
+                name: (
+                    float(np.mean([float(item[name]) for item in observed_diagnostics]))
+                    if name != "recovery_censored"
+                    else float(np.mean([bool(item[name]) for item in observed_diagnostics]))
+                ) for name in diagnostic_names
+            },
+        },
+    }
 
 
 def main() -> None:
@@ -308,7 +508,9 @@ def main() -> None:
     states, valid = scoped_canonical_trajectory(full_states, full_valid)
     maps = np.asarray(arrays["map_polylines"][split_rows], np.float32)
     map_valid = np.asarray(arrays["map_polyline_valid"][split_rows], bool)
-    with tempfile.TemporaryDirectory(prefix="cih_world_model_") as cache:
+    cache = args.candidate.parent / args.split / "frozen_plans"
+    cache.mkdir(parents=True, exist_ok=True)
+    with nullcontext(cache):
         plans = frozen_diffusion_plans(
             experiment.bundle, split_rows, checkpoint=world_config["paths"]["diffusion_checkpoint"],
             output_dir=cache, device=device, batch_size=32, ddim_steps=20,
@@ -319,7 +521,7 @@ def main() -> None:
         )
         baseline = _rollout_chunks(
             model, states, valid, plans, maps, map_valid,
-            controller=None, device=device,
+            controller=NoReactionController().to(device), device=device,
         )
         candidate = _rollout_chunks(
             model, states, valid, plans, maps, map_valid,
@@ -340,15 +542,22 @@ def main() -> None:
             key: float(candidate_metrics[key] - baseline_metrics[key])
             for key in ("ADE_m", "FDE_m", "P95_displacement_error_m")
         }
-        all_baseline = _rollout_chunks(
-            model, full_states, full_valid, response_plans, maps, map_valid,
-            controller=None, device=device, excluded_slots=(),
+        same_all_slot_inputs = (
+            np.array_equal(states, full_states) and np.array_equal(valid, full_valid)
+            and np.array_equal(plans, response_plans)
         )
-        all_candidate = _rollout_chunks(
-            model, full_states, full_valid, response_plans, maps, map_valid,
-            controller=controller, device=device, excluded_slots=(),
-            influence_graph_config=influence_config,
-        )
+        if same_all_slot_inputs:
+            all_baseline, all_candidate = baseline, candidate
+        else:
+            all_baseline = _rollout_chunks(
+                model, full_states, full_valid, response_plans, maps, map_valid,
+                controller=NoReactionController().to(device), device=device, excluded_slots=(),
+            )
+            all_candidate = _rollout_chunks(
+                model, full_states, full_valid, response_plans, maps, map_valid,
+                controller=controller, device=device, excluded_slots=(),
+                influence_graph_config=influence_config,
+            )
         all_active = full_valid[:, ANCHOR_INDEX, 1:]
         all_target = full_states[:, ANCHOR_INDEX + 1:174]
         all_baseline_metrics = _factual_metrics(
@@ -376,6 +585,9 @@ def main() -> None:
             else factual_delta[key] <= float(tolerance["factual_p95_tolerance_m"])
             for key in factual_delta
         ) and all(
+            factual_delta[key] <= float(controller_config["evaluation"]["factual_relative_tolerance"]) * baseline_metrics[key]
+            for key in factual_delta
+        ) and all(
             candidate_metrics[key] <= float(ACCEPTANCE_GATES["factual_limits_m"][key])
             for key in ACCEPTANCE_GATES["factual_limits_m"]
         )
@@ -387,6 +599,11 @@ def main() -> None:
                 ]
             )
             for key in response_factual_delta
+        ) and all(
+            response_factual_delta[key]
+            <= float(controller_config["evaluation"]["factual_relative_tolerance"])
+            * response_baseline_metrics[key]
+            for key in response_factual_delta
         )
         all_baseline_actions = _concat(all_baseline, "background_actions")
         all_candidate_actions = _concat(all_candidate, "background_actions")
@@ -397,7 +614,47 @@ def main() -> None:
             device=device, rows=args.causal_rows,
             influence_graph_config=influence_config,
         )
+        event_reference = ReactionEventReference.load(
+            ROOT / controller_config["paths"]["event_reference"] / args.split
+        )
+        response_query = HumanResponseQuerySet.load(
+            ROOT / controller_config["paths"]["human_response_evidence"] / args.split
+        )
+        candidate_response = _natural_response_scores(
+            model, controller, states=full_states, valid=full_valid,
+            plans=response_plans, maps=maps, map_valid=map_valid,
+            split_rows=split_rows, reference=event_reference, query=response_query,
+            device=device, influence_graph_config=influence_config,
+        )
+        supervised_path = args.candidate.parent / "response_supervised.pt"
+        supervised_response = None
+        ppo_increment = None
+        if supervised_path.is_file() and supervised_path.resolve() != args.candidate.resolve():
+            supervised_controller = build_response_policy(
+                controller_config, root=ROOT, device=device, checkpoint=supervised_path
+            ).eval()
+            supervised_response = _natural_response_scores(
+                model, supervised_controller, states=full_states, valid=full_valid,
+                plans=response_plans, maps=maps, map_valid=map_valid,
+                split_rows=split_rows, reference=event_reference, query=response_query,
+                device=device, influence_graph_config=influence_config,
+            )
+            final_values = np.asarray(candidate_response["fair_energy_75_normalized"])
+            supervised_values = np.asarray(supervised_response["fair_energy_75_normalized"])
+            delta = supervised_values - final_values
+            interval = recording_cluster_bootstrap(
+                delta, np.asarray(candidate_response["recording_id"]), seed=20260913,
+            )
+            ppo_increment = {
+                "mean_supervised_minus_final": float(delta.mean()),
+                "recording_cluster_bootstrap": interval,
+                "significant_improvement": bool(interval["ci95_low"] > 0.0),
+            }
     direct = causal["influence_levels"]["direct"]
+    fixed_window = causal["fixed_window_audit"]
+    distribution_passed = bool(
+        ppo_increment is None or ppo_increment["significant_improvement"]
+    )
     evaluation_passed = bool(
         noninferior
         and response_noninferior
@@ -409,6 +666,11 @@ def main() -> None:
         and causal["preprobe_max_abs_action_difference_mps2"] == 0.0
         and causal["controller_induced_jerk_within_limit"]
         and causal["dose_monotonic"]
+        and fixed_window["direction_success_rate"] is not None
+        and fixed_window["direction_success_rate"] >= 0.95
+        and fixed_window["dose_monotonicity_rate"] is not None
+        and fixed_window["dose_monotonicity_rate"] >= 0.95
+        and distribution_passed
     )
     selection_eligible = bool(
         args.split == "validation" and args.limit is None
@@ -420,6 +682,11 @@ def main() -> None:
         "complete_split": args.limit is None,
         "sequences": int(len(split_rows)),
         "checkpoint": str(args.candidate.resolve()),
+        "checkpoint_sha256": file_sha256(args.candidate.resolve()),
+        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "working_tree_diff_hash": hashlib.sha256(
+            subprocess.check_output(["git", "diff", "--binary"], cwd=ROOT)
+        ).hexdigest(),
         "world_checkpoint": str(ROOT / world_config["paths"]["evaluation_checkpoint"]),
         "world_checkpoint_epoch": int(checkpoint["epoch"]),
         "protocol": {
@@ -464,6 +731,12 @@ def main() -> None:
             "maximum_abs_action_difference_mps2_in_all_slot_scope": float(all_action_delta[..., 0].max(initial=0.0)),
         },
         "causal_probe": causal,
+        "human_response_distribution": {
+            "candidate": candidate_response,
+            "supervised": supervised_response,
+            "ppo_increment": ppo_increment,
+            "passed": distribution_passed,
+        },
         "evaluation_passed": evaluation_passed,
         "accepted": bool(selection_eligible),
         "promotion_status": (

@@ -23,13 +23,20 @@ def main() -> None:
     if args.output.exists():
         raise RuntimeError("acceptance artifact is immutable and will not be overwritten")
     validation, test = read(args.validation), read(args.test)
-    same_checkpoint = Path(str(validation.get("checkpoint", ""))).resolve() == Path(str(test.get("checkpoint", ""))).resolve()
+    same_checkpoint = (
+        Path(str(validation.get("checkpoint", ""))).resolve()
+        == Path(str(test.get("checkpoint", ""))).resolve()
+        and bool(validation.get("checkpoint_sha256"))
+        and validation.get("checkpoint_sha256") == test.get("checkpoint_sha256")
+    )
     provenance = test.get("training_provenance", {})
     passed = bool(
         validation.get("split") == "validation" and validation.get("complete_split") is True
         and validation.get("accepted") is True and validation.get("evaluation_passed") is True
         and test.get("split") == "test" and test.get("complete_split") is True
         and test.get("evaluation_passed") is True
+        and validation.get("human_response_distribution", {}).get("passed") is True
+        and test.get("human_response_distribution", {}).get("passed") is True
         and provenance.get("passed") is True and same_checkpoint
     )
     record = {
@@ -44,6 +51,10 @@ def main() -> None:
             "complete_accepted_validation": validation.get("accepted") is True and validation.get("evaluation_passed") is True,
             "complete_one_shot_test": test.get("evaluation_passed") is True,
             "same_checkpoint": same_checkpoint,
+            "human_sequence_distribution": (
+                validation.get("human_response_distribution", {}).get("passed") is True
+                and test.get("human_response_distribution", {}).get("passed") is True
+            ),
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

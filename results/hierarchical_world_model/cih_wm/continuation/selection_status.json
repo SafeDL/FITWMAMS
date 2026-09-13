@@ -1,0 +1,8 @@
+{
+  "decision": "decision.json",
+  "reason": "PPO Gate E3 and causal Gate E5 failed complete validation; supervised also failed E5.",
+  "retained_checkpoint": "response_supervised.pt",
+  "retained_checkpoint_sha256": "e51adbdc7fc493eea1b6895e6250b5d71ea51b0f4f2a7b7d03b87266b925b8d9",
+  "selected": false,
+  "status": "candidate_rejected"
+}

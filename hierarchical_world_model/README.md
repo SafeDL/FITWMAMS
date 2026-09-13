@@ -24,12 +24,25 @@ results/hierarchical_world_model/
 └── cih_wm/                    # 先验、固定证据与当前 CIH-WM 候选
 ```
 
-冻结事实层曾在完整测试集（10,151 个序列、历史 `same_rear` 掩码口径）上得到
-ADE **0.040227 m**、FDE **0.036870 m**、P95 位移误差 **0.090438 m**。当前代码已切换到
-包含 `same_rear` 的全背景车口径，尚未重新训练或评测；因此这些历史数值不能与后续全量结果直接比较，也不应写成 CIH-WM 因果响应指标。
+冻结事实层现已在完整测试集（10,151 个序列）按全背景车口径重新评测，ADE
+**0.040020 m**、FDE **0.036345 m**、P95 位移误差 **0.091024 m**。完整 validation
+包含 13,133 条序列；全槽位 ADE/FDE/P95 为 **0.037140/0.029709/0.091529 m**，
+`same_rear` 为 **0.037557/0.028678/0.098626 m**，没有槽位计划 fallback。工件见
+`results/hierarchical_world_model/factual_all_slots/evaluation.json` 和
+`results/hierarchical_world_model/cih_wm/continuation/baseline_audit.json`。
 
-当前 CIH-WM 已移除名义影子动作、成对硬门和规则差值覆盖，并加入不读取记录未来的名义/三档 ADS 制动对比训练。全量训练候选在 256 序列诊断中仍未通过因果方向和 `same_rear` 非劣门槛，因此
-`cih_wm/candidate_unaccepted/` 中的结果只能用于诊断，不能称为正式最佳模型。方法边界、组件证据和下一步验收协议见
-[`FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md`](../doc/FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md)。
+当前续建链使用真实 logged context 的 75 帧响应监督、二维 prior-retention/residual
+映射、fair Energy Score、明确的 policy/execution/release mask 和可快照的显式随机世界。
+`cih_wm/candidate_unaccepted/` 中的旧结果仍只用于历史诊断；新候选及验收证据位于
+`cih_wm/continuation/`。方法边界和验收协议见
+[`FITWMAMS_CIH_WM_Continuation_Target.md`](../doc/FITWMAMS_CIH_WM_Continuation_Target.md)。
+
+本轮完整 validation 对 13,133 条序列和全部 13,133 个因果探针行评测了监督与
+PPO 检查点。两者均通过全槽位及 `same_rear` 事实保持；监督/PPO 的固定窗口方向
+一致率分别为 **75.93%/75.76%**，剂量排序率分别为 **51.20%/51.25%**，未达到
+预注册的 95% 机制门槛。PPO 的 75 帧 fair Energy Score 相对监督检查点改善
+**0.0000718**，recording-cluster bootstrap 95% 区间为
+**[-0.0000127, 0.0001501]**，不显著。依照停止规则保留监督检查点、不增加 PPO
+轮数、不进入确认性 test；机器可读结论见 `cih_wm/continuation/decision.json`。
 
 横向通道目前只做事实 yaw-rate 重建；在拥有变道/转向干预证据和独立验收指标前，不启用横向因果响应。

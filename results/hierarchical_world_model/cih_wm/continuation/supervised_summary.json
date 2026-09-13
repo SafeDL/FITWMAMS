@@ -1,0 +1,131 @@
+{
+  "reason": "PPO did not significantly improve the preregistered 75-frame Energy Score; supervised checkpoint also fails Gate E5.",
+  "schema": "cih_supervised_summary",
+  "selection": "retained_as_best_allowed_checkpoint_but_not_accepted",
+  "training": {
+    "causal_contrast_frames": 46126,
+    "checkpoint_sha256": "e51adbdc7fc493eea1b6895e6250b5d71ea51b0f4f2a7b7d03b87266b925b8d9",
+    "teacher_cache_rows": 184100,
+    "updates": 400
+  },
+  "validation": {
+    "accepted": false,
+    "causal": {
+      "controller_induced_jerk_within_limit": true,
+      "correction_constraint_infeasible_slot_frames": 0,
+      "dose_effects_mps2": [
+        0.05599132925271988,
+        0.12819641828536987,
+        0.16791824996471405
+      ],
+      "dose_monotonic": true,
+      "executed_action_direction_agreement": 0.7309036935902608,
+      "fixed_window_audit": {
+        "all_doses_comparable_slot_events": 1000,
+        "comparable_dose_slot_events": 4088,
+        "direction_success_rate": 0.7592954990215264,
+        "dose_monotonicity_rate": 0.512,
+        "eligibility": "nearest nominal same-lane follower geometry at frame 24",
+        "eligibility_slot_events": 1563,
+        "no_response_rate": 0.025684931506849314,
+        "window_frames": [
+          25,
+          75
+        ]
+      },
+      "preprobe_max_abs_action_difference_mps2": 0.0,
+      "rows": 13133
+    },
+    "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/response_supervised.pt",
+    "checkpoint_sha256": "e51adbdc7fc493eea1b6895e6250b5d71ea51b0f4f2a7b7d03b87266b925b8d9",
+    "complete_split": true,
+    "evaluation_passed": false,
+    "factual_all_slot": {
+      "cih_world_model": {
+        "ADE_m": 0.037205472588539124,
+        "FDE_m": 0.029729178175330162,
+        "P50_displacement_error_m": 0.026886234059929848,
+        "P90_displacement_error_m": 0.0710327297449112,
+        "P95_displacement_error_m": 0.0915835537016392,
+        "P99_displacement_error_m": 0.158135588467121,
+        "frames": 149,
+        "sequences": 13133,
+        "speed_MAE_mps": 0.032156527042388916
+      },
+      "excluded_slots": [],
+      "factual_dynamics": {
+        "ADE_m": 0.03713994473218918,
+        "FDE_m": 0.0297092217952013,
+        "P50_displacement_error_m": 0.026883451268076897,
+        "P90_displacement_error_m": 0.07101389616727832,
+        "P95_displacement_error_m": 0.09152877107262616,
+        "P99_displacement_error_m": 0.15748593896627422,
+        "frames": 149,
+        "sequences": 13133,
+        "speed_MAE_mps": 0.03209827095270157
+      }
+    },
+    "factual_same_rear": {
+      "cih_world_model": {
+        "ADE_m": 0.038369715213775635,
+        "FDE_m": 0.028936073184013367,
+        "P50_displacement_error_m": 0.02768629416823387,
+        "P90_displacement_error_m": 0.0758016720414162,
+        "P95_displacement_error_m": 0.09929282888770105,
+        "P99_displacement_error_m": 0.1972901546955109,
+        "frames": 149,
+        "sequences": 13133,
+        "speed_MAE_mps": 0.03594299405813217
+      },
+      "delta": {
+        "ADE_m": 0.0008123405277729034,
+        "FDE_m": 0.00025833211839199066,
+        "P95_displacement_error_m": 0.0006668932735920119
+      },
+      "factual_dynamics": {
+        "ADE_m": 0.03755737468600273,
+        "FDE_m": 0.028677741065621376,
+        "P50_displacement_error_m": 0.027659563347697258,
+        "P90_displacement_error_m": 0.07553237229585648,
+        "P95_displacement_error_m": 0.09862593561410904,
+        "P99_displacement_error_m": 0.18469431489706042,
+        "frames": 149,
+        "sequences": 13133,
+        "speed_MAE_mps": 0.03522314503788948
+      },
+      "passed": true
+    },
+    "human_response": {
+      "events": 265,
+      "futures_per_event": 32,
+      "means": {
+        "fair_energy_25_normalized": 0.8293257622505134,
+        "fair_energy_75_normalized": 0.8540094527433504,
+        "legacy_raw_v_25": 20.35654918202814
+      },
+      "ppo_increment": null,
+      "recordings": 9,
+      "response_diagnostics": {
+        "generated": {
+          "braking_dose_mps": 1.1390613496746025,
+          "p95_abs_jerk_mps3": 1.1338122947552716,
+          "peak_abs_jerk_mps3": 2.147787553278448,
+          "peak_deceleration_mps2": -0.6905625405300184,
+          "recovery_censored": 0.5466981132075471,
+          "sustained_latency_s": 1.7049103773584906,
+          "sustained_recovery_time_s": 2.2033443396226415
+        },
+        "observed": {
+          "braking_dose_mps": 1.1146793503671324,
+          "p95_abs_jerk_mps3": 6.250717504969183,
+          "peak_abs_jerk_mps3": 6.368958725119537,
+          "peak_deceleration_mps2": -0.6613353513321787,
+          "recovery_censored": 0.4981132075471698,
+          "sustained_latency_s": 2.046188679245283,
+          "sustained_recovery_time_s": 1.8178113207547169
+        }
+      }
+    },
+    "sequences": 13133
+  }
+}

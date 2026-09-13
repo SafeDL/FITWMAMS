@@ -13,7 +13,17 @@ from pathlib import Path
 
 import numpy as np
 
-from .reaction_evidence import EVALUATION_FRAMES, FEATURE_NAMES, ReactionEventReference, event_window
+from .reaction_evidence import EVALUATION_FRAMES, FEATURE_NAMES, ReactionEventReference, event_identity, event_window
+
+
+def _event_keys(events, indices: np.ndarray) -> np.ndarray:
+    return np.asarray([
+        event_identity(
+            events.recording_id[index], events.leader_id[index],
+            events.follower_id[index], events.absolute_onset_frame[index],
+        )
+        for index in indices
+    ], dtype="U64")
 
 
 DESCRIPTOR_NAMES = (
@@ -86,14 +96,13 @@ class HumanResponsePrior:
 
     def neighbor_indices(
         self, descriptor: np.ndarray, *, recording_id: int, leader_id: int, follower_id: int,
-        event_key: int, neighbors: int = 16,
+        event_key: str, neighbors: int = 16,
     ) -> np.ndarray:
         """Return nearest train events after every leakage exclusion."""
         distance = np.square(self.normalized_descriptor(self.descriptor) - self.normalized_descriptor(descriptor)).sum(-1)
         allowed = (
             (self.recording_id != int(recording_id))
-            & ~((self.leader_id == int(leader_id)) & (self.follower_id == int(follower_id)))
-            & (self.event_key != int(event_key))
+            & (self.event_key != str(event_key))
         )
         candidates = np.flatnonzero(allowed)
         if len(candidates) < neighbors:
@@ -142,7 +151,10 @@ def _event_arrays(
         recovery = float(np.flatnonzero(follower_future >= follower_previous - 0.1)[-1] * 0.04) if np.any(follower_future >= follower_previous - 0.1) else float(EVALUATION_FRAMES * 0.04)
         descriptor.append((gap, closing, np.clip(ttc, 0.0, 10.0), follower_previous, states[onset, follower, 2], onset_ax, dose))
         metrics.append((peak, dose, ramp, duration, latency, follower_peak, float(follower_jerk.max()), float(np.maximum(-follower_future, 0.0).sum() * 0.04), recovery))
-    response = event_window(events)[kept, :, :2]
+    # The event artifact already stores the complete 75-frame response and
+    # recovery window.  Keep all of it for the primary distribution target;
+    # evaluators may slice the first 25 frames for historical compatibility.
+    response = event_window(events, recovery=True)[kept, :, :2]
     return {
         "indices": kept,
         "descriptor": np.asarray(descriptor, np.float32),
@@ -166,10 +178,7 @@ def build_human_response_priors(
         - np.quantile(library["response"].reshape(-1, 2), .25, axis=0), 1.0e-3,
     ).astype(np.float32)
     train_events = train_reference.events
-    library_keys = (
-        train_events.absolute_onset_frame[library["indices"]]
-        + 10_000_000 * train_events.recording_id[library["indices"]]
-    )
+    library_keys = _event_keys(train_events, library["indices"])
     query_events = split_reference.events
 
     provisional = HumanResponsePrior(
@@ -186,7 +195,7 @@ def build_human_response_priors(
         result, records = [], []
         for row, index in enumerate(values["indices"]):
             event = reference.events
-            key = int(event.absolute_onset_frame[index] + 10_000_000 * event.recording_id[index])
+            key = event_identity(event.recording_id[index], event.leader_id[index], event.follower_id[index], event.absolute_onset_frame[index])
             selected = provisional.neighbor_indices(
                 values["descriptor"][row], recording_id=int(event.recording_id[index]),
                 leader_id=int(event.leader_id[index]), follower_id=int(event.follower_id[index]), event_key=key,
@@ -205,7 +214,7 @@ def build_human_response_priors(
     labels[(split_distance <= weak_distance) & (split_records >= 3)] = SUPPORT_LABELS[1]
     labels[(split_distance <= supported_distance) & (split_records >= 5)] = SUPPORT_LABELS[0]
     selected_events = split_reference.events
-    keys = selected_events.absolute_onset_frame[query["indices"]] + 10_000_000 * selected_events.recording_id[query["indices"]]
+    keys = _event_keys(selected_events, query["indices"])
     prior = HumanResponsePrior(
         split=split, descriptor=query["descriptor"], response=query["response"],
         recording_id=selected_events.recording_id[query["indices"]], leader_id=selected_events.leader_id[query["indices"]],
@@ -237,9 +246,11 @@ class TrainHumanResponseLibrary:
     def normalized(self, descriptor: np.ndarray) -> np.ndarray:
         return (np.asarray(descriptor, np.float32) - self.descriptor_median) / self.descriptor_iqr
 
-    def neighbor_indices(self, descriptor: np.ndarray, *, recording_id: int, leader_id: int, follower_id: int, event_key: int, neighbors: int = 16) -> np.ndarray:
+    def neighbor_indices(self, descriptor: np.ndarray, *, recording_id: int, leader_id: int, follower_id: int, event_key: str, neighbors: int = 16) -> np.ndarray:
         distance = np.square(self.normalized(self.descriptor) - self.normalized(descriptor)).sum(-1)
-        allowed = (self.recording_id != recording_id) & ~((self.leader_id == leader_id) & (self.follower_id == follower_id)) & (self.event_key != event_key)
+        # Vehicle ids are local to each recording.  Recording isolation is the
+        # leakage guard; equal numeric ids in different recordings are valid.
+        allowed = (self.recording_id != recording_id) & (self.event_key != event_key)
         candidates = np.flatnonzero(allowed)
         if len(candidates) < neighbors:
             return np.empty(0, np.int64)
@@ -279,12 +290,18 @@ class HumanResponseQuerySet:
     def save(self, root: str | Path) -> None:
         path = Path(root); path.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(path / "queries.npz", **{name: value for name, value in self.__dict__.items() if name != "split"})
-        (path / "manifest.json").write_text(__import__("json").dumps({"split": self.split, "schema": "human_response_queries", "schema_version": 2}, indent=2) + "\n")
+        (path / "manifest.json").write_text(__import__("json").dumps({
+            "split": self.split, "schema": "human_response_queries", "schema_version": 3,
+            "primary_response_frames": 75, "compatibility_response_frames": 25,
+            "event_key": "sha256(recording_id,leader_id,follower_id,absolute_onset_frame)",
+        }, indent=2) + "\n")
 
     @classmethod
     def load(cls, root: str | Path) -> "HumanResponseQuerySet":
         path = Path(root)
         manifest = __import__("json").loads((path / "manifest.json").read_text())
+        if manifest.get("schema") != "human_response_queries" or manifest.get("schema_version") not in {2, 3}:
+            raise ValueError("unsupported human-response query schema")
         with np.load(path / "queries.npz") as values:
             fields = {name: values[name].copy() for name in cls.__dataclass_fields__ if name != "split"}
         return cls(split=str(manifest["split"]), **fields)
@@ -306,7 +323,7 @@ def build_human_response_support(
     iqr = np.maximum(np.quantile(library_values["descriptor"], .75, axis=0) - np.quantile(library_values["descriptor"], .25, axis=0), 1.e-3).astype(np.float32)
     response_iqr = np.maximum(np.quantile(library_values["response"].reshape(-1, 2), .75, axis=0) - np.quantile(library_values["response"].reshape(-1, 2), .25, axis=0), 1.e-3).astype(np.float32)
     events = train_reference.events
-    keys = events.absolute_onset_frame[library_values["indices"]] + 10_000_000 * events.recording_id[library_values["indices"]]
+    keys = _event_keys(events, library_values["indices"])
     library = TrainHumanResponseLibrary(
         descriptor=library_values["descriptor"], response=library_values["response"],
         recording_id=events.recording_id[library_values["indices"]], leader_id=events.leader_id[library_values["indices"]],
@@ -317,7 +334,7 @@ def build_human_response_support(
         distances, recordings = [], []
         event = reference.events
         for row, index in enumerate(values["indices"]):
-            key = int(event.absolute_onset_frame[index] + 10_000_000 * event.recording_id[index])
+            key = event_identity(event.recording_id[index], event.leader_id[index], event.follower_id[index], event.absolute_onset_frame[index])
             neighbors = library.neighbor_indices(values["descriptor"][row], recording_id=int(event.recording_id[index]), leader_id=int(event.leader_id[index]), follower_id=int(event.follower_id[index]), event_key=key)
             if len(neighbors):
                 distances.append(float(np.linalg.norm(library.normalized(values["descriptor"][row]) - library.normalized(library.descriptor[neighbors[-1]]))))
@@ -336,7 +353,7 @@ def build_human_response_support(
     query = HumanResponseQuerySet(
         split=split, indices=indices, descriptor=query_values["descriptor"], response=query_values["response"], metrics=query_values["metrics"],
         recording_id=event.recording_id[indices], leader_id=event.leader_id[indices], follower_id=event.follower_id[indices],
-        event_key=event.absolute_onset_frame[indices] + 10_000_000 * event.recording_id[indices],
+        event_key=_event_keys(event, indices),
         support_label=labels, neighbor_distance=distance, recording_count=records, response_iqr=response_iqr,
         supported_distance=float(supported_distance), weak_distance=float(weak_distance),
     )

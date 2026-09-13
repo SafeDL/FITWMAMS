@@ -1,0 +1,31 @@
+{
+  "schema": "cih_source_contract_audit",
+  "conditioned_reconstruction": {
+    "enabled": true,
+    "long_horizon_source": "held-out highD-derived K through frozen diffusion dataset",
+    "claim_scope": "conditional reconstruction only"
+  },
+  "prefix_sampled": {
+    "enabled": false,
+    "reason": "Flow-to-diffusion prefix sampler is not connected to the maintained rollout",
+    "risk_readiness": false
+  },
+  "online_forbidden_inputs": [
+    "future logged state",
+    "pending ego action",
+    "intervention label",
+    "nominal shadow action"
+  ],
+  "same_rear": {
+    "masked": false,
+    "diffusion_plan_supplied": true,
+    "fallbacks_on_complete_validation": 0
+  },
+  "randomness_blocks_consumed_by_rollout": [
+    "scene_innovations",
+    "agent_response_innovations",
+    "policy_response_innovations",
+    "policy_calibration_innovations"
+  ],
+  "plan_mode_is_actor_feature": false
+}

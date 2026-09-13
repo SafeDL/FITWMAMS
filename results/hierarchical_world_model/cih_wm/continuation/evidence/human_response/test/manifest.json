@@ -1,0 +1,8 @@
+{
+  "split": "test",
+  "schema": "human_response_queries",
+  "schema_version": 3,
+  "primary_response_frames": 75,
+  "compatibility_response_frames": 25,
+  "event_key": "sha256(recording_id,leader_id,follower_id,absolute_onset_frame)"
+}

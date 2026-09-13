@@ -74,15 +74,6 @@ class ReactionControllerContext:
     previous_base_background_actions: torch.Tensor | None = None
     previous_calibration_correction: torch.Tensor | None = None
     previous_causal_gate: torch.Tensor | None = None
-    # Immutable nominal-world values for research-only calibrated controllers.
-    # They are supplied from a separately executed frozen world, never from
-    # the actual world's pending ego action or from highD future completion.
-    nominal_current: torch.Tensor | None = None
-    nominal_current_action: torch.Tensor | None = None
-    nominal_rule_action_ax: torch.Tensor | None = None
-    nominal_action_horizon: torch.Tensor | None = None
-    ego_action: torch.Tensor | None = None
-    nominal_ego_action: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +99,29 @@ class ReactionControllerOutput:
     response_prior_correction_ax: torch.Tensor | None = None
     causal_gate: torch.Tensor | None = None
     causal_delta_ax: torch.Tensor | None = None
+    policy_active: torch.Tensor | None = None
+    execution_active: torch.Tensor | None = None
+    release_active: torch.Tensor | None = None
+    requested_total_correction_ax: torch.Tensor | None = None
+    projected_total_correction_ax: torch.Tensor | None = None
+    executed_total_correction_ax: torch.Tensor | None = None
+    calibration_relative_to_prior_ax: torch.Tensor | None = None
+    correction_constraint_infeasible: torch.Tensor | None = None
+
+
+@dataclass(frozen=True)
+class ExecutionSpec:
+    """Immutable physical mapping shared by training and runtime."""
+
+    minimum_acceleration_mps2: float
+    maximum_acceleration_mps2: float
+    dt_s: float
+    correction_jerk_limit_mps3: float
+    residual_max_mps2: float
+
+    @property
+    def correction_step_mps2(self) -> float:
+        return float(self.dt_s) * float(self.correction_jerk_limit_mps3)
 
 
 @dataclass(frozen=True)
@@ -1144,6 +1158,10 @@ class HumanResponseCalibrator(nn.Module):
         nn.init.zeros_(self.actor[-1].bias)
         nn.init.zeros_(self.event_gate[-1].weight)
         nn.init.zeros_(self.event_gate[-1].bias)
+        # Retained only so historical checkpoints still load strictly.  The
+        # current two-dimensional stochastic policy owns every runtime choice.
+        for parameter in self.event_gate.parameters():
+            parameter.requires_grad_(False)
 
     def distribution_and_value(self, features: torch.Tensor) -> tuple[torch.distributions.Normal, torch.Tensor]:
         mean = self.actor(features)
@@ -1195,6 +1213,15 @@ class CausalInfluenceResponsePolicy(ReactionController):
         # 0.25 m/s² increments, so a 0.5 threshold misses natural events.
         self.reaction_trigger_threshold_mps2 = max(float(reaction_trigger_threshold_mps2), 0.0)
 
+    def execution_spec(self, cfg: Any) -> ExecutionSpec:
+        return ExecutionSpec(
+            minimum_acceleration_mps2=float(cfg.min_acceleration_mps2),
+            maximum_acceleration_mps2=float(cfg.max_acceleration_mps2),
+            dt_s=float(cfg.dt_s),
+            correction_jerk_limit_mps3=self.correction_jerk_limit_mps3,
+            residual_max_mps2=self.calibration_residual_max_mps2,
+        )
+
     def train(self, mode: bool = True):
         super().train(mode)
         self.prior.eval()
@@ -1217,6 +1244,7 @@ class CausalInfluenceResponsePolicy(ReactionController):
         minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
         event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
         scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
+        execution_spec: ExecutionSpec | None = None,
     ) -> dict[str, torch.Tensor]:
         """Calibrate a response proposal without rule or nominal-world overrides."""
         return CausalInfluenceResponsePolicy.map_calibration_tensors(
@@ -1227,6 +1255,7 @@ class CausalInfluenceResponsePolicy(ReactionController):
             calibration_strength=calibration_strength,
             scale_radius=scale_radius,
             residual_max_mps2=residual_max_mps2,
+            execution_spec=execution_spec,
         )
 
     @staticmethod
@@ -1236,40 +1265,61 @@ class CausalInfluenceResponsePolicy(ReactionController):
         minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
         event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
         scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
+        execution_spec: ExecutionSpec | None = None,
     ) -> dict[str, torch.Tensor]:
-        gate = torch.ones_like(nominal) if event_gate is None else event_gate.to(nominal).clamp(0.0, 1.0)
-        strength = float(calibration_strength)
-        # A closed event gate means "keep the frozen response proposal".  It
-        # must not cancel the prior correction.  The learned policy therefore
-        # predicts a bounded delta *around* that proposal.
-        scale = 1.0 + gate * strength * float(scale_radius) * torch.tanh(raw[..., 0])
-        residual = gate * strength * float(residual_max_mps2) * torch.tanh(raw[..., 1])
-        requested = (scale - 1.0) * prior_correction + (
-            active.float() * authority * residual
+        spec = execution_spec or ExecutionSpec(
+            minimum_acceleration_mps2=float(minimum),
+            maximum_acceleration_mps2=float(maximum),
+            dt_s=float(dt_s),
+            correction_jerk_limit_mps3=float(jerk_limit_mps3),
+            residual_max_mps2=float(residual_max_mps2),
         )
-        bounded = (nominal + requested).clamp(minimum, maximum)
-        target = bounded - nominal
-        release = ~active & previous_calibration.abs().gt(1.0e-6)
-        effective = active | release
-        step = float(jerk_limit_mps3) * float(dt_s)
-        limited = previous_calibration + (target - previous_calibration).clamp(-step, step)
-        calibration = torch.where(effective, limited, torch.zeros_like(limited))
-        final = (nominal + calibration).clamp(minimum, maximum)
-        # Keep the commanded calibration trace separate from the hard action
-        # bounds.  Recomputing it as ``final - nominal`` after clipping makes
-        # a moving nominal action look like an instantaneous controller jerk
-        # (and can create 40–100 m/s^3 spikes at the acceleration limits).
-        # The safety clamp remains observable through ``physical_rewrite``;
-        # the stored calibration is the jerk-limited controller command.
+        del event_gate, calibration_strength, scale_radius
+        base = nominal - prior_correction
+        policy_active = active.bool() & authority.gt(0.0)
+        # raw[0] selects retention of the complete frozen response prior:
+        # -1 reaches factual base, 0 preserves the prior, +1 doubles it.
+        scale = (1.0 + raw[..., 0]).clamp(0.0, 2.0)
+        residual = float(spec.residual_max_mps2) * torch.tanh(raw[..., 1])
+        policy_request = scale * prior_correction + authority * residual
+        requested = torch.where(policy_active, policy_request, torch.zeros_like(policy_request))
+        release = ~policy_active & previous_calibration.abs().gt(1.0e-6)
+        execution_active = policy_active | release
+
+        physical_lower = float(spec.minimum_acceleration_mps2) - base
+        physical_upper = float(spec.maximum_acceleration_mps2) - base
+        step = float(spec.correction_step_mps2)
+        jerk_lower = previous_calibration - step
+        jerk_upper = previous_calibration + step
+        lower = torch.maximum(physical_lower, jerk_lower)
+        upper = torch.minimum(physical_upper, jerk_upper)
+        infeasible = lower > upper
+        projected = torch.minimum(torch.maximum(requested, lower), upper)
+        # If base motion makes the intersection empty, preserve hard action
+        # bounds and expose the violated correction-continuity constraint.
+        hard_bounded = torch.minimum(torch.maximum(requested, physical_lower), physical_upper)
+        projected = torch.where(infeasible, hard_bounded, projected)
+        projected = torch.where(execution_active, projected, torch.zeros_like(projected))
+        final = (base + projected).clamp(
+            float(spec.minimum_acceleration_mps2), float(spec.maximum_acceleration_mps2)
+        )
+        executed = final - base
         return {
             "final": final,
             "scale": scale,
             "residual": residual,
-            "calibration": calibration,
-            "pre_guard": nominal + requested,
+            "calibration": executed,
+            "pre_guard": base + requested,
             "release": release,
-            "effective": effective,
-            "physical_rewrite": (final - (nominal + requested)).abs().gt(1.0e-6),
+            "effective": execution_active,
+            "policy_active": policy_active,
+            "execution_active": execution_active,
+            "requested_total_correction": requested,
+            "projected_total_correction": projected,
+            "executed_total_correction": executed,
+            "calibration_relative_to_prior": executed - prior_correction,
+            "constraint_infeasible": infeasible & execution_active,
+            "physical_rewrite": (executed - requested).abs().gt(1.0e-6),
         }
 
     def evaluate_raw_action(self, features: torch.Tensor, raw_action: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -1291,7 +1341,6 @@ class CausalInfluenceResponsePolicy(ReactionController):
         previous = previous.to(proposal.base_action_ax)
         features = self.adapter_features(proposal, previous)
         distribution, value = self.adapter.distribution_and_value(features)
-        event_gate = self.adapter.event_gate_probability(features, self.event_gate_temperature)
         if deterministic:
             raw = distribution.mean
         elif context.policy_calibration_standard_normal is not None:
@@ -1302,9 +1351,9 @@ class CausalInfluenceResponsePolicy(ReactionController):
             proposal=proposal, raw=raw, previous_calibration=previous,
             minimum=float(context.cfg.min_acceleration_mps2), maximum=float(context.cfg.max_acceleration_mps2),
             dt_s=float(context.cfg.dt_s), jerk_limit_mps3=self.correction_jerk_limit_mps3,
-            event_gate=event_gate, calibration_strength=self.event_calibration_strength,
             scale_radius=self.calibration_scale_radius,
             residual_max_mps2=self.calibration_residual_max_mps2,
+            execution_spec=self.execution_spec(context.cfg),
         )
         actions = context.base_actions.clone()
         actions[:, 0, :, 0] = mapped["final"]
@@ -1313,8 +1362,8 @@ class CausalInfluenceResponsePolicy(ReactionController):
             alpha=mapped["scale"],
             delta_ax=mapped["final"] - proposal.base_action_ax,
             active=mapped["effective"],
-            log_prob=distribution.log_prob(raw).sum(-1) * proposal.active.float(),
-            entropy=distribution.entropy().sum(-1) * proposal.active.float(),
+            log_prob=distribution.log_prob(raw).sum(-1) * mapped["policy_active"].float(),
+            entropy=distribution.entropy().sum(-1) * mapped["policy_active"].float(),
             value=value,
             raw_action=raw,
             rule_action_ax=proposal.rule_action_ax,
@@ -1330,6 +1379,14 @@ class CausalInfluenceResponsePolicy(ReactionController):
             response_prior_correction_ax=proposal.correction_ax,
             causal_gate=None,
             causal_delta_ax=None,
+            policy_active=mapped["policy_active"],
+            execution_active=mapped["execution_active"],
+            release_active=mapped["release"],
+            requested_total_correction_ax=mapped["requested_total_correction"],
+            projected_total_correction_ax=mapped["projected_total_correction"],
+            executed_total_correction_ax=mapped["executed_total_correction"],
+            calibration_relative_to_prior_ax=mapped["calibration_relative_to_prior"],
+            correction_constraint_infeasible=mapped["constraint_infeasible"],
         )
 
 

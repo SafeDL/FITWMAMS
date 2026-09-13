@@ -1,0 +1,108 @@
+{
+  "schema": "cih_baseline_audit",
+  "split": "validation",
+  "sequences": 13133,
+  "recordings": 9,
+  "all_slots": {
+    "ADE_m": 0.03713994473218918,
+    "FDE_m": 0.0297092217952013,
+    "P50_displacement_error_m": 0.026883451268076897,
+    "P90_displacement_error_m": 0.07101389616727832,
+    "P95_displacement_error_m": 0.09152877107262616,
+    "P99_displacement_error_m": 0.15748593896627422,
+    "speed_MAE_mps": 0.03209827095270157,
+    "sequences": 13133,
+    "frames": 149
+  },
+  "per_slot": {
+    "same_front": {
+      "ADE_m": 0.035966530442237854,
+      "FDE_m": 0.029565926641225815,
+      "P50_displacement_error_m": 0.027416085824370384,
+      "P90_displacement_error_m": 0.07103427201509478,
+      "P95_displacement_error_m": 0.09036235362291334,
+      "P99_displacement_error_m": 0.15020641505718232,
+      "speed_MAE_mps": 0.031669702380895615,
+      "sequences": 13133,
+      "frames": 149
+    },
+    "same_rear": {
+      "ADE_m": 0.03755737468600273,
+      "FDE_m": 0.028677741065621376,
+      "P50_displacement_error_m": 0.027659563347697258,
+      "P90_displacement_error_m": 0.07553237229585648,
+      "P95_displacement_error_m": 0.09862593561410904,
+      "P99_displacement_error_m": 0.18469431489706042,
+      "speed_MAE_mps": 0.03522314503788948,
+      "sequences": 13133,
+      "frames": 149
+    },
+    "left_front": {
+      "ADE_m": 0.04748714342713356,
+      "FDE_m": 0.04397616535425186,
+      "P50_displacement_error_m": 0.03117319941520691,
+      "P90_displacement_error_m": 0.08132676929235462,
+      "P95_displacement_error_m": 0.10547374784946437,
+      "P99_displacement_error_m": 0.1901746815443048,
+      "speed_MAE_mps": 0.04009449854493141,
+      "sequences": 13133,
+      "frames": 149
+    },
+    "left_rear": {
+      "ADE_m": 0.048245593905448914,
+      "FDE_m": 0.04831789806485176,
+      "P50_displacement_error_m": 0.029500693082809448,
+      "P90_displacement_error_m": 0.07879503071308136,
+      "P95_displacement_error_m": 0.1034233532845974,
+      "P99_displacement_error_m": 0.1960246302187442,
+      "speed_MAE_mps": 0.03847871720790863,
+      "sequences": 13133,
+      "frames": 149
+    },
+    "right_front": {
+      "ADE_m": 0.031997691839933395,
+      "FDE_m": 0.021165544167160988,
+      "P50_displacement_error_m": 0.02453565038740635,
+      "P90_displacement_error_m": 0.06363895535469055,
+      "P95_displacement_error_m": 0.08197839409112928,
+      "P99_displacement_error_m": 0.13616933584213248,
+      "speed_MAE_mps": 0.027311887592077255,
+      "sequences": 13133,
+      "frames": 149
+    },
+    "right_rear": {
+      "ADE_m": 0.03177314251661301,
+      "FDE_m": 0.020824486389756203,
+      "P50_displacement_error_m": 0.023836806416511536,
+      "P90_displacement_error_m": 0.06367570310831072,
+      "P95_displacement_error_m": 0.08258668631315232,
+      "P99_displacement_error_m": 0.14405571460723973,
+      "speed_MAE_mps": 0.0275932215154171,
+      "sequences": 13133,
+      "frames": 149
+    }
+  },
+  "fallback": {
+    "total_slot_plans": 78798,
+    "present_slots": 33083,
+    "fallbacks": 0,
+    "by_slot": {
+      "same_front": 0,
+      "same_rear": 0,
+      "left_front": 0,
+      "left_rear": 0,
+      "right_front": 0,
+      "right_rear": 0
+    }
+  },
+  "absolute_gate": {
+    "ade": true,
+    "fde": true,
+    "p95": true
+  },
+  "same_rear_absolute_gate": {
+    "ade": true,
+    "fde": true,
+    "p95": true
+  }
+}

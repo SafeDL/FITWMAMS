@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import torch
 
 from hierarchical_world_model.src.cih_model import load_cih_method_config
@@ -12,11 +13,16 @@ from hierarchical_world_model.src.human_response_training import (
     loo_energy_rewards,
     mechanism_auxiliary_loss,
     prefix_loo_event_energy_rewards,
+    event_energy_score,
+    legacy_event_energy_score,
 )
 from hierarchical_world_model.src.reaction_controller import (
     CausalInfluenceResponsePolicy,
     ResponsePriorProposal,
+    HumanResponseCalibrator,
 )
+from hierarchical_world_model.src.influence_graph import CausalInfluenceGraph
+from hierarchical_world_model.src.reaction_evidence import event_identity
 from world_model.src.core.evaluation_scope import scoped_canonical_trajectory
 
 
@@ -56,21 +62,22 @@ def test_cold_inactive_mapping_is_exact_factual_dynamics_passthrough():
     torch.testing.assert_close(mapped["final"], base, rtol=0.0, atol=1.0e-6)
 
 
-def test_closed_event_gate_keeps_the_frozen_response_prior():
+def test_event_gate_no_longer_changes_the_runtime_mapping():
     nominal = torch.tensor([[[-1.1]]])
     mapped = CausalInfluenceResponsePolicy.map_calibration_tensors(
         nominal=nominal,
         prior_correction=torch.tensor([[[-.9]]]),
         authority=torch.ones_like(nominal),
         active=torch.ones_like(nominal, dtype=torch.bool),
-        raw=torch.full((1, 1, 2), 3.0),
+        raw=torch.zeros(1, 1, 2),
         previous_calibration=torch.zeros_like(nominal),
         minimum=-8.0,
         maximum=4.0,
         dt_s=.04,
         event_gate=torch.zeros_like(nominal),
     )
-    torch.testing.assert_close(mapped["final"], nominal, rtol=0.0, atol=1.0e-6)
+    torch.testing.assert_close(mapped["requested_total_correction"], torch.tensor([[[-.9]]]))
+    assert mapped["final"].item() == pytest.approx(-.68)
 
 
 def test_correction_release_obeys_induced_jerk_and_converges():
@@ -133,4 +140,70 @@ def test_zero_adapter_mean_preserves_the_frozen_prior_proposal():
         proposal=proposal, raw=torch.zeros(1, 1, 2), previous_calibration=torch.zeros(1, 1),
         minimum=-8.0, maximum=4.0, dt_s=.04,
     )
-    torch.testing.assert_close(mapped["final"], nominal)
+    torch.testing.assert_close(mapped["requested_total_correction"], proposal.correction_ax)
+    assert mapped["final"].item() == pytest.approx(-.68)
+
+
+def test_retention_mapping_contains_factual_and_prior_endpoints():
+    nominal = torch.tensor([[-1.1, -1.1]])
+    correction = torch.tensor([[-.9, -.9]])
+    mapped = CausalInfluenceResponsePolicy.map_calibration_tensors(
+        nominal=nominal, prior_correction=correction,
+        active=torch.ones_like(nominal, dtype=torch.bool), authority=torch.ones_like(nominal),
+        raw=torch.tensor([[[-1., 0.], [0., 0.]]]), previous_calibration=torch.zeros_like(nominal),
+        minimum=-8., maximum=4., dt_s=.04, jerk_limit_mps3=100.,
+    )
+    torch.testing.assert_close(mapped["requested_total_correction"], torch.tensor([[0., -.9]]))
+
+
+def test_fair_energy_excludes_diagonal_finite_ensemble_bias():
+    futures = torch.tensor([[[0., 0.]], [[2., 0.]]])
+    observed = torch.tensor([[1., 0.]])
+    fair = event_energy_score(futures, observed, torch.ones(2))
+    legacy = legacy_event_energy_score(futures, observed, torch.ones(2))
+    assert fair.item() == pytest.approx(0.0)
+    assert legacy.item() == pytest.approx(0.5)
+
+
+def test_clearance_counter_reaches_recovery_and_preserves_relation():
+    graph = CausalInfluenceGraph(stable_release_frames=3, recovery_frames=2)
+    current = torch.zeros(1, 7, 6)
+    valid = torch.ones(1, 7, dtype=torch.bool)
+    current[:, 1, 0] = -15.0
+    current[:, 0, 2] = 8.0
+    current[:, 1, 2] = 10.0
+    current[:, 0, 4] = -1.0
+    history = current[:, None].repeat(1, 2, 1, 1)
+    state = graph.update(current, valid, history, None)
+    assert state.phase[0, 0].item() == 1
+    assert state.parent[0, 0].item() == 0
+    for distance in (55.0, 56.0, 57.0):
+        previous = current.clone()
+        current = current.clone()
+        current[:, 1, 0] = -distance
+        current[:, 0, 4] = 0.0
+        history = torch.stack((previous, current), dim=1)
+        state = graph.update(current, valid, history, state)
+    assert state.phase[0, 0].item() == 2
+    assert state.parent[0, 0].item() == 0
+    assert state.role[0, 0].item() != 0
+
+
+def test_event_identity_contains_pair_and_recording_without_collisions():
+    keys = {
+        event_identity(1, 7, 8, 100), event_identity(2, 7, 8, 100),
+        event_identity(1, 9, 8, 100), event_identity(1, 7, 10, 100),
+        event_identity(1, 7, 8, 101),
+    }
+    assert len(keys) == 5
+    assert all(len(key) == 64 for key in keys)
+
+
+def test_every_runtime_trainable_parameter_has_policy_or_value_path():
+    adapter = HumanResponseCalibrator()
+    assert all(not parameter.requires_grad for parameter in adapter.event_gate.parameters())
+    features = torch.randn(3, adapter.feature_dim)
+    distribution, value = adapter.distribution_and_value(features)
+    (distribution.mean.square().mean() + value.square().mean() + distribution.scale.mean()).backward()
+    trainable = [parameter for parameter in adapter.parameters() if parameter.requires_grad]
+    assert trainable and all(parameter.grad is not None for parameter in trainable)

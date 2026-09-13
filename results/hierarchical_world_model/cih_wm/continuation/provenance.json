@@ -1,0 +1,39 @@
+{
+  "code_commit": "82e71e7ceabc993db307179301b296be019e6187",
+  "config_sha256": "ee80ef5f9c9658382eed7cb089dd6db0ab06896a7d2edc51c7b9270343bdcdfb",
+  "cuda_available": true,
+  "cuda_device": "NVIDIA GeForce RTX 4090 D",
+  "evaluation_conditions": {
+    "conditioned_reconstruction": true,
+    "prefix_sampled": false,
+    "test_candidate_confirmation_run": false
+  },
+  "final_working_tree_diff_hash": "1e73427727e5c2da2cb66ed161a5d72e27f79215aa91452f495ce8d40b1a57a3",
+  "formal_evaluation_scope": "all canonical background slots",
+  "full_evaluation_required": true,
+  "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.35",
+  "policy_checkpoint_sha256": "59ab9868c5406371628fd178c0d115752eb14587bfd8310092920a9d7007770f",
+  "python": "3.10.20 (main, Mar 11 2026, 17:46:40) [GCC 14.3.0]",
+  "randomness": {
+    "evaluation_seed": 20260814,
+    "natural_response_futures_per_event": 32,
+    "training_seed": 20260911
+  },
+  "resolved_config_sha256": "7750597fcac47f8007cf6cf1b004f9ed238f2aee5191cc314659d056016657c7",
+  "response_prior_checkpoint_sha256": "ffa9f934b6b2236c2ab75d007c84958076b2bfea1851644bfef681d40e42a4d5",
+  "same_rear_excluded": false,
+  "schema": "cih_continuation_provenance",
+  "supervised_checkpoint_sha256": "e51adbdc7fc493eea1b6895e6250b5d71ea51b0f4f2a7b7d03b87266b925b8d9",
+  "target_sha256": "618d3a841fc466a4183bc90e0073cc30786ac70d21ae99a438b1fb05485466ea",
+  "torch": "1.13.1+cu117",
+  "training_working_tree_diff_hash": "5a302f4184bc5fcd9f68453934e4bdd06c6695f337b663d7aa04a48ae99fec66",
+  "validation_reports_sha256": {
+    "policy": "172f8afa4506bbb9952d52ae334f689ddcb5178ae50b8601f79d07e1705d578f",
+    "supervised": "ad5ef513cc16fea85d8b54192ab705e0a7be2f571051456a7181c39c4cc1a73d"
+  },
+  "validation_working_tree_diff_hash": {
+    "policy": "d4bad65da013d3ae4179efe190e66f43a2209d22d39d7750c8c37030338b7a11",
+    "supervised": "d4bad65da013d3ae4179efe190e66f43a2209d22d39d7750c8c37030338b7a11"
+  },
+  "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9"
+}

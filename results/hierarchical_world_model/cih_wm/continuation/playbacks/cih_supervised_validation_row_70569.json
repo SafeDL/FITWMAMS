@@ -1,0 +1,29 @@
+{
+  "schema": "cih_wm_response_playback_v1",
+  "row": 70569,
+  "split": "validation",
+  "receiver_slot": 1,
+  "frames": 76,
+  "frame_stride": 2,
+  "candidate": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/response_supervised.pt",
+  "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/playbacks/cih_supervised_validation_row_70569.gif",
+  "controller_active_frames": 0,
+  "factual_interpretation": "Matched logged-ego replay: highD outlines are reference; blue is the frozen factual transition; purple is the unaccepted CIH-WM candidate.",
+  "counterfactual_braking_probe": {
+    "gif": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/continuation/playbacks/cih_supervised_validation_row_70569_counterfactual_brake.gif",
+    "frames": 75,
+    "dose_mps2": 3.0,
+    "window_frames": [
+      25,
+      50
+    ],
+    "summary": {
+      "receiver_slot": 2,
+      "controller_active_frames": 53,
+      "minimum_gap_factual_transition_m": 23.183536529541016,
+      "minimum_gap_cih_wm_m": 23.285846710205078,
+      "mean_abs_receiver_action_difference_mps2": 0.4128340184688568
+    },
+    "interpretation": "No highD future target after the added ego brake; compare only the matched frozen factual-transition and CIH-WM response trajectories and actions."
+  }
+}

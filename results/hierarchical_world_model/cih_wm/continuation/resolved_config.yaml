@@ -1,0 +1,224 @@
+cih:
+  schema_name: causal_influence_hierarchical_world_model
+  schema_version: 1
+  base_config: hierarchical_world_model/config/world_model.yaml
+  paths:
+    output_dir: results/hierarchical_world_model/cih_wm
+    response_prior_checkpoint: results/hierarchical_world_model/cih_wm/priors/behavior_response_prior.pt
+    longitudinal_mechanism_prior: results/hierarchical_world_model/cih_wm/priors/longitudinal_mechanism_prior.json
+    event_reference: results/hierarchical_world_model/cih_wm/evidence/reaction_events
+    human_response_evidence: results/hierarchical_world_model/cih_wm/continuation/evidence/human_response
+  method:
+    name: Causal Influence Hierarchical World Model
+    acronym: CIH-WM
+    factual_transition: frozen_diffusion_plan_conditioned_traffic_transition
+    causal_influence: realized_state_direct_follower_routing
+    human_response_calibration: mechanism_guided_constraint_preserving_adjustment
+    controller: causal_influence_response
+    protocol_status: cih_world_model
+    use_legacy_ttc_guard: false
+    correction_jerk_limit_mps3: 12.0
+    reaction_trigger_threshold_mps2: 0.25
+    ood_use_nominal_shadow: false
+  influence:
+    radius_m: 50.0
+    enable_secondary: false
+    prediction_horizon_s: 1.5
+    lane_half_width_m: 1.8
+    release_ttc_s: 4.0
+    stable_release_frames: 13
+    recovery_frames: 15
+    activation_brake_mps2: 1.5
+  response_channels:
+    longitudinal:
+      enabled: true
+      evidence: natural_following_and_paired_braking
+    lateral:
+      enabled: false
+      evidence: required_before_causal_activation
+      current_scope: factual_yaw_rate_reconstruction_only
+  calibrator:
+    hidden_dim: 64
+    scale_radius: 0.75
+    residual_max_mps2: 2.0
+    initial_log_std: -3.0
+  human_response:
+    channels:
+    - acceleration
+    - abs_jerk
+    primary_horizon_frames: 75
+    score: fair_event_energy
+    compatibility_horizon_frames: 25
+    compatibility_score: legacy_raw_energy
+    prefix_reward_shaping: false
+    support_weight:
+      empirically_supported: 1.0
+      weakly_supported: 0.5
+      unsupported_by_training_evidence: 0.0
+  supervised:
+    updates: 400
+    minibatch_size: 2048
+    learning_rate: 0.001
+    event_weight: 5.0
+    non_event_weight: 1.0
+    non_event_calibration_weight: 1.0
+    prior_regularization: 0.0
+  policy_optimization:
+    seed: 20260911
+    rollout_steps: 149
+    event_groups_per_update: 8
+    futures_per_event: 8
+    maximum_updates: 160
+    epochs_per_update: 2
+    minibatch_size: 2048
+    learning_rate_start: 3.0e-05
+    learning_rate_end: 1.0e-05
+    clip_ratio: 0.2
+    inner_stop_kl: 0.02
+    entropy_coefficient: 0.001
+    reference_kl_target: 0.01
+    reference_kl_coefficient: 0.1
+    reference_kl_minimum: 0.0001
+    reference_kl_maximum: 10.0
+    gamma: 1.0
+    gae_lambda: 1.0
+    full_update_kl_limit: 0.02
+    quick_validation_interval: 10
+    early_stopping_patience: 4
+    value_coefficient: 0.5
+    max_grad_norm: 1.0
+  auxiliary:
+    mechanism_weight: 1.0
+    direction_margin_mps2: 0.05
+    direction_weight: 1.0
+    magnitude_weight: 0.1
+    causal_contrast_rows: 2000
+    causal_refresh_interval: 500
+    rule_delta_threshold_mps2: 0.1
+    causal_contrast_weight: 5.0
+    causal_direction_weight: 10.0
+    causal_magnitude_weight: 0.1
+    causal_monotonic_weight: 5.0
+  evaluation:
+    factual_absolute_tolerance_m:
+      ade: 0.02
+      fde: 0.06
+      p95: 0.1
+    factual_relative_tolerance: 0.05
+    scopes:
+      released_factual_comparison:
+        excluded_slots: []
+      response_factual_reconstruction:
+        excluded_slots: []
+        target_roles:
+        - same_lane_follower
+      ads_closed_loop:
+        excluded_slots: []
+        influence_levels:
+        - direct
+world:
+  paths:
+    output_dir: results/hierarchical_world_model/factual_all_slots
+    evaluation_checkpoint: results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt
+    sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
+    source_schema: results/highd_natural_driving_flow/dataset_schema.json
+    flow_output_dir: results/highd_natural_driving_flow
+    flow_checkpoint: results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
+    diffusion_checkpoint: results/background_diffusion/checkpoints/best_background_diffusion.pt
+    diffusion_contract: results/background_diffusion/dataset_contract.json
+    response_calibration_reference: results/hierarchical_world_model/factual_hiqr/natural_response_calibration.json
+  evaluation_scope:
+    schema: highd_all_background
+    excluded_background_slots: []
+  model:
+    hidden_dim: 128
+    num_heads: 4
+    relation_layers: 2
+    temporal_layers: 1
+    decoder_layers: 2
+    dropout: 0.1
+    scene_latent_dim: 16
+    agent_latent_dim: 16
+    scene_refresh_responses: 25
+    scene_noise_scale: 0.17
+    agent_noise_scale: 0.08
+    graph_coupled_latent_enabled: true
+    latent_flow_persistence: 0.985
+    behavior_mode_decoder_enabled: true
+    behavior_mode_max_acceleration_mps2: 0.25
+    behavior_mode_max_yaw_rate_rps: 0.015
+    jerk_knots: 5
+    execute_frames: 1
+    use_soft_plan: true
+    stochastic_latents: true
+    min_acceleration_std_mps2: 0.015
+    min_yaw_rate_std_rps: 0.0002
+    initial_acceleration_std_mps2: 0.2
+    initial_yaw_rate_std_rps: 0.01
+    stochastic_longitudinal_jerk_mps3: 0.6
+    stochastic_yaw_acceleration_rps2: 0.006
+    velocity_rebase_horizon_s: 0.4
+    soft_anchor_final_weight: 0.5
+    causal_response_min_gain: 1.0
+    causal_response_max_gain: 1.4
+    causal_response_initial_gain: 1.1
+    causal_response_scale: 4.0
+    intervention_adapter_enabled: true
+    intervention_adapter_initial_logit: 2.0
+    intervention_trigger_threshold_mps2: 0.5
+    intervention_trigger_history_frames: 5
+    intervention_adapter_max_gain: 0.6
+    intervention_brake_adapter_max_gain: 1.4
+    intervention_accelerate_adapter_max_gain: 2.0
+    intervention_memory_decay: 0.99
+    lateral_response_adapter_enabled: true
+    lateral_intervention_trigger_threshold_rps: 0.05
+    lateral_response_adapter_max_yaw_rate_rps: 0.1
+    lateral_intervention_memory_decay: 0.99
+    lateral_response_trigger_scale_rps: 0.04
+    natural_response_kernel_enabled: false
+    causal_response_field_enabled: false
+    dose_calibrated_intervention_loss: false
+    max_residual_jerk_mps3: 2.0
+    max_residual_yaw_acceleration_rps2: 0.2
+    locality_weight: 1.0
+    monotonicity_weight: 10.0
+    response_strength_weight: 100.0
+    energy_weight: 1.0
+    closed_loop_factual_weight: 10.0
+  training:
+    experiment_scope: full
+    seed: 20260814
+    device: auto
+    epochs: 50
+    patience: 6
+    batch_size: 512
+    validation_batch_size: 1024
+    num_workers: 0
+    learning_rate: 0.0003
+    weight_decay: 0.0001
+    grad_clip: 1.0
+    selection_factual_weight: 0.02
+    selection_energy_weight: 1.0
+    factual_ade_tolerance_m: 0.02
+    factual_fde_tolerance_m: 0.06
+    factual_p95_tolerance_m: 0.1
+    factual_relative_tolerance: 0.05
+    intervention_interval: 8
+    intervention_sequences: 4
+    response_calibration_method: propensity
+    response_calibration_minimum_events: 100
+  stages:
+    base:
+      deterministic_forward: true
+      trainable: backbone
+    stochastic_heads:
+      deterministic_forward: false
+      trainable:
+      - latent_transition.
+      - decoder.behavior_mode.
+      - decoder.scene_innovation.
+      - decoder.agent_innovation.
+    final:
+      deterministic_forward: false
+  evaluation: {}

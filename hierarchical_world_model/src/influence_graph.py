@@ -112,6 +112,7 @@ class CausalInfluenceGraph:
         stable_release_frames: int = 13,
         recovery_frames: int = 15,
         secondary_authority_decay: float = 0.6,
+        activation_brake_mps2: float = 0.5,
     ) -> None:
         self.radius_m = float(radius_m)
         self.enable_secondary = bool(enable_secondary)
@@ -121,6 +122,7 @@ class CausalInfluenceGraph:
         self.release_ttc_s = float(release_ttc_s)
         self.stable_release_frames = int(stable_release_frames)
         self.recovery_frames = int(recovery_frames)
+        self.activation_brake_mps2 = max(float(activation_brake_mps2), 0.0)
         if not 0.0 < float(secondary_authority_decay) < 1.0:
             raise ValueError("secondary authority decay must lie inside (0, 1)")
         self.secondary_authority_decay = float(secondary_authority_decay)
@@ -171,7 +173,15 @@ class CausalInfluenceGraph:
         # which local relations a residual policy may inspect; the policy can
         # still select an exact zero correction when HiQR is already suitable.
         # Crucially, no logged/synthetic/ADS experiment class enters here.
-        direct = valid[:, 1:] & (following_risk | cutin_risk | (rear_sector & same_lane))
+        geometric_direct = valid[:, 1:] & (
+            following_risk | cutin_risk | (rear_sector & same_lane)
+        )
+        # A local follower relation is eligible, but a response episode opens
+        # only after braking has appeared in the realized ego state.  This is
+        # the preceding transition's committed control, never the pending
+        # command for the current transition.
+        realized_braking = current[:, :1, 4] <= -self.activation_brake_mps2
+        direct = geometric_direct & realized_braking
 
         role = torch.where(
             direct & same_lane,
@@ -233,14 +243,29 @@ class CausalInfluenceGraph:
             opening = distance > old_distance
         else:
             opening = torch.zeros_like(conflict)
-        safe = ~conflict & opening
-        safe_frames = torch.where(safe & old.phase.eq(1), old.safe_frames + 1, torch.zeros_like(old.safe_frames))
+        # Once the realized braking stimulus has ended, a non-closing or
+        # comfortably large-TTC relation can accumulate release even when
+        # Euclidean distance is momentarily flat.  Requiring strict opening
+        # alone can retain authority for the rest of a finite rollout.
+        safe = ~conflict & (opening | (closing <= 0.0) | (ttc >= self.release_ttc_s))
+        # Phase 1 covers both engaged and clearing.  Keep it while safety is
+        # accumulating; otherwise the first clear frame would reset the phase
+        # and the configured release counter could never reach its threshold.
+        safe_frames = torch.where(
+            safe & old.phase.eq(1), old.safe_frames + 1,
+            torch.where(conflict, torch.zeros_like(old.safe_frames), old.safe_frames),
+        )
         begin_recovery = old.phase.eq(1) & (safe_frames >= self.stable_release_frames)
         continuing_recovery = old.phase.eq(2) & (old.recovery_remaining > 1)
+        continuing_clearing = old.phase.eq(1) & ~conflict & ~begin_recovery
         phase = torch.where(
             conflict,
             torch.ones_like(old.phase),
-            torch.where(begin_recovery | continuing_recovery, torch.full_like(old.phase, 2), torch.zeros_like(old.phase)),
+            torch.where(
+                begin_recovery | continuing_recovery,
+                torch.full_like(old.phase, 2),
+                torch.where(continuing_clearing, torch.ones_like(old.phase), torch.zeros_like(old.phase)),
+            ),
         )
         recovery = torch.where(
             conflict,
@@ -266,14 +291,16 @@ class CausalInfluenceGraph:
         authority = torch.where(
             phase.eq(2),
             recovery.to(distance) / float(max(self.recovery_frames, 1)),
-            base_authority,
+            torch.where(continuing_clearing, old.authority, base_authority),
         ) * valid[:, 1:].float()
         # Recovery is still part of the same causal episode.  Retaining the
         # last role and parent keeps its feature semantics stable while the
         # continuous authority envelope returns the vehicle to HiQR.
-        recovering = phase.eq(2)
-        role = torch.where(recovering & role.eq(ROLE_NONE), old.role, role)
-        parent = torch.where(recovering & parent.lt(0), old.parent, parent)
+        retained_episode = phase.ne(0)
+        role = torch.where(retained_episode & role.eq(ROLE_NONE), old.role, role)
+        parent = torch.where(retained_episode & parent.lt(0), old.parent, parent)
+        direct = torch.where(retained_episode & ~direct & old.direct, old.direct, direct)
+        secondary = torch.where(retained_episode & ~secondary & old.secondary, old.secondary, secondary)
         age = torch.where(phase.ne(0), old.age_frames + 1, torch.zeros_like(old.age_frames))
         predicted_ttc = torch.where(secondary, secondary_ttc, ttc)
         min_gap = torch.where(

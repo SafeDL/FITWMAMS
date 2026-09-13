@@ -1,0 +1,41 @@
+{
+  "checks": [
+    {
+      "command": "conda run -n tread pytest -q hierarchical_world_model/tests",
+      "duration_s": 6.0,
+      "passed": true,
+      "tests_passed": 45
+    },
+    {
+      "command": "python -m py_compile <all modified Python modules>",
+      "passed": true
+    },
+    {
+      "command": "git diff --check",
+      "passed": true
+    }
+  ],
+  "formal_evaluations": {
+    "factual_test": {
+      "all_slots": true,
+      "report": "../../factual_all_slots/evaluation.json",
+      "same_rear_masked": false,
+      "sequences": 10151
+    },
+    "validation_policy": {
+      "causal_rows": 13133,
+      "events": 265,
+      "futures_per_event": 32,
+      "report": "validation/full_policy.json",
+      "sequences": 13133
+    },
+    "validation_supervised": {
+      "causal_rows": 13133,
+      "events": 265,
+      "futures_per_event": 32,
+      "report": "validation/full_supervised.json",
+      "sequences": 13133
+    }
+  },
+  "schema": "cih_final_test_summary"
+}

@@ -1,0 +1,10 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/background_diffusion/checkpoints/best_background_diffusion.pt",
+  "checkpoint_sha256": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+  "ddim_steps": 20,
+  "evaluation_scope": "highd_all_background",
+  "experiment_scope": "full",
+  "initial_noise": "zero",
+  "row_digest": "ae4200893bbdf3e032086b5f6bd539943895d7a4f53f184534dbafc047f7aee7",
+  "sequences": 2
+}

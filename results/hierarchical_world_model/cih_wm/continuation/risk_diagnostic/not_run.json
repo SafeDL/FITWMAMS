@@ -1,0 +1,6 @@
+{
+  "reason": "validation Gate E5 failed and prefix_sampled risk source is not connected",
+  "run": false,
+  "schema": "cih_risk_diagnostic_status",
+  "source_contract": "../source_contract_audit.json"
+}

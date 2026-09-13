@@ -1,0 +1,38 @@
+{
+  "train": {
+    "empirically_supported": 1246,
+    "weakly_supported": 273,
+    "unsupported_by_training_evidence": 322,
+    "events": 1841,
+    "response_shape": [
+      1841,
+      75,
+      2
+    ],
+    "unique_event_keys": 1841
+  },
+  "validation": {
+    "empirically_supported": 254,
+    "weakly_supported": 11,
+    "unsupported_by_training_evidence": 0,
+    "events": 265,
+    "response_shape": [
+      265,
+      75,
+      2
+    ],
+    "unique_event_keys": 265
+  },
+  "test": {
+    "empirically_supported": 199,
+    "weakly_supported": 6,
+    "unsupported_by_training_evidence": 0,
+    "events": 205,
+    "response_shape": [
+      205,
+      75,
+      2
+    ],
+    "unique_event_keys": 205
+  }
+}

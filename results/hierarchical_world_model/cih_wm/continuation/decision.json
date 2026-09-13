@@ -1,0 +1,86 @@
+{
+  "accepted": false,
+  "checkpoint_decision": {
+    "ppo_checkpoint": "response_policy.pt",
+    "ppo_checkpoint_sha256": "59ab9868c5406371628fd178c0d115752eb14587bfd8310092920a9d7007770f",
+    "ppo_retained": true,
+    "ppo_selected": false,
+    "retained_checkpoint": "response_supervised.pt",
+    "retained_checkpoint_sha256": "e51adbdc7fc493eea1b6895e6250b5d71ea51b0f4f2a7b7d03b87266b925b8d9",
+    "retained_status": "research_artifact_only_not_accepted_candidate"
+  },
+  "failed_gates": {
+    "E3_human_sequence_distribution": {
+      "ci95": [
+        -1.2680925950199449e-05,
+        0.000150087007547952
+      ],
+      "mean_supervised_minus_final": 7.177906216315504e-05,
+      "passed": false,
+      "reason": "PPO increment over its supervised checkpoint is not statistically significant."
+    },
+    "E5_causal_mechanism": {
+      "frame_direction": 0.7301110979118137,
+      "passed": false,
+      "reason": "Frame and fixed-window direction agreement and fixed-window dose monotonicity are below the frozen 0.95 gate.",
+      "required": 0.95,
+      "window_direction": 0.7576424553680606,
+      "window_dose_monotonicity": 0.5124875124875125
+    }
+  },
+  "full_evaluation": {
+    "causal_probe_rows": 13133,
+    "factual_test_sequences": 10151,
+    "futures_per_event": 32,
+    "natural_response_events": 265,
+    "natural_response_recordings": 9,
+    "validation_sequences": 13133
+  },
+  "goal_terminal_condition": "performance_cannot_improve_within_preregistered_protocol",
+  "missing_evidence": [
+    "A validated prefix_sampled long-horizon source is not connected.",
+    "Gate E5 mechanism consistency at the preregistered 0.95 threshold.",
+    "A statistically significant PPO Energy Score increment over supervised."
+  ],
+  "next_allowed_operation": "A separately preregistered response-model or evidence revision may start a new validation chain. Do not use test, MC/AMS, or extra PPO updates for this rejected chain.",
+  "passed_gates": {
+    "E0_protocol_and_all_slot_base": true,
+    "E1_supervised_warm_start": true,
+    "E2_full_validation_factual_retention": true,
+    "replay_snapshot_shared_prefix": true
+  },
+  "risk_readiness": false,
+  "risk_reason": "Flow-to-diffusion prefix sampler is not connected to the maintained rollout",
+  "same_rear_masked": false,
+  "schema": "cih_continuation_decision",
+  "sources": {
+    "baseline_audit": "baseline_audit.json",
+    "factual_test": "../../factual_all_slots/evaluation.json",
+    "ppo_validation": "validation/full_policy.json",
+    "replay_snapshot_prefix_tests": "replay_snapshot_prefix_tests.json",
+    "source_contract_audit": "source_contract_audit.json",
+    "supervised_validation": "validation/full_supervised.json",
+    "target": "doc/FITWMAMS_CIH_WM_Continuation_Target.md",
+    "training_manifest": "manifest.json"
+  },
+  "status": "candidate_rejected",
+  "stopping_evidence": {
+    "maximum_full_update_kl": 0.0006655095494352281,
+    "ppo_updates_attempted": 160,
+    "ppo_updates_rolled_back": 0,
+    "protocol_rule": "A nonsignificant PPO increment retains supervised and forbids adding training rounds or changing the test subset to search for significance.",
+    "supervised_updates": 400,
+    "training_termination_reason": "fixed_budget_complete"
+  },
+  "supervised_remaining_failure": {
+    "frame_direction": 0.7309036935902608,
+    "gate": "E5_causal_mechanism",
+    "required": 0.95,
+    "window_direction": 0.7592954990215264,
+    "window_dose_monotonicity": 0.512
+  },
+  "test_confirmation": {
+    "reason": "Formal validation was rejected; the evaluator requires an accepted validation report before test execution.",
+    "run": false
+  }
+}

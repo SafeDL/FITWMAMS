@@ -9,6 +9,7 @@ paths:
   response_prior_checkpoint: results/hierarchical_world_model/cih_wm/priors/behavior_response_prior.pt
   longitudinal_mechanism_prior: results/hierarchical_world_model/cih_wm/priors/longitudinal_mechanism_prior.json
   event_reference: results/hierarchical_world_model/cih_wm/evidence/reaction_events
+  human_response_evidence: results/hierarchical_world_model/cih_wm/continuation/evidence/human_response
 method:
   name: Causal Influence Hierarchical World Model
   acronym: CIH-WM
@@ -20,7 +21,7 @@ method:
   controller: causal_influence_response
   protocol_status: cih_world_model
   use_legacy_ttc_guard: false
-  correction_jerk_limit_mps3: 24.0
+  correction_jerk_limit_mps3: 12.0
   # Independent response-policy trigger.  It is intentionally below the
   # frozen decoder's 0.5 m/s² intervention trigger: highD's 25 Hz commands
   # are quantized at roughly 0.25 m/s², and controller-on factual evaluation
@@ -40,6 +41,7 @@ influence:
   release_ttc_s: 4.0
   stable_release_frames: 13
   recovery_frames: 15
+  activation_brake_mps2: 1.5
 response_channels:
   longitudinal:
     enabled: true
@@ -52,33 +54,33 @@ calibrator:
   hidden_dim: 64
   scale_radius: 0.75
   residual_max_mps2: 2.0
-  initial_log_std: -2.0
+  initial_log_std: -3.0
 human_response:
   channels: [acceleration, abs_jerk]
-  prefixes: [5, 10, 25]
-  prefix_weights: [0.25, 0.35, 0.40]
+  primary_horizon_frames: 75
+  score: fair_event_energy
+  compatibility_horizon_frames: 25
+  compatibility_score: legacy_raw_energy
+  prefix_reward_shaping: false
   support_weight:
     empirically_supported: 1.0
     weakly_supported: 0.5
     unsupported_by_training_evidence: 0.0
 supervised:
-  updates: 5000
+  updates: 400
   minibatch_size: 2048
   learning_rate: 1.0e-3
   event_weight: 5.0
   non_event_weight: 1.0
-  event_gate_weight: 5.0
-  event_calibration_strength: 1.0
-  event_gate_temperature: 2.5
-  non_event_calibration_weight: 0.05
-  prior_regularization: 0.0001
+  non_event_calibration_weight: 1.0
+  prior_regularization: 0.0
 policy_optimization:
   seed: 20260911
   rollout_steps: 149
   event_groups_per_update: 8
   futures_per_event: 8
   maximum_updates: 160
-  epochs_per_update: 4
+  epochs_per_update: 2
   minibatch_size: 2048
   learning_rate_start: 3.0e-5
   learning_rate_end: 1.0e-5
@@ -89,8 +91,11 @@ policy_optimization:
   reference_kl_coefficient: 0.1
   reference_kl_minimum: 1.0e-4
   reference_kl_maximum: 10.0
-  gamma: 0.99
-  gae_lambda: 0.95
+  gamma: 1.0
+  gae_lambda: 1.0
+  full_update_kl_limit: 0.020
+  quick_validation_interval: 10
+  early_stopping_patience: 4
   value_coefficient: 0.5
   max_grad_norm: 1.0
 auxiliary:
@@ -100,13 +105,13 @@ auxiliary:
   magnitude_weight: 0.1
   # Matched nominal/light/medium/strong ADS rollouts.  Targets are computed
   # from the realized parent-aware mechanism; no logged future is consumed.
-  causal_contrast_rows: 256
+  causal_contrast_rows: 2000
   causal_refresh_interval: 500
   rule_delta_threshold_mps2: 0.10
-  causal_contrast_weight: 0.5
-  causal_direction_weight: 4.0
-  causal_magnitude_weight: 0.05
-  causal_monotonic_weight: 0.5
+  causal_contrast_weight: 5.0
+  causal_direction_weight: 10.0
+  causal_magnitude_weight: 0.10
+  causal_monotonic_weight: 5.0
 evaluation:
   factual_absolute_tolerance_m: {ade: 0.02, fde: 0.06, p95: 0.10}
   factual_relative_tolerance: 0.05
