@@ -74,8 +74,8 @@ def main() -> None:
 
     config, world = load_cih_config(ROOT)
     status = str(config["method"].get("protocol_status", ""))
-    if status != "cih_world_model_v2":
-        raise RuntimeError("trainer requires the CIH-WM v2 protocol")
+    if status != "cih_world_model":
+        raise RuntimeError("trainer requires the CIH-WM protocol")
     device = select_device(world["training"].get("device", "auto"))
     seed = int(config["policy_optimization"]["seed"])
     torch.manual_seed(seed); np.random.seed(seed)
@@ -139,7 +139,7 @@ def main() -> None:
         if args.futures_per_event is None else args.futures_per_event
     )
     manifest = {
-        "schema": "cih_world_model_training_v2",
+        "schema": "cih_world_model_training",
         "protocol": {
             "world_executor": "hierarchical_world_model.src.evaluation.rollout",
             "dynamics": "KinematicTrafficDynamics",

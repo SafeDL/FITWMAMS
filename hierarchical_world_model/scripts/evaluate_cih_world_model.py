@@ -62,7 +62,7 @@ def _training_provenance(candidate: Path, config: dict[str, Any]) -> dict[str, A
     protocol = manifest.get("protocol", {})
     schedule = manifest.get("training_schedule", {})
     passed = (
-        manifest.get("schema") == "cih_world_model_training_v2"
+        manifest.get("schema") == "cih_world_model_training"
         and protocol.get("world_executor") == "hierarchical_world_model.src.evaluation.rollout"
         and protocol.get("highwayenv") == "not imported or executed"
         and protocol.get("selection") == "none during training; full formal validation is mandatory"
@@ -415,7 +415,7 @@ def main() -> None:
         and training_provenance["passed"] and evaluation_passed
     )
     report = {
-        "schema": "cih_world_model_evaluation_v2",
+        "schema": "cih_world_model_evaluation",
         "split": args.split,
         "complete_split": args.limit is None,
         "sequences": int(len(split_rows)),

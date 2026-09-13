@@ -36,14 +36,19 @@ class RuleModelBundle:
     mobil_incentive_threshold_mps2: float
     mobil_safe_brake_mps2: float
     calibration_method: str = "full-training-observation-idm"
-    schema: str = "highd_global_rule_models_v2"
+    schema: str = "highd_global_rule_models"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "RuleModelBundle":
-        if value.get("schema") != "highd_global_rule_models_v2":
+        # Existing priors were written before the project-wide naming cleanup.
+        # Read them, but write the canonical unversioned name going forward.
+        if value.get("schema") not in {
+            "highd_global_rule_models",
+            "highd_global_rule_models_v2",
+        }:
             raise ValueError("unsupported rule-model artifact; recalibrate the single global highD IDM/MOBIL model")
         return cls(
             idm_parameters=tuple(float(item) for item in value["idm_parameters"]),
@@ -236,7 +241,7 @@ def fit_rule_models(
     prediction = _idm_numpy(np.asarray(parameters), gap, vf, vl).clip(-8., 4.)
     error = prediction - observed
     return bundle, {
-        "schema": "highd_global_rule_calibration_report_v2", "training_rows": int(len(rows)),
+        "schema": "highd_global_rule_calibration_report", "training_rows": int(len(rows)),
         "following_observations": int(len(gap)), "optimizer": "Adam; robust gap-weighted full-observation IDM objective",
         "epochs": int(epochs), "batch_size": int(batch_size), "history": history,
         "training_acceleration_mae_mps2": float(np.abs(error).mean()),

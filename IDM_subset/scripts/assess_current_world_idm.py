@@ -113,7 +113,7 @@ def main() -> None:
         ),
     }
     report = {
-        "schema": "highway_env_idm_world_model_acceptance_v2",
+        "schema": "highway_env_idm_world_model_acceptance",
         "world_model_id": spec.model_id,
         "world_model": spec.display_name,
         "checks": checks,

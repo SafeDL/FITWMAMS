@@ -33,7 +33,7 @@ def main() -> None:
         and provenance.get("passed") is True and same_checkpoint
     )
     record = {
-        "schema": "cih_world_model_acceptance_v2",
+        "schema": "cih_world_model_acceptance",
         "accepted": passed,
         "candidate": test.get("checkpoint"),
         "validation_artifact": str(args.validation.resolve()),

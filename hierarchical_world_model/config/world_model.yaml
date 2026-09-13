@@ -5,7 +5,7 @@
 paths:
   # New all-slot evaluation artifacts must not overwrite historical
   # same-rear-masked release evidence in factual_hiqr/.
-  output_dir: results/hierarchical_world_model/factual_all_slots_v2
+  output_dir: results/hierarchical_world_model/factual_all_slots
   evaluation_checkpoint: results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt
   sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
   source_schema: results/highd_natural_driving_flow/dataset_schema.json
@@ -16,7 +16,7 @@ paths:
   response_calibration_reference: results/hierarchical_world_model/factual_hiqr/natural_response_calibration.json
 
 evaluation_scope:
-  schema: highd_all_background_v2
+  schema: highd_all_background
   excluded_background_slots: []
 
 model:

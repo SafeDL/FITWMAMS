@@ -20,7 +20,7 @@ scripts/
 
 results/hierarchical_world_model/
 ├── factual_hiqr/              # 历史掩码协议的冻结检查点和发布评测
-├── factual_all_slots_v2/      # 后续全背景车评测输出（首次运行时创建）
+├── factual_all_slots/         # 后续全背景车评测输出（首次运行时创建）
 └── cih_wm/                    # 先验、固定证据与当前 CIH-WM 候选
 ```
 
@@ -28,7 +28,7 @@ results/hierarchical_world_model/
 ADE **0.040227 m**、FDE **0.036870 m**、P95 位移误差 **0.090438 m**。当前代码已切换到
 包含 `same_rear` 的全背景车口径，尚未重新训练或评测；因此这些历史数值不能与后续全量结果直接比较，也不应写成 CIH-WM 因果响应指标。
 
-当前 CIH-WM v2 已移除名义影子动作、成对硬门和规则差值覆盖，并加入不读取记录未来的名义/三档 ADS 制动对比训练。全量训练候选在 256 序列诊断中仍未通过因果方向和 `same_rear` 非劣门槛，因此
+当前 CIH-WM 已移除名义影子动作、成对硬门和规则差值覆盖，并加入不读取记录未来的名义/三档 ADS 制动对比训练。全量训练候选在 256 序列诊断中仍未通过因果方向和 `same_rear` 非劣门槛，因此
 `cih_wm/candidate_unaccepted/` 中的结果只能用于诊断，不能称为正式最佳模型。方法边界、组件证据和下一步验收协议见
 [`FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md`](../doc/FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md)。
 

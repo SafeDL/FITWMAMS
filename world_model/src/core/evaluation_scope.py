@@ -17,7 +17,7 @@ import torch
 from .schema import SLOT_NAMES, slot_index
 
 
-EVALUATION_SCOPE_SCHEMA = "highd_all_background_v2"
+EVALUATION_SCOPE_SCHEMA = "highd_all_background"
 EXCLUDED_EVALUATION_SLOTS: tuple[str, ...] = ()
 
 

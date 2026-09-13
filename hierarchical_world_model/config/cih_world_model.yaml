@@ -2,7 +2,7 @@
 # The released factual checkpoint and learned response prior stay frozen; the
 # human-response calibrator is the only trainable runtime component.
 schema_name: causal_influence_hierarchical_world_model
-schema_version: 2
+schema_version: 1
 base_config: hierarchical_world_model/config/world_model.yaml
 paths:
   output_dir: results/hierarchical_world_model/cih_wm
@@ -18,7 +18,7 @@ method:
   causal_influence: realized_state_direct_follower_routing
   human_response_calibration: mechanism_guided_constraint_preserving_adjustment
   controller: causal_influence_response
-  protocol_status: cih_world_model_v2
+  protocol_status: cih_world_model
   use_legacy_ttc_guard: false
   correction_jerk_limit_mps3: 24.0
   # Independent response-policy trigger.  It is intentionally below the
