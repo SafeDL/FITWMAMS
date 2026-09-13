@@ -1,33 +1,24 @@
-"""Hierarchical long-horizon and reactive traffic world model.
-
-The public classes are loaded lazily so lightweight protocol/config tooling does
-not import the training stack (and its optional accelerator dependencies).
-"""
+"""Maintained factual-transition and CIH-WM public interface."""
 
 __all__ = [
-    "HierarchicalWorldSampler",
+    "CausalInfluenceHierarchicalWorldModel",
+    "FactualDynamicsModel",
     "DiffusionGuidedHiQR",
     "WorldModelConfig",
-    "WorldExogenousState",
-    "WorldRollout",
-    "rollout_world",
 ]
 
 
 def __getattr__(name: str):
-    if name == "HierarchicalWorldSampler":
-        from .src.composition import HierarchicalWorldSampler
-        return HierarchicalWorldSampler
+    if name == "CausalInfluenceHierarchicalWorldModel":
+        from .src.cih_model import CausalInfluenceHierarchicalWorldModel
+        return CausalInfluenceHierarchicalWorldModel
+    if name == "FactualDynamicsModel":
+        from .src.model import FactualDynamicsModel
+        return FactualDynamicsModel
     if name == "DiffusionGuidedHiQR":
         from .src.model import DiffusionGuidedHiQR
         return DiffusionGuidedHiQR
     if name == "WorldModelConfig":
         from .src.config import WorldModelConfig
         return WorldModelConfig
-    if name == "WorldExogenousState":
-        from .src.randomness import WorldExogenousState
-        return WorldExogenousState
-    if name in {"WorldRollout", "rollout_world"}:
-        from .src.execution import WorldRollout, rollout_world
-        return {"WorldRollout": WorldRollout, "rollout_world": rollout_world}[name]
     raise AttributeError(name)

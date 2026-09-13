@@ -697,8 +697,8 @@ class BackgroundTrajectoryDataset(Dataset):
             # ``feature_valid_from_slot_mask`` preserves a batch dimension;
             # this dataset item is a single, one-dimensional C0 vector.
             # Project the corresponding one-dimensional validity row before
-            # masking so evaluation-only removal of ``same_rear`` cannot
-            # trigger NumPy's two-dimensional boolean-indexing path.
+            # applying an explicitly requested evaluation scope; this avoids
+            # NumPy's two-dimensional boolean-indexing path.
             feature_valid = feature_valid_from_slot_mask(
                 self.bundle.flow_schema, slots
             )[0]

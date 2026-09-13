@@ -1,4 +1,4 @@
-"""Objectives shared by the human-response A2 training workflow."""
+"""Human-response distribution objectives used by CIH-WM training."""
 
 from __future__ import annotations
 
@@ -75,7 +75,8 @@ def prefix_loo_event_energy_rewards(
 def mechanism_auxiliary_loss(
     *, model_intervention: torch.Tensor, model_baseline: torch.Tensor,
     idm_intervention: torch.Tensor, idm_baseline: torch.Tensor,
-    threshold: float = 0.25,
+    threshold: float = 0.25, direction_margin: float = 0.05,
+    direction_weight: float = 1.0, magnitude_weight: float = 0.1,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Differentiable paired mechanism regularizer for detached rollout states."""
     model_delta = (model_intervention - model_baseline).clamp(-4.0, 4.0)
@@ -84,9 +85,13 @@ def mechanism_auxiliary_loss(
     if not selected.any():
         zero = model_delta.sum() * 0.0
         return zero, {"direction": zero, "magnitude": zero, "selected": selected.float().sum()}
-    direction = functional.relu(-idm_delta[selected].sign() * model_delta[selected]).mean()
+    # A zero model delta has the correct sign only algebraically, but it is
+    # counted as disagreement by the OOD mechanism audit. Require a small
+    # signed margin so PPO cannot satisfy the auxiliary by suppressing the
+    # response altogether.
+    direction = functional.relu(float(direction_margin) - idm_delta[selected].sign() * model_delta[selected]).mean()
     magnitude = functional.huber_loss(model_delta[selected], idm_delta[selected])
-    return direction + 0.1 * magnitude, {
+    return float(direction_weight) * direction + float(magnitude_weight) * magnitude, {
         "direction": direction,
         "magnitude": magnitude,
         "selected": selected.float().sum(),

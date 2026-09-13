@@ -71,18 +71,78 @@ class RuleModelBundle:
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return a causal IDM action for the designated same-rear follower."""
         del history
-        leader, follower = current[:, 0], current[:, target_slot_index + 1]
+        batch = len(current)
+        leader_index = torch.zeros(batch, dtype=torch.long, device=current.device)
+        follower_index = torch.full(
+            (batch,), target_slot_index + 1, dtype=torch.long, device=current.device
+        )
+        action = self.idm_pair_reference(
+            current,
+            current_valid,
+            leader_index=leader_index,
+            follower_index=follower_index,
+            min_acceleration=min_acceleration,
+            max_acceleration=max_acceleration,
+        )
+        return action, self.style_posterior(current[:, None])
+
+    def idm_pair_reference(
+        self,
+        current: torch.Tensor,
+        current_valid: torch.Tensor,
+        *,
+        leader_index: torch.Tensor,
+        follower_index: torch.Tensor,
+        min_acceleration: float = -8.0,
+        max_acceleration: float = 4.0,
+    ) -> torch.Tensor:
+        """Return IDM actions for arbitrary realized leader-follower edges.
+
+        Indices may be ``[batch]`` or ``[batch, edges]``.  This is required by
+        CIH-WM's second influence level: a secondary follower responds to the
+        directly affected NPC in front of it, rather than incorrectly using
+        ego as its leader.
+        """
+        leaders = torch.as_tensor(leader_index, dtype=torch.long, device=current.device)
+        followers = torch.as_tensor(follower_index, dtype=torch.long, device=current.device)
+        if leaders.shape != followers.shape or leaders.shape[0] != len(current):
+            raise ValueError("leader and follower indices must share a batch-leading shape")
+        single_edge = leaders.ndim == 1
+        if single_edge:
+            leaders = leaders[:, None]
+            followers = followers[:, None]
+        if leaders.ndim != 2:
+            raise ValueError("leader and follower indices must be [batch] or [batch,edges]")
+        gather_shape = (*leaders.shape, current.shape[-1])
+        leader = torch.gather(
+            current,
+            1,
+            leaders[..., None].expand(gather_shape),
+        )
+        follower = torch.gather(
+            current,
+            1,
+            followers[..., None].expand(gather_shape),
+        )
+        if single_edge:
+            leader = leader[:, 0]
+            follower = follower[:, 0]
         desired_speed, a_max, comfort, s0, headway, delta = current.new_tensor(self.idm_parameters).unbind()
-        gap = (leader[:, 0] - follower[:, 0] - 4.8).clamp_min(.1)
-        follower_speed = torch.linalg.vector_norm(follower[:, 2:4], dim=-1).clamp_min(0.)
-        leader_speed = torch.linalg.vector_norm(leader[:, 2:4], dim=-1).clamp_min(0.)
+        gap = (leader[..., 0] - follower[..., 0] - 4.8).clamp_min(.1)
+        follower_speed = torch.linalg.vector_norm(follower[..., 2:4], dim=-1).clamp_min(0.)
+        leader_speed = torch.linalg.vector_norm(leader[..., 2:4], dim=-1).clamp_min(0.)
         closing = follower_speed - leader_speed
         desired_gap = s0 + torch.relu(follower_speed * headway + follower_speed * closing / (2.0 * torch.sqrt((a_max * comfort).clamp_min(1.e-5))))
         acceleration = a_max * (1.0 - torch.pow(follower_speed / desired_speed.clamp_min(1.), delta) - torch.square(desired_gap / gap))
-        same_lane = (leader[:, 1] - follower[:, 1]).abs() < 1.8
-        valid = current_valid[:, 0] & current_valid[:, target_slot_index + 1] & same_lane & (leader[:, 0] > follower[:, 0])
+        same_lane = (leader[..., 1] - follower[..., 1]).abs() < 1.8
+        leader_valid = torch.gather(current_valid, 1, leaders)
+        follower_valid = torch.gather(current_valid, 1, followers)
+        if single_edge:
+            leader_valid = leader_valid[:, 0]
+            follower_valid = follower_valid[:, 0]
+        valid = leader_valid & follower_valid & same_lane & (leader[..., 0] > follower[..., 0])
         action = acceleration.clamp(float(min_acceleration), float(max_acceleration))
-        return torch.where(valid, action, torch.zeros_like(action)), self.style_posterior(current[:, None])
+        return torch.where(valid, action, torch.zeros_like(action))
 
 
 def _idm_numpy(parameters: np.ndarray, gap: np.ndarray, follower_speed: np.ndarray, leader_speed: np.ndarray) -> np.ndarray:

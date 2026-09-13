@@ -1,9 +1,9 @@
-"""Shared test-time population scope for highD world-model benchmarks.
+"""Shared full-population scope for highD world-model benchmarks.
 
-This module deliberately operates only at evaluation/simulation boundaries.
-It must not be used by training datasets: released models keep their original
-all-slot training population while every reported benchmark uses one explicit,
-auditable population definition.
+All canonical background slots, including ``same_rear``, remain available to
+inference, simulation, factual metrics, and risk metrics.  The scope still
+provides an explicit contract so historical masked artifacts cannot be mixed
+with future all-slot results.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ import torch
 from .schema import SLOT_NAMES, slot_index
 
 
-EVALUATION_SCOPE_SCHEMA = "highd_follower_excluded_v1"
-EXCLUDED_EVALUATION_SLOTS: tuple[str, ...] = ("same_rear",)
+EVALUATION_SCOPE_SCHEMA = "highd_all_background_v2"
+EXCLUDED_EVALUATION_SLOTS: tuple[str, ...] = ()
 
 
 def evaluation_scope_contract() -> dict[str, Any]:
@@ -28,8 +28,8 @@ def evaluation_scope_contract() -> dict[str, Any]:
         "excluded_background_slots": list(EXCLUDED_EVALUATION_SLOTS),
         "training_population_modified": False,
         "semantics": (
-            "same_rear is absent before model inference and simulation; metrics, "
-            "risk, collision detection and visualization inherit the same mask"
+            "all canonical background slots, including same_rear, enter model "
+            "inference, simulation, metrics, risk, and visualization"
         ),
     }
 
@@ -106,7 +106,7 @@ def require_evaluation_scope(config: dict[str, Any]) -> None:
         tuple(declared.get("excluded_background_slots", ()))
         != EXCLUDED_EVALUATION_SLOTS
     ):
-        raise ValueError("configuration must exclude exactly same_rear")
+        raise ValueError("configuration evaluation scope does not match the full-population contract")
 
 
 def require_scoped_evt_model(model_path: str | Path) -> dict[str, Any]:
@@ -124,5 +124,5 @@ def require_scoped_evt_model(model_path: str | Path) -> dict[str, Any]:
         tuple(scope.get("excluded_risk_slots", ()))
         != EXCLUDED_EVALUATION_SLOTS
     ):
-        raise ValueError("EVT model was not calibrated with same_rear excluded")
+        raise ValueError("EVT model was not calibrated on the full background population")
     return summary

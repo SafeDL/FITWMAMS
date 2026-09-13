@@ -17,7 +17,7 @@ from .config import WorldModelConfig
 from .calibration import fit_natural_response_calibrator
 from .data import ResponseDataset, prepare_experiment_data, response_loader
 from .losses import training_losses
-from .model import DiffusionGuidedHiQR
+from .model import FactualDynamicsModel
 from .planner import frozen_diffusion_plans
 from .protocol import STAGED_TRAINING_GATES
 
@@ -26,7 +26,7 @@ CHECKPOINT_SCHEMA = "hierarchical_world_model"
 
 
 def _stochastic_validation_gates(
-    model: DiffusionGuidedHiQR, states: np.ndarray, valid: np.ndarray,
+    model: FactualDynamicsModel, states: np.ndarray, valid: np.ndarray,
     plans: np.ndarray, maps: np.ndarray, map_valid: np.ndarray, *, device: torch.device, seed: int,
 ) -> dict[str, float | bool]:
     """Fixed validation probes used before energy-based stochastic selection."""
@@ -85,7 +85,7 @@ def _model_config(config: dict[str, Any]) -> WorldModelConfig:
 
 
 def _apply_stage_trainable(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     *,
     stage: str,
     stage_config: dict[str, Any],
@@ -160,7 +160,7 @@ def _apply_stage_trainable(
     return f"prefixes:{','.join(prefixes)}"
 
 
-def _check_trainable(model: DiffusionGuidedHiQR) -> list[torch.nn.Parameter]:
+def _check_trainable(model: FactualDynamicsModel) -> list[torch.nn.Parameter]:
     trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
     if not trainable:
         raise RuntimeError("no trainable world-model parameters")
@@ -174,7 +174,7 @@ def _to_device(
 
 
 def _mean_terms(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     loader,
     device: torch.device,
     *,
@@ -244,7 +244,7 @@ def _mean_terms(
 
 def save_checkpoint(
     path: Path,
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     *,
     epoch: int,
     validation_metric: float,
@@ -266,11 +266,11 @@ def load_checkpoint(
     path: str | Path,
     *,
     device: torch.device,
-) -> tuple[DiffusionGuidedHiQR, dict[str, Any]]:
+) -> tuple[FactualDynamicsModel, dict[str, Any]]:
     payload = torch.load(Path(path), map_location=device, weights_only=False)
     if payload.get("checkpoint_schema") != CHECKPOINT_SCHEMA:
         raise ValueError(f"not a {CHECKPOINT_SCHEMA} checkpoint: {path}")
-    model = DiffusionGuidedHiQR(WorldModelConfig(**payload["model_config"])).to(
+    model = FactualDynamicsModel(WorldModelConfig(**payload["model_config"])).to(
         device
     )
     _load_compatible_state_dict(model, payload["state_dict"])
@@ -278,7 +278,7 @@ def load_checkpoint(
 
 
 def _load_compatible_state_dict(
-    model: DiffusionGuidedHiQR, state_dict: dict[str, Any]
+    model: FactualDynamicsModel, state_dict: dict[str, Any]
 ) -> None:
     """Load E1 weights while allowing opt-in Stochastic Causal HiQR heads.
 
@@ -442,7 +442,7 @@ def train_world_model(
             raise ValueError("all stages must use the identical model architecture config")
         model = loaded
     else:
-        model = DiffusionGuidedHiQR(cfg).to(device)
+        model = FactualDynamicsModel(cfg).to(device)
     model.set_matched_response_bounds(
         torch.from_numpy(response_calibrator.global_bounds).to(device)
     )

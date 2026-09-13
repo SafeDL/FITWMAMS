@@ -257,20 +257,7 @@ def environment_provenance(lockfile: str | Path | None = None) -> dict[str, Any]
         result.update({"numpy": numpy.__version__, "torch": torch.__version__, "cuda": torch.version.cuda})
     except ImportError:
         pass
-    highway = repo_root() / "HighwayEnv"
-    if highway.exists():
-        result["highway_env_tree"] = subprocess.check_output(
-            ["git", "-C", str(highway), "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
-        ).strip() if (highway / ".git").exists() else file_sha256(highway / "README.md")
-        result["highway_env_version"] = "local-tree"
     lock_path = Path(lockfile) if lockfile is not None else None
-    if lock_path is None:
-        # This repository has no generated pip lock; the maintained local
-        # HighwayEnv project manifest is the dependency contract used by the
-        # release and is hashed as such.
-        candidate = repo_root() / "HighwayEnv/pyproject.toml"
-        if candidate.is_file():
-            lock_path = candidate
     if lock_path is not None and lock_path.is_file():
         result["dependency_lockfile"] = logical_path(lock_path)
         result["dependency_lockfile_sha256"] = file_sha256(lock_path)

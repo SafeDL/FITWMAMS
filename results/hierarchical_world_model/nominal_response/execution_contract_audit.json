@@ -1,8 +1,0 @@
-{
-  "available_differentiable_qp_modules": [
-    "qpth"
-  ],
-  "conclusion": "No solver fallback was selected.",
-  "posthoc_ttc_guard": false,
-  "status": "passed"
-}

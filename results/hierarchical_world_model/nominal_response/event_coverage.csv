@@ -1,4 +1,0 @@
-split,all_events,supported_events,ego_leader_events,mapped_events,evaluated_events,distinct_recordings,vehicle_pairs,status
-train,12078,12057,1841,1841,,42,1520,prefix_mapping_audited
-validation,2021,2017,265,265,,9,217,prefix_mapping_audited
-test,1510,1505,205,205,,8,168,prefix_mapping_audited

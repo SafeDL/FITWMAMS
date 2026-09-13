@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from hierarchical_world_model.src.config import WorldModelConfig  # noqa: E402
-from hierarchical_world_model.src.model import DiffusionGuidedHiQR  # noqa: E402
+from hierarchical_world_model.src.model import FactualDynamicsModel  # noqa: E402
 from hierarchical_world_model.src.protocol import (  # noqa: E402
     canonical_hash, environment_provenance, load_protocol_config, logical_path,
     RANDOMNESS_NAMESPACE, release_provenance, FORMAL_PROTOCOL,
@@ -30,7 +30,7 @@ from world_model.src.core.utils import (  # noqa: E402
 CONFIG = ROOT / "hierarchical_world_model/config/world_model.yaml"
 
 
-def _probe(model: DiffusionGuidedHiQR, device: torch.device) -> torch.Tensor:
+def _probe(model: FactualDynamicsModel, device: torch.device) -> torch.Tensor:
     generator = torch.Generator(device=device).manual_seed(71)
     history = torch.randn((1, 25, 7, 6), generator=generator, device=device)
     history[..., 2] = history[..., 2].abs() + 20.0
@@ -101,7 +101,7 @@ def main() -> None:
         raise FileNotFoundError(f"missing base stage checkpoint: {base}")
     staged, payload = load_checkpoint(source, device=device)
     staged.eval()
-    final = DiffusionGuidedHiQR(WorldModelConfig(**config["model"])).to(device).eval()
+    final = FactualDynamicsModel(WorldModelConfig(**config["model"])).to(device).eval()
     final.load_state_dict(staged.state_dict())
     torch.testing.assert_close(_probe(final, device), _probe(staged, device), rtol=0.0, atol=0.0)
     save_checkpoint(

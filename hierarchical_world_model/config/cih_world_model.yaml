@@ -1,0 +1,121 @@
+# Causal Influence Hierarchical World Model (CIH-WM).
+# The released factual checkpoint and learned response prior stay frozen; the
+# human-response calibrator is the only trainable runtime component.
+schema_name: causal_influence_hierarchical_world_model
+schema_version: 2
+base_config: hierarchical_world_model/config/world_model.yaml
+paths:
+  output_dir: results/hierarchical_world_model/cih_wm
+  response_prior_checkpoint: results/hierarchical_world_model/cih_wm/priors/behavior_response_prior.pt
+  longitudinal_mechanism_prior: results/hierarchical_world_model/cih_wm/priors/longitudinal_mechanism_prior.json
+  event_reference: results/hierarchical_world_model/cih_wm/evidence/reaction_events
+method:
+  name: Causal Influence Hierarchical World Model
+  acronym: CIH-WM
+  # Algorithm-level formulation. Encoder/filter/decoder choices below this
+  # level are factual-transition implementation details, not separate claims.
+  factual_transition: frozen_diffusion_plan_conditioned_traffic_transition
+  causal_influence: realized_state_direct_follower_routing
+  human_response_calibration: mechanism_guided_constraint_preserving_adjustment
+  controller: causal_influence_response
+  protocol_status: cih_world_model_v2
+  use_legacy_ttc_guard: false
+  correction_jerk_limit_mps3: 24.0
+  # Independent response-policy trigger.  It is intentionally below the
+  # frozen decoder's 0.5 m/s² intervention trigger: highD's 25 Hz commands
+  # are quantized at roughly 0.25 m/s², and controller-on factual evaluation
+  # must include these real natural braking transitions.
+  reaction_trigger_threshold_mps2: 0.25
+  # The deployable policy must respond from realized state and committed ADS
+  # actions.  A paired nominal rollout is an evaluator reference, not an
+  # action override or model input.
+  ood_use_nominal_shadow: false
+influence:
+  radius_m: 50.0
+  # This stage models direct ego-to-follower response only.  Chained traffic
+  # propagation is inactive and outside the formal acceptance scope.
+  enable_secondary: false
+  prediction_horizon_s: 1.5
+  lane_half_width_m: 1.8
+  release_ttc_s: 4.0
+  stable_release_frames: 13
+  recovery_frames: 15
+response_channels:
+  longitudinal:
+    enabled: true
+    evidence: natural_following_and_paired_braking
+  lateral:
+    enabled: false
+    evidence: required_before_causal_activation
+    current_scope: factual_yaw_rate_reconstruction_only
+calibrator:
+  hidden_dim: 64
+  scale_radius: 0.75
+  residual_max_mps2: 2.0
+  initial_log_std: -2.0
+human_response:
+  channels: [acceleration, abs_jerk]
+  prefixes: [5, 10, 25]
+  prefix_weights: [0.25, 0.35, 0.40]
+  support_weight:
+    empirically_supported: 1.0
+    weakly_supported: 0.5
+    unsupported_by_training_evidence: 0.0
+supervised:
+  updates: 5000
+  minibatch_size: 2048
+  learning_rate: 1.0e-3
+  event_weight: 5.0
+  non_event_weight: 1.0
+  event_gate_weight: 5.0
+  event_calibration_strength: 1.0
+  event_gate_temperature: 2.5
+  non_event_calibration_weight: 0.05
+  prior_regularization: 0.0001
+policy_optimization:
+  seed: 20260911
+  rollout_steps: 149
+  event_groups_per_update: 8
+  futures_per_event: 8
+  maximum_updates: 160
+  epochs_per_update: 4
+  minibatch_size: 2048
+  learning_rate_start: 3.0e-5
+  learning_rate_end: 1.0e-5
+  clip_ratio: 0.2
+  inner_stop_kl: 0.020
+  entropy_coefficient: 0.001
+  reference_kl_target: 0.010
+  reference_kl_coefficient: 0.1
+  reference_kl_minimum: 1.0e-4
+  reference_kl_maximum: 10.0
+  gamma: 0.99
+  gae_lambda: 0.95
+  value_coefficient: 0.5
+  max_grad_norm: 1.0
+auxiliary:
+  mechanism_weight: 1.0
+  direction_margin_mps2: 0.05
+  direction_weight: 1.0
+  magnitude_weight: 0.1
+  # Matched nominal/light/medium/strong ADS rollouts.  Targets are computed
+  # from the realized parent-aware mechanism; no logged future is consumed.
+  causal_contrast_rows: 256
+  causal_refresh_interval: 500
+  rule_delta_threshold_mps2: 0.10
+  causal_contrast_weight: 0.5
+  causal_direction_weight: 4.0
+  causal_magnitude_weight: 0.05
+  causal_monotonic_weight: 0.5
+evaluation:
+  factual_absolute_tolerance_m: {ade: 0.02, fde: 0.06, p95: 0.10}
+  factual_relative_tolerance: 0.05
+  scopes:
+    released_factual_comparison:
+      excluded_slots: []
+    response_factual_reconstruction:
+      excluded_slots: []
+      target_roles: [same_lane_follower]
+    ads_closed_loop:
+      excluded_slots: []
+      influence_levels: [direct]

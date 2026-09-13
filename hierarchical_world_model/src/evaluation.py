@@ -28,6 +28,7 @@ from .data import ego_controls, prepare_experiment_data
 from .calibration import evaluation_response_calibration
 from .planner import frozen_diffusion_plans, stochastic_diffusion_plan_samples
 from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
+from .influence_graph import CausalInfluenceGraph, InfluenceGraphState
 
 
 @dataclass(frozen=True)
@@ -98,8 +99,17 @@ def rollout(
     controller: ReactionController | str | None = None,
     controller_deterministic: bool = False,
     excluded_slots: tuple[str, ...] | None = None,
+    nominal_reference: Rollout | None = None,
+    influence_graph_config: dict[str, float | int] | None = None,
 ) -> Rollout:
-    """Run one causal offline response rollout for a matched batch."""
+    """Run one causal offline response rollout for a matched batch.
+
+    ``nominal_reference`` is an already-executed matched model rollout.  It
+    is only used for paired interventions and exposes current nominal model
+    actions, rule actions and submitted ego commands to a post-HiQR
+    controller.  It never supplies a logged future state or future human
+    action.
+    """
     if excluded_slots is None:
         logged_states, logged_valid = scoped_canonical_trajectory(
             logged_states, logged_valid
@@ -124,10 +134,26 @@ def rollout(
         _logged_ego_actions(logged_states, logged_valid)
     ).to(device)
     scheduled_ego = _intervene(logged_ego, intervention, dose)
+    if nominal_reference is not None:
+        if nominal_reference.background_actions.shape[:2] != (len(states), 149):
+            raise ValueError("nominal reference actions must align with the current 149-frame rollout")
+        if nominal_reference.ego_actions.shape[:2] != (len(states), 149):
+            raise ValueError("nominal reference ego actions must align with the current 149-frame rollout")
+        if (
+            nominal_reference.controller_diagnostics is None
+            or "rule_action_ax" not in nominal_reference.controller_diagnostics
+        ):
+            raise ValueError("nominal reference must record controller rule actions")
     if isinstance(controller, str):
         controller = make_reaction_controller(
             controller, adapter_logit=model.decoder.intervention_logit
         ).to(device)
+    influence_graph = (
+        None
+        if controller is None
+        else CausalInfluenceGraph(**(influence_graph_config or {}))
+    )
+    influence_state: InfluenceGraphState | None = None
     historical_start = max(0, ANCHOR_INDEX - history_frames + 1)
     historical_ego_values = ego_controls(
         logged_states[:, historical_start:ANCHOR_INDEX, 0],
@@ -150,6 +176,24 @@ def rollout(
     controller_alpha: list[torch.Tensor] = []
     controller_delta: list[torch.Tensor] = []
     controller_active: list[torch.Tensor] = []
+    controller_rule_action: list[torch.Tensor] = []
+    controller_calibration: list[torch.Tensor] = []
+    controller_causal_gate: list[torch.Tensor] = []
+    controller_causal_delta: list[torch.Tensor] = []
+    controller_influence_authority: list[torch.Tensor] = []
+    controller_influence_role: list[torch.Tensor] = []
+    controller_influence_direct: list[torch.Tensor] = []
+    controller_influence_secondary: list[torch.Tensor] = []
+    # PPO samples are collected from this exact formal rollout.  They are
+    # diagnostics rather than part of the released factual metric. Keeping
+    # them in this sole executor prevents a second rollout implementation
+    # from becoming the de-facto training environment.
+    controller_policy_features: list[torch.Tensor] = []
+    controller_raw_action: list[torch.Tensor] = []
+    controller_log_prob: list[torch.Tensor] = []
+    controller_value: list[torch.Tensor] = []
+    controller_prior_nominal: list[torch.Tensor] = []
+    controller_prior_correction: list[torch.Tensor] = []
     filter_state = None
     slow_scene = None
     slow_scene_noise = None
@@ -160,9 +204,18 @@ def rollout(
     executed_ego: list[torch.Tensor] = []
     intervention_memory = None
     lateral_intervention_memory = None
-    # A runner may mark a response controller active only after the preceding
-    # ADS action was committed.  This is causal metadata, never a future ego
-    # command.
+    # A post-HiQR controller is stateful: a jerk bound applies to its own
+    # previously issued correction, not to a fresh zero command every frame.
+    # Keep this state in the formal evaluator so controller-on factual metrics
+    # describe the executable policy.
+    previous_background_actions = None
+    previous_calibration_correction = None
+    previous_causal_gate = None
+    # The controller is armed by a change in the action actually submitted on
+    # this tick relative to the already committed preceding command.  It must
+    # never be defined as ``submitted - logged_future``: that made every
+    # natural logged-ego factual rollout controller-off and therefore hid the
+    # factual effect of a controller-on policy.
     controller_enabled = torch.zeros(len(states), dtype=torch.bool, device=device)
     execute = model.cfg.execute_frames
     for start in range(0, 149, execute):
@@ -257,6 +310,34 @@ def rollout(
         previous_current = states
         base_actions = response.actions
         if controller is not None:
+            assert influence_graph is not None
+            influence_state = influence_graph.update(
+                states,
+                valid,
+                history,
+                influence_state,
+                previous_background_actions,
+            )
+            threshold = float(getattr(
+                controller, "reaction_trigger_threshold_mps2",
+                model.cfg.intervention_trigger_threshold_mps2,
+            ))
+            controller_enabled = (
+                ego_block[:, 0, 0] - committed_ego_controls[:, -1, 0] < -threshold
+            )
+            nominal_current_action = None
+            nominal_rule_action = None
+            nominal_ego_action = None
+            if nominal_reference is not None:
+                nominal_current_action = torch.from_numpy(
+                    nominal_reference.background_actions[:, start, :, 0]
+                ).to(device=device, dtype=states.dtype)
+                nominal_rule_action = torch.from_numpy(
+                    nominal_reference.controller_diagnostics["rule_action_ax"][:, start]
+                ).to(device=device, dtype=states.dtype)
+                nominal_ego_action = torch.from_numpy(
+                    nominal_reference.ego_actions[:, start]
+                ).to(device=device, dtype=states.dtype)
             context = ReactionControllerContext(
                 history=history, history_valid=history_valid, current=states,
                 current_valid=valid, committed_ego_controls=committed_ego_controls,
@@ -269,12 +350,83 @@ def rollout(
                 response_sensitivity_bounds=model.response_sensitivity_bounds,
                 adapter_gain=torch.sigmoid(model.decoder.intervention_logit), cfg=model.cfg,
                 reaction_enabled=controller_enabled,
+                reaction_phase=influence_state.phase,
+                reaction_age_frames=influence_state.age_frames,
+                reaction_max_frames=75,
+                reaction_recovery_remaining=influence_state.recovery_remaining,
+                reaction_recovery_frames=influence_graph.recovery_frames,
+                reaction_release_ttc_s=influence_graph.release_ttc_s,
+                previous_background_actions=previous_background_actions,
+                influence_authority=influence_state.authority,
+                influence_role=influence_state.role,
+                influence_parent=influence_state.parent,
+                influence_direct=influence_state.direct,
+                influence_secondary=influence_state.secondary,
+                influence_predicted_ttc_s=influence_state.predicted_ttc_s,
+                influence_predicted_min_gap_m=influence_state.predicted_min_gap_m,
+                previous_calibration_correction=previous_calibration_correction,
+                previous_causal_gate=previous_causal_gate,
+                nominal_current_action=nominal_current_action,
+                nominal_rule_action_ax=nominal_rule_action,
+                ego_action=ego_block[:, 0],
+                nominal_ego_action=nominal_ego_action,
             )
             output = controller(context, deterministic=controller_deterministic)
             response_actions = output.actions
             controller_alpha.append(output.alpha.detach())
             controller_delta.append(output.delta_ax.detach())
             controller_active.append(output.active.detach())
+            controller_rule_action.append(
+                torch.zeros_like(output.delta_ax)
+                if output.rule_action_ax is None else output.rule_action_ax.detach()
+            )
+            controller_calibration.append(
+                torch.zeros_like(output.delta_ax)
+                if output.calibration_correction_ax is None
+                else output.calibration_correction_ax.detach()
+            )
+            controller_causal_gate.append(
+                torch.zeros_like(output.delta_ax)
+                if output.causal_gate is None else output.causal_gate.detach()
+            )
+            controller_causal_delta.append(
+                torch.zeros_like(output.delta_ax)
+                if output.causal_delta_ax is None else output.causal_delta_ax.detach()
+            )
+            controller_influence_authority.append(influence_state.authority.detach())
+            controller_influence_role.append(influence_state.role.detach())
+            controller_influence_direct.append(influence_state.direct.detach())
+            controller_influence_secondary.append(influence_state.secondary.detach())
+            if output.policy_features is not None:
+                controller_policy_features.append(output.policy_features.detach())
+            if output.raw_action is not None:
+                controller_raw_action.append(output.raw_action.detach())
+            if output.log_prob is not None:
+                controller_log_prob.append(output.log_prob.detach())
+            if output.value is not None:
+                controller_value.append(output.value.detach())
+            if output.response_prior_nominal_action_ax is not None:
+                controller_prior_nominal.append(output.response_prior_nominal_action_ax.detach())
+            if output.response_prior_correction_ax is not None:
+                controller_prior_correction.append(output.response_prior_correction_ax.detach())
+            # ``rollout`` evaluates the one-frame execution contract, whereas
+            # controllers may still expose an explicit horizon dimension.  The
+            # carried actuator state must therefore be the action actually
+            # committed on this tick, with shape ``[batch, slots, ...]``.
+            previous_background_actions = response_actions[:, 0].detach()
+            previous_calibration_correction = (
+                None if output.calibration_correction_ax is None
+                else (
+                    output.calibration_correction_ax[:, 0]
+                    if output.calibration_correction_ax.ndim > 2
+                    else output.calibration_correction_ax
+                ).detach()
+            )
+            previous_causal_gate = (
+                None if output.causal_gate is None else output.causal_gate.detach()
+            )
+            if previous_causal_gate is not None and previous_causal_gate.ndim > 2:
+                previous_causal_gate = previous_causal_gate[:, 0]
         else:
             response_actions = base_actions
         new_frames: list[torch.Tensor] = []
@@ -288,9 +440,6 @@ def rollout(
         committed_ego_controls = torch.cat(
             (committed_ego_controls, ego_block[:, :count]), dim=1
         )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
-        controller_enabled = (
-            ego_block[:, 0, 0] - logged_ego[:, start, 0] < -0.5
-        )
         block = torch.stack(new_frames, dim=1)
         generated.append(block)
         background_actions.append(response_actions[:, :count])
@@ -311,6 +460,38 @@ def rollout(
             "alpha": torch.stack(controller_alpha, dim=1).cpu().numpy(),
             "delta_ax": torch.stack(controller_delta, dim=1).cpu().numpy(),
             "active": torch.stack(controller_active, dim=1).cpu().numpy(),
+            "rule_action_ax": torch.stack(controller_rule_action, dim=1).cpu().numpy(),
+            "calibration_correction_ax": torch.stack(controller_calibration, dim=1).cpu().numpy(),
+            "causal_gate": torch.stack(controller_causal_gate, dim=1).cpu().numpy(),
+            "causal_delta_ax": torch.stack(controller_causal_delta, dim=1).cpu().numpy(),
+            "influence_authority": torch.stack(controller_influence_authority, dim=1).cpu().numpy(),
+            "influence_role": torch.stack(controller_influence_role, dim=1).cpu().numpy(),
+            "influence_direct": torch.stack(controller_influence_direct, dim=1).cpu().numpy(),
+            "influence_secondary": torch.stack(controller_influence_secondary, dim=1).cpu().numpy(),
+            **(
+                {"policy_features": torch.stack(controller_policy_features, dim=1).cpu().numpy()}
+                if len(controller_policy_features) == len(controller_alpha) else {}
+            ),
+            **(
+                {"raw_action": torch.stack(controller_raw_action, dim=1).cpu().numpy()}
+                if len(controller_raw_action) == len(controller_alpha) else {}
+            ),
+            **(
+                {"log_prob": torch.stack(controller_log_prob, dim=1).cpu().numpy()}
+                if len(controller_log_prob) == len(controller_alpha) else {}
+            ),
+            **(
+                {"value": torch.stack(controller_value, dim=1).cpu().numpy()}
+                if len(controller_value) == len(controller_alpha) else {}
+            ),
+            **(
+                {"response_prior_nominal_action_ax": torch.stack(controller_prior_nominal, dim=1).cpu().numpy()}
+                if len(controller_prior_nominal) == len(controller_alpha) else {}
+            ),
+            **(
+                {"response_prior_correction_ax": torch.stack(controller_prior_correction, dim=1).cpu().numpy()}
+                if len(controller_prior_correction) == len(controller_alpha) else {}
+            ),
         },
     )
 
@@ -398,7 +579,7 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
     """Evaluate the maintained model and persist its complete JSON report."""
     from .calibration import fit_natural_response_calibrator
     from .data import split_rows
-    from .model import DiffusionGuidedHiQR
+    from .model import FactualDynamicsModel
     from .train import load_checkpoint
 
     output = ensure_dir(config["paths"]["output_dir"])

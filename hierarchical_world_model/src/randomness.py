@@ -42,8 +42,8 @@ class WorldExogenousState:
     scene_innovations: np.ndarray
     agent_response_innovations: np.ndarray
     policy_response_innovations: np.ndarray
-    # This block belongs exclusively to the A2 calibration adapter.  It is
-    # deliberately independent from the frozen A2 policy innovations.
+    # This block belongs exclusively to the response-calibration test fixture.
+    # It is deliberately independent from frozen factual innovations.
     policy_calibration_innovations: np.ndarray
     # Contract metadata only; runtime consumption still has one mutable
     # response index.  It is retained so custom archives can be validated
@@ -139,7 +139,7 @@ class WorldExogenousState:
         # These streams define the probability space.  They must stay
         # independent when another block changes shape or a new block is added.
         def rng(block: str) -> np.random.Generator:
-            # Preserve every legacy stream bitwise so the frozen A2 remains a
+            # Preserve every legacy stream bitwise so the frozen factual model remains
             # valid common-random-number baseline.  Only calibration owns the
             # new namespace.
             version = 4 if block == "policy_calibration_innovations" else 2
@@ -164,7 +164,7 @@ class WorldExogenousState:
             policy_response_innovations=rng("policy_response_innovations").standard_normal(
                 (int(n), int(response_steps), 6, 2), dtype=np.float32
             ),
-            # Adding this block must not change any draw consumed by A2.
+            # Adding this block must not change any draw consumed by the factual model.
             policy_calibration_innovations=rng("policy_calibration_innovations").standard_normal(
                 (int(n), int(response_steps), 6, 2), dtype=np.float32
             ),

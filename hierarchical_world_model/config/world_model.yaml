@@ -1,20 +1,23 @@
-# Frozen stochastic-causal HiQR world-model dependency.
-# It is not a release of the nominal-response research candidate.
+# Frozen factual traffic-transition model. The historical checkpoint label is
+# retained only in its filesystem path for compatibility; the model itself is
+# an observation encoder, hierarchical belief filter, diffusion motion-plan
+# conditioner, coordinated jerk decoder, and 25 Hz kinematic integrator.
 paths:
-  output_dir: results/hierarchical_world_model/world_model
-  evaluation_checkpoint: results/hierarchical_world_model/world_model/checkpoints/final_world_model.pt
-  evt_model: results/highd_natural_driving_evt_same_rear_excluded/evt/natural_evt_model.json
+  # New all-slot evaluation artifacts must not overwrite historical
+  # same-rear-masked release evidence in factual_hiqr/.
+  output_dir: results/hierarchical_world_model/factual_all_slots_v2
+  evaluation_checkpoint: results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt
   sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
   source_schema: results/highd_natural_driving_flow/dataset_schema.json
   flow_output_dir: results/highd_natural_driving_flow
   flow_checkpoint: results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt
   diffusion_checkpoint: results/background_diffusion/checkpoints/best_background_diffusion.pt
   diffusion_contract: results/background_diffusion/dataset_contract.json
-  response_calibration_reference: results/hierarchical_world_model/world_model/causal_diagnostics/natural_response_calibration.json
+  response_calibration_reference: results/hierarchical_world_model/factual_hiqr/natural_response_calibration.json
 
 evaluation_scope:
-  schema: highd_follower_excluded_v1
-  excluded_background_slots: [same_rear]
+  schema: highd_all_background_v2
+  excluded_background_slots: []
 
 model:
   hidden_dim: 128

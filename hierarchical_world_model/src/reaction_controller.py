@@ -1,6 +1,6 @@
-"""Post-HiQR causal reaction controllers.
+"""Causal influence response policies applied after factual decoding.
 
-The HiQR decoder remains a frozen producer of a one-frame background action.
+The factual dynamics model remains a frozen producer of a one-frame background action.
 Controllers in this module are applied *after* that action has been produced
 and before the physics backend advances.  In particular, they never receive
 the ego action passed to the current ``advance_response`` call.
@@ -16,14 +16,11 @@ from torch import nn
 
 from .reference import response_relevance
 from .rule_models import RuleModelBundle
-from .decision_cost import DecisionCostInputs, PositiveCostWeights
-from .nominal_preserving_controller import solve_hinge_calibrated_qp
 
 
 ControllerMode = Literal[
     "none", "handcrafted", "rl_residual", "rl_residual_idm",
-    "idm_only", "calibrated_residual", "nominal_preserving_response", "common_physics",
-    "a2_human_calibration",
+    "idm_only", "calibrated_residual", "causal_influence_response",
 ]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
@@ -51,7 +48,7 @@ class ReactionControllerContext:
     adapter_gain: torch.Tensor | None
     reaction_enabled: torch.Tensor | None
     cfg: Any
-    # Executed HighwayEnv background actions from the preceding tick.  This
+    # Executed background actions from the preceding tick.  This
     # is causal actuator state, never a preview of the action about to run.
     previous_background_actions: torch.Tensor | None = None
     reaction_phase: torch.Tensor | None = None
@@ -76,11 +73,16 @@ class ReactionControllerContext:
     policy_calibration_standard_normal: torch.Tensor | None = None
     previous_base_background_actions: torch.Tensor | None = None
     previous_calibration_correction: torch.Tensor | None = None
+    previous_causal_gate: torch.Tensor | None = None
     # Immutable nominal-world values for research-only calibrated controllers.
     # They are supplied from a separately executed frozen world, never from
     # the actual world's pending ego action or from highD future completion.
     nominal_current: torch.Tensor | None = None
+    nominal_current_action: torch.Tensor | None = None
+    nominal_rule_action_ax: torch.Tensor | None = None
     nominal_action_horizon: torch.Tensor | None = None
+    ego_action: torch.Tensor | None = None
+    nominal_ego_action: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -102,13 +104,15 @@ class ReactionControllerOutput:
     physical_rewrite: torch.Tensor | None = None
     correction_release: torch.Tensor | None = None
     calibration_correction_ax: torch.Tensor | None = None
-    a2_nominal_action_ax: torch.Tensor | None = None
-    a2_correction_ax: torch.Tensor | None = None
+    response_prior_nominal_action_ax: torch.Tensor | None = None
+    response_prior_correction_ax: torch.Tensor | None = None
+    causal_gate: torch.Tensor | None = None
+    causal_delta_ax: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
-class A2PolicyProposal:
-    """The learned A2 policy before legacy safety/execution rewrites."""
+class ResponsePriorProposal:
+    """A mechanism-guided response proposal before physical projection."""
 
     hidden: torch.Tensor
     distribution: torch.distributions.Normal
@@ -219,7 +223,7 @@ def apply_handcrafted_response(
 
 
 class ReactionController(nn.Module):
-    """Base class for controller modes applied after frozen HiQR inference."""
+    """Base class for policies applied after frozen factual inference."""
 
     mode: ControllerMode = "none"
 
@@ -325,7 +329,7 @@ def controller_features(context: ReactionControllerContext) -> torch.Tensor:
         previous_ax = context.base_actions[:, 0, :, :1]
     else:
         previous_ax = context.previous_background_actions[:, :, :1]
-    # These quantities are obtained from the state that HighwayEnv has
+    # These quantities are obtained from traffic state already
     # already realized.  They describe why authority remains active after an
     # ADS action ends; neither contains the current/future ego command.
     background_now = context.current[:, 1:]
@@ -394,7 +398,7 @@ def unresolved_following_brake_guard(
     This is a controller-independent kinematic safety guard shared by the
     frozen transfer baselines.  It is deliberately not an IDM reference.
     It uses only the last committed ego acceleration and the state already
-    realized by HighwayEnv.  In particular it cannot see a pending ego action.
+    realized by the preceding transition.  In particular it cannot see a pending ego action.
     """
     if context.reaction_phase is None:
         return final_ax
@@ -720,8 +724,8 @@ class RLResidualReactionController(ReactionController):
         return ReactionControllerOutput(actions, alpha, delta, active, log_prob, entropy, value, raw, desired_action_ax=desired_ax)
 
 
-class IDMResidualReactionController(ReactionController):
-    """Legacy A2-transfer residual controller with its frozen IDM mapping."""
+class MechanismGuidedResponsePrior(ReactionController):
+    """Learned response prior conditioned on a calibrated IDM reference."""
 
     mode = "rl_residual_idm"
 
@@ -752,32 +756,35 @@ class IDMResidualReactionController(ReactionController):
         return distribution.log_prob(raw_action).sum(-1), distribution.entropy().sum(-1), value
 
     def _rule_actions(self, context: ReactionControllerContext) -> torch.Tensor:
-        rule_actions = context.base_actions.new_zeros((len(context.current), 6))
         if context.influence_role is None:
+            rule_actions = context.base_actions.new_zeros((len(context.current), 6))
             rule_target, _ = self.rule_model.idm_reference(
-                context.history, context.current, context.current_valid, target_slot_index=self.target_slot_index,
-                min_acceleration=context.cfg.min_acceleration_mps2, max_acceleration=context.cfg.max_acceleration_mps2,
+                context.history, context.current, context.current_valid,
+                target_slot_index=self.target_slot_index,
+                min_acceleration=context.cfg.min_acceleration_mps2,
+                max_acceleration=context.cfg.max_acceleration_mps2,
             )
             rule_actions[:, self.target_slot_index] = rule_target
-        else:
-            from .influence_graph import ROLE_SAME_LANE_FOLLOWER
-            for slot in range(6):
-                candidate, _ = self.rule_model.idm_reference(
-                    context.history, context.current, context.current_valid, target_slot_index=slot,
-                    min_acceleration=context.cfg.min_acceleration_mps2, max_acceleration=context.cfg.max_acceleration_mps2,
-                )
-                rule_actions[:, slot] = torch.where(
-                    context.influence_role[:, slot] == ROLE_SAME_LANE_FOLLOWER,
-                    candidate,
-                    context.base_actions[:, 0, slot, 0],
-                )
-        return rule_actions
+            return rule_actions
+        return _dynamic_idm_reference(self.rule_model, context)
 
     def _authority(self, context: ReactionControllerContext) -> tuple[torch.Tensor, torch.Tensor]:
         relevance = response_relevance(context.current, context.current_valid)
         if context.influence_authority is not None:
-            authority = context.influence_authority
-            return authority, context.current_valid[:, 1:] & (authority > 0.0)
+            from .influence_graph import (
+                ROLE_SAME_LANE_FOLLOWER,
+                ROLE_SECONDARY_FOLLOWER,
+            )
+
+            if context.influence_role is None:
+                raise ValueError("influence authority requires per-agent roles")
+            longitudinal = (
+                (context.influence_role == ROLE_SAME_LANE_FOLLOWER)
+                | (context.influence_role == ROLE_SECONDARY_FOLLOWER)
+            )
+            authority = context.influence_authority * longitudinal.float()
+            active = context.current_valid[:, 1:] & longitudinal & authority.gt(0.0)
+            return authority, active
         role = torch.zeros_like(relevance, dtype=torch.bool)
         role[:, self.target_slot_index] = True
         enabled = torch.ones_like(relevance, dtype=torch.bool) if context.reaction_enabled is None else context.reaction_enabled[:, None].bool()
@@ -792,8 +799,8 @@ class IDMResidualReactionController(ReactionController):
             recovery_scale = torch.ones_like(relevance)
         return active.float() * recovery_scale, active
 
-    def proposal(self, context: ReactionControllerContext, *, deterministic: bool = False) -> A2PolicyProposal:
-        """Return A2's learned nominal action without behavior guards."""
+    def proposal(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ResponsePriorProposal:
+        """Return the learned prior proposal without execution guards."""
         rule_actions = self._rule_actions(context)
         features = self._features(context, rule_actions)
         hidden = self.actor(features)
@@ -826,7 +833,7 @@ class IDMResidualReactionController(ReactionController):
                 nominal_lower + span * torch.sigmoid(raw[..., 1]),
             )
             nominal = torch.where(active, (1. - alpha) * base + alpha * target, base)
-        return A2PolicyProposal(
+        return ResponsePriorProposal(
             hidden=hidden, distribution=distribution, raw_action=raw, value=value,
             features=features, rule_action_ax=rule_actions, base_action_ax=base,
             authority=authority, active=active, nominal_action_ax=nominal,
@@ -834,9 +841,9 @@ class IDMResidualReactionController(ReactionController):
         )
 
     def legacy_execute(
-        self, context: ReactionControllerContext, proposal: A2PolicyProposal,
+        self, context: ReactionControllerContext, proposal: ResponsePriorProposal,
     ) -> ReactionControllerOutput:
-        """Run the historical guard path unchanged from A2's public forward."""
+        """Run the historical prior guard path for checkpoint compatibility."""
         rule_actions, raw = proposal.rule_action_ax, proposal.raw_action
         distribution, value = proposal.distribution, proposal.value
         features, authority, active = proposal.features, proposal.authority, proposal.active
@@ -863,7 +870,7 @@ class IDMResidualReactionController(ReactionController):
             safe_alpha = alpha.clamp_min(1.e-5)
             target_action = (final_ax - (1. - alpha) * base) / safe_alpha
             delta = torch.where(active, target_action - rule_actions, torch.zeros_like(base))
-        # This mapping is retained only for the frozen A2-transfer baseline.
+        # This mapping is retained only for the frozen response-prior baseline.
         # The calibrated policy below does not use IDM as an action bound.
         ego, rear = context.current[:, 0], context.current[:, self.target_slot_index + 1]
         gap = ego[:, 0] - rear[:, 0]
@@ -878,6 +885,7 @@ class IDMResidualReactionController(ReactionController):
             final_ax[:, target] = torch.where(emergency & active[:, target], torch.minimum(final_ax[:, target], rule_actions[:, target]), final_ax[:, target])
         # Dynamic same-lane bounds above already include the IDM reference;
         # cut-in and secondary roles remain pure residual by construction.
+        pre_guard_ax = final_ax.clone()
         actions = context.base_actions.clone(); actions[:, 0, :, 0] = final_ax
         if context.influence_authority is None:
             desired_ax = unresolved_following_brake_guard(final_ax, context, target_slot_index=self.target_slot_index)
@@ -900,6 +908,12 @@ class IDMResidualReactionController(ReactionController):
             actions, alpha, delta, active, log_prob, entropy, value, raw,
             rule_action_ax=rule_actions, policy_features=features,
             desired_action_ax=desired_ax,
+            # Expose the learned proposal and post-proposal legacy guard on
+            # the same realized context for a faithful mechanism audit.
+            response_prior_nominal_action_ax=proposal.nominal_action_ax,
+            response_prior_correction_ax=proposal.correction_ax,
+            pre_guard_action_ax=pre_guard_ax,
+            physical_rewrite=(final_ax - proposal.nominal_action_ax).abs().gt(1.0e-6),
         )
 
     def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
@@ -910,23 +924,28 @@ def _dynamic_idm_reference(
     rule_model: RuleModelBundle, context: ReactionControllerContext,
 ) -> torch.Tensor:
     """Compute a causal IDM feature for each currently scoped follower."""
-    from .influence_graph import ROLE_SAME_LANE_FOLLOWER
+    from .influence_graph import ROLE_SAME_LANE_FOLLOWER, ROLE_SECONDARY_FOLLOWER
 
     reference = context.base_actions[:, 0, :, 0].clone()
     if context.influence_role is None:
         return reference
-    for slot in range(6):
-        candidate, _ = rule_model.idm_reference(
-            context.history, context.current, context.current_valid,
-            target_slot_index=slot,
-            min_acceleration=context.cfg.min_acceleration_mps2,
-            max_acceleration=context.cfg.max_acceleration_mps2,
-        )
-        reference[:, slot] = torch.where(
-            context.influence_role[:, slot] == ROLE_SAME_LANE_FOLLOWER,
-            candidate,
-            reference[:, slot],
-        )
+    if context.influence_parent is None:
+        raise ValueError("influence roles require parent indices")
+    follower = torch.arange(1, 7, device=context.current.device)[None].expand(
+        len(context.current), -1
+    )
+    candidate = rule_model.idm_pair_reference(
+        context.current,
+        context.current_valid,
+        leader_index=context.influence_parent.clamp_min(0),
+        follower_index=follower,
+        min_acceleration=context.cfg.min_acceleration_mps2,
+        max_acceleration=context.cfg.max_acceleration_mps2,
+    )
+    following = (context.influence_role == ROLE_SAME_LANE_FOLLOWER) | (
+        context.influence_role == ROLE_SECONDARY_FOLLOWER
+    )
+    reference = torch.where(following, candidate, reference)
     return reference
 
 
@@ -1065,12 +1084,12 @@ class CalibratedResidualReactionController(ReactionController):
         )
 
 
-class FrozenA2ResponsePrior(nn.Module):
-    """Read-only full legacy A2 policy used as a response prior."""
+class FrozenResponsePrior(nn.Module):
+    """Read-only mechanism-guided policy used as a response prior."""
 
     def __init__(self, rule_model: RuleModelBundle, checkpoint: str, device: torch.device | None = None) -> None:
         super().__init__()
-        self.controller = IDMResidualReactionController(rule_model)
+        self.controller = MechanismGuidedResponsePrior(rule_model)
         payload = torch.load(checkpoint, map_location=device or "cpu", weights_only=False)
         state = payload.get("state_dict", payload)
         self.controller.load_state_dict(state, strict=True)
@@ -1079,18 +1098,18 @@ class FrozenA2ResponsePrior(nn.Module):
             parameter.requires_grad_(False)
 
     @torch.no_grad()
-    def proposal(self, context: ReactionControllerContext, *, deterministic: bool = False) -> A2PolicyProposal:
+    def proposal(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ResponsePriorProposal:
         return self.controller.proposal(context, deterministic=deterministic)
 
 
-class A2ProposalReactionController(ReactionController):
-    """Evaluation-only exposure of A2's learned action before legacy guards."""
+class ResponsePriorController(ReactionController):
+    """Evaluation-only exposure of the learned response prior."""
 
     mode = "rl_residual_idm"
 
     def __init__(self, rule_model: RuleModelBundle, checkpoint: str, device: torch.device | None = None) -> None:
         super().__init__()
-        self.prior = FrozenA2ResponsePrior(rule_model, checkpoint, device=device)
+        self.prior = FrozenResponsePrior(rule_model, checkpoint, device=device)
 
     def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
         proposal = self.prior.proposal(context, deterministic=deterministic)
@@ -1102,37 +1121,79 @@ class A2ProposalReactionController(ReactionController):
             entropy=proposal.distribution.entropy().sum(-1) * proposal.active.float(), value=proposal.value,
             raw_action=proposal.raw_action, rule_action_ax=proposal.rule_action_ax,
             policy_features=proposal.features, desired_action_ax=proposal.nominal_action_ax,
-            a2_nominal_action_ax=proposal.nominal_action_ax, a2_correction_ax=proposal.correction_ax,
+            response_prior_nominal_action_ax=proposal.nominal_action_ax,
+            response_prior_correction_ax=proposal.correction_ax,
         )
 
 
-class A2HumanCalibrationAdapter(nn.Module):
-    """Small stochastic adapter around a frozen A2 response proposal."""
+class HumanResponseCalibrator(nn.Module):
+    """Small stochastic calibration head around a frozen response proposal."""
 
     feature_dim = 128 + 5
 
-    def __init__(self) -> None:
+    def __init__(self, hidden_dim: int = 64, initial_log_std: float = -2.0) -> None:
         super().__init__()
-        self.actor = nn.Sequential(nn.Linear(self.feature_dim, 64), nn.SiLU(), nn.Linear(64, 2))
-        self.critic = nn.Sequential(nn.Linear(self.feature_dim, 64), nn.SiLU(), nn.Linear(64, 1))
-        self.log_std = nn.Parameter(torch.full((2,), -2.0))
+        hidden = int(hidden_dim)
+        if hidden < 8:
+            raise ValueError("calibrator hidden dimension must be at least 8")
+        self.actor = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 2))
+        self.event_gate = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 1))
+        self.critic = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 1))
+        self.log_std = nn.Parameter(torch.full((2,), float(initial_log_std)))
         nn.init.zeros_(self.actor[-1].weight)
         nn.init.zeros_(self.actor[-1].bias)
+        nn.init.zeros_(self.event_gate[-1].weight)
+        nn.init.zeros_(self.event_gate[-1].bias)
 
     def distribution_and_value(self, features: torch.Tensor) -> tuple[torch.distributions.Normal, torch.Tensor]:
         mean = self.actor(features)
         return torch.distributions.Normal(mean, self.log_std.exp().expand_as(mean)), self.critic(features).squeeze(-1)
 
+    def event_gate_logits(self, features: torch.Tensor) -> torch.Tensor:
+        return self.event_gate(features).squeeze(-1)
 
-class A2HumanCalibrationController(ReactionController):
-    """Frozen A2 proposal plus a learned, physically released calibration."""
+    def event_gate_probability(self, features: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
+        return (self.event_gate_logits(features) / max(float(temperature), 1.0e-3)).sigmoid()
 
-    mode = "a2_human_calibration"  # type: ignore[assignment]
+class CausalInfluenceResponsePolicy(ReactionController):
+    """Mechanism-guided prior plus learned, physically projected calibration."""
 
-    def __init__(self, rule_model: RuleModelBundle, *, a2_checkpoint: str, device: torch.device | None = None) -> None:
+    mode = "causal_influence_response"  # type: ignore[assignment]
+
+    def __init__(
+        self,
+        rule_model: RuleModelBundle,
+        *,
+        response_prior_checkpoint: str | None = None,
+        device: torch.device | None = None,
+        calibrator_hidden_dim: int = 64,
+        calibrator_initial_log_std: float = -2.0,
+        calibration_scale_radius: float = 0.75,
+        calibration_residual_max_mps2: float = 2.0,
+        event_calibration_strength: float = 1.0,
+        event_gate_temperature: float = 1.0,
+        correction_jerk_limit_mps3: float = 12.0,
+        reaction_trigger_threshold_mps2: float = 0.25,
+    ) -> None:
         super().__init__()
-        self.prior = FrozenA2ResponsePrior(rule_model, a2_checkpoint, device=device)
-        self.adapter = A2HumanCalibrationAdapter()
+        if response_prior_checkpoint is None:
+            raise ValueError("response_prior_checkpoint is required")
+        self.prior = FrozenResponsePrior(rule_model, response_prior_checkpoint, device=device)
+        self.adapter = HumanResponseCalibrator(
+            hidden_dim=calibrator_hidden_dim,
+            initial_log_std=calibrator_initial_log_std,
+        )
+        self.calibration_scale_radius = max(float(calibration_scale_radius), 0.0)
+        self.calibration_residual_max_mps2 = max(
+            float(calibration_residual_max_mps2), 0.0
+        )
+        self.event_calibration_strength = float(event_calibration_strength)
+        self.event_gate_temperature = max(float(event_gate_temperature), 1.0e-3)
+        self.correction_jerk_limit_mps3 = max(float(correction_jerk_limit_mps3), 1.0e-3)
+        # This is the response layer's trigger, independent of the factual
+        # decoder.  highD's 25 Hz longitudinal commands change in roughly
+        # 0.25 m/s² increments, so a 0.5 threshold misses natural events.
+        self.reaction_trigger_threshold_mps2 = max(float(reaction_trigger_threshold_mps2), 0.0)
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -1140,7 +1201,7 @@ class A2HumanCalibrationController(ReactionController):
         return self
 
     @staticmethod
-    def adapter_features(proposal: A2PolicyProposal, previous_calibration: torch.Tensor) -> torch.Tensor:
+    def adapter_features(proposal: ResponsePriorProposal, previous_calibration: torch.Tensor) -> torch.Tensor:
         return torch.cat((
             proposal.hidden,
             proposal.correction_ax[..., None] / 8.0,
@@ -1152,26 +1213,38 @@ class A2HumanCalibrationController(ReactionController):
 
     @staticmethod
     def map_calibration(
-        *, proposal: A2PolicyProposal, raw: torch.Tensor, previous_calibration: torch.Tensor,
+        *, proposal: ResponsePriorProposal, raw: torch.Tensor, previous_calibration: torch.Tensor,
         minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
+        event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
+        scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
     ) -> dict[str, torch.Tensor]:
-        """Map adapter samples without TTC or behavior-specific rewriting."""
-        return A2HumanCalibrationController.map_calibration_tensors(
-            nominal=proposal.nominal_action_ax, a2_correction=proposal.correction_ax,
+        """Calibrate a response proposal without rule or nominal-world overrides."""
+        return CausalInfluenceResponsePolicy.map_calibration_tensors(
+            nominal=proposal.nominal_action_ax, prior_correction=proposal.correction_ax,
             active=proposal.active, authority=proposal.authority, raw=raw,
             previous_calibration=previous_calibration, minimum=minimum, maximum=maximum,
-            dt_s=dt_s, jerk_limit_mps3=jerk_limit_mps3,
+            dt_s=dt_s, jerk_limit_mps3=jerk_limit_mps3, event_gate=event_gate,
+            calibration_strength=calibration_strength,
+            scale_radius=scale_radius,
+            residual_max_mps2=residual_max_mps2,
         )
 
     @staticmethod
     def map_calibration_tensors(
-        *, nominal: torch.Tensor, a2_correction: torch.Tensor, active: torch.Tensor,
+        *, nominal: torch.Tensor, prior_correction: torch.Tensor, active: torch.Tensor,
         authority: torch.Tensor, raw: torch.Tensor, previous_calibration: torch.Tensor,
         minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
+        event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
+        scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
     ) -> dict[str, torch.Tensor]:
-        scale = 1.0 + 0.75 * torch.tanh(raw[..., 0])
-        residual = 2.0 * torch.tanh(raw[..., 1])
-        requested = (scale - 1.0) * a2_correction + (
+        gate = torch.ones_like(nominal) if event_gate is None else event_gate.to(nominal).clamp(0.0, 1.0)
+        strength = float(calibration_strength)
+        # A closed event gate means "keep the frozen response proposal".  It
+        # must not cancel the prior correction.  The learned policy therefore
+        # predicts a bounded delta *around* that proposal.
+        scale = 1.0 + gate * strength * float(scale_radius) * torch.tanh(raw[..., 0])
+        residual = gate * strength * float(residual_max_mps2) * torch.tanh(raw[..., 1])
+        requested = (scale - 1.0) * prior_correction + (
             active.float() * authority * residual
         )
         bounded = (nominal + requested).clamp(minimum, maximum)
@@ -1182,7 +1255,12 @@ class A2HumanCalibrationController(ReactionController):
         limited = previous_calibration + (target - previous_calibration).clamp(-step, step)
         calibration = torch.where(effective, limited, torch.zeros_like(limited))
         final = (nominal + calibration).clamp(minimum, maximum)
-        calibration = final - nominal
+        # Keep the commanded calibration trace separate from the hard action
+        # bounds.  Recomputing it as ``final - nominal`` after clipping makes
+        # a moving nominal action look like an instantaneous controller jerk
+        # (and can create 40–100 m/s^3 spikes at the acceleration limits).
+        # The safety clamp remains observable through ``physical_rewrite``;
+        # the stored calibration is the jerk-limited controller command.
         return {
             "final": final,
             "scale": scale,
@@ -1205,8 +1283,15 @@ class A2HumanCalibrationController(ReactionController):
             if context.previous_calibration_correction is None
             else context.previous_calibration_correction
         )
+        # Treat the committed ``[batch, slots]`` actuator state and the
+        # evaluator's one-frame ``[batch, 1, slots]`` action horizon as the
+        # same causal state, never as a broadcast over a feature dimension.
+        while previous.ndim < proposal.base_action_ax.ndim:
+            previous = previous.unsqueeze(-2)
+        previous = previous.to(proposal.base_action_ax)
         features = self.adapter_features(proposal, previous)
         distribution, value = self.adapter.distribution_and_value(features)
+        event_gate = self.adapter.event_gate_probability(features, self.event_gate_temperature)
         if deterministic:
             raw = distribution.mean
         elif context.policy_calibration_standard_normal is not None:
@@ -1216,7 +1301,10 @@ class A2HumanCalibrationController(ReactionController):
         mapped = self.map_calibration(
             proposal=proposal, raw=raw, previous_calibration=previous,
             minimum=float(context.cfg.min_acceleration_mps2), maximum=float(context.cfg.max_acceleration_mps2),
-            dt_s=float(context.cfg.dt_s), jerk_limit_mps3=float(getattr(context.cfg, "controller_correction_jerk_limit_mps3", 12.0)),
+            dt_s=float(context.cfg.dt_s), jerk_limit_mps3=self.correction_jerk_limit_mps3,
+            event_gate=event_gate, calibration_strength=self.event_calibration_strength,
+            scale_radius=self.calibration_scale_radius,
+            residual_max_mps2=self.calibration_residual_max_mps2,
         )
         actions = context.base_actions.clone()
         actions[:, 0, :, 0] = mapped["final"]
@@ -1238,156 +1326,11 @@ class A2HumanCalibrationController(ReactionController):
             physical_rewrite=mapped["physical_rewrite"],
             correction_release=mapped["release"],
             calibration_correction_ax=mapped["calibration"],
-            a2_nominal_action_ax=proposal.nominal_action_ax,
-            a2_correction_ax=proposal.correction_ax,
+            response_prior_nominal_action_ax=proposal.nominal_action_ax,
+            response_prior_correction_ax=proposal.correction_ax,
+            causal_gate=None,
+            causal_delta_ax=None,
         )
-
-
-class NominalPreservingReactionController(ReactionController):
-    """Research-only 25-frame convex response layer; executes its first action."""
-    mode = "nominal_preserving_response"  # type: ignore[assignment]
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.weights = PositiveCostWeights(7, hidden_dim=64, layers=2)
-
-    @staticmethod
-    def _inputs(state: torch.Tensor) -> DecisionCostInputs:
-        ego, npc = state[:, :1], state[:, 1:]
-        gap = ego[..., 0] - npc[..., 0] - 4.8
-        return DecisionCostInputs(
-            gap.reshape(-1), speed_mps=npc[..., 2].reshape(-1),
-            leader_speed_mps=ego[..., 2].expand_as(npc[..., 2]).reshape(-1),
-            # This is the realized parent acceleration in the current state.
-            # It must match the prefix-only supervised feature and must never
-            # be replaced by a pending HiQR action.
-            leader_acceleration_mps2=ego[..., 4].expand_as(npc[..., 2]).reshape(-1),
-            reference_speed_mps=npc[..., 2].reshape(-1),
-        )
-
-    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
-        del deterministic
-        if context.nominal_current is None or context.nominal_action_horizon is None:
-            raise RuntimeError("nominal_preserving_response requires an executable nominal reference cache")
-        batch = context.current.shape[0]
-        horizon = context.nominal_action_horizon.shape[-1]
-        nominal = context.nominal_action_horizon.reshape(batch * 6, horizon)
-        # The supervised head is scoped to causally related followers at the
-        # declared braking onset.  Establish that scope before constructing
-        # the QPs, so ordinary factual rows (which are the overwhelming
-        # majority of P0) do not pay for an unused 25-frame solve.
-        from .influence_graph import ROLE_SAME_LANE_FOLLOWER
-        if context.influence_authority is None or context.influence_role is None:
-            active = context.current_valid[:, 1:]
-        else:
-            parent_acceleration = context.current[:, 0, 4]
-            parent_braking = parent_acceleration.lt(-0.3) & parent_acceleration.gt(-1.0)
-            if context.history is not None and context.history.shape[1] >= 2:
-                prior_acceleration = context.history[:, -2, 0, 4]
-                prior_braking = prior_acceleration.lt(-0.3) & prior_acceleration.gt(-1.0)
-                # Activate on the onset edge and retain a short causal
-                # response window.  This captures the event follower's
-                # braking transient without rewriting a factual replay for
-                # as long as the logged parent remains in the band.
-                onset = parent_braking & ~prior_braking
-                recent = context.history[:, -5:, 0, 4]
-                recent_band = recent.lt(-0.3) & recent.gt(-1.0)
-                parent_braking = onset | recent_band.any(dim=1)
-            trigger = parent_braking[:, None].expand_as(context.current_valid[:, 1:])
-            active = (
-                context.current_valid[:, 1:]
-                & context.influence_authority.gt(0.0)
-                & (context.influence_role == ROLE_SAME_LANE_FOLLOWER)
-                & trigger
-            )
-            if context.reaction_age_frames is not None:
-                active = active & context.reaction_age_frames.le(24)
-        if not active.any():
-            zeros = torch.zeros_like(active, dtype=context.base_actions.dtype)
-            released = context.base_actions[:, 0, :, 0]
-            previous_ax = (
-                context.current[:, 1:, 4]
-                if context.previous_background_actions is None
-                else context.previous_background_actions[:, :, 0]
-            )
-            released = released.clamp(-8.0, 4.0).minimum(
-                previous_ax + 12.0 * float(context.cfg.dt_s)
-            ).maximum(previous_ax - 12.0 * float(context.cfg.dt_s))
-            actions = context.base_actions.clone()
-            actions[:, 0, :, 0] = torch.where(
-                context.current_valid[:, 1:], released, context.base_actions[:, 0, :, 0]
-            )
-            return ReactionControllerOutput(
-                actions=actions,
-                alpha=zeros,
-                delta_ax=zeros,
-                active=active,
-                desired_action_ax=released,
-            )
-        previous = (
-            context.current[:, 1:, 4] if context.previous_background_actions is None
-            else context.previous_background_actions[:, :, 0]
-        ).reshape(-1)
-        actual_inputs, nominal_inputs = self._inputs(context.current), self._inputs(context.nominal_current)
-        # Causal feature vector: gap, speeds, realized ego command summary and z.
-        feature = torch.stack((actual_inputs.gap_m, actual_inputs.speed_mps, actual_inputs.leader_speed_mps,
-                               actual_inputs.leader_acceleration_mps2, actual_inputs.reference_speed_mps,
-                               nominal_inputs.gap_m, nominal_inputs.speed_mps), dim=-1)
-        actual_weight = self.weights(feature)
-        nominal_weight = self.weights(torch.stack((nominal_inputs.gap_m, nominal_inputs.speed_mps, nominal_inputs.leader_speed_mps,
-                                                    nominal_inputs.leader_acceleration_mps2, nominal_inputs.reference_speed_mps,
-                                                    nominal_inputs.gap_m, nominal_inputs.speed_mps), dim=-1))
-        # QP tensors are flattened slot-wise.  Solving only active slots is
-        # numerically identical to solving the full batch and masking the
-        # result, while avoiding thousands of inert P0 solves.
-        active_flat = active.reshape(-1)
-        actual_active = DecisionCostInputs(*(value[active_flat] for value in actual_inputs.__dict__.values()))
-        nominal_active = DecisionCostInputs(*(value[active_flat] for value in nominal_inputs.__dict__.values()))
-        solved_active, _ = solve_hinge_calibrated_qp(
-            nominal[active_flat], actual_active, nominal_active,
-            actual_weight[active_flat], nominal_weight[active_flat], previous[active_flat],
-        )
-        final = nominal[:, 0].clone()
-        final[active_flat] = solved_active[:, 0]
-        final = final.reshape(batch, 6)
-        base_ax = context.base_actions[:, 0, :, 0]
-        # The calibrated QP is a response residual.  A conservative execution
-        # envelope keeps the learned residual from replacing the frozen HiQR
-        # command wholesale when its factual/nominal cost mismatch is large.
-        selected = torch.where(active, base_ax + 0.10 * (final - base_ax), base_ax)
-        # The post-HiQR response must share the frozen transfer arms' plant
-        # envelope.  Applying the same causal jerk limiter on the inactive
-        # release path prevents a one-frame hand-back from creating an
-        # artificial absolute-jerk spike when the onset window closes.
-        previous_ax = (
-            context.current[:, 1:, 4]
-            if context.previous_background_actions is None
-            else context.previous_background_actions[:, :, 0]
-        )
-        selected = selected.clamp(-8.0, 4.0)
-        selected = selected.minimum(previous_ax + 12.0 * float(context.cfg.dt_s)).maximum(
-            previous_ax - 12.0 * float(context.cfg.dt_s)
-        )
-        actions = context.base_actions.clone(); actions[:, 0, :, 0] = torch.where(
-            context.current_valid[:, 1:], selected, context.base_actions[:, 0, :, 0]
-        )
-        return ReactionControllerOutput(actions=actions, alpha=active.float(), delta_ax=actions[:, 0, :, 0] - context.base_actions[:, 0, :, 0], active=active, desired_action_ax=final)
-
-
-class CommonPhysicsReactionController(ReactionController):
-    """Shared pre-plant longitudinal bounds for research comparison arms."""
-    mode = "common_physics"  # type: ignore[assignment]
-
-    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
-        del deterministic
-        raw = context.base_actions[:, 0, :, 0]
-        previous = context.current[:, 1:, 4] if context.previous_background_actions is None else context.previous_background_actions[:, :, 0]
-        bounded = raw.clamp(-8.0, 4.0)
-        step = 12.0 * 0.04
-        final = bounded.minimum(previous + step).maximum(previous - step)
-        active = context.current_valid[:, 1:]
-        actions = context.base_actions.clone(); actions[:, 0, :, 0] = torch.where(active, final, raw)
-        return ReactionControllerOutput(actions=actions, alpha=active.float(), delta_ax=actions[:, 0, :, 0] - raw, active=active, desired_action_ax=final)
 
 
 def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tensor | float | None = None, **kwargs: Any) -> ReactionController:
@@ -1402,15 +1345,11 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
     if mode == "rl_residual_idm":
         if "rule_model" not in kwargs:
             raise ValueError(f"{mode} requires a calibrated rule_model")
-        return IDMResidualReactionController(**kwargs)
+        return MechanismGuidedResponsePrior(**kwargs)
     if mode == "idm_only":
         return IDMOnlyReactionController(**kwargs)
     if mode == "calibrated_residual":
         return CalibratedResidualReactionController(**kwargs)
-    if mode == "a2_human_calibration":
-        return A2HumanCalibrationController(**kwargs)
-    if mode == "nominal_preserving_response":
-        return NominalPreservingReactionController()
-    if mode == "common_physics":
-        return CommonPhysicsReactionController()
+    if mode == "causal_influence_response":
+        return CausalInfluenceResponsePolicy(**kwargs)
     raise ValueError(f"unknown reaction controller mode {mode!r}")

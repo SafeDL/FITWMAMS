@@ -1,0 +1,28 @@
+{
+  "schema": "cih_world_model_training_v2",
+  "protocol": {
+    "world_executor": "hierarchical_world_model.src.evaluation.rollout",
+    "dynamics": "KinematicTrafficDynamics",
+    "diffusion_plans": "frozen_diffusion_plans, same construction as released evaluation",
+    "response_scope": "all slots retained for response supervision and ADS evaluation",
+    "influence_routing": "direct and attenuated second-level edges from realized states",
+    "selection": "none during training; full formal validation is mandatory",
+    "highwayenv": "not imported or executed"
+  },
+  "world_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt",
+  "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+  "response_prior_checkpoint_sha256": "ffa9f934b6b2236c2ab75d007c84958076b2bfea1851644bfef681d40e42a4d5",
+  "world_epoch": 2,
+  "event_rows": 1575,
+  "event_pool": 1841,
+  "event_limit": null,
+  "seed": 20260911,
+  "training_schedule": {
+    "supervised_updates": 5000,
+    "policy_updates": 160,
+    "event_groups_per_policy_update": 8,
+    "futures_per_event": 8
+  },
+  "causal_contrast_frames": 8429,
+  "causal_contrast_secondary_frames": 1
+}

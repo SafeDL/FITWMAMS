@@ -1,7 +1,0 @@
-{
-  "status": "blocked_pending_aligned_policy_on_factual_protocol",
-  "candidate_training_started": false,
-  "validation_or_test_claim": false,
-  "reason": "The historical centimeter-scale factual artifact uses A0_none, while the initial audit used a stochastic all-background policy-on rollout. Those scopes are not comparable.",
-  "next_required_artifact": "aligned policy-on factual specification and evaluator"
-}

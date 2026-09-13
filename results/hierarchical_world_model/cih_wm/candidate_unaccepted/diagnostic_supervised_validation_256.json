@@ -1,0 +1,221 @@
+{
+  "accepted": false,
+  "causal_probe": {
+    "bound_saturated_or_unchanged_slot_frames": 0,
+    "controller_correction_step_limit_mps2": 0.9600099999999999,
+    "controller_induced_jerk_within_limit": true,
+    "dose_effects_mps2": [
+      0.3987913131713867,
+      0.5216293334960938,
+      0.6331822276115417
+    ],
+    "dose_monotonic": true,
+    "executed_action_direction_agreement": 0.8878621378621379,
+    "executed_action_slot_frames": 4004,
+    "influence_levels": {
+      "direct": {
+        "executed_action_direction_agreement": 0.8878621378621379,
+        "executed_action_slot_frames": 4004,
+        "selected_slot_frames": 4004
+      },
+      "secondary": {
+        "executed_action_direction_agreement": null,
+        "executed_action_slot_frames": 0,
+        "selected_slot_frames": 0
+      }
+    },
+    "maximum_controller_correction_step_mps2": 0.9600000381469727,
+    "nominal_reference_is_model_input": false,
+    "preprobe_max_abs_action_difference_mps2": 0.0,
+    "profiles": {
+      "brake_1.5": {
+        "bound_saturated_or_unchanged_slot_frames": 0,
+        "executed_action_direction_agreement": 0.8986175115207373,
+        "executed_action_slot_frames": 868,
+        "influence_levels": {
+          "direct": {
+            "executed_action_direction_agreement": 0.8986175115207373,
+            "executed_action_slot_frames": 868,
+            "selected_slot_frames": 868
+          },
+          "secondary": {
+            "executed_action_direction_agreement": null,
+            "executed_action_slot_frames": 0,
+            "selected_slot_frames": 0
+          }
+        },
+        "mean_rule_aligned_action_effect_mps2": 0.3987913131713867,
+        "preprobe_max_abs_action_difference_mps2": 0.0,
+        "selected_slot_frames": 868
+      },
+      "brake_2.25": {
+        "bound_saturated_or_unchanged_slot_frames": 0,
+        "executed_action_direction_agreement": 0.8750946252838758,
+        "executed_action_slot_frames": 1321,
+        "influence_levels": {
+          "direct": {
+            "executed_action_direction_agreement": 0.8750946252838758,
+            "executed_action_slot_frames": 1321,
+            "selected_slot_frames": 1321
+          },
+          "secondary": {
+            "executed_action_direction_agreement": null,
+            "executed_action_slot_frames": 0,
+            "selected_slot_frames": 0
+          }
+        },
+        "mean_rule_aligned_action_effect_mps2": 0.5216293334960938,
+        "preprobe_max_abs_action_difference_mps2": 0.0,
+        "selected_slot_frames": 1321
+      },
+      "brake_3": {
+        "bound_saturated_or_unchanged_slot_frames": 0,
+        "executed_action_direction_agreement": 0.8920110192837466,
+        "executed_action_slot_frames": 1815,
+        "influence_levels": {
+          "direct": {
+            "executed_action_direction_agreement": 0.8920110192837466,
+            "executed_action_slot_frames": 1815,
+            "selected_slot_frames": 1815
+          },
+          "secondary": {
+            "executed_action_direction_agreement": null,
+            "executed_action_slot_frames": 0,
+            "selected_slot_frames": 0
+          }
+        },
+        "mean_rule_aligned_action_effect_mps2": 0.6331822276115417,
+        "preprobe_max_abs_action_difference_mps2": 0.0,
+        "selected_slot_frames": 1815
+      }
+    },
+    "rows": 256,
+    "selected_slot_frames": 4004
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/candidate_unaccepted/response_supervised.pt",
+  "complete_split": false,
+  "controller_scope_audit": {
+    "active_slot_frames_in_all_slot_scope": 4334,
+    "changed_action_slot_frames_in_all_slot_scope": 18911,
+    "material_action_change_slot_frames_in_all_slot_scope": 4252,
+    "maximum_abs_action_difference_mps2_in_all_slot_scope": 3.7306759357452393,
+    "released_comparison_excluded_slots": [
+      "same_rear"
+    ],
+    "response_and_ads_excluded_slots": []
+  },
+  "evaluation_passed": false,
+  "factual": {
+    "all_slot_response_scope": {
+      "cih_world_model": {
+        "ADE_m": 0.1341410130262375,
+        "FDE_m": 0.3070795238018036,
+        "P50_displacement_error_m": 0.02970811165869236,
+        "P90_displacement_error_m": 0.09831199049949663,
+        "P95_displacement_error_m": 0.2623711466789235,
+        "P99_displacement_error_m": 3.138694067001342,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.07606372237205505
+      },
+      "excluded_slots": [],
+      "factual_dynamics": {
+        "ADE_m": 0.11902516335248947,
+        "FDE_m": 0.3087107837200165,
+        "P50_displacement_error_m": 0.02947111241519451,
+        "P90_displacement_error_m": 0.09288489520549785,
+        "P95_displacement_error_m": 0.18989177048206315,
+        "P99_displacement_error_m": 2.4903987503051743,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.07462310791015625
+      }
+    },
+    "released_comparison_scope": {
+      "cih_world_model": {
+        "ADE_m": 0.036905813962221146,
+        "FDE_m": 0.027278490364551544,
+        "P50_displacement_error_m": 0.027727956883609295,
+        "P90_displacement_error_m": 0.07416160106658941,
+        "P95_displacement_error_m": 0.09477121084928512,
+        "P99_displacement_error_m": 0.16207348272204405,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.03148563578724861
+      },
+      "delta": {
+        "ADE_m": 0.00010616332292556763,
+        "FDE_m": 0.0004838351160287857,
+        "P95_displacement_error_m": 0.0004866987466812245
+      },
+      "excluded_slots": [
+        "same_rear"
+      ],
+      "factual_dynamics": {
+        "ADE_m": 0.03679965063929558,
+        "FDE_m": 0.02679465524852276,
+        "P50_displacement_error_m": 0.027687883004546165,
+        "P90_displacement_error_m": 0.07392428219318406,
+        "P95_displacement_error_m": 0.0942845121026039,
+        "P99_displacement_error_m": 0.15989257916808133,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.03137701377272606
+      },
+      "passed": true
+    },
+    "same_rear_response_reconstruction": {
+      "cih_world_model": {
+        "ADE_m": 1.3618063926696777,
+        "FDE_m": 3.838545322418213,
+        "P50_displacement_error_m": 0.6679719686508179,
+        "P90_displacement_error_m": 3.792657709121705,
+        "P95_displacement_error_m": 5.131938076019284,
+        "P99_displacement_error_m": 7.100277500152588,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.6385523080825806
+      },
+      "delta": {
+        "ADE_m": 0.2050023078918457,
+        "FDE_m": -0.02860546112060547,
+        "P95_displacement_error_m": 0.0753996849060048
+      },
+      "factual_dynamics": {
+        "ADE_m": 1.156804084777832,
+        "FDE_m": 3.8671507835388184,
+        "P50_displacement_error_m": 0.36042657494544983,
+        "P90_displacement_error_m": 3.1653652667999275,
+        "P95_displacement_error_m": 5.056538391113279,
+        "P99_displacement_error_m": 10.550800323486333,
+        "frames": 149,
+        "sequences": 256,
+        "speed_MAE_mps": 0.6204221844673157
+      },
+      "passed": false
+    }
+  },
+  "non_event_action_drift": {
+    "event_rows": 8,
+    "mean_abs_action_difference_mps2": 0.003989539574831724,
+    "non_event_rows": 248,
+    "p95_abs_action_difference_mps2": 7.941312505863541e-05
+  },
+  "promotion_status": "not_promotable_until_complete_validation_and_training_provenance_pass",
+  "protocol": {
+    "causal": "paired ADS braking rollouts use the nominal branch only as an evaluator reference; no nominal action, future highD action, or intervention label enters the policy",
+    "controller": "frozen factual dynamics, two-level realized-state influence routing, mechanism-guided response prior, learned human-response calibration, and physical projection",
+    "factual": "released scoped comparison plus all-slot response reconstruction under the same frozen plans",
+    "lateral": "factual yaw-rate reconstruction only; causal lateral response is disabled pending evidence"
+  },
+  "schema": "cih_world_model_evaluation_v2",
+  "sequences": 256,
+  "split": "validation",
+  "training_provenance": {
+    "manifest": "/home/hp/FITWMAMS/results/hierarchical_world_model/cih_wm/candidate_unaccepted/manifest.json",
+    "passed": true,
+    "reason": null
+  },
+  "world_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt",
+  "world_checkpoint_epoch": 2
+}

@@ -7,7 +7,7 @@ import math
 import torch
 import torch.nn.functional as functional
 
-from .model import DiffusionGuidedHiQR, ResponseDistribution
+from .model import FactualDynamicsModel, ResponseDistribution
 from .reference import response_relevance
 
 
@@ -35,7 +35,7 @@ def quantile_match(
 
 
 def factual_losses(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     output: ResponseDistribution,
     current: torch.Tensor,
     current_valid: torch.Tensor,
@@ -123,7 +123,7 @@ def factual_losses(
 
 
 def paired_intervention_losses(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     batch: dict[str, torch.Tensor],
     *,
     maximum_sequences: int = 8,
@@ -360,7 +360,7 @@ def paired_intervention_losses(
 
 
 def closed_loop_factual_loss(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     batch: dict[str, torch.Tensor],
     *,
     maximum_sequences: int = 8,
@@ -458,7 +458,7 @@ def closed_loop_factual_loss(
 
 
 def training_losses(
-    model: DiffusionGuidedHiQR,
+    model: FactualDynamicsModel,
     batch: dict[str, torch.Tensor],
     scene_noise: torch.Tensor,
     agent_noise: torch.Tensor,

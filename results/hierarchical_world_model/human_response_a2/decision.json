@@ -1,5 +1,0 @@
-{
-  "reason": "full validation raw Energy Score is worse than the frozen A2 baseline; test is forbidden",
-  "status": "rejected_human_energy_gate",
-  "test_not_run": true
-}

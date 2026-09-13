@@ -1,34 +1,35 @@
-# 分层交通世界模型
+# CIH-WM 分层交通世界模型
 
-项目维护的响应基线是冻结的 Flow--Diffusion--HiQR 世界模型，后接 **IDM 规则先验
-+ PPO 残差响应控制器**（legacy A2）。A2 human calibration 是保留的实现候选，当前
-因 policy-on factual 协议未对齐而暂停，不能视为已验证方法。
+本目录维护一个完整方法和一个可独立审计的事实层：
+
+1. **冻结事实转移层**：一个扩散计划条件的交通状态转移模型，负责事实重建；它是 CIH-WM 的基础能力，不作为本方法的新增算法主张。
+2. **CIH 响应层**：以实现状态因果影响路由确定可响应车辆，再以机制引导、约束保持的人类响应校准生成纵向动作修正。这是当前方法的核心。
+
+事实层内部的关系编码、状态过滤、jerk 解码和运动学积分是实现选择；PPO、DDIM 采样步数及 jerk 限制是训练或执行约束，不单列为算法创新。
 
 ```text
 config/
-├── world_model.yaml          # 冻结世界模型的权重和数据依赖
-├── ppo_idm_response.yaml     # 维护中的 legacy A2 基线
-└── a2_human_calibration.yaml # 暂停的 calibration 候选
+├── world_model.yaml          # 冻结事实层及其发布评测协议
+└── cih_world_model.yaml      # CIH-WM 的唯一方法配置
 
-scripts/ppo_idm_response/
-├── evaluate_intervention_effects.py
-└── render_playbacks.py
-```
+scripts/
+├── evaluate.py                 # 冻结事实层评测
+├── train_cih_world_model.py    # 响应校准与策略优化
+├── evaluate_cih_world_model.py # 事实重建、同车道后车和因果探针
+└── promote_cih_world_model.py  # 验证集选择与一次性测试验收
 
-`world_model.yaml` 是已验证的生成与物理执行基座，不代表控制器“发布”。
-`ppo_idm_response.yaml` 指向 A2 checkpoint、IDM 规则和共享 highD 事件。关于
-bridge factual、A2 response test 与 policy-on stress 的边界见
-[`FITWMAMS_A2_Factual_Protocol_Correction.md`](../doc/FITWMAMS_A2_Factual_Protocol_Correction.md)。
-
-```text
 results/hierarchical_world_model/
-├── world_model/          # 冻结基座的必要权重与评测
-├── reaction_events/      # train / validation / test 的共享 highD 事件
-└── ppo_idm_response/     # PPO--IDM checkpoint、规则和最终审计
+├── factual_hiqr/              # 历史掩码协议的冻结检查点和发布评测
+├── factual_all_slots_v2/      # 后续全背景车评测输出（首次运行时创建）
+└── cih_wm/                    # 先验、固定证据与当前 CIH-WM 候选
 ```
 
-全测试固定制动探针显示 A2 相对冻结 HiQR 会增加后车制动（均值 −1.688 m/s²）且通常增加
-最小间距（均值 +2.998 m）。在保持 A2 本身、初始状态与全部随机量不变、只新增 ego 制动的
-直接成对审计中，后车额外制动均值为 −0.875 m/s²，且探针前动作差严格为零。同一 A2--HiQR
-审计亦出现 2 个新增碰撞，因此它是已验证的**响应基线**，不是安全提升结论。完整证据见
-[`results/hierarchical_world_model/ppo_idm_response/README.md`](../results/hierarchical_world_model/ppo_idm_response/README.md)。
+冻结事实层曾在完整测试集（10,151 个序列、历史 `same_rear` 掩码口径）上得到
+ADE **0.040227 m**、FDE **0.036870 m**、P95 位移误差 **0.090438 m**。当前代码已切换到
+包含 `same_rear` 的全背景车口径，尚未重新训练或评测；因此这些历史数值不能与后续全量结果直接比较，也不应写成 CIH-WM 因果响应指标。
+
+当前 CIH-WM v2 已移除名义影子动作、成对硬门和规则差值覆盖，并加入不读取记录未来的名义/三档 ADS 制动对比训练。全量训练候选在 256 序列诊断中仍未通过因果方向和 `same_rear` 非劣门槛，因此
+`cih_wm/candidate_unaccepted/` 中的结果只能用于诊断，不能称为正式最佳模型。方法边界、组件证据和下一步验收协议见
+[`FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md`](../doc/FITWMAMS_A2_Preserving_Human_Response_Revision_Plan.md)。
+
+横向通道目前只做事实 yaw-rate 重建；在拥有变道/转向干预证据和独立验收指标前，不启用横向因果响应。

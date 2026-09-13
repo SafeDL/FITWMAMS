@@ -1,9 +1,8 @@
 """Offline causal response-boundary environment with exact branch replay.
 
 This module is retained for model/loss unit tests and differentiable offline
-evaluation.  It is not the execution backend for ADS risk estimates; those
-must use :mod:`highway`, which owns the HighwayEnv road,
-collision and IDM dynamics.
+evaluation. It remains a compact deterministic test fixture; maintained
+factual and CIH evaluation uses :func:`evaluation.rollout` directly.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ import torch
 
 from world_model.src.hiqr.filter import FilterState
 
-from .model import DiffusionGuidedHiQR
+from .model import FactualDynamicsModel
 from .randomness import WorldExogenousState
 from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
 
@@ -46,7 +45,7 @@ class ClosedLoopWorld:
 
     def __init__(
         self,
-        model: DiffusionGuidedHiQR,
+        model: FactualDynamicsModel,
         *,
         device: str | torch.device = "cpu",
         controller: ReactionController | str | None = None,

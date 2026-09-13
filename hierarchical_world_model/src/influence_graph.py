@@ -1,4 +1,4 @@
-"""Causal, per-agent authority assignment for longitudinal NPC reactions."""
+"""Causal, per-agent authority routing for CIH-WM responses."""
 
 from __future__ import annotations
 
@@ -92,32 +92,38 @@ class InfluenceGraphState:
 
 
 class CausalInfluenceGraph:
-    """Build a one-hop ego/NPC influence graph from already-realized states.
+    """Build direct influence from already-realized states.
 
     Coordinates in the current highD bridge are road aligned, so longitudinal
     and lateral tests use x/y directly.  The graph deliberately receives no
     intervention label or pending ego command: candidate authority is a
-    function only of traffic that HighwayEnv has already realised.
+    function only of traffic already realised by the current rollout.
     """
 
     def __init__(
         self,
         *,
         radius_m: float = 50.0,
+        enable_secondary: bool = False,
         secondary_radius_m: float = 35.0,
         prediction_horizon_s: float = 1.5,
         lane_half_width_m: float = 1.8,
         release_ttc_s: float = 4.0,
         stable_release_frames: int = 13,
         recovery_frames: int = 15,
+        secondary_authority_decay: float = 0.6,
     ) -> None:
         self.radius_m = float(radius_m)
+        self.enable_secondary = bool(enable_secondary)
         self.secondary_radius_m = float(secondary_radius_m)
         self.prediction_horizon_s = float(prediction_horizon_s)
         self.lane_half_width_m = float(lane_half_width_m)
         self.release_ttc_s = float(release_ttc_s)
         self.stable_release_frames = int(stable_release_frames)
         self.recovery_frames = int(recovery_frames)
+        if not 0.0 < float(secondary_authority_decay) < 1.0:
+            raise ValueError("secondary authority decay must lie inside (0, 1)")
+        self.secondary_authority_decay = float(secondary_authority_decay)
 
     @staticmethod
     def _pair_metrics(parent: torch.Tensor, child: torch.Tensor) -> tuple[torch.Tensor, ...]:
@@ -183,13 +189,13 @@ class CausalInfluenceGraph:
         )
         parent = torch.where(direct, torch.zeros_like(old.parent), torch.full_like(old.parent, -1))
 
-        # One-hop propagation from a directly influenced vehicle to a follower
-        # behind it.  A previous realized brake is sufficient evidence that
-        # the parent's corrected motion can matter to the child.
+        # Chained propagation is an inactive compatibility path.  The
+        # maintained CIH-WM scope is direct ego-to-follower response, so this
+        # path cannot affect training, factual reconstruction, or ADS testing.
         secondary = torch.zeros_like(direct)
         secondary_ttc = torch.full_like(ttc, float("inf"))
         secondary_gap = torch.full_like(gap, float("inf"))
-        for parent_slot in range(6):
+        for parent_slot in (range(6) if self.enable_secondary else ()):
             parent_active = direct[:, parent_slot]
             if not bool(parent_active.any()):
                 continue
@@ -245,7 +251,18 @@ class CausalInfluenceGraph:
                 torch.where(continuing_recovery, old.recovery_remaining - 1, torch.zeros_like(old.recovery_remaining)),
             ),
         )
-        base_authority = torch.where(conflict, torch.ones_like(distance), torch.zeros_like(distance))
+        # A second-level follower receives less authority than a directly
+        # affected agent.  This prevents a small upstream intervention from
+        # being amplified as it propagates through the traffic chain.
+        base_authority = torch.where(
+            direct,
+            torch.ones_like(distance),
+            torch.where(
+                secondary,
+                torch.full_like(distance, self.secondary_authority_decay),
+                torch.zeros_like(distance),
+            ),
+        )
         authority = torch.where(
             phase.eq(2),
             recovery.to(distance) / float(max(self.recovery_frames, 1)),

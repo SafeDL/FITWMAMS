@@ -1,10 +1,12 @@
-# Hierarchical world-model results
+# 分层世界模型：保留证据
 
-`world_model/`, `reaction_events/`, and `ppo_idm_response/` are the active
-result inputs. The response directory contains the maintained legacy A2
-checkpoint, IDM rule prior, bridge audit, and held-out paired response audit.
+此目录仅保留可复现当前结论所需的两层模型与其固定证据。
 
-`a2_human_calibration/` is a paused candidate workspace. Its retained files
-record protocol provenance only; it has no validation or test result. The
-historical bridge audit is not a policy-on A2 factual result. See
-[`FITWMAMS_A2_Factual_Protocol_Correction.md`](../../doc/FITWMAMS_A2_Factual_Protocol_Correction.md).
+```text
+factual_hiqr/   历史目录名；冻结事实转移层的最终权重、事实评测与校准元数据
+cih_wm/         当前 CIH-WM 的先验、固定证据、唯一完整候选与播放动画
+```
+
+`factual_hiqr/evaluation/evaluation.json` 保存的是历史掩码协议下的完整测试集事实重建结果：ADE 0.040227 m、FDE 0.036870 m、P95 0.090438 m。当前代码已改为全背景车口径（包含 `same_rear`）；在重新训练或评测前，该历史结果不可作为新协议的比较基线。
+
+`cih_wm/candidate_unaccepted/` 是唯一完成全量训练的 CIH-WM 候选。其 256 序列扩大诊断尚未达到因果方向一致率和 `same_rear` 事实非劣门槛，故没有完成候选晋升或一次性测试集评测。`cih_wm/playbacks/` 只用于直观检查，不能替代验收指标。

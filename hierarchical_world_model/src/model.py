@@ -1,4 +1,11 @@
-"""Diffusion-guided, observation-filtered HiQR response model."""
+"""Observation-filtered factual dynamics used by CIH-WM.
+
+The released checkpoint was historically called Diffusion-Guided HiQR.  The
+implementation is kept checkpoint-compatible while exposing the components
+that matter to the maintained method: relational observation encoding,
+hierarchical state filtering, diffusion-plan conditioning, coordinated jerk
+decoding, and kinematic integration.
+"""
 
 from __future__ import annotations
 
@@ -9,10 +16,12 @@ import torch.nn.functional as functional
 from torch import nn
 
 from world_model.src.core.dynamics import DynamicsConfig, KinematicTrafficDynamics
-from world_model.src.hiqr.encoder import UnifiedRelationalQueryEncoder
+from world_model.src.hiqr.encoder import (
+    UnifiedRelationalQueryEncoder as RelationalObservationEncoder,
+)
 from world_model.src.hiqr.filter import (
     FilterState,
-    ObservedHierarchicalInteractionFilter,
+    ObservedHierarchicalInteractionFilter as HierarchicalBeliefFilter,
 )
 
 from .config import WorldModelConfig
@@ -49,8 +58,8 @@ class ResponseDistribution:
     scene_refreshed: bool
 
 
-class DiffusionGuidedJerkDecoder(nn.Module):
-    """Decode coordinated residual jerk inside a modifiable soft plan."""
+class CoordinatedJerkDecoder(nn.Module):
+    """Decode coordinated residual jerk around a diffusion motion prior."""
 
     def __init__(self, cfg: WorldModelConfig) -> None:
         super().__init__()
@@ -301,17 +310,17 @@ class DiffusionGuidedJerkDecoder(nn.Module):
         )
 
 
-class DiffusionGuidedHiQR(nn.Module):
-    """Couple a diffusion soft plan to HiQR priors and joint jerk decoding."""
+class FactualDynamicsModel(nn.Module):
+    """Reconstruct factual traffic from observed interactions and a motion prior."""
 
-    model_type = "diffusion_guided_hiqr"
+    model_type = "cih_factual_dynamics"
 
     def __init__(self, cfg: WorldModelConfig | None = None) -> None:
         super().__init__()
         self.cfg = cfg or WorldModelConfig()
-        hiqr_cfg = self.cfg.hiqr_config()
-        self.encoder = UnifiedRelationalQueryEncoder(hiqr_cfg)
-        self.filter = ObservedHierarchicalInteractionFilter(hiqr_cfg)
+        relational_cfg = self.cfg.relational_dynamics_config()
+        self.encoder = RelationalObservationEncoder(relational_cfg)
+        self.filter = HierarchicalBeliefFilter(relational_cfg)
         self.preview_agent = nn.Sequential(
             nn.Linear(12, self.cfg.hidden_dim),
             nn.SiLU(),
@@ -322,7 +331,7 @@ class DiffusionGuidedHiQR(nn.Module):
             nn.SiLU(),
             nn.LayerNorm(self.cfg.hidden_dim),
         )
-        self.decoder = DiffusionGuidedJerkDecoder(self.cfg)
+        self.decoder = CoordinatedJerkDecoder(self.cfg)
         self.latent_transition = GraphCoupledLatentTransition(
             self.cfg.agent_latent_dim,
             self.cfg.hidden_dim,
@@ -347,6 +356,17 @@ class DiffusionGuidedHiQR(nn.Module):
                 acceleration_max_mps2=self.cfg.max_acceleration_mps2,
             )
         )
+
+    def component_contract(self) -> dict[str, str]:
+        """Name the checkpoint-compatible factual components used by CIH-WM."""
+        return {
+            "observation_encoder": "relational agents, history and map encoding",
+            "belief_filter": "observation-filtered scene and per-agent state",
+            "motion_prior": "frozen diffusion trajectory conditioning",
+            "coordination_decoder": "joint residual longitudinal/lateral jerk",
+            "stochastic_state": "persistent scene and graph-coupled agent latents",
+            "dynamics": "25 Hz kinematic state integration",
+        }
 
     def set_matched_response_bounds(self, values: torch.Tensor) -> None:
         """Install highD-derived P10/P90 acceleration-response bounds."""
@@ -721,3 +741,10 @@ class DiffusionGuidedHiQR(nn.Module):
             "model_config": self.cfg.to_dict(),
             "state_dict": self.state_dict(),
         }
+
+
+# Compatibility names for released checkpoints and downstream callers.  New
+# CIH-WM code uses the functional names above; module/parameter keys are
+# unchanged, so the accepted factual checkpoint loads without conversion.
+DiffusionGuidedJerkDecoder = CoordinatedJerkDecoder
+DiffusionGuidedHiQR = FactualDynamicsModel

@@ -1,0 +1,17 @@
+{
+  "train": {
+    "empirically_supported": 1246,
+    "weakly_supported": 273,
+    "unsupported_by_training_evidence": 322
+  },
+  "validation": {
+    "empirically_supported": 254,
+    "weakly_supported": 11,
+    "unsupported_by_training_evidence": 0
+  },
+  "test": {
+    "empirically_supported": 199,
+    "weakly_supported": 6,
+    "unsupported_by_training_evidence": 0
+  }
+}

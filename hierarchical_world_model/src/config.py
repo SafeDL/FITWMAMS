@@ -1,4 +1,4 @@
-"""Configuration for the diffusion-guided HiQR response layer."""
+"""Configuration for the CIH-WM factual dynamics layer."""
 
 from __future__ import annotations
 
@@ -100,7 +100,7 @@ class WorldModelConfig:
         if self.execute_frames != 1 or self.history_frames != 25:
             raise ValueError("the response contract is one 25 Hz frame with 25-frame history")
         if self.preview_frames != 25:
-            raise ValueError("HiQR uses a one-second soft preview")
+            raise ValueError("the factual dynamics layer uses a one-second soft preview")
         if set(self.history_choices) - {5, 10, 15, 25}:
             raise ValueError("history choices must be 5, 10, 15 or 25")
         if self.scene_refresh_responses != 25:
@@ -161,8 +161,8 @@ class WorldModelConfig:
         if not 0.0 < self.behavior_mode_max_yaw_rate_rps <= 0.05:
             raise ValueError("behavior-mode yaw-rate bound must lie inside (0, 0.05]")
 
-    def hiqr_config(self) -> HiQRConfig:
-        """Configure the reused, validated HiQR relational/filtering core."""
+    def relational_dynamics_config(self) -> HiQRConfig:
+        """Configure the retained relational encoder and belief filter."""
         return HiQRConfig(
             hidden_dim=self.hidden_dim,
             scene_latent_dim=self.scene_latent_dim,
@@ -178,6 +178,10 @@ class WorldModelConfig:
             scene_noise_scale=self.scene_noise_scale,
             residual_noise_scale=self.agent_noise_scale,
         )
+
+    def hiqr_config(self) -> HiQRConfig:
+        """Compatibility alias for checkpoints and older callers."""
+        return self.relational_dynamics_config()
 
     def to_dict(self) -> dict[str, object]:
         """Return the serializable model contract used in checkpoints."""
