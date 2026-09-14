@@ -1,0 +1,35 @@
+{
+  "schema": "cih_wm_training_decision",
+  "status": "rejected_not_promoted",
+  "candidate": "response_policy.pt",
+  "validation_report": "validation/full.json",
+  "training_scope": {
+    "event_rows": 1575,
+    "supported_response_events": 1841,
+    "event_limit": null,
+    "supervised_updates": 400,
+    "policy_updates": 160,
+    "same_rear_masked": false
+  },
+  "validation": {
+    "factual_passed": true,
+    "same_rear_reconstruction_passed": true,
+    "frame_direction_agreement": 0.6317064943826055,
+    "fixed_window_direction_agreement": 0.6843391155631566,
+    "fixed_window_dose_monotonicity": 0.4626865671641791,
+    "required_causal_agreement": 0.95,
+    "policy_energy_increment_significant": false
+  },
+  "comparison_with_preserved_response_calibrator": {
+    "fixed_window_direction_agreement": {
+      "preserved": 0.7576424553680606,
+      "this_training": 0.6843391155631566
+    },
+    "fixed_window_dose_monotonicity": {
+      "preserved": 0.5124875124875125,
+      "this_training": 0.4626865671641791
+    }
+  },
+  "decision": "The full retraining did not improve the causal gate and is retained only as a reproducible rejected experiment. The preserved calibrator remains the current response component; no test is permitted because formal validation was not accepted.",
+  "next_step": "Do not continue this auxiliary-loss direction without a separately justified response-mechanism revision."
+}

@@ -33,9 +33,8 @@ results/hierarchical_world_model/
 
 当前续建链使用真实 logged context 的 75 帧响应监督、二维 prior-retention/residual
 映射、fair Energy Score、明确的 policy/execution/release mask 和可快照的显式随机世界。
-`cih_wm/candidate_unaccepted/` 中的旧结果仍只用于历史诊断；新候选及验收证据位于
-`cih_wm/continuation/`。方法边界和验收协议见
-[`FITWMAMS_CIH_WM_Continuation_Target.md`](../doc/FITWMAMS_CIH_WM_Continuation_Target.md)。
+`cih_wm/candidate_unaccepted/` 中的旧结果仍只用于历史诊断；当前保留的有效响应校准器及验收证据位于
+`cih_wm/continuation/`。最新完整重训位于 `cih_wm/training/`，但因闭环因果指标退化而未晋升。
 
 本轮完整 validation 对 13,133 条序列和全部 13,133 个因果探针行评测了监督与
 PPO 检查点。两者均通过全槽位及 `same_rear` 事实保持；监督/PPO 的固定窗口方向
@@ -44,5 +43,12 @@ PPO 检查点。两者均通过全槽位及 `same_rear` 事实保持；监督/PP
 **0.0000718**，recording-cluster bootstrap 95% 区间为
 **[-0.0000127, 0.0001501]**，不显著。依照停止规则保留监督检查点、不增加 PPO
 轮数、不进入确认性 test；机器可读结论见 `cih_wm/continuation/decision.json`。
+该次完整重训的机器可读结论见 `cih_wm/training/decision.json`。
 
 横向通道目前只做事实 yaw-rate 重建；在拥有变道/转向干预证据和独立验收指标前，不启用横向因果响应。
+
+## 单一方法链
+
+CIH-WM 把已验证的纵向响应能力合并为冻结的 `mechanism_guided_response_prior`，再由因果影响路由和受约束校准器扩展它；这不是并列的旧模型或兼容层。该先验的来源证据、当前检查点和角色位于 `cih_wm/response_prior_lineage.json`。
+
+`cih_wm/evaluation_index.json` 汇总这一个方法链的冻结事实层、响应先验来源证据、当前 CIH 监督/PPO 评测和验收状态。索引明确标注不同协议的范围，不将历史固定制动探针改写为当前全槽位因果验收率。

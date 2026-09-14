@@ -1,0 +1,28 @@
+{
+  "schema_name": "cih_wm_response_prior_lineage",
+  "schema_version": 1,
+  "component": "mechanism_guided_response_prior",
+  "role": "frozen longitudinal response component inside the single CIH-WM method chain",
+  "checkpoint": "results/hierarchical_world_model/cih_wm/priors/behavior_response_prior.pt",
+  "checkpoint_contract": {
+    "schema": "reaction_residual_ppo",
+    "controller_mode": "rl_residual_idm",
+    "trainable_in_current_cih": false
+  },
+  "composition": {
+    "mechanism": "calibrated car-following reference",
+    "policy": "learned residual longitudinal response",
+    "current_extension": "causal influence routing and constrained human-response calibration"
+  },
+  "source_evidence": {
+    "source_commit": "2c7160901e2afc8c7cbb7445c258523eb053b687",
+    "protocol": "held-out fixed ego-braking probe with same_rear in scope",
+    "events": 205,
+    "recordings": 8,
+    "mean_extra_rear_braking_mps2": -1.68828428692934,
+    "mean_minimum_gap_change_m": 2.998476056354802,
+    "response_effect_verified": true,
+    "risk_release_validated": false
+  },
+  "current_chain_status": "frozen component loaded by CausalInfluenceResponsePolicy; its constrained calibrator is evaluated separately in continuation/"
+}

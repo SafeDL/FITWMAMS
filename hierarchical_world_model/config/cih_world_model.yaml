@@ -8,6 +8,7 @@ paths:
   output_dir: results/hierarchical_world_model/cih_wm
   response_prior_checkpoint: results/hierarchical_world_model/cih_wm/priors/behavior_response_prior.pt
   longitudinal_mechanism_prior: results/hierarchical_world_model/cih_wm/priors/longitudinal_mechanism_prior.json
+  response_prior_lineage: results/hierarchical_world_model/cih_wm/response_prior_lineage.json
   event_reference: results/hierarchical_world_model/cih_wm/evidence/reaction_events
   human_response_evidence: results/hierarchical_world_model/cih_wm/continuation/evidence/human_response
 method:
@@ -18,6 +19,9 @@ method:
   factual_transition: frozen_diffusion_plan_conditioned_traffic_transition
   causal_influence: realized_state_direct_follower_routing
   human_response_calibration: mechanism_guided_constraint_preserving_adjustment
+  response_prior:
+    name: mechanism_guided_response_prior
+    frozen: true
   controller: causal_influence_response
   protocol_status: cih_world_model
   use_legacy_ttc_guard: false

@@ -39,6 +39,14 @@ def load_cih_method_config(path: str | Path) -> dict[str, Any]:
         raise ValueError(
             "CIH-WM's maintained scope is direct follower response; keep chained influence disabled"
         )
+    response_prior = declared.get("response_prior", {})
+    if response_prior.get("name") != "mechanism_guided_response_prior":
+        raise ValueError("CIH-WM requires the merged mechanism-guided response prior")
+    if response_prior.get("frozen") is not True:
+        raise ValueError("the merged response prior must remain frozen")
+    paths = config.get("paths", {})
+    if not paths.get("response_prior_checkpoint") or not paths.get("response_prior_lineage"):
+        raise ValueError("CIH-WM requires response-prior checkpoint and lineage paths")
     return config
 
 
@@ -170,7 +178,12 @@ class CausalInfluenceHierarchicalWorldModel:
                 },
                 "human_response_calibration": {
                     "role": "turn authority into a realistic longitudinal action adjustment",
-                    "formulation": "calibrated car-following mechanism plus frozen human-response prior and learned constrained calibrator",
+                    "formulation": "frozen mechanism-guided response prior plus learned constrained calibrator",
+                },
+                "mechanism_guided_response_prior": {
+                    "role": "frozen learned longitudinal response proposal inside CIH-WM",
+                    "formulation": "calibrated car-following mechanism and learned residual response",
+                    "lineage": "results/hierarchical_world_model/cih_wm/response_prior_lineage.json",
                 },
             },
             "implementation_note": "observation encoding, belief filtering, jerk decoding, integration, PPO, and action bounds support these modules but are not separate algorithmic claims",

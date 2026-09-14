@@ -1,0 +1,47 @@
+{
+  "schema": "cih_world_model_training",
+  "protocol": {
+    "world_executor": "hierarchical_world_model.src.evaluation.rollout",
+    "dynamics": "KinematicTrafficDynamics",
+    "diffusion_plans": "frozen_diffusion_plans, same construction as released evaluation",
+    "response_scope": "all slots retained for response supervision and ADS evaluation",
+    "influence_routing": "direct and attenuated second-level edges from realized states",
+    "selection": "none during training; full formal validation is mandatory",
+    "highwayenv": "not imported or executed"
+  },
+  "world_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt",
+  "world_checkpoint_sha256": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+  "response_prior_checkpoint_sha256": "ffa9f934b6b2236c2ab75d007c84958076b2bfea1851644bfef681d40e42a4d5",
+  "world_epoch": 2,
+  "event_rows": 1575,
+  "event_pool": 1841,
+  "event_limit": null,
+  "seed": 20260911,
+  "code_commit": "5de2a3408d9b03a6e353da0dd1bb2d1ecbfa62c8",
+  "working_tree_diff_hash": "cf032cdfb9a152655730b972954c70a8e38db2b94696fb717a39607532c46894",
+  "resolved_config_hash": "68d1f7a851bf46ce1f2e98dcd4dc7ff2b48d1fee265c8b7644cca4ede22252b4",
+  "dataset_split_hash": "0f2a096ec1afd18af66838f4c634a4090b84673023bd35091adca7d9c9aba5b2",
+  "event_schema_hash": "47d38edc28d2efd70a9620ae5e4528f7b6262f6dc1a78c5e977f76186c0c88ca",
+  "reference_contract_hash": "5f5af667ecd8d50c841f1d9467470e4618f9907de677708174fede9e9c221c14",
+  "plan_cache_hash": "144b1fa1063351cac0de1a4b2d4139f2794d955c3edfb245b66e71f5edd66d11",
+  "action_map_hash": "9f1078af23b45f09dba38d7d50126b61b32b4442e120a21c2b2490a05c144183",
+  "observation_timing_hash": "565558fa4294c9e8e1aa4d5253ecccb34fadf0baf56a610d3e3c9f1e2f709059",
+  "randomness_spec_hash": "45834de3c04280eee7371df45d8ec386ba4567ce7ee03c6ee22585ff7f2355c2",
+  "training_schedule": {
+    "supervised_updates": 400,
+    "policy_updates": 160,
+    "event_groups_per_policy_update": 8,
+    "futures_per_event": 8
+  },
+  "causal_contrast_frames": 46126,
+  "causal_contrast_secondary_frames": 0,
+  "causal_window_events": 1005,
+  "causal_window_secondary_events": 0,
+  "actual_optimizer_steps": {
+    "supervised": 400,
+    "policy_updates_attempted": 160,
+    "policy_updates_rolled_back": 0
+  },
+  "termination_reason": "fixed_budget_complete",
+  "calibrator_checkpoint_hash": "468b756ffd6a63b50252d10e585c5094887b16cf090f6fa7f451abbb25e9628f"
+}

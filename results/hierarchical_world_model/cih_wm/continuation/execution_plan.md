@@ -1,6 +1,6 @@
 # CIH-WM continuation execution plan
 
-1. Preserve the frozen factual model, diffusion model, and complete A2 response prior.
+1. Preserve the frozen factual model, diffusion model, and complete mechanism-guided response prior.
 2. Keep every background slot, including `same_rear`, in training and evaluation.
 3. Repair logged-context supervision, the retention/residual action map, execution projection, influence recovery, PPO masks, and explicit randomness.
 4. Validate replay, snapshot/restore, shared-prefix identity, and full all-slot factual fidelity before training.

@@ -1,0 +1,85 @@
+{
+  "schema_name": "cih_wm_evaluation_index",
+  "schema_version": 1,
+  "purpose": "One index for the single CIH-WM method chain and its component evidence.",
+  "method": {
+    "name": "Causal Influence Hierarchical World Model",
+    "config": "hierarchical_world_model/config/cih_world_model.yaml",
+    "same_rear_masked": false
+  },
+  "factual_transition": {
+    "status": "validated_all_slots",
+    "test_sequences": 10151,
+    "metrics": {
+      "ADE_m": 0.04001997038722038,
+      "FDE_m": 0.03634489327669144,
+      "P95_displacement_error_m": 0.09102361842888594
+    },
+    "report": "../factual_all_slots/evaluation.json"
+  },
+  "mechanism_guided_response_prior": {
+    "status": "frozen_component_of_current_cih_method",
+    "checkpoint": "priors/behavior_response_prior.pt",
+    "lineage": "response_prior_lineage.json",
+    "source_evidence": {
+      "same_rear_in_scope": true,
+      "events": 205,
+      "recordings": 8,
+      "mean_extra_rear_braking_mps2": -1.68828428692934,
+      "mean_minimum_gap_change_m": 2.998476056354802,
+      "response_effect_verified": true,
+      "risk_release_validated": false
+    }
+  },
+  "current_cih_response": {
+    "supervised": {
+      "checkpoint": "continuation/response_supervised.pt",
+      "status": "research_artifact_only_not_accepted_candidate",
+      "validation_sequences": 13133,
+      "all_slot_factual": {
+        "ADE_m": 0.037205472588539124,
+        "FDE_m": 0.029729178175330162,
+        "P95_displacement_error_m": 0.0915835537016392
+      },
+      "same_rear_factual": {
+        "ADE_m": 0.038369715213775635,
+        "FDE_m": 0.028936073184013367,
+        "P95_displacement_error_m": 0.09929282888770105
+      },
+      "causal_gate": {
+        "frame_direction_agreement": 0.7309036935902608,
+        "fixed_window_direction_agreement": 0.7592954990215264,
+        "fixed_window_dose_monotonicity": 0.512,
+        "required": 0.95,
+        "passed": false
+      },
+      "report": "continuation/validation/full_supervised.json"
+    },
+    "policy": {
+      "checkpoint": "continuation/response_policy.pt",
+      "status": "rejected",
+      "causal_gate": {
+        "frame_direction_agreement": 0.7301110979118137,
+        "fixed_window_direction_agreement": 0.7576424553680606,
+        "fixed_window_dose_monotonicity": 0.5124875124875125,
+        "required": 0.95,
+        "passed": false
+      },
+      "energy_score_increment": {
+        "supervised_minus_policy_mean": 0.00007177906216315504,
+        "bootstrap_ci95": [-0.000012680925950199449, 0.000150087007547952],
+        "passed": false
+      },
+      "report": "continuation/validation/full_policy.json"
+    },
+    "decision": "continuation/decision.json"
+  },
+  "retraining_audit": {
+    "status": "rejected_not_promoted",
+    "candidate": "training/response_policy.pt",
+    "validation_report": "training/validation/full.json",
+    "decision": "training/decision.json",
+    "reason": "The complete retraining preserved factual and same-rear reconstruction but reduced the causal gate and did not obtain a significant 75-frame Energy Score increment."
+  },
+  "comparison_note": "The response-prior source probe and the current CIH all-slot causal gate use different execution contracts and denominators. They are component evidence for one method chain, not a cross-model leaderboard."
+}

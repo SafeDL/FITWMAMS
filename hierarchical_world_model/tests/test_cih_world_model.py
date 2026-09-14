@@ -44,6 +44,23 @@ def test_cih_contract_keeps_same_rear_for_response_and_disables_unproven_channel
     assert "paired_ego_gate_strength" not in config["method"]
 
 
+def test_cih_merges_the_frozen_mechanism_guided_response_prior_into_one_chain():
+    config = load_cih_method_config(
+        ROOT / "hierarchical_world_model/config/cih_world_model.yaml"
+    )
+    assert config["method"]["response_prior"] == {
+        "name": "mechanism_guided_response_prior", "frozen": True
+    }
+    assert (ROOT / config["paths"]["response_prior_lineage"]).is_file()
+    payload = torch.load(
+        ROOT / config["paths"]["response_prior_checkpoint"],
+        map_location="cpu",
+        weights_only=False,
+    )
+    assert payload["schema"] == "reaction_residual_ppo"
+    assert payload["controller_mode"] == "rl_residual_idm"
+
+
 def test_full_population_scope_keeps_same_rear_available_to_the_factual_layer():
     states = torch.ones(1, 2, 7, 6)
     valid = torch.ones(1, 2, 7, dtype=torch.bool)
