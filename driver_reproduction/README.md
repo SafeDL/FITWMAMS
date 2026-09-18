@@ -40,3 +40,10 @@ pytest -q driver_reproduction/tests hierarchical_world_model/tests/test_stochast
 `artifacts/matched/` 仅保存匹配评测的train-only后验；`results/driver_reproduction/`保存测试
 预测和指标。B/MA的全251-pair仿真后验位于`bayesian_ma_idm/evidence/deployment/`，不得
 拿部署后验重算留出指标。
+
+## 版本控制
+
+源码、配置、测试、JSON指标、图表、紧凑后验和共享评测队列都应跟随仓库。原始highD
+数据、本地环境/缓存、Active-Inference逐实验pickle、Dynamic-AR长链和可由脚本重建的
+全轨迹集合保持在Git之外。后三者在仓库中均有紧凑后验或JSON/图表摘要，不作为运行时
+基线的唯一副本。

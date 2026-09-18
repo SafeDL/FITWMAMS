@@ -23,7 +23,7 @@
 
 ```text
 evidence/
-  dataset/       最终评测使用的 218-pair highD 队列及哈希清单
+  dataset/       最终评测使用的 218-pair highD 队列及结构清单
   segmentation/  recording 25 的风格聚类、有限 HSMM 和论文类比图
   posterior/     分style层次/pooled NUTS后验及采样诊断
   heldout/       recording 26/36 的完整因果评测及可视化

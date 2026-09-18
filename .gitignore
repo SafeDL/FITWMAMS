@@ -49,6 +49,18 @@ highD_dataset/**/*.csv
 *.h5
 *.hdf5
 
+# Curated reproduction inputs, posteriors and compact evidence
+!active_inference_driver/artifacts/native_reproduction/full_torch220/Results_rear_end/Extracted_data.npy
+!bayesian_ma_idm/evidence/**/*.npz
+!dynamic_ar_idm/artifacts/data/*.npz
+!dynamic_ar_idm/artifacts/full_data/*.npz
+!dynamic_ar_idm/artifacts/full_evaluation/*.npz
+!dynamic_ar_idm/artifacts/full_posterior/*.npz
+!multi_regime_bidm/evidence/**/*.npz
+!driver_reproduction/artifacts/matched/b_idm_train25.npz
+!driver_reproduction/artifacts/matched/ma_idm_train25.npz
+!driver_reproduction/artifacts/matched/dynamic_ar5_train25.npz
+
 # Model checkpoints and learned weights
 *.pt
 *.pth
