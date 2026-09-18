@@ -1,0 +1,22 @@
+{
+  "reference": "Zhang & Sun public MA_IDM_hierarchical.ipynb",
+  "author_dataset_protocol": "fixed Config.py 20 pairs",
+  "fps": 5,
+  "dt_s": 0.2,
+  "window_points": 20,
+  "window_s": 4.0,
+  "hop_points": 10,
+  "hop_s": 2.0,
+  "tune": 5000,
+  "draws_per_chain": 2500,
+  "chains": 2,
+  "cores": 1,
+  "target_accept": 0.9,
+  "drivers": 20,
+  "windows": 590,
+  "max_rhat": 1.002145212609164,
+  "min_ess_bulk": 2397.758648452614,
+  "divergences": 0,
+  "ell_s_mean": 1.3162233565647385,
+  "source_ring_iid_noise_mps2": 0.1
+}

@@ -1,0 +1,22 @@
+{
+  "style_id": 0,
+  "model": "pooled_b_idm",
+  "calibration": "small_budget_NUTS_documented_adaptation_not_paper_full_NUTS",
+  "likelihood": "same stratified 5 Hz action observations as hierarchical control",
+  "observations": 1200,
+  "tune": 600,
+  "draws_per_chain": 600,
+  "chains": 4,
+  "target_accept": 0.99,
+  "max_rhat": 1.002584747030009,
+  "min_ess_bulk": 1532.919620129507,
+  "divergences": 0,
+  "posterior_theta_median": [
+    47.14442931395593,
+    2.6906138361320266,
+    0.5787937036453497,
+    0.2978556018602445,
+    1.042672791834102
+  ],
+  "posterior_sigma_mps2_median": 0.4493789213099052
+}

@@ -1,0 +1,31 @@
+Figure 3 has two main part: 
+Examples in a (#a = Exp_22-case=2) and b (#b = Exp_4-case=14).
+The source data for those is provided in the following files (where '#e' is a standin for '#a' and '#b' respectively)
+- 'Plots/#e-corner_data.csv': This provides the data for drawing the vehicles in birds-eye view plot in the top of the Figure.
+- 'Plots/#e-ego_future_data.csv': With the rows being the timesteps, this contains the planned trajectory of the ego agent in the plot in the top of the Figure.
+- 'Plots/#e-past_data.csv': With rows being timesteps, this contains the recorded position data of the tow agents up to the depicted timepoint in the plot in the the top of the Figure.
+- 'Plots/#e-tar_future_data.csv': With the rows being the timesteps, this contains the predicted trajectories of the target vehicle. The 'NaN' values are used to break up the different predicted particles.
+- 'States/#e-v.csv': This contains the data for the velocity plot, with the following columns:
+    - 't': The time in seconds
+    - 'ego_lower': The minimum value of the samples representing the ego agent's belief q(v_{ego})
+    - 'ego_mean': The average value of the samples representing the ego agent's belief q(v_{ego})
+    - 'ego_upper': The maximum value of the samples representing the ego agent's belief q(v_{ego})
+    - 'tar_lower': The minimum value of the samples representing the ego agent's belief q(v_{tar})
+    - 'tar_mean': The average value of the samples representing the ego agent's belief q(v_{tar})
+    - 'tar_upper': The maximum value of the samples representing the ego agent's belief q(v_{tar})
+    - 'ego_world': The actual velocity v_{ego} in the real world simulation
+    - 'tar_world': The actual velocity v_{tar} in the real world simulation
+- 'States/#e-a.csv': This contains the data for the acceleration plot (columns are identical to velocities)
+- 'States/#e-delta.csv': This contains the data for the steering angle plot (columns are identical to velocities)
+- 'States/#e-Rewards.csv': This contains the data for the Pragmatic Value and Evidence plot, with the following columns:
+    - 't': The time in seconds
+    - 'y_ego': The pragmatic value contribution labeled as "Lateral pos" (multiplied by -1 to allow log axis)
+    - 'v_ego': The pragmatic value contribution labeled as "Velocity" (multiplied by -1 to allow log axis)
+    - 'a_ego' and 'w_ego': When added together, the pragmatic value contribution labeled as "Control effort" (multiplied by -1 to allow log axis)
+    - 'collision': The pragmatic value contribution labeled as "Collision" (multiplied by -1 to allow log axis)
+    - 'evidence': The accumulated Evidence E
+
+Comparisons to human data. These Figures are identical to those of the full model in Figure 6a. Consequently, please look for the corresponding source data in that Figure.
+
+
+

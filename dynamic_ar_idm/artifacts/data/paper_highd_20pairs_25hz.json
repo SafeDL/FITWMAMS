@@ -1,0 +1,169 @@
+{
+  "paper": "Zhang, Wang & Sun (2024)",
+  "author_commit": "7520b15a8b163f52532cd3e5c7f7d4db05fc43f0",
+  "native_fps": 25,
+  "model_decision_fps": 5,
+  "selection": "published Config.py pair lists, re-located by source-cache fingerprint",
+  "pairs": [
+    {
+      "pair_no": 14,
+      "recording_id": 25,
+      "follower_id": 273,
+      "leader_id": 268,
+      "frame_start": 2206,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 35,
+      "recording_id": 25,
+      "follower_id": 352,
+      "leader_id": 342,
+      "frame_start": 3011,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 23,
+      "recording_id": 25,
+      "follower_id": 309,
+      "leader_id": 301,
+      "frame_start": 2556,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 25,
+      "recording_id": 25,
+      "follower_id": 314,
+      "leader_id": 309,
+      "frame_start": 2601,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 36,
+      "recording_id": 25,
+      "follower_id": 355,
+      "leader_id": 352,
+      "frame_start": 2996,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 38,
+      "recording_id": 25,
+      "follower_id": 361,
+      "leader_id": 355,
+      "frame_start": 3049,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 60,
+      "recording_id": 25,
+      "follower_id": 412,
+      "leader_id": 406,
+      "frame_start": 3705,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 90,
+      "recording_id": 25,
+      "follower_id": 1005,
+      "leader_id": 1001,
+      "frame_start": 10183,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 228,
+      "recording_id": 26,
+      "follower_id": 343,
+      "leader_id": 330,
+      "frame_start": 2829,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 232,
+      "recording_id": 26,
+      "follower_id": 404,
+      "leader_id": 398,
+      "frame_start": 3545,
+      "vehicle_class": "Car"
+    },
+    {
+      "pair_no": 3,
+      "recording_id": 25,
+      "follower_id": 211,
+      "leader_id": 203,
+      "frame_start": 1518,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 4,
+      "recording_id": 25,
+      "follower_id": 216,
+      "leader_id": 211,
+      "frame_start": 1564,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 18,
+      "recording_id": 25,
+      "follower_id": 287,
+      "leader_id": 281,
+      "frame_start": 2348,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 52,
+      "recording_id": 25,
+      "follower_id": 398,
+      "leader_id": 390,
+      "frame_start": 3519,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 81,
+      "recording_id": 25,
+      "follower_id": 747,
+      "leader_id": 743,
+      "frame_start": 7436,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 144,
+      "recording_id": 25,
+      "follower_id": 2486,
+      "leader_id": 2485,
+      "frame_start": 25350,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 153,
+      "recording_id": 25,
+      "follower_id": 2502,
+      "leader_id": 2497,
+      "frame_start": 25508,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 162,
+      "recording_id": 25,
+      "follower_id": 2524,
+      "leader_id": 2517,
+      "frame_start": 25712,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 5,
+      "recording_id": 25,
+      "follower_id": 221,
+      "leader_id": 216,
+      "frame_start": 1619,
+      "vehicle_class": "Truck"
+    },
+    {
+      "pair_no": 241,
+      "recording_id": 26,
+      "follower_id": 816,
+      "leader_id": 806,
+      "frame_start": 7906,
+      "vehicle_class": "Truck"
+    }
+  ]
+}

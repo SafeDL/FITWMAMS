@@ -1,0 +1,52 @@
+{
+  "style_id": 0,
+  "calibration": "small_budget_NUTS_documented_adaptation_not_paper_full_NUTS",
+  "label_source": "Stage-A offline labels; retrospective/oracle diagnostic only",
+  "likelihood": "action at 5Hz held decision grid: Normal(IDM acceleration, regime sigma)",
+  "prior": "log population Normal(log(reference_SI), .75); independent regime offsets with HalfNormal(.65) scale",
+  "observations_per_regime": [
+    400,
+    400,
+    400
+  ],
+  "source_observations_per_regime": [
+    11109,
+    7494,
+    2746
+  ],
+  "tune": 600,
+  "draws_per_chain": 600,
+  "chains": 4,
+  "target_accept": 0.99,
+  "max_rhat": 1.0076136914286837,
+  "min_ess_bulk": 1020.2919561774664,
+  "divergences": 0,
+  "posterior_theta_median": [
+    [
+      51.472675183506105,
+      3.8638125993561214,
+      0.38879630079724503,
+      0.12677692158369644,
+      0.8266114511804203
+    ],
+    [
+      53.84908324297234,
+      6.7054760484915334,
+      0.42784073157055913,
+      0.09014389407916618,
+      0.9428363427027637
+    ],
+    [
+      54.45434527237507,
+      3.241998129690148,
+      0.7880356551128822,
+      0.5337174059478603,
+      1.0516337090056957
+    ]
+  ],
+  "posterior_sigma_mps2_median": [
+    0.4068605540824621,
+    0.4236543938205718,
+    0.4014452827913673
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "benchmark_id": "highd_shared_218_train25_test26_36_25hz_v1",
+  "dataset": "multi_regime_bidm/evidence/dataset/highd_multi_regime_cohort_25hz.npz",
+  "cohort_pairs": 218,
+  "training_recordings": [
+    25
+  ],
+  "training_pairs": 182,
+  "test_recordings": [
+    26,
+    36
+  ],
+  "test_pairs": 36,
+  "prefix_s": 5.0,
+  "horizon_s": 3.0,
+  "futures": 64,
+  "native_fps": 25,
+  "decision_fps": 5,
+  "common_process_innovations": true,
+  "all_eligible_test_pairs_evaluated": true,
+  "parameter_policy": "fresh episode-level joint posterior draw; unseen Dynamic driver uses a train-driver population draw",
+  "comparison_scope": "matched highD adaptation benchmark, not a replacement for each paper-native reproduction",
+  "training_data_policy": {
+    "b_idm_ma_idm_dynamic_ar5": "all completed 5 Hz actions from all 182 recording-25 trajectories",
+    "pooled_b_idm_multi_regime": "Stage A uses all 182 trajectories; Stage B uses the same retained regime-stratified NUTS observations for both models"
+  },
+  "comparison_limit": "test data, clocks, origins, futures and metrics are identical; paper-specific inference procedures and Stage-B observation budgets remain model-specific",
+  "posterior_artifacts": {
+    "b_idm": "driver_reproduction/artifacts/matched/b_idm_train25.npz",
+    "ma_idm": "driver_reproduction/artifacts/matched/ma_idm_train25.npz",
+    "dynamic_ar5": "driver_reproduction/artifacts/matched/dynamic_ar5_train25.npz",
+    "multi_regime_stage_a": "multi_regime_bidm/evidence/segmentation/stage_a_finite_hsmm_models.npz",
+    "multi_regime_stage_b": {
+      "0": "multi_regime_bidm/evidence/posterior/style_0_nuts_posterior.npz",
+      "1": "multi_regime_bidm/evidence/posterior/style_1_nuts_posterior.npz",
+      "2": "multi_regime_bidm/evidence/posterior/style_2_nuts_posterior.npz"
+    }
+  },
+  "models": {
+    "b_idm": {
+      "position_rmse_m": 0.7614866220390097,
+      "speed_rmse_mps": 0.5709596460545499,
+      "acceleration_crps_mps2": 0.20208157286237827,
+      "position_90_coverage": 0.8637037037037038,
+      "mean_position_interval_width_m": 2.132470942090471
+    },
+    "ma_idm": {
+      "position_rmse_m": 0.22202680436369185,
+      "speed_rmse_mps": 0.2649479264756375,
+      "acceleration_crps_mps2": 0.13321301690615167,
+      "position_90_coverage": 0.69,
+      "mean_position_interval_width_m": 0.5494205876840018
+    },
+    "dynamic_ar5": {
+      "position_rmse_m": 0.26523625217834274,
+      "speed_rmse_mps": 0.30814381824775006,
+      "acceleration_crps_mps2": 0.1485064164242604,
+      "position_90_coverage": 0.7085185185185185,
+      "mean_position_interval_width_m": 0.6178016480266361
+    },
+    "pooled_b_idm": {
+      "position_rmse_m": 0.6677502404305651,
+      "speed_rmse_mps": 0.529899449783644,
+      "acceleration_crps_mps2": 0.19169983370876245,
+      "position_90_coverage": 0.37592592592592594,
+      "mean_position_interval_width_m": 0.4924747538639988
+    },
+    "multi_regime": {
+      "position_rmse_m": 0.6313082659514409,
+      "speed_rmse_mps": 0.4975092696568627,
+      "acceleration_crps_mps2": 0.18335530614181203,
+      "position_90_coverage": 0.41555555555555557,
+      "mean_position_interval_width_m": 0.4947277388479647
+    }
+  }
+}

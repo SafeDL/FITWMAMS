@@ -1,0 +1,7 @@
+,x_position,source,right,crash,left
+data_steep,1.2,1.0,0.0,0.0,0.0
+data_medium,2.2,1.0,0.0,0.0,0.0
+data_shallow,3.2,1.0,0.0,0.0,0.0
+model_steep,0.8,0.0,0.0,0.0,1.0
+model_medium,1.8,0.0,0.015625,0.0,0.984375
+model_shallow,2.8,0.0,0.09375,0.0,0.90625

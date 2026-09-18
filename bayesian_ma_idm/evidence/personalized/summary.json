@@ -1,0 +1,44 @@
+{
+  "protocol": "recording-held-out rolling-origin; pair-weighted means; native 25 Hz plant / 5 Hz driver action",
+  "source_directory": "bayesian_ma_idm/evidence/personalized",
+  "models": {
+    "ma_idm": {
+      "fit_backends": [
+        "full_cohort_empirical_bayes_hierarchical_map_5hz_decision"
+      ],
+      "held_out_recordings": [
+        [
+          25
+        ],
+        [
+          26
+        ],
+        [
+          36
+        ]
+      ],
+      "pairs": 251,
+      "anchors": 1438,
+      "futures": [
+        64
+      ],
+      "pair_weighted_horizons": {
+        "3.0": {
+          "position_rmse_m": 0.1461191141623853,
+          "speed_rmse_mps": 0.16881677198388956,
+          "acceleration_crps_mps2": 0.10445410701727999,
+          "position_90_coverage": 0.5741684057421108,
+          "mean_interval_width_m": 0.2877493792495122
+        },
+        "5.0": {
+          "position_rmse_m": 0.5229983187543722,
+          "speed_rmse_mps": 0.3272751394640199,
+          "acceleration_crps_mps2": 0.12027188781010727,
+          "position_90_coverage": 0.6635910073989756,
+          "mean_interval_width_m": 0.993837944853861
+        }
+      }
+    }
+  },
+  "interpretation": "MA-IDM is a point/CRPS comparison against B-IDM. Position coverage is an acceptance diagnostic; values below .90 are not calibrated."
+}

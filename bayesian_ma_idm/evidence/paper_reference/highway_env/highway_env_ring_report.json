@@ -1,0 +1,19 @@
+{
+  "engine": "local highway-env",
+  "model": "MA-IDM hierarchical population draw",
+  "native_fps": 25,
+  "driver_action_fps": 5,
+  "vehicles": 37,
+  "radius_m": 128.0,
+  "seconds": 3000.0,
+  "initial_speed_mps": 11.6,
+  "posterior": "bayesian_ma_idm/evidence/paper_reference/nuts/author_reference_ma_idm_posterior.npz",
+  "lane_changes": "disabled: paper experiment is single-lane car following",
+  "crashed_vehicles": 0,
+  "speed_min_mps": 0.0,
+  "speed_max_mps": 18.68972151611566,
+  "stopped_share_speed_le_0_1_mps": 0.4659333333333333,
+  "parameter_sampling": "direct retained PyMC draw x fitted driver",
+  "idm_semantics": "donor_ring",
+  "paper_analogue": "Fig. 10 stochastic ring simulation; posterior/data differ from original and are not table-level reproduction"
+}

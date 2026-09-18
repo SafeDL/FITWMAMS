@@ -1,0 +1,18 @@
+{
+  "reference": "Zhang & Sun public Bayesian_IDM_hierarchical.ipynb",
+  "author_dataset_protocol": "fixed Config.py 20 pairs",
+  "source_step": 2,
+  "source_input_fps": 5,
+  "effective_input_fps": 2.5,
+  "source_likelihood_dt_s": 0.2,
+  "warning": "faithful donor-notebook reproduction: effective input spacing and likelihood dt differ",
+  "tune": 5000,
+  "draws_per_chain": 2500,
+  "chains": 2,
+  "drivers": 20,
+  "observations": 3191,
+  "max_rhat": 1.0020843119590128,
+  "min_ess_bulk": 1998.0199139648864,
+  "divergences": 0,
+  "sigma_a_mean": 0.2181480804846914
+}

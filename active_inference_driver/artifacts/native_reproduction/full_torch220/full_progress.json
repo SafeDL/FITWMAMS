@@ -1,0 +1,201 @@
+{
+  "suite": "full",
+  "completed": [
+    {
+      "ordinal": 1,
+      "time_gap_s": 0.5,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 218.58071810301044
+    },
+    {
+      "ordinal": 2,
+      "time_gap_s": 0.5,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 164.19723660300951
+    },
+    {
+      "ordinal": 3,
+      "time_gap_s": 0.5,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 163.05625962498016
+    },
+    {
+      "ordinal": 4,
+      "time_gap_s": 0.5,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 136.8891559280164
+    },
+    {
+      "ordinal": 5,
+      "time_gap_s": 1.0,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 212.01108622699394
+    },
+    {
+      "ordinal": 6,
+      "time_gap_s": 1.0,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 159.0978295780078
+    },
+    {
+      "ordinal": 7,
+      "time_gap_s": 1.0,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 116.00170491001336
+    },
+    {
+      "ordinal": 8,
+      "time_gap_s": 1.0,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 75.17478987301001
+    },
+    {
+      "ordinal": 9,
+      "time_gap_s": 1.5,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 212.34472283901414
+    },
+    {
+      "ordinal": 10,
+      "time_gap_s": 1.5,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 156.0152590960206
+    },
+    {
+      "ordinal": 11,
+      "time_gap_s": 1.5,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 112.74448659300106
+    },
+    {
+      "ordinal": 12,
+      "time_gap_s": 1.5,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 52.226505483995425
+    },
+    {
+      "ordinal": 13,
+      "time_gap_s": 2.0,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 206.0191231200006
+    },
+    {
+      "ordinal": 14,
+      "time_gap_s": 2.0,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 143.43996948798303
+    },
+    {
+      "ordinal": 15,
+      "time_gap_s": 2.0,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 99.90824874199461
+    },
+    {
+      "ordinal": 16,
+      "time_gap_s": 2.0,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 52.65380031699897
+    },
+    {
+      "ordinal": 17,
+      "time_gap_s": 2.5,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 199.05042082301225
+    },
+    {
+      "ordinal": 18,
+      "time_gap_s": 2.5,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 151.43815968302079
+    },
+    {
+      "ordinal": 19,
+      "time_gap_s": 2.5,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 104.71210729100858
+    },
+    {
+      "ordinal": 20,
+      "time_gap_s": 2.5,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 54.37471395600005
+    },
+    {
+      "ordinal": 21,
+      "time_gap_s": 3.0,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 205.94437176600331
+    },
+    {
+      "ordinal": 22,
+      "time_gap_s": 3.0,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 132.96957558600116
+    },
+    {
+      "ordinal": 23,
+      "time_gap_s": 3.0,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 107.15401330901659
+    },
+    {
+      "ordinal": 24,
+      "time_gap_s": 3.0,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 54.83794336402207
+    },
+    {
+      "ordinal": 25,
+      "time_gap_s": 3.5,
+      "speed_mps": 25.0,
+      "batch_size": 32,
+      "elapsed_s": 185.34125932698953
+    },
+    {
+      "ordinal": 26,
+      "time_gap_s": 3.5,
+      "speed_mps": 20.0,
+      "batch_size": 32,
+      "elapsed_s": 140.83270464799716
+    },
+    {
+      "ordinal": 27,
+      "time_gap_s": 3.5,
+      "speed_mps": 15.0,
+      "batch_size": 32,
+      "elapsed_s": 105.41553852401557
+    },
+    {
+      "ordinal": 28,
+      "time_gap_s": 3.5,
+      "speed_mps": 10.0,
+      "batch_size": 32,
+      "elapsed_s": 57.376971510006115
+    }
+  ]
+}

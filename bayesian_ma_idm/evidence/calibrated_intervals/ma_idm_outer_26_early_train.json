@@ -1,0 +1,31 @@
+{
+  "model": "ma_idm",
+  "fit_backend": "full_cohort_empirical_bayes_hierarchical_map_5hz_decision",
+  "native_fps": 25,
+  "driver_decision_fps": 5,
+  "decision_dt_s": 0.2,
+  "pairs": 213,
+  "training_recordings": [
+    25,
+    36
+  ],
+  "training_vehicle_classes": "all classes",
+  "all_pair_observations": 198314,
+  "training_fraction_per_pair": 0.6,
+  "gp_window_s": 4,
+  "gp_window_points": 20,
+  "gp_hop_points": 10,
+  "gp_hop_s": 2.0,
+  "gp_windows_are": "author-notebook 5 Hz decision-grid 4 s windows with 2 s hop; overlapping blocks are retained",
+  "global_gp_sigma_mps2": 0.2599038822101083,
+  "global_gp_ell_s": 1.4127255192811,
+  "global_iid_action_sigma_mps2": 0.023913187690629133,
+  "parameter_prior": "empirical-Bayes correlated log-normal; one MAP shrinkage iteration",
+  "residual_mean_mode": "zero",
+  "residual_mean_coefficients_mps2": [],
+  "residual_scale_mode": "stationary",
+  "residual_scale_coefficients_log_mps2": [],
+  "innovation_distribution": "gaussian",
+  "innovation_df": null,
+  "author_reference": "hierarchical MA-IDM notebook: shared l/s2_f and 4 s GP covariance windows"
+}

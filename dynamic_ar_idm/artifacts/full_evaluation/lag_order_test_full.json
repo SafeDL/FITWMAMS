@@ -1,0 +1,47 @@
+{
+  "comparison": "same 251 highD pairs, same 25 Hz plant and rolling origins; AR order is the only intended change",
+  "horizon_s": 5,
+  "results": {
+    "a_rmse": {
+      "ar0": 0.2012866965203793,
+      "ar5": 0.1610314900427055,
+      "relative_change": -0.19998940403693377
+    },
+    "v_rmse": {
+      "ar0": 0.3254325107172191,
+      "ar5": 0.2734022695890173,
+      "relative_change": -0.15988028059499226
+    },
+    "s_rmse": {
+      "ar0": 0.6678178666423271,
+      "ar5": 0.4440116059900872,
+      "relative_change": -0.3351306873197315
+    },
+    "a_crps": {
+      "ar0": 0.13133730362418453,
+      "ar5": 0.09871724637120065,
+      "relative_change": -0.24836856211335534
+    },
+    "v_crps": {
+      "ar0": 0.22087109645517622,
+      "ar5": 0.1580259563720384,
+      "relative_change": -0.2845331104511073
+    },
+    "s_crps": {
+      "ar0": 0.4153186609592083,
+      "ar5": 0.22755543931764158,
+      "relative_change": -0.4520943537858715
+    }
+  },
+  "improved_metrics": [
+    "a_rmse",
+    "v_rmse",
+    "s_rmse",
+    "a_crps",
+    "v_crps",
+    "s_crps"
+  ],
+  "not_improved_metrics": [],
+  "conclusion": "AR(5) improves all six 5 s RMSE/CRPS metrics under this matched protocol, reproducing the paper's qualitative AR-versus-IID conclusion.",
+  "inference_caveat": "This is a joint MAP/Laplace approximation; it is not an exact NUTS posterior replication."
+}

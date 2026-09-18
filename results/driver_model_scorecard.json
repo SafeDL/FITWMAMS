@@ -1,0 +1,537 @@
+{
+  "schema_version": 1,
+  "contract": {
+    "source_dataset": "highD",
+    "native_fps": 25,
+    "driver_decision_fps": 5,
+    "plant": "25 Hz ballistic; action held for five native frames",
+    "rule": "Direct ranking is allowed only between rows with the same benchmark_id. Different benchmark_id values are evidence records, not a leaderboard."
+  },
+  "natural_rollouts": [
+    {
+      "model": "b_idm",
+      "benchmark_id": "highd_oof_source_loader_25hz_v1",
+      "comparison_status": "comparable_within_benchmark",
+      "protocol": {
+        "data_split": "recording-held-out rolling-origin; pair-weighted means; native 25 Hz plant / 5 Hz driver action",
+        "pairs": 251,
+        "anchors": 1438,
+        "futures": [
+          64
+        ],
+        "native_fps": 25,
+        "decision_fps": 5
+      },
+      "metrics": {
+        "3.0": {
+          "position_rmse_m": 0.8701496469058875,
+          "speed_rmse_mps": 0.6185726159532476,
+          "acceleration_crps_mps2": 0.21361527989616785,
+          "position_90_coverage": 0.7458186934800481,
+          "mean_interval_width_m": 2.322712629442843,
+          "position_interval_calibration": {
+            "0.5": 0.3887946626193638,
+            "0.8": 0.6503624233225828,
+            "0.9": 0.7458186934800481,
+            "0.95": 0.8131281224309113
+          }
+        },
+        "5.0": {
+          "position_rmse_m": 1.7728414557740704,
+          "speed_rmse_mps": 0.7532177364458446,
+          "acceleration_crps_mps2": 0.19497035318275055,
+          "position_90_coverage": 0.7662634035287422,
+          "mean_interval_width_m": 4.689996177481436,
+          "position_interval_calibration": {
+            "0.5": 0.399958755454373,
+            "0.8": 0.6669312464428003,
+            "0.9": 0.7662634035287422,
+            "0.95": 0.8316017833428191
+          }
+        }
+      },
+      "evidence": "bayesian_ma_idm/evidence/population/summary.json"
+    },
+    {
+      "model": "ma_idm",
+      "benchmark_id": "highd_oof_source_loader_25hz_v1",
+      "comparison_status": "comparable_within_benchmark",
+      "protocol": {
+        "data_split": "recording-held-out rolling-origin; pair-weighted means; native 25 Hz plant / 5 Hz driver action",
+        "pairs": 251,
+        "anchors": 1438,
+        "futures": [
+          64
+        ],
+        "native_fps": 25,
+        "decision_fps": 5
+      },
+      "metrics": {
+        "3.0": {
+          "position_rmse_m": 0.24993032640552137,
+          "speed_rmse_mps": 0.2627616632012626,
+          "acceleration_crps_mps2": 0.13431292656199406,
+          "position_90_coverage": 0.6319877316132296,
+          "mean_interval_width_m": 0.5548706418205184,
+          "position_interval_calibration": {
+            "0.5": 0.33466495921077594,
+            "0.8": 0.5508575222917852,
+            "0.9": 0.6319877316132296,
+            "0.95": 0.6811923101245811
+          }
+        },
+        "5.0": {
+          "position_rmse_m": 0.8367109978699254,
+          "speed_rmse_mps": 0.49258528129403567,
+          "acceleration_crps_mps2": 0.14864166781457833,
+          "position_90_coverage": 0.7124729652817301,
+          "mean_interval_width_m": 1.933297370245806,
+          "position_interval_calibration": {
+            "0.5": 0.3851093530639348,
+            "0.8": 0.626517359134889,
+            "0.9": 0.7124729652817301,
+            "0.95": 0.7661151204704988
+          }
+        }
+      },
+      "evidence": "bayesian_ma_idm/evidence/population/summary.json"
+    },
+    {
+      "model": "dynamic_ar5",
+      "benchmark_id": "highd_in_sample_driver_posterior_25hz_v1",
+      "comparison_status": "not_comparable_to_oof_results",
+      "protocol": {
+        "data_split": "in-sample driver-specific posterior rolling origins; comparison to Table 2 is directional, not OOF",
+        "pairs": 251,
+        "anchors": 2708,
+        "futures": 64,
+        "native_fps": 25,
+        "decision_fps": 5
+      },
+      "metrics": {
+        "1": {
+          "a_rmse": {
+            "mean": 0.060481089893160325,
+            "driver_bootstrap_95": [
+              0.05831435589980565,
+              0.06261021376301713
+            ]
+          },
+          "v_rmse": {
+            "mean": 0.024970072337106502,
+            "driver_bootstrap_95": [
+              0.023902390494921898,
+              0.025946290736501464
+            ]
+          },
+          "s_rmse": {
+            "mean": 0.0351802808497859,
+            "driver_bootstrap_95": [
+              0.0335726898725755,
+              0.03686793117851398
+            ]
+          },
+          "a_crps": {
+            "mean": 0.03841101666447825,
+            "driver_bootstrap_95": [
+              0.03685843816954532,
+              0.039962782576282
+            ]
+          },
+          "v_crps": {
+            "mean": 0.014500608038590481,
+            "driver_bootstrap_95": [
+              0.013936246389464483,
+              0.015081640369249555
+            ]
+          },
+          "s_crps": {
+            "mean": 0.02720281996684947,
+            "driver_bootstrap_95": [
+              0.02584251669281728,
+              0.02859826863452041
+            ]
+          }
+        },
+        "2": {
+          "a_rmse": {
+            "mean": 0.10074302635022409,
+            "driver_bootstrap_95": [
+              0.09655610959629969,
+              0.10495413520966168
+            ]
+          },
+          "v_rmse": {
+            "mean": 0.07873168176044827,
+            "driver_bootstrap_95": [
+              0.07542297340904221,
+              0.08231245696824539
+            ]
+          },
+          "s_rmse": {
+            "mean": 0.05550321316582239,
+            "driver_bootstrap_95": [
+              0.053521130360207725,
+              0.05762592690017532
+            ]
+          },
+          "a_crps": {
+            "mean": 0.06330407556566692,
+            "driver_bootstrap_95": [
+              0.06036872196701864,
+              0.06647241298947906
+            ]
+          },
+          "v_crps": {
+            "mean": 0.04435451001429756,
+            "driver_bootstrap_95": [
+              0.0422991910754156,
+              0.04660711725968987
+            ]
+          },
+          "s_crps": {
+            "mean": 0.035709578512554956,
+            "driver_bootstrap_95": [
+              0.034274953270105275,
+              0.03721936522292036
+            ]
+          }
+        },
+        "3": {
+          "a_rmse": {
+            "mean": 0.12903855581934726,
+            "driver_bootstrap_95": [
+              0.12333855825683214,
+              0.1347146872025541
+            ]
+          },
+          "v_rmse": {
+            "mean": 0.14902155325720776,
+            "driver_bootstrap_95": [
+              0.14213722519962715,
+              0.1566313304471957
+            ]
+          },
+          "s_rmse": {
+            "mean": 0.13024985380653223,
+            "driver_bootstrap_95": [
+              0.12465801508669537,
+              0.13578427211727448
+            ]
+          },
+          "a_crps": {
+            "mean": 0.08058613053914103,
+            "driver_bootstrap_95": [
+              0.07681033282724155,
+              0.08455646123910422
+            ]
+          },
+          "v_crps": {
+            "mean": 0.08413008562166423,
+            "driver_bootstrap_95": [
+              0.07997615059111485,
+              0.08857108764818221
+            ]
+          },
+          "s_crps": {
+            "mean": 0.06990598970798098,
+            "driver_bootstrap_95": [
+              0.06707303187084948,
+              0.07290642981949474
+            ]
+          }
+        },
+        "4": {
+          "a_rmse": {
+            "mean": 0.14670873200435042,
+            "driver_bootstrap_95": [
+              0.13986515148122758,
+              0.15379236040344124
+            ]
+          },
+          "v_rmse": {
+            "mean": 0.21717650963797622,
+            "driver_bootstrap_95": [
+              0.2063881044957286,
+              0.22872059340119935
+            ]
+          },
+          "s_rmse": {
+            "mean": 0.2682307511390556,
+            "driver_bootstrap_95": [
+              0.2554717127099597,
+              0.2810106768114442
+            ]
+          },
+          "a_crps": {
+            "mean": 0.09076546844025533,
+            "driver_bootstrap_95": [
+              0.08643630582917036,
+              0.09574195929004242
+            ]
+          },
+          "v_crps": {
+            "mean": 0.12414900407338446,
+            "driver_bootstrap_95": [
+              0.11789017867934842,
+              0.13069126164810455
+            ]
+          },
+          "s_crps": {
+            "mean": 0.13683727414286997,
+            "driver_bootstrap_95": [
+              0.130577350068881,
+              0.14357769475824897
+            ]
+          }
+        },
+        "5": {
+          "a_rmse": {
+            "mean": 0.1610314900427055,
+            "driver_bootstrap_95": [
+              0.15358337824653406,
+              0.16873763541054262
+            ]
+          },
+          "v_rmse": {
+            "mean": 0.2734022695890173,
+            "driver_bootstrap_95": [
+              0.2591179049143439,
+              0.287788909246408
+            ]
+          },
+          "s_rmse": {
+            "mean": 0.4440116059900872,
+            "driver_bootstrap_95": [
+              0.4226539975080785,
+              0.4662121706463989
+            ]
+          },
+          "a_crps": {
+            "mean": 0.09871724637120065,
+            "driver_bootstrap_95": [
+              0.09397622638176277,
+              0.10352488309369044
+            ]
+          },
+          "v_crps": {
+            "mean": 0.1580259563720384,
+            "driver_bootstrap_95": [
+              0.1498947781008985,
+              0.16682485164690225
+            ]
+          },
+          "s_crps": {
+            "mean": 0.22755543931764158,
+            "driver_bootstrap_95": [
+              0.21590435373112374,
+              0.23888394509713734
+            ]
+          }
+        }
+      },
+      "evidence": "dynamic_ar_idm/artifacts/full_evaluation/natural_metrics_full_stable_map_rho.json"
+    },
+    {
+      "model": "pooled_b_idm",
+      "benchmark_id": "highd_recording_heldout_small_cohort_25hz_v1",
+      "comparison_status": "comparable_within_benchmark",
+      "protocol": {
+        "data_split": "recording-held-out causal comparison",
+        "pairs": 36,
+        "test_recordings": [
+          26,
+          36
+        ],
+        "native_fps": 25,
+        "decision_fps": 5
+      },
+      "metrics": {
+        "position_rmse_m": 0.6690356924216873,
+        "speed_rmse_mps": 0.5284678947846475,
+        "acceleration_crps_mps2": 0.19025836846522984,
+        "position_90_coverage": 0.36962962962962964,
+        "mean_position_interval_width_m": 0.46906144601624056
+      },
+      "evidence": "multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
+    },
+    {
+      "model": "multi_regime_b_idm",
+      "benchmark_id": "highd_recording_heldout_small_cohort_25hz_v1",
+      "comparison_status": "rejected_not_well_calibrated",
+      "protocol": {
+        "data_split": "recording-held-out causal comparison",
+        "pairs": 36,
+        "test_recordings": [
+          26,
+          36
+        ],
+        "native_fps": 25,
+        "decision_fps": 5
+      },
+      "metrics": {
+        "position_rmse_m": 0.6296175432410211,
+        "speed_rmse_mps": 0.49454544520305016,
+        "acceleration_crps_mps2": 0.18160599709683684,
+        "position_90_coverage": 0.40444444444444444,
+        "mean_position_interval_width_m": 0.47536428805336045
+      },
+      "evidence": "multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
+    }
+  ],
+  "active_inference_adaptation": {
+    "benchmark_id": "highd_leader_brake_events_adapted_25hz_v1",
+    "comparison_status": "separate_event_response_evaluation",
+    "model": "active_inference_longitudinal_adapted",
+    "events": 304,
+    "metrics": {
+      "speed_rmse": 0.758836811318365,
+      "gap_rmse": 1.8662282766393583,
+      "min_gap": 11.166730343807755,
+      "full_replans": 2.023026315789474
+    },
+    "evidence": "active_inference_driver/artifacts/full_highd/highd_evaluation.json"
+  },
+  "matched_highd_adaptation": {
+    "benchmark_id": "highd_shared_218_train25_test26_36_25hz_v1",
+    "comparison_status": "directly_comparable_test_protocol_with_model_specific_training",
+    "protocol": {
+      "dataset": "multi_regime_bidm/evidence/dataset/highd_multi_regime_cohort_25hz.npz",
+      "cohort_pairs": 218,
+      "training_recordings": [
+        25
+      ],
+      "training_pairs": 182,
+      "test_recordings": [
+        26,
+        36
+      ],
+      "test_pairs": 36,
+      "prefix_s": 5.0,
+      "horizon_s": 3.0,
+      "futures": 64,
+      "native_fps": 25,
+      "decision_fps": 5,
+      "all_eligible_test_pairs_evaluated": true
+    },
+    "models": {
+      "b_idm": {
+        "position_rmse_m": 0.7614866220390097,
+        "speed_rmse_mps": 0.5709596460545499,
+        "acceleration_crps_mps2": 0.20208157286237827,
+        "position_90_coverage": 0.8637037037037038,
+        "mean_position_interval_width_m": 2.132470942090471
+      },
+      "ma_idm": {
+        "position_rmse_m": 0.22202680436369185,
+        "speed_rmse_mps": 0.2649479264756375,
+        "acceleration_crps_mps2": 0.13321301690615167,
+        "position_90_coverage": 0.69,
+        "mean_position_interval_width_m": 0.5494205876840018
+      },
+      "dynamic_ar5": {
+        "position_rmse_m": 0.26523625217834274,
+        "speed_rmse_mps": 0.30814381824775006,
+        "acceleration_crps_mps2": 0.1485064164242604,
+        "position_90_coverage": 0.7085185185185185,
+        "mean_position_interval_width_m": 0.6178016480266361
+      },
+      "pooled_b_idm": {
+        "position_rmse_m": 0.6677502404305651,
+        "speed_rmse_mps": 0.529899449783644,
+        "acceleration_crps_mps2": 0.19169983370876245,
+        "position_90_coverage": 0.37592592592592594,
+        "mean_position_interval_width_m": 0.4924747538639988
+      },
+      "multi_regime": {
+        "position_rmse_m": 0.6313082659514409,
+        "speed_rmse_mps": 0.4975092696568627,
+        "acceleration_crps_mps2": 0.18335530614181203,
+        "position_90_coverage": 0.41555555555555557,
+        "mean_position_interval_width_m": 0.4947277388479647
+      }
+    },
+    "comparison_limit": "test data, clocks, origins, futures and metrics are identical; paper-specific inference procedures and Stage-B observation budgets remain model-specific",
+    "evidence": "results/driver_reproduction/matched_highd/matched_metrics.json"
+  },
+  "counterfactual_braking": {
+    "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",
+    "dose_mps2": 3.0,
+    "futures": 256,
+    "scenario": {
+      "dt_s": 0.04,
+      "decision_dt_s": 0.2,
+      "horizon_s": 6.0,
+      "brake_start_s": 1.0,
+      "brake_duration_s": 1.0,
+      "brake_doses_mps2": [
+        1.5,
+        3.0,
+        5.0
+      ],
+      "anchor_row": 55398,
+      "anchor_index": 24,
+      "leader_slot": 0,
+      "follower_slot": 2,
+      "vehicle_length_m": 4.8,
+      "min_acceleration_mps2": -10.0,
+      "max_acceleration_mps2": 4.0,
+      "response_threshold_mps2": 0.15
+    },
+    "rows": [
+      {
+        "model": "b_idm",
+        "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",
+        "comparison_status": "comparable_response_mechanics_only",
+        "metrics": {
+          "response_probability": 0.9609375,
+          "median_response_latency_s": 0.20000000000000018,
+          "median_peak_additional_braking_mps2": 1.6216069515825893,
+          "median_terminal_gap_benefit_m": 8.819343759486635,
+          "median_natural_gap_rmse_to_highd_m": 2.039090476078901
+        },
+        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+      },
+      {
+        "model": "ma_idm",
+        "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",
+        "comparison_status": "comparable_response_mechanics_only",
+        "metrics": {
+          "response_probability": 0.96875,
+          "median_response_latency_s": 0.20000000000000018,
+          "median_peak_additional_braking_mps2": 1.485197604250844,
+          "median_terminal_gap_benefit_m": 8.364431653919972,
+          "median_natural_gap_rmse_to_highd_m": 2.5619328261312657
+        },
+        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+      },
+      {
+        "model": "dynamic_ar5",
+        "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",
+        "comparison_status": "comparable_response_mechanics_only",
+        "metrics": {
+          "response_probability": 0.97265625,
+          "median_response_latency_s": 0.20000000000000018,
+          "median_peak_additional_braking_mps2": 1.3020864215717571,
+          "median_terminal_gap_benefit_m": 7.8566704889561905,
+          "median_natural_gap_rmse_to_highd_m": 2.3744687239273077
+        },
+        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+      },
+      {
+        "model": "multi_regime",
+        "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",
+        "comparison_status": "comparable_response_mechanics_only",
+        "metrics": {
+          "response_probability": 1.0,
+          "median_response_latency_s": 0.20000000000000018,
+          "median_peak_additional_braking_mps2": 1.682238654935623,
+          "median_terminal_gap_benefit_m": 8.593879043798943,
+          "median_natural_gap_rmse_to_highd_m": 2.6130546260185783
+        },
+        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+      }
+    ],
+    "interpretation": "This is a matched internal response-mechanics test. It does not identify real human counterfactual correctness."
+  }
+}

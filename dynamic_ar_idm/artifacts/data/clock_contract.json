@@ -1,0 +1,14 @@
+{
+  "native_plant_dt_s": 0.04,
+  "native_plant_fps": 25,
+  "driver_decision_dt_s": 0.2,
+  "driver_decision_fps": 5,
+  "native_ticks_per_decision": 5,
+  "rule": "one innovation is consumed at each native tick divisible by five; held acceleration is used on intervening ticks",
+  "snapshot_requirement": [
+    "residual_history_newest_first",
+    "last_native_decision_time",
+    "held_acceleration",
+    "random_stream_index"
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "protocol": "released response extractor; four representative conditions x eight random replicates",
+  "full_experiment_indices": [
+    7,
+    10,
+    17,
+    24
+  ],
+  "rows": [
+    {
+      "condition": "1.0 s, 10 m/s",
+      "full": {
+        "n": 32,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.0,
+          "brake before": 0.0,
+          "brake after": 1.0,
+          "brake then steer": 0.0
+        },
+        "response_time_s": 0.902063148449511,
+        "response_time_n": 32,
+        "brake_acceleration_mps2": -5.605638501342868
+      },
+      "no_evidence": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.0,
+          "brake before": 0.625,
+          "brake after": 0.375,
+          "brake then steer": 0.0
+        },
+        "response_time_s": 0.11359116081132092,
+        "response_time_n": 3,
+        "brake_acceleration_mps2": -4.107594094834035
+      },
+      "no_pedal": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.0,
+          "brake before": 0.0,
+          "brake after": 1.0,
+          "brake then steer": 0.0
+        },
+        "response_time_s": 0.7328795991636158,
+        "response_time_n": 8,
+        "brake_acceleration_mps2": -6.070565496255593
+      },
+      "no_pedal_minus_full_response_s": -0.16918354928589519
+    },
+    {
+      "condition": "1.5 s, 15 m/s",
+      "full": {
+        "n": 32,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.6875,
+          "brake before": 0.0,
+          "brake after": 0.09375,
+          "brake then steer": 0.21875
+        },
+        "response_time_s": 0.7665084351226061,
+        "response_time_n": 32,
+        "brake_acceleration_mps2": -3.1698637606236066
+      },
+      "no_evidence": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.0,
+          "brake before": 0.75,
+          "brake after": 0.25,
+          "brake then steer": 0.0
+        },
+        "response_time_s": 0.3166563953864481,
+        "response_time_n": 2,
+        "brake_acceleration_mps2": -3.3203539785262137
+      },
+      "no_pedal": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.125,
+          "brake before": 0.0,
+          "brake after": 0.25,
+          "brake then steer": 0.625
+        },
+        "response_time_s": 0.6685560997976475,
+        "response_time_n": 8,
+        "brake_acceleration_mps2": -3.817501595905001
+      },
+      "no_pedal_minus_full_response_s": -0.09795233532495862
+    },
+    {
+      "condition": "2.5 s, 20 m/s",
+      "full": {
+        "n": 32,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.625,
+          "brake before": 0.0,
+          "brake after": 0.03125,
+          "brake then steer": 0.34375
+        },
+        "response_time_s": 1.2182616480185624,
+        "response_time_n": 32,
+        "brake_acceleration_mps2": -2.7735151037640122
+      },
+      "no_evidence": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.125,
+          "steer after": 0.0,
+          "brake before": 0.625,
+          "brake after": 0.25,
+          "brake then steer": 0.0
+        },
+        "response_time_s": 0.2896092847083482,
+        "response_time_n": 2,
+        "brake_acceleration_mps2": -3.5612080946769344
+      },
+      "no_pedal": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.0,
+          "steer before": 0.0,
+          "steer after": 0.375,
+          "brake before": 0.0,
+          "brake after": 0.0,
+          "brake then steer": 0.625
+        },
+        "response_time_s": 1.1712808862576587,
+        "response_time_n": 8,
+        "brake_acceleration_mps2": -2.2914555352296246
+      },
+      "no_pedal_minus_full_response_s": -0.04698076176090371
+    },
+    {
+      "condition": "3.5 s, 25 m/s",
+      "full": {
+        "n": 32,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.3125,
+          "steer before": 0.0,
+          "steer after": 0.5,
+          "brake before": 0.0,
+          "brake after": 0.0,
+          "brake then steer": 0.1875
+        },
+        "response_time_s": 2.2990255659766032,
+        "response_time_n": 22,
+        "brake_acceleration_mps2": -2.147022046003988
+      },
+      "no_evidence": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.375,
+          "steer before": 0.375,
+          "steer after": 0.0,
+          "brake before": 0.25,
+          "brake after": 0.0,
+          "brake then steer": 0.0
+        },
+        "response_time_s": null,
+        "response_time_n": 0,
+        "brake_acceleration_mps2": null
+      },
+      "no_pedal": {
+        "n": 8,
+        "outcome_fractions": {
+          "collision": 0.0,
+          "left road": 0.625,
+          "steer before": 0.0,
+          "steer after": 0.25,
+          "brake before": 0.0,
+          "brake after": 0.0,
+          "brake then steer": 0.125
+        },
+        "response_time_s": 2.2783295579330693,
+        "response_time_n": 3,
+        "brake_acceleration_mps2": -1.8339840952036144
+      },
+      "no_pedal_minus_full_response_s": -0.020696008043533887
+    }
+  ],
+  "interpretation": {
+    "no_evidence": "Changes the outcome mixture and may produce pre-stimulus braking; it is not a fixed braking-delay knob.",
+    "no_pedal": "Small stochastic native sample is condition dependent; report the measured deltas rather than assuming exactly 0.2 s."
+  }
+}

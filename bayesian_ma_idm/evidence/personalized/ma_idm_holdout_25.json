@@ -1,0 +1,95 @@
+{
+  "model": "ma_idm",
+  "fit_backend": "full_cohort_empirical_bayes_hierarchical_map_5hz_decision",
+  "evaluation": "recording-held-out rolling-origin population prediction",
+  "native_fps": 25,
+  "evaluation_recordings": [
+    25
+  ],
+  "pairs": 212,
+  "anchors": 1233,
+  "futures": 64,
+  "prefix_s": 5.0,
+  "anchor_stride_s": 10.0,
+  "noise_scale": 1.0,
+  "iid_noise_scale": 1.0,
+  "anchor_start_fraction": 0.0,
+  "anchor_end_fraction": 1.0,
+  "personalize_from_observed_prefix": true,
+  "horizons": {
+    "3.0": {
+      "position_rmse_m": {
+        "mean": 0.14940365213667978,
+        "cluster_bootstrap_95": [
+          0.14236668747855016,
+          0.15588627795542906
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.17351770103573708,
+        "cluster_bootstrap_95": [
+          0.16587882947949817,
+          0.18240035918378789
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.1065022200418846,
+        "cluster_bootstrap_95": [
+          0.10308101948037475,
+          0.11002004664879268
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.5630809374064091,
+        "cluster_bootstrap_95": [
+          0.5500128331835878,
+          0.5768988937556154
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 0.2805741540276477,
+        "cluster_bootstrap_95": [
+          0.27683541699181535,
+          0.2843582148431174
+        ]
+      }
+    },
+    "5.0": {
+      "position_rmse_m": {
+        "mean": 0.5359138397911257,
+        "cluster_bootstrap_95": [
+          0.5081998606328888,
+          0.5623018286584787
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.33408594943737985,
+        "cluster_bootstrap_95": [
+          0.3171228278020305,
+          0.3512153327376403
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.12259467885610399,
+        "cluster_bootstrap_95": [
+          0.1182283133600038,
+          0.12713359743148878
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.6505572776280324,
+        "cluster_bootstrap_95": [
+          0.6349251314016172,
+          0.6654933468104223
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 0.9656149283098456,
+        "cluster_bootstrap_95": [
+          0.9495845970527804,
+          0.9806835689823398
+        ]
+      }
+    }
+  }
+}

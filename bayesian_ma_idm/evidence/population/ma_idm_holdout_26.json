@@ -1,0 +1,160 @@
+{
+  "model": "ma_idm",
+  "fit_backend": "full_cohort_empirical_bayes_hierarchical_map_5hz_decision",
+  "evaluation": "recording-held-out rolling-origin population prediction",
+  "native_fps": 25,
+  "evaluation_recordings": [
+    26
+  ],
+  "pairs": 38,
+  "anchors": 200,
+  "futures": 64,
+  "prefix_s": 5.0,
+  "anchor_stride_s": 10.0,
+  "noise_scale": 1.0,
+  "iid_noise_scale": 1.0,
+  "innovation_df": null,
+  "position_interval_offset_m": 0.0,
+  "anchor_start_fraction": 0.0,
+  "anchor_end_fraction": 1.0,
+  "personalize_from_observed_prefix": false,
+  "prefix_parameter_likelihood": "not used",
+  "horizons": {
+    "3.0": {
+      "position_rmse_m": {
+        "mean": 0.18241283504826145,
+        "cluster_bootstrap_95": [
+          0.16071773584272134,
+          0.20834525286488212
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.19746765107763894,
+        "cluster_bootstrap_95": [
+          0.17490297948807818,
+          0.22112575599851841
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.11194448962631401,
+        "cluster_bootstrap_95": [
+          0.10379892730912106,
+          0.1207492579734811
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.6534152046783626,
+        "cluster_bootstrap_95": [
+          0.6194847953216374,
+          0.682645029239766
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 0.4856493474912103,
+        "cluster_bootstrap_95": [
+          0.45984645948302433,
+          0.5114857795523821
+        ]
+      },
+      "position_interval_calibration": {
+        "0.5": {
+          "mean": 0.3756959064327486,
+          "cluster_bootstrap_95": [
+            0.3351906432748538,
+            0.41632953216374263
+          ]
+        },
+        "0.8": {
+          "mean": 0.5836608187134503,
+          "cluster_bootstrap_95": [
+            0.5468345029239767,
+            0.6194476608187136
+          ]
+        },
+        "0.9": {
+          "mean": 0.6534152046783626,
+          "cluster_bootstrap_95": [
+            0.6193134502923977,
+            0.6843423976608187
+          ]
+        },
+        "0.95": {
+          "mean": 0.6985380116959066,
+          "cluster_bootstrap_95": [
+            0.670948245614035,
+            0.7243991228070176
+          ]
+        }
+      },
+      "position_90_shortfall_q90_m": 0.03891929862126631
+    },
+    "5.0": {
+      "position_rmse_m": {
+        "mean": 0.6516406675540366,
+        "cluster_bootstrap_95": [
+          0.5721235321704495,
+          0.7256860814747198
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.4046468955056614,
+        "cluster_bootstrap_95": [
+          0.35929624471257376,
+          0.4522513132934594
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.12760182057616987,
+        "cluster_bootstrap_95": [
+          0.11903739029558572,
+          0.13724029933537854
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.7534315789473682,
+        "cluster_bootstrap_95": [
+          0.7119201754385964,
+          0.7885268421052632
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 1.780225255996363,
+        "cluster_bootstrap_95": [
+          1.7170703247096173,
+          1.8471204124292864
+        ]
+      },
+      "position_interval_calibration": {
+        "0.5": {
+          "mean": 0.4411719298245614,
+          "cluster_bootstrap_95": [
+            0.3881829824561403,
+            0.49628315789473676
+          ]
+        },
+        "0.8": {
+          "mean": 0.6889052631578947,
+          "cluster_bootstrap_95": [
+            0.646898245614035,
+            0.7275126315789472
+          ]
+        },
+        "0.9": {
+          "mean": 0.7534315789473682,
+          "cluster_bootstrap_95": [
+            0.7168305263157895,
+            0.7893766666666666
+          ]
+        },
+        "0.95": {
+          "mean": 0.7968491228070175,
+          "cluster_bootstrap_95": [
+            0.7701891228070177,
+            0.8222340350877193
+          ]
+        }
+      },
+      "position_90_shortfall_q90_m": 0.036532204879475304
+    }
+  }
+}

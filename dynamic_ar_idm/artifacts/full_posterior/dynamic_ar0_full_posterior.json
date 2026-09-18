@@ -1,0 +1,51 @@
+{
+  "model": "Dynamic IDM / AR residual",
+  "fit_backend": "joint_dynamic_regression_empirical_bayes_map_laplace",
+  "not_claimed": "This artifact is not a replacement for the optional NUTS posterior; it is a calibrated Laplace approximation.",
+  "paper_equations": {
+    "state": "a_t = IDM_t + e_t",
+    "residual": "e_t = sum rho_k e_{t-k} + eta_t",
+    "likelihood": "Gaussian white innovations after joint IDM/AR fitting"
+  },
+  "pairs": 251,
+  "ar_order": 0,
+  "native_fps": 25,
+  "decision_fps": 5,
+  "iterations": 4,
+  "theta_map_mean": [
+    27.47219528069296,
+    4.897326496160135,
+    1.2053338233398778,
+    0.5073234144276614,
+    3.2160182842733454
+  ],
+  "rho_map": [],
+  "sigma_eta_map_mps2": 0.28079702904548554,
+  "posterior_stationarity": {
+    "draws": 512,
+    "nonstationary_count": 0,
+    "nonstationary_fraction": 0.0,
+    "spectral_radius_q": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "paper_table_1_ar5": {
+    "theta": [
+      27.099,
+      2.843,
+      1.235,
+      0.813,
+      3.422
+    ],
+    "rho": [
+      0.874,
+      0.58,
+      -0.105,
+      -0.315,
+      -0.071
+    ],
+    "sigma_eta": 0.016
+  }
+}

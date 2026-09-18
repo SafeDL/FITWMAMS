@@ -1,0 +1,15 @@
+{
+  "source": "all 60 local highD recordings",
+  "native_fps": 25,
+  "decision_fps": 5,
+  "minimum_following_seconds": 50.0,
+  "selection": "source-loader lane policy; dominant preceding vehicle; continuous reciprocal relation; project nonnegative velocity; all qualifying pairs",
+  "pair_count": 251,
+  "per_recording_pair_count": {
+    "25": 212,
+    "26": 38,
+    "36": 1
+  },
+  "expected_project_protocol_pair_count": 251,
+  "paper_relationship": "full project cohort; paper's published 20-pair selection remains a separately auditable exact subset"
+}

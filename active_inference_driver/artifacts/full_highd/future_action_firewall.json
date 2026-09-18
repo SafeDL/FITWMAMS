@@ -1,0 +1,6 @@
+{
+  "native_fps": 25,
+  "decision_fps": 5,
+  "decision_action_hold_frames": 5,
+  "contract": "planner receives current gap/speed observations and internally sampled leader particles only; highD leader future is used solely by the external 25 Hz evaluation plant."
+}

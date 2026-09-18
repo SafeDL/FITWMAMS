@@ -1,0 +1,6 @@
+{
+  "style_fit_events": "only listed train recordings",
+  "style_features": "whole-event features permitted for training discovery only",
+  "test_event_policy": "must use train style frequencies or a separately implemented observed-prefix classifier; no test future maxima/mean headway",
+  "offline_hsmm_policy": "offline labels are an upper-bound diagnostic and never enter online evaluation"
+}

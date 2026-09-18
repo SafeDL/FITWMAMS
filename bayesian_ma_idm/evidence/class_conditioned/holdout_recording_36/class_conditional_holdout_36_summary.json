@@ -1,0 +1,34 @@
+{
+  "extension": "vehicle-class-conditioned independent MA-IDM populations; not original paper hierarchy",
+  "holdout": 36,
+  "classes": [
+    "Truck"
+  ],
+  "pairs": 1,
+  "futures": 64,
+  "aggregation": "pair-weighted mean of independently evaluated class reports; bootstrap intervals remain class reports",
+  "horizons": {
+    "3.0": {
+      "position_rmse_m": 0.12163189910952817,
+      "speed_rmse_mps": 0.13898177158512842,
+      "acceleration_crps_mps2": 0.09477469966464797,
+      "position_90_coverage": 0.7226666666666667,
+      "mean_interval_width_m": 0.37316338719008313,
+      "coverage_0.5": 0.5173333333333334,
+      "coverage_0.8": 0.6826666666666668,
+      "coverage_0.9": 0.7226666666666667,
+      "coverage_0.95": 0.7893333333333333
+    },
+    "5.0": {
+      "position_rmse_m": 0.5034476234742323,
+      "speed_rmse_mps": 0.3240617935455436,
+      "acceleration_crps_mps2": 0.11027342571007756,
+      "position_90_coverage": 0.8336,
+      "mean_interval_width_m": 1.474648533534657,
+      "coverage_0.5": 0.5871999999999999,
+      "coverage_0.8": 0.7472,
+      "coverage_0.9": 0.8336,
+      "coverage_0.95": 0.8736
+    }
+  }
+}

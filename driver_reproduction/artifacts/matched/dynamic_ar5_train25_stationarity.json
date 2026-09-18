@@ -1,0 +1,21 @@
+{
+  "model": "dynamic_ar_idm",
+  "ar_order": 5,
+  "rho_map": [
+    0.7598873553964545,
+    0.5304386028341299,
+    0.07930694854719693,
+    -0.20184527739879216,
+    -0.2117905184177118
+  ],
+  "rho_map_spectral_radius": 0.9529090329937188,
+  "draws": 512,
+  "nonstationary_count": 202,
+  "nonstationary_fraction": 0.39453125,
+  "spectral_radius_q": [
+    0.9235311471656731,
+    0.9850038598209944,
+    1.1709298115428128
+  ],
+  "policy": "paper_faithful: all posterior draws retained and non-stationary rate disclosed; do not silently discard samples"
+}

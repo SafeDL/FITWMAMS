@@ -1,0 +1,15 @@
+Figure 7 is based on the following '.csv' files:
+- 1. Column: Analysis_settings_a_sd_model.csv
+- 2. Column: Analysis_settings_noise_pred_fac.csv
+- 3. Column: Analysis_settings_H_norm.csv
+- 4. Column: Analysis_settings_num_plans.csv
+- 5. Column: Analysis_settings_EA_fac.csv
+
+Each file contains a table with multiple columns:
+- param: The actual value of the paramater studied
+- IT_{5, 25, 50, 75, 95}: The corresponding percentile values of the Reaction Time Mean Absolute Error in the Front to Rear scenario (First row).
+- IA_{5, 25, 50, 75, 95}: The corresponding percentile values of the Acceleration Mean Absolute Error in the Front to Rear scenario (Second row).
+- JSD_{5, 25, 50, 75, 95}: The corresponding percentile values of the Jensen Shannon Divergence in the Lateral Incursion scenario (Third row).
+- WD_{5, 25, 50, 75, 95}: The corresponding percentile values of the Wasserstein distance in the Lateral Incursion scenario (Fourth row).
+- JSDI_{5, 25, 50, 75, 95}: The corresponding percentile values of the Jensen Shannon Divergence in the Intersection scenario (Fifth row).
+- WDI_{5, 25, 50, 75, 95}: The corresponding percentile values of the Wasserstein distance in the Intersection scenario (Sixth row).

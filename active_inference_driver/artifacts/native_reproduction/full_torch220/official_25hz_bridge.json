@@ -1,0 +1,76 @@
+{
+  "model": "official_pomdp_external_25hz_wrapper",
+  "source_code_copied": false,
+  "native_dt_s": 0.2,
+  "plant_dt_s": 0.04,
+  "plant_ticks_per_decision": 5,
+  "native_horizon_s": 6.0,
+  "test_conditions": [
+    {
+      "experiment": 7,
+      "initial_speed_mps": 10.0,
+      "initial_thw_s": 1.4199999570846558,
+      "replicates": 32,
+      "wrapped_response_s_median": 1.0,
+      "native_response_s_median": 0.8,
+      "response_delta_s_median": 0.19999999999999996,
+      "response_delta_s_max_abs": 0.19999999999999996,
+      "max_lateral_displacement_m": 21.773353576660156,
+      "action_hold_exact_five_ticks": true
+    },
+    {
+      "experiment": 11,
+      "initial_speed_mps": 10.0,
+      "initial_thw_s": 1.9200000762939453,
+      "replicates": 32,
+      "wrapped_response_s_median": 1.0,
+      "native_response_s_median": 0.8,
+      "response_delta_s_median": 0.19999999999999996,
+      "response_delta_s_max_abs": 0.19999999999999996,
+      "max_lateral_displacement_m": 7.177373886108398,
+      "action_hold_exact_five_ticks": true
+    },
+    {
+      "experiment": 15,
+      "initial_speed_mps": 10.0,
+      "initial_thw_s": 2.4200000762939453,
+      "replicates": 32,
+      "wrapped_response_s_median": 1.2,
+      "native_response_s_median": 1.0,
+      "response_delta_s_median": 0.19999999999999996,
+      "response_delta_s_max_abs": 0.19999999999999996,
+      "max_lateral_displacement_m": 12.359333992004395,
+      "action_hold_exact_five_ticks": true
+    },
+    {
+      "experiment": 19,
+      "initial_speed_mps": 10.0,
+      "initial_thw_s": 2.9200000762939453,
+      "replicates": 32,
+      "wrapped_response_s_median": 1.4000000000000001,
+      "native_response_s_median": 1.2,
+      "response_delta_s_median": 0.20000000000000018,
+      "response_delta_s_max_abs": 0.20000000000000018,
+      "max_lateral_displacement_m": 4.311630725860596,
+      "action_hold_exact_five_ticks": true
+    },
+    {
+      "experiment": 23,
+      "initial_speed_mps": 10.0,
+      "initial_thw_s": 3.4200000762939453,
+      "replicates": 32,
+      "wrapped_response_s_median": 1.8,
+      "native_response_s_median": 1.6,
+      "response_delta_s_median": 0.19999999999999996,
+      "response_delta_s_max_abs": 0.19999999999999996,
+      "max_lateral_displacement_m": 5.235376834869385,
+      "action_hold_exact_five_ticks": true
+    }
+  ],
+  "response_time_gate_s": 0.2,
+  "maximum_condition_response_time_difference_s": 0.20000000000000018,
+  "gate_numerical_tolerance_s": 1e-08,
+  "passes_all_conditions_one_native_tick": true,
+  "future_action_firewall": "The POMDP receives only the current external state at each 0.2 s boundary; target trajectory is used only by the 25 Hz external plant.",
+  "lateral_note": "The external bridge executes both official acceleration and steering-rate requests; its source-style straight-road target is a bridge plant, not highD geometry."
+}

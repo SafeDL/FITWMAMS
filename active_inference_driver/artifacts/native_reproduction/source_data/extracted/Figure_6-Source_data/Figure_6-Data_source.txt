@@ -1,0 +1,84 @@
+Figure 6 is built as a grid of subplots.
+
+The columns are built of the different model aplications, each associated with a number #j in the source data.
+- Column a: #j = 7 (This corresponds to the results in Figures 3, 4, and 5)
+- Column b: #j = 6
+- Column c: #j = 0
+- Column d: #j = 1
+- Column e: #j = 2
+- Column f: #j = 3
+- Column g: #j = 4
+- Column h: #j = 5
+
+We will now describe the data sources for each of the rows:
+1. Row relies on the following files:
+    - 'Rear/RT_over_initial_time_gap_#j_probs.csv', where the 'NaN' values are used to break up different lines, with the following columns:
+        - 'tgp': The time gap for the x-axis (in seconds)
+        - 'prob_brake': The probability of breaking for the y-axis
+        - 'vel': the corresponding velocity, used for linestyle and color
+        
+        
+2. Row relies on the following files:
+    - 'Rear/RT_over_initial_time_gap_#j_brake.csv', from which get the datapoints resulting in braking, where we use the following columns:
+        - 'tgp': The time gap for the x-axis (in seconds)
+        - 'rt': The response time (in seconds)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/RT_over_initial_time_gap_#j_brake_steer.csv', from which get the datapoints resulting in braking and steering, where we use the following columns:
+        - 'tgp': The time gap for the x-axis (in seconds)
+        - 'rt': The response time (in seconds)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/RT_over_initial_time_gap_#j_collision.csv', from which get the datapoints resulting in a collision, where we use the following columns:
+        - 'tgp': The time gap for the x-axis (in seconds)
+        - 'rt': The response time (in seconds)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/Analysis_setting_approximations.csv', from which we get the dashed interpolation times, with the following y values:
+        - 'RT0': The interpolation value at tgp = 0.9
+        - 'RT1': The interpolation value at tgp = 3.6
+        
+        
+3. Row relies on the following files:
+    - 'Rear/RT_over_initial_time_gap_#j_brake.csv', from which get the datapoints resulting in braking, where we use the following columns:
+        - 'inv_ttc': The inverse time to collision at the breaking onset (in 1/seconds)
+        - 'a_min': The minimum recorded acceleration (in m/s^2)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/RT_over_initial_time_gap_#j_brake_steer.csv', from which get the datapoints resulting in braking and steering, where we use the following columns:
+        - 'inv_ttc': The inverse time to collision at the breaking onset (in 1/seconds)
+        - 'a_min': The minimum recorded acceleration (in m/s^2)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/RT_over_initial_time_gap_#j_collision.csv', from which get the datapoints resulting in a collision, where we use the following columns:
+        - 'inv_ttc': The inverse time to collision at the breaking onset (in 1/seconds)
+        - 'a_min': The minimum recorded acceleration (in m/s^2)
+        - 'vel': the corresponding velocity, used for shading
+    - 'Rear/Analysis_setting_approximations.csv', from which we get the dashed interpolation times, with the following y values:
+        - 'A0': The interpolation value at inv_ttc = 0.0
+        - 'A1': The interpolation value at inv_ttc = 1.0
+
+
+4. Row relies on the following files (where for the model data, we have '#source = model' and for the human data, we have '#source = data'):
+    - 'Oncoming/Setting#j_behavior_#source.csv', where the following columns are used
+        - 'x_position': The center position of the bar on the x-axis
+        - 'right': The probability of a successfull evasion by steering to the right
+        - 'crash': The probability of the interaction resulting in a crash
+        - 'left': The probability of a successfull evasion by steering to the left
+      Meanwhile, the following rows are relevant:
+        - '#source_steep': The steep incursion scenario
+        - '#source_medium': The medium incursion scenario
+        - '#source_sshallow': The shallow incursion scenario
+ 
+
+5. Row relies on the following files:
+    - 'Oncoming/Setting#j_times.csv', where the rows correspond to the 0th, 25th, 50th, 75th, and 100th percentile of response times respectively. The columns are constructed as the type #response#source#incursion, with #response = {Brake, Steer}, #source = {Data, Model}, and #incursion = {Harsh, Medium, Gentle}, with the latter corresponding to the labeled steep, medium, and shallow incursions.
+
+
+6. Row relies on the following files (where for the model data, we have '#source = model' and for the human data, we have '#source = data'):
+    - 'Intersection/Setting#j_behavior_#source.csv', where the following columns are used
+        - 'x_position': The center position of the bar on the x-axis
+        - 'safe': The probability of a successfull evasion
+        - 'crash': The probability of the interaction resulting in a crash
+      Meanwhile, the following rows are relevant:
+        - '#source_RS': The scenario where the target agent starts form a standstill (RS)
+        - '#source_RNS': The scenario where the target agent starts at full speed (RNS)
+
+
+7. Row relies on the following files:
+    - 'Intersection/Setting#j_times.csv', where the rows correspond to the 0th, 25th, 50th, 75th, and 100th percentile of response times respectively. The columns are constructed as the type #response#source#scenario, with #response = {Brake, Steer}, #source = {Data, Model}, and #scenario = {RS, RNS}.

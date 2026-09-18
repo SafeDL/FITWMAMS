@@ -1,0 +1,50 @@
+{
+  "kind": "retained Stage-B NUTS diagnostic",
+  "sampler_diagnostics_passed": true,
+  "acceptance_rule": "all hierarchical and pooled style fits: divergences=0, max R-hat <= 1.01, min bulk ESS >= 100",
+  "decision": "evaluation_only_not_deployment_approved",
+  "fits": [
+    {
+      "style_id": 0,
+      "model": "hierarchical_regime_b_idm",
+      "max_rhat": 1.0076136914286837,
+      "min_ess_bulk": 1020.2919561774664,
+      "divergences": 0
+    },
+    {
+      "style_id": 0,
+      "model": "pooled_b_idm",
+      "max_rhat": 1.002584747030009,
+      "min_ess_bulk": 1532.919620129507,
+      "divergences": 0
+    },
+    {
+      "style_id": 1,
+      "model": "hierarchical_regime_b_idm",
+      "max_rhat": 1.0055485724436541,
+      "min_ess_bulk": 980.7472937401218,
+      "divergences": 0
+    },
+    {
+      "style_id": 1,
+      "model": "pooled_b_idm",
+      "max_rhat": 1.0057338090887145,
+      "min_ess_bulk": 1320.4482180541972,
+      "divergences": 0
+    },
+    {
+      "style_id": 2,
+      "model": "hierarchical_regime_b_idm",
+      "max_rhat": 1.0028068199547095,
+      "min_ess_bulk": 745.9099274025226,
+      "divergences": 0
+    },
+    {
+      "style_id": 2,
+      "model": "pooled_b_idm",
+      "max_rhat": 1.002669718420494,
+      "min_ess_bulk": 606.8845695760211,
+      "divergences": 0
+    }
+  ]
+}

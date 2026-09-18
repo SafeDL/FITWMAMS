@@ -1,0 +1,17 @@
+{
+  "dataset": "dynamic_ar_idm/artifacts/full_data/full_highd_25hz.npz",
+  "pair_count": 251,
+  "recording_ids": [
+    25,
+    26,
+    36
+  ],
+  "decision_count": 76865,
+  "native_fps": 25,
+  "decision_fps": 5,
+  "all_native_arrays_finite": true,
+  "decision_grid_is_five_native_ticks": true,
+  "minimum_native_gap_m": 0.9699999999999935,
+  "minimum_decisions_per_pair": 249,
+  "selection_count_matches_project_manifest": true
+}

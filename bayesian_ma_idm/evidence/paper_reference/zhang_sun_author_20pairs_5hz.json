@@ -1,0 +1,216 @@
+{
+  "protocol": "exact Config.car_interactive_pair_list + truck_interactive_pair_list",
+  "author_repository_commit": "7520b15a8b163f52532cd3e5c7f7d4db05fc43f0",
+  "source_cache_directory": "/tmp/IDM_Bayesian_Calibration/data/cache",
+  "sampling_fps": 5,
+  "dt_s": 0.2,
+  "pair_numbers": [
+    14,
+    35,
+    23,
+    25,
+    36,
+    38,
+    60,
+    90,
+    228,
+    232,
+    3,
+    4,
+    18,
+    52,
+    81,
+    144,
+    153,
+    162,
+    5,
+    241
+  ],
+  "cars": [
+    14,
+    35,
+    23,
+    25,
+    36,
+    38,
+    60,
+    90,
+    228,
+    232
+  ],
+  "trucks": [
+    3,
+    4,
+    18,
+    52,
+    81,
+    144,
+    153,
+    162,
+    5,
+    241
+  ],
+  "selected": [
+    {
+      "pair_no": 14,
+      "follower_id": 273,
+      "leader_id": 268,
+      "frame_start": 2206,
+      "cache_class": "Car",
+      "samples_5hz": 290
+    },
+    {
+      "pair_no": 35,
+      "follower_id": 352,
+      "leader_id": 342,
+      "frame_start": 3011,
+      "cache_class": "Car",
+      "samples_5hz": 319
+    },
+    {
+      "pair_no": 23,
+      "follower_id": 309,
+      "leader_id": 301,
+      "frame_start": 2556,
+      "cache_class": "Car",
+      "samples_5hz": 316
+    },
+    {
+      "pair_no": 25,
+      "follower_id": 314,
+      "leader_id": 309,
+      "frame_start": 2601,
+      "cache_class": "Car",
+      "samples_5hz": 316
+    },
+    {
+      "pair_no": 36,
+      "follower_id": 355,
+      "leader_id": 352,
+      "frame_start": 2996,
+      "cache_class": "Car",
+      "samples_5hz": 337
+    },
+    {
+      "pair_no": 38,
+      "follower_id": 361,
+      "leader_id": 355,
+      "frame_start": 3049,
+      "cache_class": "Car",
+      "samples_5hz": 335
+    },
+    {
+      "pair_no": 60,
+      "follower_id": 412,
+      "leader_id": 406,
+      "frame_start": 3705,
+      "cache_class": "Car",
+      "samples_5hz": 314
+    },
+    {
+      "pair_no": 90,
+      "follower_id": 1005,
+      "leader_id": 1001,
+      "frame_start": 10183,
+      "cache_class": "Car",
+      "samples_5hz": 415
+    },
+    {
+      "pair_no": 228,
+      "follower_id": 343,
+      "leader_id": 330,
+      "frame_start": 2829,
+      "cache_class": "Truck",
+      "samples_5hz": 283
+    },
+    {
+      "pair_no": 232,
+      "follower_id": 404,
+      "leader_id": 398,
+      "frame_start": 3545,
+      "cache_class": "Car",
+      "samples_5hz": 324
+    },
+    {
+      "pair_no": 3,
+      "follower_id": 211,
+      "leader_id": 203,
+      "frame_start": 1518,
+      "cache_class": "Truck",
+      "samples_5hz": 319
+    },
+    {
+      "pair_no": 4,
+      "follower_id": 216,
+      "leader_id": 211,
+      "frame_start": 1564,
+      "cache_class": "Truck",
+      "samples_5hz": 363
+    },
+    {
+      "pair_no": 18,
+      "follower_id": 287,
+      "leader_id": 281,
+      "frame_start": 2348,
+      "cache_class": "Truck",
+      "samples_5hz": 311
+    },
+    {
+      "pair_no": 52,
+      "follower_id": 398,
+      "leader_id": 390,
+      "frame_start": 3519,
+      "cache_class": "Truck",
+      "samples_5hz": 287
+    },
+    {
+      "pair_no": 81,
+      "follower_id": 747,
+      "leader_id": 743,
+      "frame_start": 7436,
+      "cache_class": "Truck",
+      "samples_5hz": 258
+    },
+    {
+      "pair_no": 144,
+      "follower_id": 2486,
+      "leader_id": 2485,
+      "frame_start": 25350,
+      "cache_class": "Truck",
+      "samples_5hz": 306
+    },
+    {
+      "pair_no": 153,
+      "follower_id": 2502,
+      "leader_id": 2497,
+      "frame_start": 25508,
+      "cache_class": "Truck",
+      "samples_5hz": 325
+    },
+    {
+      "pair_no": 162,
+      "follower_id": 2524,
+      "leader_id": 2517,
+      "frame_start": 25712,
+      "cache_class": "Truck",
+      "samples_5hz": 325
+    },
+    {
+      "pair_no": 5,
+      "follower_id": 221,
+      "leader_id": 216,
+      "frame_start": 1619,
+      "cache_class": "Car",
+      "samples_5hz": 362
+    },
+    {
+      "pair_no": 241,
+      "follower_id": 816,
+      "leader_id": 806,
+      "frame_start": 7906,
+      "cache_class": "Truck",
+      "samples_5hz": 277
+    }
+  ],
+  "note": "cache_class is retained for audit; paper cohort strata follow Config.py lists"
+}

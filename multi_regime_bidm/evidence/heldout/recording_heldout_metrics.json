@@ -1,0 +1,28 @@
+{
+  "kind": "recording-held-out causal comparison",
+  "calibration": "Stage-B small-budget NUTS documented adaptation",
+  "test_recordings": [
+    26,
+    36
+  ],
+  "test_pairs": 36,
+  "prefix_style": "K-means nearest center using completed 5s prefix only",
+  "regime": "explicit-duration filter using observed prefix; future filter updates use simulated causal state only",
+  "pooled_baseline": "separately fitted style-conditional pooled B-IDM on the identical Stage-B observations and NUTS budget",
+  "common_random_numbers": true,
+  "filtered_hierarchical": {
+    "position_rmse_m": 0.6296175432410211,
+    "speed_rmse_mps": 0.49454544520305016,
+    "acceleration_crps_mps2": 0.18160599709683684,
+    "position_90_coverage": 0.40444444444444444,
+    "mean_position_interval_width_m": 0.47536428805336045
+  },
+  "pooled_b_idm": {
+    "position_rmse_m": 0.6690356924216873,
+    "speed_rmse_mps": 0.5284678947846475,
+    "acceleration_crps_mps2": 0.19025836846522984,
+    "position_90_coverage": 0.36962962962962964,
+    "mean_position_interval_width_m": 0.46906144601624056
+  },
+  "warning": "only 36 held-out events are available locally; compare directions, not population-significance claims"
+}

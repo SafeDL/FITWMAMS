@@ -1,0 +1,174 @@
+{
+  "audit": "chain-separated NUTS posterior-predictive sensitivity",
+  "dataset": "dynamic_ar_idm/artifacts/data/paper_highd_20pairs_25hz.npz",
+  "ar0_source": "dynamic_ar_idm/artifacts/nuts/dynamic_ar0_paper_nuts_long.nc",
+  "ar5_source": "dynamic_ar_idm/artifacts/nuts/dynamic_ar5_paper_nuts_long.nc",
+  "chains": {
+    "ar0": 4,
+    "ar5": 4
+  },
+  "draws_exported_per_chain": 512,
+  "futures_per_origin": 64,
+  "horizon_s": 5,
+  "pooled_chains": false,
+  "global_convergence": "failed for both source fits; these results are sensitivity evidence only",
+  "chain_metrics": {
+    "ar0": [
+      {
+        "chain": 0,
+        "a_rmse": 0.20007290137744663,
+        "v_rmse": 0.2943594157241304,
+        "s_rmse": 0.6140927677719751,
+        "a_crps": 0.14435898309041434,
+        "v_crps": 0.23770634227566156,
+        "s_crps": 0.4619816573223011
+      },
+      {
+        "chain": 1,
+        "a_rmse": 0.20023448008974992,
+        "v_rmse": 0.2943920184054908,
+        "s_rmse": 0.6138693939830194,
+        "a_crps": 0.1444838125680183,
+        "v_crps": 0.2376015104035679,
+        "s_crps": 0.4615109138547808
+      },
+      {
+        "chain": 2,
+        "a_rmse": 0.20023946801556897,
+        "v_rmse": 0.2938250362123563,
+        "s_rmse": 0.6126776692297011,
+        "a_crps": 0.14450203763645386,
+        "v_crps": 0.23715251078760785,
+        "s_crps": 0.4609112589298715
+      },
+      {
+        "chain": 3,
+        "a_rmse": 0.20005070281840673,
+        "v_rmse": 0.293885710845471,
+        "s_rmse": 0.6130798739359506,
+        "a_crps": 0.1443121841799963,
+        "v_crps": 0.23719063581859,
+        "s_crps": 0.4611721143058765
+      }
+    ],
+    "ar5": [
+      {
+        "chain": 0,
+        "a_rmse": 0.174681388027401,
+        "v_rmse": 0.2980779536403277,
+        "s_rmse": 0.4790500399700404,
+        "a_crps": 0.12384533413627566,
+        "v_crps": 0.2006306715645633,
+        "s_crps": 0.2829309067611102
+      },
+      {
+        "chain": 1,
+        "a_rmse": 0.17493038088239732,
+        "v_rmse": 0.2963140493450914,
+        "s_rmse": 0.47673450038257864,
+        "a_crps": 0.12406720428498638,
+        "v_crps": 0.1992545254867512,
+        "s_crps": 0.28155146921041074
+      },
+      {
+        "chain": 2,
+        "a_rmse": 0.17461059090027514,
+        "v_rmse": 0.2950474556073391,
+        "s_rmse": 0.47811061187396425,
+        "a_crps": 0.12396522659624117,
+        "v_crps": 0.19912167932775496,
+        "s_crps": 0.2837088738679154
+      },
+      {
+        "chain": 3,
+        "a_rmse": 0.174495707036368,
+        "v_rmse": 0.29330609658416906,
+        "s_rmse": 0.4712750247310228,
+        "a_crps": 0.12369624574933236,
+        "v_crps": 0.19730128759306773,
+        "s_crps": 0.27942771601361793
+      }
+    ]
+  },
+  "comparison": {
+    "a_rmse": {
+      "ar0_chain_range": [
+        0.20005070281840673,
+        0.20023946801556897
+      ],
+      "ar5_chain_range": [
+        0.174495707036368,
+        0.17493038088239732
+      ],
+      "all_pairwise_better_count": 16,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": -12.725430543960158
+    },
+    "v_rmse": {
+      "ar0_chain_range": [
+        0.2938250362123563,
+        0.2943920184054908
+      ],
+      "ar5_chain_range": [
+        0.29330609658416906,
+        0.2980779536403277
+      ],
+      "all_pairwise_better_count": 4,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": 0.5340906057121897
+    },
+    "s_rmse": {
+      "ar0_chain_range": [
+        0.6126776692297011,
+        0.6140927677719751
+      ],
+      "ar5_chain_range": [
+        0.4712750247310228,
+        0.4790500399700404
+      ],
+      "all_pairwise_better_count": 16,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": -22.35583497426331
+    },
+    "a_crps": {
+      "ar0_chain_range": [
+        0.1443121841799963,
+        0.14450203763645386
+      ],
+      "ar5_chain_range": [
+        0.12369624574933236,
+        0.12406720428498638
+      ],
+      "all_pairwise_better_count": 16,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": -14.209644170317082
+    },
+    "v_crps": {
+      "ar0_chain_range": [
+        0.23715251078760785,
+        0.23770634227566156
+      ],
+      "ar5_chain_range": [
+        0.19730128759306773,
+        0.2006306715645633
+      ],
+      "all_pairwise_better_count": 16,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": -16.147283099651787
+    },
+    "s_crps": {
+      "ar0_chain_range": [
+        0.4609112589298715,
+        0.4619816573223011
+      ],
+      "ar5_chain_range": [
+        0.27942771601361793,
+        0.2837088738679154
+      ],
+      "all_pairwise_better_count": 16,
+      "all_pairwise_comparisons": 16,
+      "ar5_mean_relative_change_pct": -38.90151368375109
+    }
+  },
+  "all_six_metrics_favour_ar5_for_every_cross_chain_pair": false
+}

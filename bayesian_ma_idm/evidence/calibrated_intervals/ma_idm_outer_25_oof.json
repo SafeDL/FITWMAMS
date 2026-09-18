@@ -1,0 +1,190 @@
+{
+  "model": "ma_idm",
+  "fit_backend": "full_cohort_empirical_bayes_hierarchical_map_5hz_decision",
+  "evaluation": "recording-held-out rolling-origin population prediction",
+  "native_fps": 25,
+  "evaluation_recordings": [
+    25
+  ],
+  "evaluation_vehicle_classes": "all classes",
+  "pairs": 212,
+  "anchors": 1233,
+  "futures": 64,
+  "prefix_s": 5.0,
+  "anchor_stride_s": 10.0,
+  "noise_scale": 1.0,
+  "iid_noise_scale": 1.0,
+  "parameter_covariance_scale": 1.0,
+  "innovation_df": null,
+  "position_interval_offset_m": 0.0,
+  "anchor_start_fraction": 0.0,
+  "anchor_end_fraction": 1.0,
+  "personalize_from_observed_prefix": false,
+  "prefix_parameter_likelihood": "not used",
+  "horizons": {
+    "3.0": {
+      "position_rmse_m": {
+        "mean": 0.2946171224164848,
+        "cluster_bootstrap_95": [
+          0.27577783825477215,
+          0.3129883130910735
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.3024186637371643,
+        "cluster_bootstrap_95": [
+          0.2830971283580261,
+          0.32220830683231405
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.14719240189088983,
+        "cluster_bootstrap_95": [
+          0.14005767752870735,
+          0.15467096020517104
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.9330178945792155,
+        "cluster_bootstrap_95": [
+          0.9230086365678345,
+          0.9424156577568135
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 0.8338955865236182,
+        "cluster_bootstrap_95": [
+          0.8162844605907884,
+          0.8523228519349754
+        ]
+      },
+      "position_interval_calibration": {
+        "0.5": {
+          "mean": 0.3274666067684936,
+          "cluster_bootstrap_95": [
+            0.31177515723270444,
+            0.34414966120095836
+          ]
+        },
+        "0.8": {
+          "mean": 0.5456761755016473,
+          "cluster_bootstrap_95": [
+            0.5263963518268943,
+            0.5647312556154538
+          ]
+        },
+        "0.9": {
+          "mean": 0.626890685834082,
+          "cluster_bootstrap_95": [
+            0.6109754305181192,
+            0.6433465820604972
+          ]
+        },
+        "0.95": {
+          "mean": 0.683329365079365,
+          "cluster_bootstrap_95": [
+            0.6693624007936508,
+            0.6972075621443546
+          ]
+        }
+      },
+      "position_90_shortfall_q90_m": 0.059392149615581556
+    },
+    "5.0": {
+      "position_rmse_m": {
+        "mean": 0.9509398006246393,
+        "cluster_bootstrap_95": [
+          0.8922581659636335,
+          1.0159063991389308
+        ]
+      },
+      "speed_rmse_mps": {
+        "mean": 0.5424669494046334,
+        "cluster_bootstrap_95": [
+          0.5124058927773635,
+          0.5767320694748098
+        ]
+      },
+      "acceleration_crps_mps2": {
+        "mean": 0.1581222590145536,
+        "cluster_bootstrap_95": [
+          0.15064474376098402,
+          0.16679424716961075
+        ]
+      },
+      "position_90_coverage": {
+        "mean": 0.9546150494159928,
+        "cluster_bootstrap_95": [
+          0.9474330402066486,
+          0.9620868935309972
+        ]
+      },
+      "mean_interval_width_m": {
+        "mean": 3.453892008716816,
+        "cluster_bootstrap_95": [
+          3.3635467308929954,
+          3.550612268458439
+        ]
+      },
+      "position_interval_calibration": {
+        "0.5": {
+          "mean": 0.37485265049415994,
+          "cluster_bootstrap_95": [
+            0.3519841711590297,
+            0.3975094889937107
+          ]
+        },
+        "0.8": {
+          "mean": 0.615430548068284,
+          "cluster_bootstrap_95": [
+            0.590340573899371,
+            0.6387178683737647
+          ]
+        },
+        "0.9": {
+          "mean": 0.705625786163522,
+          "cluster_bootstrap_95": [
+            0.6842711972147351,
+            0.7247381323000899
+          ]
+        },
+        "0.95": {
+          "mean": 0.7633570530098831,
+          "cluster_bootstrap_95": [
+            0.7478413140161725,
+            0.7795191992362982
+          ]
+        }
+      },
+      "position_90_shortfall_q90_m": 0.08687956625594791
+    }
+  },
+  "position_interval_offset_by_gap": {
+    "3.0": {
+      "gap_bin_edges_m": [
+        11.680000000000007,
+        15.744999999999992,
+        20.765
+      ],
+      "offsets_m": [
+        0.12336835460151999,
+        0.053460768583572696,
+        0.04490064242898367,
+        0.13271936232699164
+      ]
+    },
+    "5.0": {
+      "gap_bin_edges_m": [
+        11.680000000000007,
+        15.744999999999992,
+        20.765
+      ],
+      "offsets_m": [
+        1.0863092684781122,
+        0.04178078385031768,
+        0.03569994626839614,
+        0.5369432075150002
+      ]
+    }
+  }
+}

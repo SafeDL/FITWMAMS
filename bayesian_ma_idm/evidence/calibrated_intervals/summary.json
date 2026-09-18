@@ -1,0 +1,171 @@
+{
+  "extension": "gap-regime temporal split-conformal position band; not paper MA-IDM",
+  "protocol": "outer recording held out; early-train MA-IDM; training-only gap-bin offsets; final OOF reports only",
+  "pairs": 251,
+  "holdout_recordings": [
+    25,
+    26,
+    36
+  ],
+  "shortfall_quantile": 0.9,
+  "gap_bins": 4,
+  "selections": [
+    {
+      "extension": "gap-regime temporal split-conformal position band; not paper MA-IDM",
+      "protocol": "outer recording held out; early training fit; later training anchors yield gap-bin offsets",
+      "holdout_recording": 25,
+      "training_recordings": [
+        26,
+        36
+      ],
+      "fit_fraction": 0.6,
+      "calibration_anchor_range": [
+        0.65,
+        0.9
+      ],
+      "gap_bins": 4,
+      "shortfall_quantile": 0.9,
+      "gap_offset_specifications": {
+        "3.0": {
+          "gap_bin_edges_m": [
+            11.680000000000007,
+            15.744999999999992,
+            20.765
+          ],
+          "offsets_m": [
+            0.12336835460151999,
+            0.053460768583572696,
+            0.04490064242898367,
+            0.13271936232699164
+          ]
+        },
+        "5.0": {
+          "gap_bin_edges_m": [
+            11.680000000000007,
+            15.744999999999992,
+            20.765
+          ],
+          "offsets_m": [
+            1.0863092684781122,
+            0.04178078385031768,
+            0.03569994626839614,
+            0.5369432075150002
+          ]
+        }
+      },
+      "calibration_report": "ma_idm_outer_25_temporal_calibration.json",
+      "calibration_diagnostics": "ma_idm_outer_25_calibration_anchors.npz",
+      "oof_report": "ma_idm_outer_25_oof.json"
+    },
+    {
+      "extension": "gap-regime temporal split-conformal position band; not paper MA-IDM",
+      "protocol": "outer recording held out; early training fit; later training anchors yield gap-bin offsets",
+      "holdout_recording": 26,
+      "training_recordings": [
+        25,
+        36
+      ],
+      "fit_fraction": 0.6,
+      "calibration_anchor_range": [
+        0.65,
+        0.9
+      ],
+      "gap_bins": 4,
+      "shortfall_quantile": 0.9,
+      "gap_offset_specifications": {
+        "3.0": {
+          "gap_bin_edges_m": [
+            7.820000000000004,
+            11.279999999999973,
+            16.839999999999975
+          ],
+          "offsets_m": [
+            0.298979271763453,
+            0.1564040216995691,
+            0.13594922178314145,
+            0.11512089043690425
+          ]
+        },
+        "5.0": {
+          "gap_bin_edges_m": [
+            7.820000000000004,
+            11.279999999999973,
+            16.839999999999975
+          ],
+          "offsets_m": [
+            0.8210146011453074,
+            0.25469886883567955,
+            0.621138792801674,
+            0.5969396959057236
+          ]
+        }
+      },
+      "calibration_report": "ma_idm_outer_26_temporal_calibration.json",
+      "calibration_diagnostics": "ma_idm_outer_26_calibration_anchors.npz",
+      "oof_report": "ma_idm_outer_26_oof.json"
+    },
+    {
+      "extension": "gap-regime temporal split-conformal position band; not paper MA-IDM",
+      "protocol": "outer recording held out; early training fit; later training anchors yield gap-bin offsets",
+      "holdout_recording": 36,
+      "training_recordings": [
+        25,
+        26
+      ],
+      "fit_fraction": 0.6,
+      "calibration_anchor_range": [
+        0.65,
+        0.9
+      ],
+      "gap_bins": 4,
+      "shortfall_quantile": 0.9,
+      "gap_offset_specifications": {
+        "3.0": {
+          "gap_bin_edges_m": [
+            8.120000000000008,
+            11.71999999999997,
+            17.63499999999999
+          ],
+          "offsets_m": [
+            0.26582916790889416,
+            0.14569734093681816,
+            0.13076225958864146,
+            0.09202738285469883
+          ]
+        },
+        "5.0": {
+          "gap_bin_edges_m": [
+            8.120000000000008,
+            11.71999999999997,
+            17.63499999999999
+          ],
+          "offsets_m": [
+            0.7223584381784937,
+            0.28219401053474247,
+            0.4095078980801802,
+            0.4088200718586161
+          ]
+        }
+      },
+      "calibration_report": "ma_idm_outer_36_temporal_calibration.json",
+      "calibration_diagnostics": "ma_idm_outer_36_calibration_anchors.npz",
+      "oof_report": "ma_idm_outer_36_oof.json"
+    }
+  ],
+  "pair_weighted_horizons": {
+    "3.0": {
+      "position_rmse_m": 0.2799180280969843,
+      "speed_rmse_mps": 0.2884378566592816,
+      "acceleration_crps_mps2": 0.1423096792237157,
+      "position_90_coverage": 0.9420372478340606,
+      "mean_interval_width_m": 0.8347158766158999
+    },
+    "5.0": {
+      "position_rmse_m": 0.9112579570082426,
+      "speed_rmse_mps": 0.5237495042730019,
+      "acceleration_crps_mps2": 0.15376966165436565,
+      "position_90_coverage": 0.9601168279263896,
+      "mean_interval_width_m": 3.3936741962944006
+    }
+  }
+}

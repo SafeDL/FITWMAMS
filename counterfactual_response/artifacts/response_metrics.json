@@ -1,0 +1,1075 @@
+{
+  "experiment": "highD-anchored frozen-action versus closed-loop braking response probe",
+  "purpose": "mechanism audit, not observational accuracy or causal-identification evidence",
+  "scenario": {
+    "dt_s": 0.04,
+    "decision_dt_s": 0.2,
+    "horizon_s": 6.0,
+    "brake_start_s": 1.0,
+    "brake_duration_s": 1.0,
+    "brake_doses_mps2": [
+      1.5,
+      3.0,
+      5.0
+    ],
+    "anchor_row": 55398,
+    "anchor_index": 24,
+    "leader_slot": 0,
+    "follower_slot": 2,
+    "vehicle_length_m": 4.8,
+    "min_acceleration_mps2": -10.0,
+    "max_acceleration_mps2": 4.0,
+    "response_threshold_mps2": 0.15
+  },
+  "futures": 256,
+  "seed": 20260916,
+  "highd_anchor": {
+    "split": "validation",
+    "row": 55398,
+    "recording_id": 27,
+    "leader_id": 2560,
+    "follower_id": 2568,
+    "initial_leader_speed_mps": 15.6899995803833,
+    "initial_follower_speed_mps": 16.84000015258789,
+    "initial_gap_m": 22.64000244140625,
+    "source": "canonical highD row and frozen CIH-WM reaction-event evidence",
+    "selection": "supported ego-led validation event nearest shared model speed/gap support using pre-intervention state only; future response outcomes were not used"
+  },
+  "common_random_numbers": true,
+  "response_detection": "paired action delta <= -0.15 m/s^2 for two consecutive 5 Hz decisions",
+  "branch_contract": "both displayed branches receive the identical logged-control-plus-brake leader; the frozen branch replays the no-intervention follower actions while the reactive branch recomputes actions in closed loop",
+  "multi_regime_style_id": 1,
+  "multi_regime_initialization": "modal train-only style and one current observation; no five-second prefix is available for this canonical row",
+  "models": {
+    "b_idm": {
+      "posterior_source": "all-251-pair B-IDM deployment posterior; OOF folds are evaluation-only",
+      "dose_response": {
+        "1.5": {
+          "response_probability": 0.9296875,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.40000000000000013
+          },
+          "peak_additional_braking_mps2": {
+            "median": 0.7230895817568639,
+            "p10": 0.3643887854540401,
+            "p90": 1.11461304842158,
+            "mean": 0.7237454304931777
+          },
+          "additional_brake_dose_mps": {
+            "median": 1.3395185497883932,
+            "p10": 0.5289499568346439,
+            "p90": 1.4695986389261697,
+            "mean": 1.1890282822871727
+          },
+          "minimum_gap_m": {
+            "median": 17.97918128836521,
+            "p10": 14.243934343567378,
+            "p90": 22.438861109773107,
+            "mean": 18.036204698033437
+          },
+          "frozen_minimum_gap_m": {
+            "median": 14.247333928205872,
+            "p10": 10.184577563999166,
+            "p90": 22.438861109773107,
+            "mean": 15.141534326878507
+          },
+          "terminal_gap_benefit_m": {
+            "median": 4.212863194867403,
+            "p10": 0.9166069858533419,
+            "p90": 5.0770991822200955,
+            "mean": 3.6744666083478665
+          },
+          "peak_gap_benefit_m": {
+            "median": 4.212863194867403,
+            "p10": 1.0308486475678151,
+            "p90": 5.0770991822200955,
+            "mean": 3.7959436994301874
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 1.3362460816650295,
+            "p10": 0.1516149012523611,
+            "p90": 1.465812400584877,
+            "mean": 1.091483381480169
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.039090476078901,
+            "p10": 0.5510271841194965,
+            "p90": 6.840070488748875,
+            "mean": 3.1238153065167458
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -1.7026685132002939,
+            "p10": -5.765424877407,
+            "p90": 12.672796358030961,
+            "mean": 1.1857563764121026
+          },
+          "minimum_ttc_s": {
+            "median": 9.937830740361306,
+            "p10": 6.221515054265118,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "3.0": {
+          "response_probability": 0.9609375,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.30000000000000016
+          },
+          "peak_additional_braking_mps2": {
+            "median": 1.6216069515825893,
+            "p10": 0.8168877120504918,
+            "p90": 2.360819933589388,
+            "mean": 1.5954604195860966
+          },
+          "additional_brake_dose_mps": {
+            "median": 2.75355333021065,
+            "p10": 1.363594052932339,
+            "p90": 3.004142183407186,
+            "mean": 2.458062722808971
+          },
+          "minimum_gap_m": {
+            "median": 16.313230141987734,
+            "p10": 12.203840201025013,
+            "p90": 22.170569557004782,
+            "mean": 16.528785564312606
+          },
+          "frozen_minimum_gap_m": {
+            "median": 7.557333928206174,
+            "p10": 3.494577563999468,
+            "p90": 20.69305292653544,
+            "mean": 9.417124722122713
+          },
+          "terminal_gap_benefit_m": {
+            "median": 8.819343759486635,
+            "p10": 3.7589379665871263,
+            "p90": 10.414879459332653,
+            "mean": 7.893028342646875
+          },
+          "peak_gap_benefit_m": {
+            "median": 8.819343759486635,
+            "p10": 3.7589379665871263,
+            "p90": 10.414879459332653,
+            "mean": 8.043526253390226
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 2.750454354597715,
+            "p10": 0.5117040295035764,
+            "p90": 3.0003894830417943,
+            "mean": 2.318972073681806
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.039090476078901,
+            "p10": 0.5510271841194965,
+            "p90": 6.840070488748875,
+            "mean": 3.1238153065167458
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -1.7026685132002939,
+            "p10": -5.765424877407,
+            "p90": 12.672796358030961,
+            "mean": 1.1857563764121026
+          },
+          "minimum_ttc_s": {
+            "median": 6.331988534775946,
+            "p10": 4.368921414541526,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.015625,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "5.0": {
+          "response_probability": 0.98828125,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.20000000000000018
+          },
+          "peak_additional_braking_mps2": {
+            "median": 3.00528807898508,
+            "p10": 1.6001729144172452,
+            "p90": 4.044418007111334,
+            "mean": 2.922170820418941
+          },
+          "additional_brake_dose_mps": {
+            "median": 4.673144219080246,
+            "p10": 2.6066065171440513,
+            "p90": 5.115919557630878,
+            "mean": 4.244437871226058
+          },
+          "minimum_gap_m": {
+            "median": 14.229705883406893,
+            "p10": 9.882403704111464,
+            "p90": 20.217135243371505,
+            "mean": 14.573592567483434
+          },
+          "frozen_minimum_gap_m": {
+            "median": -1.3626660717939272,
+            "p10": -5.425422436000633,
+            "p90": 13.012798799437324,
+            "mean": 1.1733336215656456
+          },
+          "terminal_gap_benefit_m": {
+            "median": 15.524709129731626,
+            "p10": 8.244963880023594,
+            "p90": 17.748685061813497,
+            "mean": 14.051307462626557
+          },
+          "peak_gap_benefit_m": {
+            "median": 15.524709129731626,
+            "p10": 8.244963880023594,
+            "p90": 17.748685061813497,
+            "mean": 14.168727088736365
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 4.669071502191306,
+            "p10": 1.5408712802807791,
+            "p90": 5.109454461142431,
+            "mean": 4.08768708624863
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.039090476078901,
+            "p10": 0.5510271841194965,
+            "p90": 6.840070488748875,
+            "mean": 3.1238153065167458
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -1.7026685132002939,
+            "p10": -5.765424877407,
+            "p90": 12.672796358030961,
+            "mean": 1.1857563764121026
+          },
+          "minimum_ttc_s": {
+            "median": 4.318730066430768,
+            "p10": 3.0136524874287707,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.58203125,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        }
+      }
+    },
+    "ma_idm": {
+      "posterior_source": "all-251-pair MA-IDM deployment posterior; OOF folds are evaluation-only",
+      "dose_response": {
+        "1.5": {
+          "response_probability": 0.94140625,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.40000000000000013
+          },
+          "peak_additional_braking_mps2": {
+            "median": 0.6669868758452746,
+            "p10": 0.2849027653658549,
+            "p90": 0.9472984321538376,
+            "mean": 0.6409872220237309
+          },
+          "additional_brake_dose_mps": {
+            "median": 1.2704146055722962,
+            "p10": 0.5071141718015977,
+            "p90": 1.4636022097156127,
+            "mean": 1.1419668305572226
+          },
+          "minimum_gap_m": {
+            "median": 18.563714441727292,
+            "p10": 13.112015442246555,
+            "p90": 22.44890953039753,
+            "mean": 18.14356480861222
+          },
+          "frozen_minimum_gap_m": {
+            "median": 16.183888649646814,
+            "p10": 8.941482464532672,
+            "p90": 22.41146464561618,
+            "mean": 15.782883996346362
+          },
+          "terminal_gap_benefit_m": {
+            "median": 3.951298803899782,
+            "p10": 1.6462814089440627,
+            "p90": 4.792776790532741,
+            "mean": 3.585628693215622
+          },
+          "peak_gap_benefit_m": {
+            "median": 3.951298803899782,
+            "p10": 1.6462814089440627,
+            "p90": 4.792776790532741,
+            "mean": 3.608337198530778
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 1.2664350718044073,
+            "p10": 0.3994054886647671,
+            "p90": 1.4593132235787616,
+            "mean": 1.1139904889807912
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.5619328261312657,
+            "p10": 0.633679770592084,
+            "p90": 6.2643866016060095,
+            "mean": 3.2061365912084945
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 0.24070566609080402,
+            "p10": -7.008519976873494,
+            "p90": 9.919042490997821,
+            "mean": 1.4235327899663504
+          },
+          "minimum_ttc_s": {
+            "median": 11.137932682979645,
+            "p10": 5.749367616793949,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "3.0": {
+          "response_probability": 0.96875,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.40000000000000013
+          },
+          "peak_additional_braking_mps2": {
+            "median": 1.485197604250844,
+            "p10": 0.7278305089917476,
+            "p90": 2.0433235594543673,
+            "mean": 1.436393530682314
+          },
+          "additional_brake_dose_mps": {
+            "median": 2.6484223257935806,
+            "p10": 1.2899529796092342,
+            "p90": 2.960717345888037,
+            "mean": 2.393833220613385
+          },
+          "minimum_gap_m": {
+            "median": 16.64676518521713,
+            "p10": 10.903852881350243,
+            "p90": 21.978087241781864,
+            "mean": 16.504431354702394
+          },
+          "frozen_minimum_gap_m": {
+            "median": 9.500708107497271,
+            "p10": 2.251482464532974,
+            "p90": 18.781501360928484,
+            "mean": 10.079194639768065
+          },
+          "terminal_gap_benefit_m": {
+            "median": 8.364431653919972,
+            "p10": 4.3068450736494555,
+            "p90": 9.868938546756297,
+            "mean": 7.662592526851991
+          },
+          "peak_gap_benefit_m": {
+            "median": 8.364431653919972,
+            "p10": 4.3068450736494555,
+            "p90": 9.868938546756297,
+            "mean": 7.6823778946639365
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 2.6442039806325575,
+            "p10": 1.116442497381457,
+            "p90": 2.9579340785158355,
+            "mean": 2.3516222255590344
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.5619328261312657,
+            "p10": 0.633679770592084,
+            "p90": 6.2643866016060095,
+            "mean": 3.2061365912084945
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 0.24070566609080402,
+            "p10": -7.008519976873494,
+            "p90": 9.919042490997821,
+            "mean": 1.4235327899663504
+          },
+          "minimum_ttc_s": {
+            "median": 6.612635875547646,
+            "p10": 4.0411191967574265,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0390625,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "5.0": {
+          "response_probability": 0.99609375,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.20000000000000018
+          },
+          "peak_additional_braking_mps2": {
+            "median": 2.7841617170957544,
+            "p10": 1.5569465016729283,
+            "p90": 3.6480396784223483,
+            "mean": 2.681084086253837
+          },
+          "additional_brake_dose_mps": {
+            "median": 4.511648803500957,
+            "p10": 2.637005957781902,
+            "p90": 5.0813715073811405,
+            "mean": 4.17571235450724
+          },
+          "minimum_gap_m": {
+            "median": 14.390382795493561,
+            "p10": 8.627504606241093,
+            "p90": 19.946112191733185,
+            "mean": 14.302794473093611
+          },
+          "frozen_minimum_gap_m": {
+            "median": 0.5807081074971707,
+            "p10": -6.668517535467127,
+            "p90": 10.259044932404183,
+            "mean": 1.5889158415005364
+          },
+          "terminal_gap_benefit_m": {
+            "median": 14.581206891198548,
+            "p10": 8.999218878288971,
+            "p90": 16.83556471489164,
+            "mean": 13.623470111845528
+          },
+          "peak_gap_benefit_m": {
+            "median": 14.581206891198548,
+            "p10": 8.999218878288971,
+            "p90": 16.83556471489164,
+            "mean": 13.626911529163664
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 4.500923318625386,
+            "p10": 2.490987675744127,
+            "p90": 5.074291897254194,
+            "mean": 4.125987615960975
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.5619328261312657,
+            "p10": 0.633679770592084,
+            "p90": 6.2643866016060095,
+            "mean": 3.2061365912084945
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 0.24070566609080402,
+            "p10": -7.008519976873494,
+            "p90": 9.919042490997821,
+            "mean": 1.4235327899663504
+          },
+          "minimum_ttc_s": {
+            "median": 4.292889539594485,
+            "p10": 2.8526123500780924,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.484375,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        }
+      }
+    },
+    "dynamic_ar5": {
+      "posterior_source": "251-pair MAP/Laplace theta draws with stable fitted MAP rho",
+      "dose_response": {
+        "1.5": {
+          "response_probability": 0.94140625,
+          "response_latency_s": {
+            "median": 0.40000000000000013,
+            "p10": 0.20000000000000018,
+            "p90": 0.6000000000000001
+          },
+          "peak_additional_braking_mps2": {
+            "median": 0.590129211022618,
+            "p10": 0.22174111996821988,
+            "p90": 0.9311675991334346,
+            "mean": 0.5895063471714701
+          },
+          "additional_brake_dose_mps": {
+            "median": 1.2337300437249243,
+            "p10": 0.34016709771945614,
+            "p90": 1.4401945070877016,
+            "mean": 1.078662659863525
+          },
+          "minimum_gap_m": {
+            "median": 19.272928394252887,
+            "p10": 14.207220694288996,
+            "p90": 22.474116463043465,
+            "mean": 18.74212200436765
+          },
+          "frozen_minimum_gap_m": {
+            "median": 17.004747381162968,
+            "p10": 10.169571489627078,
+            "p90": 22.46156246370203,
+            "mean": 16.675097991407036
+          },
+          "terminal_gap_benefit_m": {
+            "median": 3.7559619476698245,
+            "p10": 1.162760871850958,
+            "p90": 4.767265107064361,
+            "mean": 3.368492727305588
+          },
+          "peak_gap_benefit_m": {
+            "median": 3.7559619476698245,
+            "p10": 1.162760871850958,
+            "p90": 4.767265107064361,
+            "mean": 3.3750208063792186
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 1.230293311219108,
+            "p10": 0.3008971229138213,
+            "p90": 1.4388003682103072,
+            "mean": 1.0616626596602918
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.3744687239273077,
+            "p10": 0.5966374839180426,
+            "p90": 7.587161423113741,
+            "mean": 3.2661478037700613
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 1.0547449397568016,
+            "p10": -5.780430951779088,
+            "p90": 14.112050911815633,
+            "mean": 2.6721966694561328
+          },
+          "minimum_ttc_s": {
+            "median": 13.008170130715804,
+            "p10": 6.315786333401519,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "3.0": {
+          "response_probability": 0.97265625,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.40000000000000013
+          },
+          "peak_additional_braking_mps2": {
+            "median": 1.3020864215717571,
+            "p10": 0.5865805166970774,
+            "p90": 2.0211669430129087,
+            "mean": 1.3114205184857899
+          },
+          "additional_brake_dose_mps": {
+            "median": 2.57474287808657,
+            "p10": 0.9468858801787189,
+            "p90": 2.9301527585798537,
+            "mean": 2.2730899149342187
+          },
+          "minimum_gap_m": {
+            "median": 17.363145304929837,
+            "p10": 11.733694288923633,
+            "p90": 22.46156246370203,
+            "mean": 17.07833552380388
+          },
+          "frozen_minimum_gap_m": {
+            "median": 10.314747381163269,
+            "p10": 3.4795714896273795,
+            "p90": 21.618228242735164,
+            "mean": 11.333982925517017
+          },
+          "terminal_gap_benefit_m": {
+            "median": 7.8566704889561905,
+            "p10": 3.038886545376691,
+            "p90": 9.765607813516134,
+            "mean": 7.198759429247791
+          },
+          "peak_gap_benefit_m": {
+            "median": 7.8566704889561905,
+            "p10": 3.038886545376691,
+            "p90": 9.765607813516134,
+            "mean": 7.204416936629022
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 2.5693826232315926,
+            "p10": 0.9080723075662824,
+            "p90": 2.927906743159382,
+            "mean": 2.248112108082522
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.3744687239273077,
+            "p10": 0.5966374839180426,
+            "p90": 7.587161423113741,
+            "mean": 3.2661478037700613
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 1.0547449397568016,
+            "p10": -5.780430951779088,
+            "p90": 14.112050911815633,
+            "mean": 2.6721966694561328
+          },
+          "minimum_ttc_s": {
+            "median": 7.254441779078521,
+            "p10": 4.279563941871126,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.03125,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        },
+        "5.0": {
+          "response_probability": 0.99609375,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.20000000000000018
+          },
+          "peak_additional_braking_mps2": {
+            "median": 2.4322317800000874,
+            "p10": 1.2045851529305311,
+            "p90": 3.6029209933038815,
+            "mean": 2.435404235617288
+          },
+          "additional_brake_dose_mps": {
+            "median": 4.413794476556317,
+            "p10": 2.245946195791613,
+            "p90": 4.992867576572601,
+            "mean": 4.007549952928274
+          },
+          "minimum_gap_m": {
+            "median": 14.988720361018846,
+            "p10": 8.936967487157435,
+            "p90": 20.64022594582916,
+            "mean": 14.74243978285293
+          },
+          "frozen_minimum_gap_m": {
+            "median": 1.3947473811631683,
+            "p10": -5.440428510372722,
+            "p90": 14.452053353221995,
+            "mean": 2.9654397443818636
+          },
+          "terminal_gap_benefit_m": {
+            "median": 13.892450368044464,
+            "p10": 6.828774536679013,
+            "p90": 16.849725252938228,
+            "mean": 12.86293659476084
+          },
+          "peak_gap_benefit_m": {
+            "median": 13.892450368044464,
+            "p10": 6.828774536679013,
+            "p90": 16.849725252938228,
+            "mean": 12.86334861472637
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 4.403269749368859,
+            "p10": 2.1512230134378783,
+            "p90": 4.981654074088568,
+            "mean": 3.9803647894872674
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.3744687239273077,
+            "p10": 0.5966374839180426,
+            "p90": 7.587161423113741,
+            "mean": 3.2661478037700613
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": 1.0547449397568016,
+            "p10": -5.780430951779088,
+            "p90": 14.112050911815633,
+            "mean": 2.6721966694561328
+          },
+          "minimum_ttc_s": {
+            "median": 4.55391968682107,
+            "p10": 2.9078391757572333,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.41015625,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.0,
+            "mean": 0.0
+          }
+        }
+      }
+    },
+    "multi_regime": {
+      "posterior_source": "retained style-1 hierarchical NUTS posterior and causal finite-HSMM filter",
+      "dose_response": {
+        "1.5": {
+          "response_probability": 1.0,
+          "response_latency_s": {
+            "median": 0.40000000000000013,
+            "p10": 0.20000000000000018,
+            "p90": 0.40000000000000013
+          },
+          "peak_additional_braking_mps2": {
+            "median": 0.7044954785153289,
+            "p10": 0.5812725514903858,
+            "p90": 0.817016032068216,
+            "mean": 0.6988613794855019
+          },
+          "additional_brake_dose_mps": {
+            "median": 1.261527629448918,
+            "p10": 1.1838793887810297,
+            "p90": 1.3268892709922557,
+            "mean": 1.2583344455620475
+          },
+          "minimum_gap_m": {
+            "median": 15.02674443854691,
+            "p10": 14.16513947637183,
+            "p90": 15.74628779034887,
+            "mean": 14.981856102947033
+          },
+          "frozen_minimum_gap_m": {
+            "median": 11.145805856008504,
+            "p10": 10.163354915009972,
+            "p90": 12.130381948271204,
+            "mean": 11.16701985440756
+          },
+          "terminal_gap_benefit_m": {
+            "median": 3.937201211271706,
+            "p10": 3.520191482074985,
+            "p90": 4.25711852485302,
+            "mean": 3.89773824471962
+          },
+          "peak_gap_benefit_m": {
+            "median": 3.937201211271706,
+            "p10": 3.520191482074985,
+            "p90": 4.25711852485302,
+            "mean": 3.89773824471962
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 1.255812407591125,
+            "p10": 1.181599717162083,
+            "p90": 1.3239798685695288,
+            "mean": 1.2541770507393075
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.6130546260185783,
+            "p10": 2.0999183339570076,
+            "p90": 3.1428551033649867,
+            "mean": 2.606404275602745
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -4.804196585397662,
+            "p10": -5.7866475263961945,
+            "p90": -3.8196204931349627,
+            "mean": -4.782982586998607
+          },
+          "minimum_ttc_s": {
+            "median": 6.8293010909645036,
+            "p10": 6.217361836983045,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.02123627120075236,
+            "mean": 0.006050791594080621
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.06666666666666667,
+            "mean": 0.027864583333333335
+          }
+        },
+        "3.0": {
+          "response_probability": 1.0,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.20000000000000018
+          },
+          "peak_additional_braking_mps2": {
+            "median": 1.682238654935623,
+            "p10": 1.4120324023417332,
+            "p90": 1.9064509428786216,
+            "mean": 1.6656986680615027
+          },
+          "additional_brake_dose_mps": {
+            "median": 2.6557406878809884,
+            "p10": 2.537322349184777,
+            "p90": 2.7477125036802326,
+            "mean": 2.6518494131139336
+          },
+          "minimum_gap_m": {
+            "median": 13.018501144847857,
+            "p10": 12.003126778296593,
+            "p90": 13.750455457009483,
+            "mean": 12.959390624848945
+          },
+          "frozen_minimum_gap_m": {
+            "median": 4.455805856008806,
+            "p10": 3.4733549150102734,
+            "p90": 5.440381948271505,
+            "mean": 4.477019854407862
+          },
+          "terminal_gap_benefit_m": {
+            "median": 8.593879043798943,
+            "p10": 7.861451988846965,
+            "p90": 9.119179035366145,
+            "mean": 8.508378833529308
+          },
+          "peak_gap_benefit_m": {
+            "median": 8.593879043798943,
+            "p10": 7.861451988846965,
+            "p90": 9.119179035366145,
+            "mean": 8.508378833529308
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 2.6511073437854566,
+            "p10": 2.533315497741264,
+            "p90": 2.7416613921807276,
+            "mean": 2.6460143373101666
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.6130546260185783,
+            "p10": 2.0999183339570076,
+            "p90": 3.1428551033649867,
+            "mean": 2.606404275602745
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -4.804196585397662,
+            "p10": -5.7866475263961945,
+            "p90": -3.8196204931349627,
+            "mean": -4.782982586998607
+          },
+          "minimum_ttc_s": {
+            "median": 4.678492281388737,
+            "p10": 4.330152014098317,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 0.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.022962031339705646,
+            "mean": 0.006234581106491109
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.1,
+            "mean": 0.03138020833333333
+          }
+        },
+        "5.0": {
+          "response_probability": 1.0,
+          "response_latency_s": {
+            "median": 0.20000000000000018,
+            "p10": 0.20000000000000018,
+            "p90": 0.20000000000000018
+          },
+          "peak_additional_braking_mps2": {
+            "median": 3.2794745126168667,
+            "p10": 2.8507705483675645,
+            "p90": 3.622674408028314,
+            "mean": 3.257543937282969
+          },
+          "additional_brake_dose_mps": {
+            "median": 4.609589616083655,
+            "p10": 4.4668798280953865,
+            "p90": 4.7297375297021915,
+            "mean": 4.602117453404446
+          },
+          "minimum_gap_m": {
+            "median": 10.857394678091485,
+            "p10": 9.837759909471682,
+            "p90": 11.635856968082752,
+            "mean": 10.77404282168062
+          },
+          "frozen_minimum_gap_m": {
+            "median": -4.464194143991295,
+            "p10": -5.446645084989828,
+            "p90": -3.479618051728596,
+            "mean": -4.442980145592238
+          },
+          "terminal_gap_benefit_m": {
+            "median": 15.320162115092344,
+            "p10": 14.415394892008933,
+            "p90": 16.01995772518157,
+            "mean": 15.227463384340513
+          },
+          "peak_gap_benefit_m": {
+            "median": 15.320162115092344,
+            "p10": 14.415394892008933,
+            "p90": 16.01995772518157,
+            "mean": 15.227463384340513
+          },
+          "terminal_closing_reduction_mps": {
+            "median": 4.603254743526588,
+            "p10": 4.4620525063637375,
+            "p90": 4.724596883208923,
+            "mean": 4.594735447271879
+          },
+          "natural_gap_rmse_to_highd_m": {
+            "median": 2.6130546260185783,
+            "p10": 2.0999183339570076,
+            "p90": 3.1428551033649867,
+            "mean": 2.606404275602745
+          },
+          "natural_terminal_gap_drift_m": {
+            "median": -4.804196585397662,
+            "p10": -5.7866475263961945,
+            "p90": -3.8196204931349627,
+            "mean": -4.782982586998607
+          },
+          "minimum_ttc_s": {
+            "median": 3.2901307244834195,
+            "p10": 3.0618915552002584,
+            "finite_share": 1.0
+          },
+          "collision_probability": 0.0,
+          "frozen_collision_probability": 1.0,
+          "residual_branch_difference_mps2": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.02206694433120586,
+            "mean": 0.005884900258661427
+          },
+          "regime_branch_difference": {
+            "median": 0.0,
+            "p10": 0.0,
+            "p90": 0.1,
+            "mean": 0.028515625000000003
+          }
+        }
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "The synthetic intervention has no individual-level observed counterfactual ground truth.",
+    "The highD future is factual context only and is not a target after the added leader brake.",
+    "Natural-rollout gap RMSE reports anchor mismatch; it is not removed by selecting a convenient trajectory.",
+    "B-IDM, MA-IDM and Dynamic-AR residual processes are exogenous to the leader command.",
+    "Multi-regime emissions observe gap/speed/closing but its states were not trained as emergency-response states.",
+    "Absolute cross-model scores combine different retained posterior protocols; use them as response diagnostics, not a ranking."
+  ],
+  "primary_findings_at_medium_dose": {
+    "dose_mps2": 3.0,
+    "exogenous_residual_models": {
+      "b_idm": {
+        "response_probability": 0.9609375,
+        "median_latency_s": 0.20000000000000018,
+        "median_peak_additional_braking_mps2": 1.6216069515825893,
+        "mean_residual_branch_difference_mps2": 0.0
+      },
+      "ma_idm": {
+        "response_probability": 0.96875,
+        "median_latency_s": 0.20000000000000018,
+        "median_peak_additional_braking_mps2": 1.485197604250844,
+        "mean_residual_branch_difference_mps2": 0.0
+      },
+      "dynamic_ar5": {
+        "response_probability": 0.97265625,
+        "median_latency_s": 0.20000000000000018,
+        "median_peak_additional_braking_mps2": 1.3020864215717571,
+        "mean_residual_branch_difference_mps2": 0.0
+      }
+    },
+    "multi_regime": {
+      "response_probability": 1.0,
+      "median_latency_s": 0.20000000000000018,
+      "median_peak_additional_braking_mps2": 1.682238654935623,
+      "mean_regime_branch_difference_share": 0.03138020833333333
+    },
+    "interpretation": "B-IDM, MA-IDM and Dynamic-AR react only through the deterministic IDM state feedback: their paired residual paths are exactly unchanged by the leader intervention. Multi-regime has a branch-dependent latent-state path and the strongest median peak response in this anchor, but this does not establish human counterfactual validity or an absolute cross-model ranking."
+  }
+}

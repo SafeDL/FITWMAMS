@@ -1,0 +1,335 @@
+{
+  "model_id": "multi_regime_bidm",
+  "stage": "A: train-only style discovery and offline regime segmentation",
+  "segmentation_kind": "documented_adaptation_finite_3_state_gaussian_hsmm",
+  "paper_exact_segmentation": "blocked_ambiguity",
+  "paper_ambiguity": "paper text states Poisson observations and Gaussian durations although observations are continuous and durations are positive integers",
+  "dataset": "/home/hp/FITWMAMS/multi_regime_bidm/evidence/dataset/highd_multi_regime_cohort_25hz.npz",
+  "train_recordings": [
+    25
+  ],
+  "events": 182,
+  "decision_dt_s": 0.2,
+  "style_features": [
+    "mean_time_headway_s",
+    "max_acceleration_mps2",
+    "max_deceleration_mps2"
+  ],
+  "feature_standardization": {
+    "fit": "train events only",
+    "mean": [
+      2.6681868289732353,
+      0.8903846153846163,
+      1.0461538461538475
+    ],
+    "scale": [
+      1.5371111352062679,
+      0.2909408107634766,
+      0.423728269839329
+    ]
+  },
+  "style_centers_raw_sorted_by_mean_headway": [
+    [
+      2.153582081457079,
+      1.0500000000000007,
+      1.4528985507246388
+    ],
+    [
+      2.222159148516516,
+      0.822988505747128,
+      0.7787356321839093
+    ],
+    [
+      5.526345897371302,
+      0.6923076923076935,
+      0.8615384615384638
+    ]
+  ],
+  "style_event_count": [
+    69,
+    87,
+    26
+  ],
+  "style_name_policy": "IDs are train-only ranks by mean headway; no highD cluster is called emergency/aggressive/timid without separate evidence",
+  "offline_only": "HSMM labels use whole sequences and must not be used as online controller states",
+  "style_models": {
+    "0": {
+      "events": 69,
+      "decision_points": 21349,
+      "emission_mean_standardized": [
+        [
+          -0.5964836427779844,
+          -0.7017594851526976,
+          -0.0703963172508591
+        ],
+        [
+          0.4835591582937768,
+          0.9551646102817043,
+          0.5753867207755524
+        ],
+        [
+          1.114020337732309,
+          0.21666869419184615,
+          -1.33650881034716
+        ]
+      ],
+      "emission_variance_standardized": [
+        [
+          0.1530436860259645,
+          0.22259857601654356,
+          0.4583668637045092
+        ],
+        [
+          0.6694064881803261,
+          0.5663157227444263,
+          0.8351858230023258
+        ],
+        [
+          2.078058034804307,
+          0.7837785173306786,
+          0.9774213891875899
+        ]
+      ],
+      "transition_no_self": [
+        [
+          0.0,
+          0.18703427719821164,
+          0.8129657228017884
+        ],
+        [
+          0.6686121919584955,
+          0.0,
+          0.3313878080415046
+        ],
+        [
+          0.3084815321477429,
+          0.6915184678522572,
+          0.0
+        ]
+      ],
+      "initial": [
+        0.06944444444444445,
+        0.8333333333333334,
+        0.09722222222222222
+      ],
+      "poisson_duration_lambda_ticks": [
+        73.13815789473684,
+        40.87567567567567,
+        16.08433734939759
+      ],
+      "duration_max_ticks": 100,
+      "poisson_tail_mass_above_duration_max": [
+        0.0011661699321445784,
+        1.6653345369377348e-15,
+        0.0
+      ],
+      "state_point_count": [
+        11109,
+        7494,
+        2746
+      ],
+      "state_duration_mean_ticks": [
+        73.08552631578948,
+        40.950819672131146,
+        16.74390243902439
+      ],
+      "observation_train_mean": [
+        11.660442643683572,
+        6.09744203475573,
+        0.0226717879057566
+      ],
+      "observation_train_scale": [
+        6.673127098392613,
+        3.045450787688899,
+        1.0433000084093003
+      ]
+    },
+    "1": {
+      "events": 87,
+      "decision_points": 25929,
+      "emission_mean_standardized": [
+        [
+          -0.6505705801993333,
+          -0.6397121222547553,
+          -0.015913663622170122
+        ],
+        [
+          0.5918636157934511,
+          0.813007184459337,
+          1.0985426152683828
+        ],
+        [
+          0.7795413008690416,
+          0.584234663436664,
+          -0.8363483861106475
+        ]
+      ],
+      "emission_variance_standardized": [
+        [
+          0.14979943906501936,
+          0.23732173400260118,
+          0.3882503460768292
+        ],
+        [
+          0.9035347854616732,
+          1.0527465483009169,
+          0.7010112626220936
+        ],
+        [
+          1.0101199563690686,
+          0.7727259579704947,
+          0.7558863846694118
+        ]
+      ],
+      "transition_no_self": [
+        [
+          0.0,
+          0.5129701686121919,
+          0.48702983138780803
+        ],
+        [
+          0.6395139513951396,
+          0.0,
+          0.3604860486048605
+        ],
+        [
+          0.02362804878048781,
+          0.9763719512195123,
+          0.0
+        ]
+      ],
+      "initial": [
+        0.3,
+        0.5444444444444444,
+        0.15555555555555556
+      ],
+      "poisson_duration_lambda_ticks": [
+        78.41520467836257,
+        21.654901960784315,
+        41.654761904761905
+      ],
+      "duration_max_ticks": 100,
+      "poisson_tail_mass_above_duration_max": [
+        0.008044591891738007,
+        8.881784197001252e-16,
+        6.328271240363392e-15
+      ],
+      "state_point_count": [
+        13367,
+        5539,
+        7023
+      ],
+      "state_duration_mean_ticks": [
+        78.62941176470588,
+        21.98015873015873,
+        42.30722891566265
+      ],
+      "observation_train_mean": [
+        13.242283543522662,
+        6.2865806625785545,
+        -0.04473292452466336
+      ],
+      "observation_train_scale": [
+        7.087873397820833,
+        2.8662645335285246,
+        0.92572110154753
+      ]
+    },
+    "2": {
+      "events": 26,
+      "decision_points": 8570,
+      "emission_mean_standardized": [
+        [
+          -0.7458861675160102,
+          -0.738739865848117,
+          -0.07742894136455165
+        ],
+        [
+          0.056531299295409565,
+          0.019500619134859613,
+          -0.2519658111780366
+        ],
+        [
+          1.097959007942449,
+          1.128670261842536,
+          0.4053162598507743
+        ]
+      ],
+      "emission_variance_standardized": [
+        [
+          0.07598817101403274,
+          0.1884701732883275,
+          0.41934744564322196
+        ],
+        [
+          0.1627466966687696,
+          0.2577674317002555,
+          0.7724496650343325
+        ],
+        [
+          1.309625734436588,
+          0.9783735104017262,
+          1.9162223422743918
+        ]
+      ],
+      "transition_no_self": [
+        [
+          0.0,
+          0.9976303317535544,
+          0.002369668246445498
+        ],
+        [
+          0.4762658227848101,
+          0.0,
+          0.5237341772151899
+        ],
+        [
+          0.2439759036144578,
+          0.7560240963855421,
+          0.0
+        ]
+      ],
+      "initial": [
+        0.27586206896551724,
+        0.10344827586206896,
+        0.6206896551724138
+      ],
+      "poisson_duration_lambda_ticks": [
+        80.44444444444444,
+        38.05797101449275,
+        46.48
+      ],
+      "duration_max_ticks": 100,
+      "poisson_tail_mass_above_duration_max": [
+        0.015019724723901784,
+        0.0,
+        3.1248337251099656e-12
+      ],
+      "state_point_count": [
+        3443,
+        2794,
+        2333
+      ],
+      "state_duration_mean_ticks": [
+        80.06976744186046,
+        40.492753623188406,
+        46.66
+      ],
+      "observation_train_mean": [
+        25.579847141190147,
+        5.239248541423567,
+        0.020889148191365316
+      ],
+      "observation_train_scale": [
+        15.089480776907408,
+        2.782018221777469,
+        1.410092453116098
+      ]
+    }
+  },
+  "artifacts": {
+    "offline_labels": "stage_a_offline_labels.npz",
+    "finite_hsmm_models": "stage_a_finite_hsmm_models.npz",
+    "online_filter": "src/online_filter.py; must receive only causal observations"
+  }
+}

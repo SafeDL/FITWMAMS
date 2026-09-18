@@ -47,6 +47,26 @@ PPO 检查点。两者均通过全槽位及 `same_rear` 事实保持；监督/PP
 
 横向通道目前只做事实 yaw-rate 重建；在拥有变道/转向干预证据和独立验收指标前，不启用横向因果响应。
 
+## 随机驾驶人复现接入
+
+`src/stochastic_drivers/` 是论文复现模型进入本项目的唯一纵向边界。它把 CIH-WM
+的 `[x,y,vx,vy,ax,ay]` 状态转换为跟驰观测，在25 Hz plant内保持5 Hz动作，并支持
+NumPy driver的随机状态快照/恢复。限幅不反写GP、AR或regime状态。
+
+```bash
+python -m hierarchical_world_model.scripts.stochastic_drivers inventory
+python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model ma_idm
+```
+
+默认只允许证据状态可用的B-IDM、MA-IDM、稳定MAP Dynamic-AR和需要外部固定版本源码的
+官方Active Inference wrapper。Multi-regime和独立纵向Active适配仍可用于研究诊断，但必须
+显式传入 `--allow-unaccepted`，不能静默进入自动驾驶测试。
+
+同数据比较使用218-pair共享cohort：recording 25的全部182个事件训练，recording 26/36
+的全部36个合格事件评测，结果位于
+`results/driver_reproduction/matched_highd/matched_metrics.json`。各模型的论文原生复现仍
+单独保留；共同评测不会覆盖论文特有的推断结论。
+
 ## 单一方法链
 
 CIH-WM 把已验证的纵向响应能力合并为冻结的 `mechanism_guided_response_prior`，再由因果影响路由和受约束校准器扩展它；这不是并列的旧模型或兼容层。该先验的来源证据、当前检查点和角色位于 `cih_wm/response_prior_lineage.json`。

@@ -1,0 +1,41 @@
+{
+  "analysis": "released Analysis_rear_end.py (piecewise-linear velocity response extractor)",
+  "paper_source": "Figure_6-Source_data/Rear; its data-source document maps full model to setting #7",
+  "local_full_model": {
+    "RT0": 0.65,
+    "RT1": 1.93,
+    "RT_MAE": 0.02,
+    "RT_MAE_std": 0.01,
+    "A0": -4.66,
+    "A1": -7.9,
+    "A_MAE": 0.48,
+    "A_MAE_std": 0.05
+  },
+  "paper_full_model": {
+    "RT0": 0.65,
+    "RT1": 1.92,
+    "RT_MAE": 0.02,
+    "RT_MAE_std": 0.01,
+    "A0": -4.65,
+    "A1": -7.85,
+    "A_MAE": 0.5,
+    "A_MAE_std": 0.06
+  },
+  "local_minus_paper": {
+    "RT0": 0.0,
+    "RT1": 0.010000000000000009,
+    "RT_MAE": 0.0,
+    "RT_MAE_std": 0.0,
+    "A0": -0.009999999999999787,
+    "A1": -0.05000000000000071,
+    "A_MAE": -0.020000000000000018,
+    "A_MAE_std": -0.009999999999999995
+  },
+  "pre_registered_engineering_gate": {
+    "reaction_time_mae_increment_limit_s": 0.1,
+    "deceleration_mae_increment_limit_mps2": 0.2,
+    "reaction_time_mae_increment_s": 0.0,
+    "deceleration_mae_increment_mps2": -0.020000000000000018,
+    "passes": true
+  }
+}

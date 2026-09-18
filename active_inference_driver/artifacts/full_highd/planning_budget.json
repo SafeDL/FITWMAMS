@@ -1,0 +1,6 @@
+{
+  "particles": 75,
+  "horizon_steps": 30,
+  "cem_plans": 100,
+  "cem_iterations": 10
+}

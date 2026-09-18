@@ -1,0 +1,33 @@
+{
+  "native_paper_human_metric": {
+    "status": "passed",
+    "audit": "active_inference_driver/artifacts/native_reproduction/full_torch220/native_human_fit_audit.json",
+    "method": "released Analysis_rear_end.py (piecewise-linear velocity response extractor)"
+  },
+  "longitudinal_adapter_25hz_bridge": {
+    "status": "failed",
+    "audit": "active_inference_driver/artifacts/full_highd/original_vs_adapter.json",
+    "reason": "independent longitudinal-only adapter does not meet all native timing comparisons"
+  },
+  "highd_external_domain": {
+    "status": "evaluated",
+    "audit": "active_inference_driver/artifacts/full_highd/highd_protocol_audit.json",
+    "event_coverage": {
+      "detected_leader_brake_events": 304,
+      "evaluated_events": 304,
+      "complete": true,
+      "window": {
+        "pre_event_s": 2.0,
+        "post_event_s": 5.0,
+        "plant_hz": 25
+      }
+    }
+  },
+  "claim_boundary": "Native human reproduction, the independent longitudinal adapter, and the external official-POMDP wrapper are separate claims. highD is an external-domain evaluation, not the paper's human source-data replication.",
+  "official_pomdp_external_25hz_wrapper": {
+    "status": "passed",
+    "step_equivalence_audit": "active_inference_driver/artifacts/native_reproduction/full_torch220/official_step_wrapper_audit.json",
+    "bridge_audit": "active_inference_driver/artifacts/native_reproduction/full_torch220/official_25hz_bridge.json",
+    "reason": "Official POMDP is imported from the pinned external checkout; actions are held for five 25 Hz ticks."
+  }
+}

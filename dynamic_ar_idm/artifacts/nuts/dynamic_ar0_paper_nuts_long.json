@@ -1,0 +1,32 @@
+{
+  "fit_backend": "pymc_nuts_paper_highd_speed_likelihood",
+  "implementation": "paper Eq. (19), per-driver boundary-safe indexing; public-author prior and observation-noise conventions",
+  "prior_mode": "source",
+  "tune": 3000,
+  "draws_per_chain": 5000,
+  "chains": 4,
+  "cores": 4,
+  "target_accept": 0.9,
+  "sampler_init": "adapt_full",
+  "posterior_draws_total": 20000,
+  "max_rhat": 2.838732316692999,
+  "min_ess_bulk": 4.583924789336117,
+  "min_bfmi": 0.9437519744799829,
+  "divergences": 0,
+  "max_tree_depth_observed": 9,
+  "tree_depth_limit": 10,
+  "tree_depth_limit_hits": 0,
+  "stationarity": {
+    "rho_draw_nonstationary_fraction": 0.0,
+    "rho_mean_spectral_radius": 0.0
+  },
+  "convergence_audit": {
+    "criteria": {
+      "max_rhat_lt": 1.01,
+      "min_ess_bulk_gt": 400,
+      "divergences_eq": 0,
+      "min_bfmi_gt": 0.3
+    },
+    "passed": false
+  }
+}

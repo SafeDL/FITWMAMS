@@ -1,0 +1,142 @@
+{
+  "extension": "vehicle-class-conditioned independent MA-IDM populations; not original paper hierarchy",
+  "evaluation": "recording-held-out, class-specific training; one OOF posterior per pair",
+  "pairs": 251,
+  "holdout_recordings": [
+    25,
+    26,
+    36
+  ],
+  "futures": 64,
+  "aggregation": "pair-weighted mean of held-out fold summaries",
+  "folds": [
+    {
+      "extension": "vehicle-class-conditioned independent MA-IDM populations; not original paper hierarchy",
+      "holdout": 25,
+      "classes": [
+        "Car",
+        "Truck"
+      ],
+      "pairs": 212,
+      "futures": 64,
+      "aggregation": "pair-weighted mean of independently evaluated class reports; bootstrap intervals remain class reports",
+      "horizons": {
+        "3.0": {
+          "position_rmse_m": 0.22874239940735175,
+          "speed_rmse_mps": 0.2437817890483495,
+          "acceleration_crps_mps2": 0.13003394034473148,
+          "position_90_coverage": 0.6104830787660975,
+          "mean_interval_width_m": 0.49280028436565104,
+          "coverage_0.5": 0.31923764600179694,
+          "coverage_0.8": 0.5277270889487872,
+          "coverage_0.9": 0.6104830787660975,
+          "coverage_0.95": 0.6610523360287512
+        },
+        "5.0": {
+          "position_rmse_m": 0.7682100149095296,
+          "speed_rmse_mps": 0.4549473396365174,
+          "acceleration_crps_mps2": 0.1449020997798778,
+          "position_90_coverage": 0.6941141509433962,
+          "mean_interval_width_m": 1.6997152299707188,
+          "coverage_0.5": 0.3694123090745733,
+          "coverage_0.8": 0.6057732255166217,
+          "coverage_0.9": 0.6941141509433962,
+          "coverage_0.95": 0.7488276280323449
+        }
+      }
+    },
+    {
+      "extension": "vehicle-class-conditioned independent MA-IDM populations; not original paper hierarchy",
+      "holdout": 26,
+      "classes": [
+        "Car",
+        "Truck"
+      ],
+      "pairs": 38,
+      "futures": 64,
+      "aggregation": "pair-weighted mean of independently evaluated class reports; bootstrap intervals remain class reports",
+      "horizons": {
+        "3.0": {
+          "position_rmse_m": 0.17521443294406908,
+          "speed_rmse_mps": 0.18616130812194084,
+          "acceleration_crps_mps2": 0.1079053880338922,
+          "position_90_coverage": 0.6505964912280703,
+          "mean_interval_width_m": 0.4585101848480761,
+          "coverage_0.5": 0.381672514619883,
+          "coverage_0.8": 0.5842456140350877,
+          "coverage_0.9": 0.6505964912280703,
+          "coverage_0.95": 0.6918596491228071
+        },
+        "5.0": {
+          "position_rmse_m": 0.6037909994882261,
+          "speed_rmse_mps": 0.37241921969895814,
+          "acceleration_crps_mps2": 0.12145171355006745,
+          "position_90_coverage": 0.7561894736842105,
+          "mean_interval_width_m": 1.6461137206164485,
+          "coverage_0.5": 0.4549543859649122,
+          "coverage_0.8": 0.6830245614035086,
+          "coverage_0.9": 0.7561894736842105,
+          "coverage_0.95": 0.7891649122807017
+        }
+      }
+    },
+    {
+      "extension": "vehicle-class-conditioned independent MA-IDM populations; not original paper hierarchy",
+      "holdout": 36,
+      "classes": [
+        "Truck"
+      ],
+      "pairs": 1,
+      "futures": 64,
+      "aggregation": "pair-weighted mean of independently evaluated class reports; bootstrap intervals remain class reports",
+      "horizons": {
+        "3.0": {
+          "position_rmse_m": 0.12163189910952817,
+          "speed_rmse_mps": 0.13898177158512842,
+          "acceleration_crps_mps2": 0.09477469966464797,
+          "position_90_coverage": 0.7226666666666667,
+          "mean_interval_width_m": 0.37316338719008313,
+          "coverage_0.5": 0.5173333333333334,
+          "coverage_0.8": 0.6826666666666668,
+          "coverage_0.9": 0.7226666666666667,
+          "coverage_0.95": 0.7893333333333333
+        },
+        "5.0": {
+          "position_rmse_m": 0.5034476234742323,
+          "speed_rmse_mps": 0.3240617935455436,
+          "acceleration_crps_mps2": 0.11027342571007756,
+          "position_90_coverage": 0.8336,
+          "mean_interval_width_m": 1.474648533534657,
+          "coverage_0.5": 0.5871999999999999,
+          "coverage_0.8": 0.7472,
+          "coverage_0.9": 0.8336,
+          "coverage_0.95": 0.8736
+        }
+      }
+    }
+  ],
+  "pair_weighted_horizons": {
+    "3.0": {
+      "position_rmse_m": 0.220211828786226,
+      "speed_rmse_mps": 0.23464083967517518,
+      "acceleration_crps_mps2": 0.12654332588858813,
+      "position_90_coverage": 0.6170029722380319,
+      "mean_interval_width_m": 0.4871323135336056,
+      "coverage_0.5": 0.32947916271422245,
+      "coverage_0.8": 0.536900967558338,
+      "coverage_0.9": 0.6170029722380319,
+      "coverage_0.95": 0.6662274710681086
+    },
+    "5.0": {
+      "position_rmse_m": 0.7422630628081557,
+      "speed_rmse_mps": 0.4419315862352496,
+      "acceleration_crps_mps2": 0.14121387925875192,
+      "position_90_coverage": 0.7040677290836653,
+      "mean_interval_width_m": 1.690703580361562,
+      "coverage_0.5": 0.3832305824321761,
+      "coverage_0.8": 0.6180321001707456,
+      "coverage_0.9": 0.7040677290836653,
+      "coverage_0.95": 0.7554315689622462
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "accepted_calibrated_stochastic_driver": false,
+  "decision": "rejected_not_well_calibrated",
+  "criteria": {
+    "filtered_CRPS_better_than_pooled": true,
+    "filtered_position_RMSE_no_worse_than_pooled": true,
+    "empirical_90pct_position_coverage_at_least": 0.8
+  },
+  "checks": {
+    "filtered_CRPS_better_than_pooled": true,
+    "filtered_position_RMSE_no_worse_than_pooled": true,
+    "empirical_90pct_position_coverage_at_least_0_8": false
+  },
+  "observed": {
+    "filtered_acceleration_crps_mps2": 0.18160599709683684,
+    "pooled_acceleration_crps_mps2": 0.19025836846522984,
+    "filtered_position_rmse_m": 0.6296175432410211,
+    "pooled_position_rmse_m": 0.6690356924216873,
+    "filtered_position_90_coverage": 0.40444444444444444
+  },
+  "scope": "36 held-out events from recordings 26 and 36; insufficient for population-significance claims"
+}

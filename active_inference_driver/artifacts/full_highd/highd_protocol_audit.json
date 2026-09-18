@@ -1,0 +1,56 @@
+{
+  "dataset": "dynamic_ar_idm/artifacts/full_data/full_highd_25hz.npz",
+  "event_coverage": {
+    "detected_leader_brake_events": 304,
+    "evaluated_events": 304,
+    "complete": true,
+    "window": {
+      "pre_event_s": 2.0,
+      "post_event_s": 5.0,
+      "plant_hz": 25
+    }
+  },
+  "adapter_contract": {
+    "native_decision_dt_s": 0.2,
+    "plant_ticks_per_decision": 5,
+    "internal_horizon_s": 6.0,
+    "no_steering_adaptation": true
+  },
+  "summaries": {
+    "full": {
+      "rows": 304,
+      "collisions": 0,
+      "collision_rate": 0.0,
+      "speed_rmse": 0.758836811318365,
+      "gap_rmse": 1.8662282766393583,
+      "min_gap": 11.166730343807755,
+      "model_response_s": 1.4251851851851853,
+      "human_response_s": 1.4297872340425533
+    },
+    "no evidence": {
+      "rows": 304,
+      "collisions": 146,
+      "collision_rate": 0.48026315789473684,
+      "speed_rmse": 1.805814560729706,
+      "gap_rmse": 4.231783024998215,
+      "min_gap": 2.948636687214752,
+      "model_response_s": 4.146296296296296,
+      "human_response_s": 1.4297872340425533
+    },
+    "no pedal": {
+      "rows": 304,
+      "collisions": 0,
+      "collision_rate": 0.0,
+      "speed_rmse": 0.7184948362446398,
+      "gap_rmse": 1.824134977322183,
+      "min_gap": 11.389040482275119,
+      "model_response_s": 1.2444444444444445,
+      "human_response_s": 1.4297872340425533
+    }
+  },
+  "interpretation_boundary": {
+    "paper_human_metric": "The paper validates front-to-rear response against published human-data summaries using a piecewise-linear velocity fit.",
+    "highd_metric": "This report is an external 25 Hz closed-loop evaluation of the independent longitudinal adapter; it is not a replacement for that human-fit test.",
+    "future_action_firewall": "At each 0.2 s decision the driver sees current observations only; recorded leader future positions are applied solely by the evaluation plant."
+  }
+}

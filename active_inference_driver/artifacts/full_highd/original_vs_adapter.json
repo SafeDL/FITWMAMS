@@ -1,0 +1,70 @@
+{
+  "contract": {
+    "plant_hz": 25,
+    "decision_dt_s": 0.2,
+    "plant_ticks_per_decision": 5,
+    "internal_horizon_s": 6.0,
+    "no_steering_adaptation": true
+  },
+  "native_metric": "released piecewise-linear extractor",
+  "adapter_metric": "first 25 Hz action below -1 m/s^2 after leader braking; timing proxy only",
+  "adapter_replicates": 8,
+  "rows": [
+    {
+      "time_gap_s": 1.5,
+      "speed_mps": 10.0,
+      "native_experiment": 11,
+      "native_response_mean_s": 0.9235868499386187,
+      "native_response_n": 32,
+      "adapter_onset_proxy_mean_s": 1.2000000000000002,
+      "adapter_onset_proxy_n": 8,
+      "adapter_minus_native_s": 0.27641315006138145,
+      "within_one_native_tick": false
+    },
+    {
+      "time_gap_s": 2.0,
+      "speed_mps": 10.0,
+      "native_experiment": 15,
+      "native_response_mean_s": 1.0989928869297056,
+      "native_response_n": 32,
+      "adapter_onset_proxy_mean_s": 1.2000000000000002,
+      "adapter_onset_proxy_n": 8,
+      "adapter_minus_native_s": 0.10100711307029453,
+      "within_one_native_tick": true
+    },
+    {
+      "time_gap_s": 2.5,
+      "speed_mps": 10.0,
+      "native_experiment": 19,
+      "native_response_mean_s": 1.3140758195554274,
+      "native_response_n": 32,
+      "adapter_onset_proxy_mean_s": 1.6,
+      "adapter_onset_proxy_n": 8,
+      "adapter_minus_native_s": 0.2859241804445727,
+      "within_one_native_tick": false
+    },
+    {
+      "time_gap_s": 3.0,
+      "speed_mps": 10.0,
+      "native_experiment": 23,
+      "native_response_mean_s": 1.7288762553830983,
+      "native_response_n": 32,
+      "adapter_onset_proxy_mean_s": 1.775,
+      "adapter_onset_proxy_n": 8,
+      "adapter_minus_native_s": 0.04612374461690161,
+      "within_one_native_tick": true
+    },
+    {
+      "time_gap_s": 3.5,
+      "speed_mps": 10.0,
+      "native_experiment": 27,
+      "native_response_mean_s": 1.9155217384443102,
+      "native_response_n": 32,
+      "adapter_onset_proxy_mean_s": 1.8,
+      "adapter_onset_proxy_n": 8,
+      "adapter_minus_native_s": -0.11552173844431013,
+      "within_one_native_tick": true
+    }
+  ],
+  "passes_all_one_tick": false
+}

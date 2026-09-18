@@ -1,0 +1,18 @@
+{
+  "experiment": 0,
+  "same_backend_same_seed": true,
+  "tolerance": 1e-05,
+  "maximum_abs_trajectory_difference": 0.0,
+  "passes": true,
+  "max_abs_by_array": {
+    "eta": 0.0,
+    "o": 0.0,
+    "b": 0.0,
+    "w": 0.0,
+    "a_disc": 0.0,
+    "a_cont": 0.0,
+    "a_cont_init": 0.0,
+    "v_init": 0.0,
+    "v": 0.0
+  }
+}

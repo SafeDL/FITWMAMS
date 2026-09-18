@@ -1,0 +1,24 @@
+{
+  "scenario": "paper Fig. 10 ring road",
+  "duration_s": 3000.0,
+  "vehicles": 32,
+  "native_fps": 25,
+  "decision_fps": 5,
+  "rho_source": "posterior mean (not filtered posterior draws)",
+  "finite": true,
+  "speed_mps_range": [
+    0.0,
+    17.489105117040747
+  ],
+  "gap_m_range": [
+    0.30498080790243876,
+    414.52151034742275
+  ],
+  "unwrapped_position_range_m": [
+    0.0,
+    804.2461717733976
+  ],
+  "acceleration_lower_clip_mps2": -10.0,
+  "clipped_native_actions": 0,
+  "clip_fraction": 0.0
+}

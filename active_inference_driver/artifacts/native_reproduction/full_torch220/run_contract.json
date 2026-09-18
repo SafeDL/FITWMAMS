@@ -1,0 +1,125 @@
+{
+  "official_commit": "56655de845644c45f01ab2898544e55316a3279b",
+  "official_source": "/tmp/active-inference-v1",
+  "results_following_source": "/tmp/Active-Inference-Collision-Avoidance/Results_following",
+  "native_dt_s": 0.2,
+  "horizon_steps": 30,
+  "particles": 75,
+  "cem_plans": 100,
+  "cem_iterations": 10,
+  "replicates": null,
+  "grid": [
+    {
+      "time_gap_s": 0.5,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 0.5,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 0.5,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 0.5,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 1.0,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 1.0,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 1.0,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 1.0,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 1.5,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 1.5,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 1.5,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 1.5,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 2.0,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 2.0,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 2.0,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 2.0,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 2.5,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 2.5,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 2.5,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 2.5,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 3.0,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 3.0,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 3.0,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 3.0,
+      "speed_mps": 10.0
+    },
+    {
+      "time_gap_s": 3.5,
+      "speed_mps": 25.0
+    },
+    {
+      "time_gap_s": 3.5,
+      "speed_mps": 20.0
+    },
+    {
+      "time_gap_s": 3.5,
+      "speed_mps": 15.0
+    },
+    {
+      "time_gap_s": 3.5,
+      "speed_mps": 10.0
+    }
+  ]
+}

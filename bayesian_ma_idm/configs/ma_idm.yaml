@@ -1,0 +1,25 @@
+data:
+  raw_dir: ../../highD_dataset/Matlab/data
+  native_fps: 25
+  segment_seconds: 50
+  cohort: {cars: 10, trucks: 10}
+  split: recording-isolated 70/15/15
+model:
+  idm_delta: 4
+  idm_s1_m: 0
+  gp_kernel: squared_exponential
+  driver_update_s: 0.2
+  plant_dt_s: 0.04
+fit:
+  backend: empirical_bayes_hierarchical_map
+  likelihood: speed_eq_19_equivalent_acceleration_residual
+  calibration_window_s: 4
+  posterior_draws: 256
+evaluation:
+  prefix_seconds: 5
+  horizons_seconds: [3, 5]
+  futures: 64
+deployment:
+  population_mode: joint_parameter_draw
+  personalisation: causal_completed_actions_only
+  calibrated_position_band: gap_regime_training_only

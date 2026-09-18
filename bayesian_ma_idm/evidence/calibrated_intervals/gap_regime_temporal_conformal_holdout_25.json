@@ -1,0 +1,47 @@
+{
+  "extension": "gap-regime temporal split-conformal position band; not paper MA-IDM",
+  "protocol": "outer recording held out; early training fit; later training anchors yield gap-bin offsets",
+  "holdout_recording": 25,
+  "training_recordings": [
+    26,
+    36
+  ],
+  "fit_fraction": 0.6,
+  "calibration_anchor_range": [
+    0.65,
+    0.9
+  ],
+  "gap_bins": 4,
+  "shortfall_quantile": 0.9,
+  "gap_offset_specifications": {
+    "3.0": {
+      "gap_bin_edges_m": [
+        11.680000000000007,
+        15.744999999999992,
+        20.765
+      ],
+      "offsets_m": [
+        0.12336835460151999,
+        0.053460768583572696,
+        0.04490064242898367,
+        0.13271936232699164
+      ]
+    },
+    "5.0": {
+      "gap_bin_edges_m": [
+        11.680000000000007,
+        15.744999999999992,
+        20.765
+      ],
+      "offsets_m": [
+        1.0863092684781122,
+        0.04178078385031768,
+        0.03569994626839614,
+        0.5369432075150002
+      ]
+    }
+  },
+  "calibration_report": "ma_idm_outer_25_temporal_calibration.json",
+  "calibration_diagnostics": "ma_idm_outer_25_calibration_anchors.npz",
+  "oof_report": "ma_idm_outer_25_oof.json"
+}

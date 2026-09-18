@@ -1,0 +1,105 @@
+{
+  "protocol": "recording-held-out rolling-origin; pair-weighted means; native 25 Hz plant / 5 Hz driver action",
+  "source_directory": "bayesian_ma_idm/evidence/population",
+  "models": {
+    "b_idm": {
+      "fit_backends": [
+        "full_cohort_empirical_bayes_hierarchical_map_5hz_decision"
+      ],
+      "held_out_recordings": [
+        [
+          25
+        ],
+        [
+          26
+        ],
+        [
+          36
+        ]
+      ],
+      "pairs": 251,
+      "anchors": 1438,
+      "futures": [
+        64
+      ],
+      "pair_weighted_horizons": {
+        "3.0": {
+          "position_rmse_m": 0.8701496469058875,
+          "speed_rmse_mps": 0.6185726159532476,
+          "acceleration_crps_mps2": 0.21361527989616785,
+          "position_90_coverage": 0.7458186934800481,
+          "mean_interval_width_m": 2.322712629442843,
+          "position_interval_calibration": {
+            "0.5": 0.3887946626193638,
+            "0.8": 0.6503624233225828,
+            "0.9": 0.7458186934800481,
+            "0.95": 0.8131281224309113
+          }
+        },
+        "5.0": {
+          "position_rmse_m": 1.7728414557740704,
+          "speed_rmse_mps": 0.7532177364458446,
+          "acceleration_crps_mps2": 0.19497035318275055,
+          "position_90_coverage": 0.7662634035287422,
+          "mean_interval_width_m": 4.689996177481436,
+          "position_interval_calibration": {
+            "0.5": 0.399958755454373,
+            "0.8": 0.6669312464428003,
+            "0.9": 0.7662634035287422,
+            "0.95": 0.8316017833428191
+          }
+        }
+      }
+    },
+    "ma_idm": {
+      "fit_backends": [
+        "full_cohort_empirical_bayes_hierarchical_map_5hz_decision"
+      ],
+      "held_out_recordings": [
+        [
+          25
+        ],
+        [
+          26
+        ],
+        [
+          36
+        ]
+      ],
+      "pairs": 251,
+      "anchors": 1438,
+      "futures": [
+        64
+      ],
+      "pair_weighted_horizons": {
+        "3.0": {
+          "position_rmse_m": 0.24993032640552137,
+          "speed_rmse_mps": 0.2627616632012626,
+          "acceleration_crps_mps2": 0.13431292656199406,
+          "position_90_coverage": 0.6319877316132296,
+          "mean_interval_width_m": 0.5548706418205184,
+          "position_interval_calibration": {
+            "0.5": 0.33466495921077594,
+            "0.8": 0.5508575222917852,
+            "0.9": 0.6319877316132296,
+            "0.95": 0.6811923101245811
+          }
+        },
+        "5.0": {
+          "position_rmse_m": 0.8367109978699254,
+          "speed_rmse_mps": 0.49258528129403567,
+          "acceleration_crps_mps2": 0.14864166781457833,
+          "position_90_coverage": 0.7124729652817301,
+          "mean_interval_width_m": 1.933297370245806,
+          "position_interval_calibration": {
+            "0.5": 0.3851093530639348,
+            "0.8": 0.626517359134889,
+            "0.9": 0.7124729652817301,
+            "0.95": 0.7661151204704988
+          }
+        }
+      }
+    }
+  },
+  "interpretation": "MA-IDM is a point/CRPS comparison against B-IDM. Position coverage is an acceptance diagnostic; values below .90 are not calibrated."
+}

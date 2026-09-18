@@ -1,0 +1,20 @@
+{
+  "author_source_cache_pairs": 251,
+  "causal_25hz_pairs": 251,
+  "source_pairs_retained_by_causal_subset": 251,
+  "source_pairs_excluded_by_causal_physical_filter": 0,
+  "causal_pairs_not_in_source_cache": 0,
+  "source_per_recording": {
+    "25": 212,
+    "26": 38,
+    "36": 1
+  },
+  "causal_per_recording": {
+    "25": 212,
+    "26": 38,
+    "36": 1
+  },
+  "config_pairs_retained": 20,
+  "config_pairs_total": 20,
+  "interpretation": "The public loader itself yields pairs only in recordings 25, 26 and 36. The causal subset additionally requires physically valid 25 Hz rollout states; source-only and causal-only counts expose any loader-semantic difference."
+}

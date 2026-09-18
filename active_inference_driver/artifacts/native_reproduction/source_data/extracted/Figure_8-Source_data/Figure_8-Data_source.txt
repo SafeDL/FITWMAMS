@@ -1,0 +1,16 @@
+Figure 8 is based on the following '.csv' files:
+- 1. Column: Analysis_settings_v_ego_sd_des.csv
+- 2. Column: Analysis_settings_a_ego_sd_des.csv
+- 3. Column: Analysis_settings_w_ego_sd_des.csv
+- 4. Column: Analysis_settings_road_leave_cost.csv
+- 5. Column: Analysis_settings_lane_change_cost.csv
+- 6. Column: Analysis_settings_collision_cost.csv
+
+Each file contains a table with multiple columns:
+- param: The actual value of the paramater studied
+- IT_{5, 25, 50, 75, 95}: The corresponding percentile values of the Reaction Time Mean Absolute Error in the Front to Rear scenario (First row).
+- IA_{5, 25, 50, 75, 95}: The corresponding percentile values of the Acceleration Mean Absolute Error in the Front to Rear scenario (Second row).
+- JSD_{5, 25, 50, 75, 95}: The corresponding percentile values of the Jensen Shannon Divergence in the Lateral Incursion scenario (Third row).
+- WD_{5, 25, 50, 75, 95}: The corresponding percentile values of the Wasserstein distance in the Lateral Incursion scenario (Fourth row).
+- JSDI_{5, 25, 50, 75, 95}: The corresponding percentile values of the Jensen Shannon Divergence in the Intersection scenario (Fifth row).
+- WDI_{5, 25, 50, 75, 95}: The corresponding percentile values of the Wasserstein distance in the Intersection scenario (Sixth row).
