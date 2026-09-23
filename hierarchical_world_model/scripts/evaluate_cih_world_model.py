@@ -32,9 +32,17 @@ from hierarchical_world_model.src.cih_model import (  # noqa: E402
     CausalInfluenceHierarchicalWorldModel,
     build_response_policy,
 )
-from hierarchical_world_model.src.evaluation import _factual_metrics, rollout  # noqa: E402
-from hierarchical_world_model.src.human_response_prior import HumanResponseQuerySet  # noqa: E402
-from hierarchical_world_model.src.human_response_training import event_energy_score, legacy_event_energy_score  # noqa: E402
+from hierarchical_world_model.src.evaluation import (
+    _factual_metrics,
+    rollout,
+)  # noqa: E402
+from hierarchical_world_model.src.human_response_prior import (
+    HumanResponseQuerySet,
+)  # noqa: E402
+from hierarchical_world_model.src.human_response_training import (
+    event_energy_score,
+    legacy_event_energy_score,
+)  # noqa: E402
 from hierarchical_world_model.src.planner import (  # noqa: E402
     complete_endogenous_response_plans,
     frozen_diffusion_plans,
@@ -48,11 +56,19 @@ from hierarchical_world_model.src.reaction_controller import (  # noqa: E402
     NoReactionController,
 )
 from hierarchical_world_model.src.reaction_evidence import (  # noqa: E402
-    ReactionEventReference, event_identity, recording_cluster_bootstrap,
+    ReactionEventReference,
+    event_identity,
+    recording_cluster_bootstrap,
 )
 from hierarchical_world_model.src.randomness import WorldExogenousState  # noqa: E402
-from world_model.src.core.evaluation_scope import scoped_canonical_trajectory  # noqa: E402
-from world_model.src.core.utils import file_sha256, select_device, set_seed  # noqa: E402
+from world_model.src.core.evaluation_scope import (
+    scoped_canonical_trajectory,
+)  # noqa: E402
+from world_model.src.core.utils import (
+    file_sha256,
+    select_device,
+    set_seed,
+)  # noqa: E402
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -74,9 +90,11 @@ def _training_provenance(candidate: Path, config: dict[str, Any]) -> dict[str, A
     actual = manifest.get("actual_optimizer_steps", {})
     passed = (
         manifest.get("schema") == "cih_world_model_training"
-        and protocol.get("world_executor") == "hierarchical_world_model.src.evaluation.rollout"
+        and protocol.get("world_executor")
+        == "hierarchical_world_model.src.evaluation.rollout"
         and protocol.get("highwayenv") == "not imported or executed"
-        and protocol.get("selection") == "none during training; full formal validation is mandatory"
+        and protocol.get("selection")
+        == "none during training; full formal validation is mandatory"
         and manifest.get("event_limit") is None
         and int(actual.get("supervised", -1)) > 0
         and int(actual.get("policy_updates_attempted", -1)) > 0
@@ -86,7 +104,11 @@ def _training_provenance(candidate: Path, config: dict[str, Any]) -> dict[str, A
         >= int(config["policy_optimization"]["futures_per_event"])
         and bool(manifest.get("termination_reason"))
     )
-    return {"passed": bool(passed), "manifest": str(manifest_path), "reason": None if passed else "manifest does not attest CIH-WM training"}
+    return {
+        "passed": bool(passed),
+        "manifest": str(manifest_path),
+        "reason": None if passed else "manifest does not attest CIH-WM training",
+    }
 
 
 def _concat(items: list[Any], name: str) -> np.ndarray:
@@ -110,17 +132,30 @@ def _rollout_chunks(
     nominal_reference: list[Any] | None = None,
     influence_graph_config: dict[str, float | int] | None = None,
 ) -> list[Any]:
-    if nominal_reference is not None and len(nominal_reference) != (len(states) + chunk - 1) // chunk:
+    if (
+        nominal_reference is not None
+        and len(nominal_reference) != (len(states) + chunk - 1) // chunk
+    ):
         raise ValueError("nominal rollout chunks must align with the current batch")
     return [
         rollout(
-            model, states[start:start + chunk], valid[start:start + chunk],
-            plans[start:start + chunk], maps[start:start + chunk], map_valid[start:start + chunk],
-            device=device, history_frames=25, motion_seed=None,
-            intervention=intervention, dose=dose, controller=controller,
+            model,
+            states[start : start + chunk],
+            valid[start : start + chunk],
+            plans[start : start + chunk],
+            maps[start : start + chunk],
+            map_valid[start : start + chunk],
+            device=device,
+            history_frames=25,
+            motion_seed=None,
+            intervention=intervention,
+            dose=dose,
+            controller=controller,
             controller_deterministic=True,
             excluded_slots=excluded_slots,
-            nominal_reference=(None if nominal_reference is None else nominal_reference[index]),
+            nominal_reference=(
+                None if nominal_reference is None else nominal_reference[index]
+            ),
             influence_graph_config=influence_graph_config,
             record_policy_trace=False,
         )
@@ -151,8 +186,15 @@ def _causal_probe(
     """Paired ADS intervention check without a nominal-action override."""
     count = min(int(rows), len(states))
     nominal = _rollout_chunks(
-        model, states[:count], valid[:count], plans[:count], maps[:count], map_valid[:count],
-        controller=controller, device=device, excluded_slots=(),
+        model,
+        states[:count],
+        valid[:count],
+        plans[:count],
+        maps[:count],
+        map_valid[:count],
+        controller=controller,
+        device=device,
+        excluded_slots=(),
         influence_graph_config=influence_graph_config,
     )
     result: dict[str, Any] = {
@@ -163,7 +205,9 @@ def _causal_probe(
     total_selected = total_executed = total_executed_agree = 0
     level_totals = {"direct": {"selected": 0, "executed": 0, "agreed": 0}}
     preprobe_max = 0.0
-    jerk_limit = float(controller.correction_jerk_limit_mps3) * float(model.cfg.dt_s) + 1.0e-5
+    jerk_limit = (
+        float(controller.correction_jerk_limit_mps3) * float(model.cfg.dt_s) + 1.0e-5
+    )
     jerk_ok = True
     maximum_controller_step = 0.0
     dose_effects: list[float] = []
@@ -176,20 +220,34 @@ def _causal_probe(
     dy = np.abs(npc[..., 1] - ego[..., 1])
     distance = np.linalg.norm(npc[..., :2] - ego[..., :2], axis=-1)
     geometric = (
-        valid[:count, ANCHOR_INDEX, 1:] & (dx < 0.0) & (dy < 1.8)
-        & (distance <= 50.0) & (-dx - 4.8 > 0.0)
+        valid[:count, ANCHOR_INDEX, 1:]
+        & (dx < 0.0)
+        & (dy < 1.8)
+        & (distance <= 50.0)
+        & (-dx - 4.8 > 0.0)
     )
     # Freeze one nearest direct follower per scene before the probe.  This
     # denominator is independent of whether the policy later responds.
     nearest = np.where(geometric, dx, -np.inf).argmax(axis=1)
     fixed_eligibility = np.zeros_like(geometric)
     rows_with_follower = geometric.any(axis=1)
-    fixed_eligibility[np.flatnonzero(rows_with_follower), nearest[rows_with_follower]] = True
+    fixed_eligibility[
+        np.flatnonzero(rows_with_follower), nearest[rows_with_follower]
+    ] = True
     for dose in (1.5, 2.25, 3.0):
         treated = _rollout_chunks(
-            model, states[:count], valid[:count], plans[:count], maps[:count], map_valid[:count],
-            controller=controller, device=device, intervention="brake", dose=dose,
-            excluded_slots=(), influence_graph_config=influence_graph_config,
+            model,
+            states[:count],
+            valid[:count],
+            plans[:count],
+            maps[:count],
+            map_valid[:count],
+            controller=controller,
+            device=device,
+            intervention="brake",
+            dose=dose,
+            excluded_slots=(),
+            influence_graph_config=influence_graph_config,
         )
         nominal_actions = _concat(nominal, "background_actions")[..., 0]
         treated_actions = _concat(treated, "background_actions")[..., 0]
@@ -201,16 +259,21 @@ def _causal_probe(
         direct = _controller_diagnostics(treated, "influence_direct").astype(bool)
         selected = (np.abs(rule_delta) >= 0.10) & active & direct
         executed = selected & (np.abs(action_delta) >= 1.0e-4)
-        executed_agreement = np.sign(action_delta[executed]) == np.sign(rule_delta[executed])
+        executed_agreement = np.sign(action_delta[executed]) == np.sign(
+            rule_delta[executed]
+        )
         calibration = _controller_diagnostics(treated, "calibration_correction_ax")
         infeasible_count += int(
             _controller_diagnostics(treated, "correction_constraint_infeasible").sum()
         )
         if calibration.shape[1] > 1:
             maximum_controller_step = max(
-                maximum_controller_step, float(np.abs(np.diff(calibration, axis=1)).max(initial=0.0))
+                maximum_controller_step,
+                float(np.abs(np.diff(calibration, axis=1)).max(initial=0.0)),
             )
-            jerk_ok = jerk_ok and bool(np.all(np.abs(np.diff(calibration, axis=1)) <= jerk_limit))
+            jerk_ok = jerk_ok and bool(
+                np.all(np.abs(np.diff(calibration, axis=1)) <= jerk_limit)
+            )
         prefix = np.abs(action_delta[:, :25]).max(initial=0.0)
         preprobe_max = max(preprobe_max, float(prefix))
         chosen = int(selected.sum())
@@ -221,15 +284,14 @@ def _causal_probe(
         aligned = np.sign(rule_delta[executed]) * action_delta[executed]
         dose_effect = float(aligned.mean()) if executed_count else 0.0
         dose_effects.append(dose_effect)
-        window_effects.append(action_delta[:, 25:75].sum(axis=1) * .04)
-        window_rules.append(rule_delta[:, 25:75].sum(axis=1) * .04)
+        window_effects.append(action_delta[:, 25:75].sum(axis=1) * 0.04)
+        window_rules.append(rule_delta[:, 25:75].sum(axis=1) * 0.04)
         level_report: dict[str, Any] = {}
         for name, mask in (("direct", direct),):
             level_selected = selected & mask
             level_executed = executed & mask
-            level_agreement = (
-                np.sign(action_delta[level_executed])
-                == np.sign(rule_delta[level_executed])
+            level_agreement = np.sign(action_delta[level_executed]) == np.sign(
+                rule_delta[level_executed]
             )
             selected_count = int(level_selected.sum())
             level_executed_count = int(level_executed.sum())
@@ -241,15 +303,15 @@ def _causal_probe(
                 "selected_slot_frames": selected_count,
                 "executed_action_slot_frames": level_executed_count,
                 "executed_action_direction_agreement": (
-                    None
-                    if not level_executed_count
-                    else float(level_agreement.mean())
+                    None if not level_executed_count else float(level_agreement.mean())
                 ),
             }
         result["profiles"][f"brake_{dose:g}"] = {
             "selected_slot_frames": chosen,
             "executed_action_slot_frames": executed_count,
-            "executed_action_direction_agreement": None if not executed_count else float(executed_agreement.mean()),
+            "executed_action_direction_agreement": (
+                None if not executed_count else float(executed_agreement.mean())
+            ),
             "bound_saturated_or_unchanged_slot_frames": chosen - executed_count,
             "preprobe_max_abs_action_difference_mps2": float(prefix),
             "mean_rule_aligned_action_effect_mps2": dose_effect,
@@ -268,49 +330,62 @@ def _causal_probe(
         }
     window_effect = np.stack(window_effects)
     window_rule = np.stack(window_rules)
-    comparable = fixed_eligibility[None] & (np.abs(window_rule) >= .05)
-    response = np.abs(window_effect) >= .02
-    window_success = comparable & response & (np.sign(window_effect) == np.sign(window_rule))
+    comparable = fixed_eligibility[None] & (np.abs(window_rule) >= 0.05)
+    response = np.abs(window_effect) >= 0.02
+    window_success = (
+        comparable & response & (np.sign(window_effect) == np.sign(window_rule))
+    )
     all_doses_comparable = comparable.all(axis=0)
     aligned_window = np.sign(window_rule) * window_effect
     monotonic_events = all_doses_comparable & (
-        (aligned_window[1] + 1.e-6 >= aligned_window[0])
-        & (aligned_window[2] + 1.e-6 >= aligned_window[1])
+        (aligned_window[1] + 1.0e-6 >= aligned_window[0])
+        & (aligned_window[2] + 1.0e-6 >= aligned_window[1])
     )
-    result.update({
-        "selected_slot_frames": total_selected,
-        "executed_action_slot_frames": total_executed,
-        "executed_action_direction_agreement": None if not total_executed else float(total_executed_agree / total_executed),
-        "bound_saturated_or_unchanged_slot_frames": total_selected - total_executed,
-        "preprobe_max_abs_action_difference_mps2": preprobe_max,
-        "maximum_controller_correction_step_mps2": maximum_controller_step,
-        "controller_correction_step_limit_mps2": jerk_limit,
-        "controller_induced_jerk_within_limit": bool(jerk_ok),
-        "correction_constraint_infeasible_slot_frames": infeasible_count,
-        "dose_effects_mps2": dose_effects,
-        "dose_monotonic": bool(
-            dose_effects[0] <= dose_effects[1] + 1.0e-6
-            and dose_effects[1] <= dose_effects[2] + 1.0e-6
-        ),
-        "fixed_window_audit": {
-            "eligibility_slot_events": int(fixed_eligibility.sum()),
-            "comparable_dose_slot_events": int(comparable.sum()),
-            "direction_success_rate": (
-                None if not comparable.any() else float(window_success.sum() / comparable.sum())
+    result.update(
+        {
+            "selected_slot_frames": total_selected,
+            "executed_action_slot_frames": total_executed,
+            "executed_action_direction_agreement": (
+                None
+                if not total_executed
+                else float(total_executed_agree / total_executed)
             ),
-            "no_response_rate": (
-                None if not comparable.any() else float((comparable & ~response).sum() / comparable.sum())
+            "bound_saturated_or_unchanged_slot_frames": total_selected - total_executed,
+            "preprobe_max_abs_action_difference_mps2": preprobe_max,
+            "maximum_controller_correction_step_mps2": maximum_controller_step,
+            "controller_correction_step_limit_mps2": jerk_limit,
+            "controller_induced_jerk_within_limit": bool(jerk_ok),
+            "correction_constraint_infeasible_slot_frames": infeasible_count,
+            "dose_effects_mps2": dose_effects,
+            "dose_monotonic": bool(
+                dose_effects[0] <= dose_effects[1] + 1.0e-6
+                and dose_effects[1] <= dose_effects[2] + 1.0e-6
             ),
-            "all_doses_comparable_slot_events": int(all_doses_comparable.sum()),
-            "dose_monotonicity_rate": (
-                None if not all_doses_comparable.any()
-                else float(monotonic_events.sum() / all_doses_comparable.sum())
-            ),
-            "window_frames": [25, 75],
-            "eligibility": "nearest nominal same-lane follower geometry at frame 24",
-        },
-        "influence_levels": influence_levels,
-    })
+            "fixed_window_audit": {
+                "eligibility_slot_events": int(fixed_eligibility.sum()),
+                "comparable_dose_slot_events": int(comparable.sum()),
+                "direction_success_rate": (
+                    None
+                    if not comparable.any()
+                    else float(window_success.sum() / comparable.sum())
+                ),
+                "no_response_rate": (
+                    None
+                    if not comparable.any()
+                    else float((comparable & ~response).sum() / comparable.sum())
+                ),
+                "all_doses_comparable_slot_events": int(all_doses_comparable.sum()),
+                "dose_monotonicity_rate": (
+                    None
+                    if not all_doses_comparable.any()
+                    else float(monotonic_events.sum() / all_doses_comparable.sum())
+                ),
+                "window_frames": [25, 75],
+                "eligibility": "nearest nominal same-lane follower geometry at frame 24",
+            },
+            "influence_levels": influence_levels,
+        }
+    )
     return result
 
 
@@ -333,7 +408,9 @@ def _natural_response_scores(
     seed: int = 20260913,
 ) -> dict[str, Any]:
     """Score independent stochastic response futures on every natural event."""
-    row_lookup = {int(row): index for index, row in enumerate(np.asarray(split_rows, np.int64))}
+    row_lookup = {
+        int(row): index for index, row in enumerate(np.asarray(split_rows, np.int64))
+    }
     scores_75: list[float] = []
     scores_25: list[float] = []
     legacy_25: list[float] = []
@@ -342,51 +419,78 @@ def _natural_response_scores(
     generated_diagnostics: list[dict[str, float | bool]] = []
     observed_diagnostics: list[dict[str, float | bool]] = []
 
-    def response_diagnostic(sequence: np.ndarray, previous: float) -> dict[str, float | bool]:
+    def response_diagnostic(
+        sequence: np.ndarray, previous: float
+    ) -> dict[str, float | bool]:
         acceleration = np.asarray(sequence)[:, 0]
         jerk = np.asarray(sequence)[:, 1]
-        below = acceleration <= float(previous) - .1
-        starts = np.flatnonzero(np.convolve(below.astype(np.int8), np.ones(3, np.int8), mode="valid") == 3)
-        latency = float(starts[0] * .04) if len(starts) else float(len(acceleration) * .04)
+        below = acceleration <= float(previous) - 0.1
+        starts = np.flatnonzero(
+            np.convolve(below.astype(np.int8), np.ones(3, np.int8), mode="valid") == 3
+        )
+        latency = (
+            float(starts[0] * 0.04) if len(starts) else float(len(acceleration) * 0.04)
+        )
         peak_index = int(np.argmin(acceleration))
-        recovered = acceleration >= float(previous) - .1
+        recovered = acceleration >= float(previous) - 0.1
         recovery_starts = np.flatnonzero(
-            np.convolve(recovered.astype(np.int8), np.ones(5, np.int8), mode="valid") == 5
+            np.convolve(recovered.astype(np.int8), np.ones(5, np.int8), mode="valid")
+            == 5
         )
         recovery_starts = recovery_starts[recovery_starts >= peak_index]
         censored = not len(recovery_starts)
         return {
             "sustained_latency_s": latency,
             "peak_deceleration_mps2": float(acceleration.min()),
-            "p95_abs_jerk_mps3": float(np.quantile(jerk, .95)),
+            "p95_abs_jerk_mps3": float(np.quantile(jerk, 0.95)),
             "peak_abs_jerk_mps3": float(jerk.max(initial=0.0)),
-            "braking_dose_mps": float(np.maximum(-acceleration, 0.0).sum() * .04),
+            "braking_dose_mps": float(np.maximum(-acceleration, 0.0).sum() * 0.04),
             "sustained_recovery_time_s": (
-                float(recovery_starts[0] * .04) if not censored else float(len(acceleration) * .04)
+                float(recovery_starts[0] * 0.04)
+                if not censored
+                else float(len(acceleration) * 0.04)
             ),
             "recovery_censored": censored,
         }
+
     kept_query_indices = [
-        q for q, event_index in enumerate(query.indices)
+        q
+        for q, event_index in enumerate(query.indices)
         if int(reference.events.row_index[int(event_index)]) in row_lookup
     ]
     for begin in range(0, len(kept_query_indices), event_batch):
-        selected = kept_query_indices[begin:begin + event_batch]
+        selected = kept_query_indices[begin : begin + event_batch]
         event_indices = [int(query.indices[q]) for q in selected]
-        positions = np.asarray([
-            row_lookup[int(reference.events.row_index[event_index])]
-            for event_index in event_indices for _ in range(futures)
-        ], np.int64)
+        positions = np.asarray(
+            [
+                row_lookup[int(reference.events.row_index[event_index])]
+                for event_index in event_indices
+                for _ in range(futures)
+            ],
+            np.int64,
+        )
         exogenous = WorldExogenousState.sample(
-            len(positions), seed=seed + begin, response_steps=149,
+            len(positions),
+            seed=seed + begin,
+            response_steps=149,
             scene_refresh_responses=int(model.cfg.scene_refresh_responses),
-            scene_dim=int(model.cfg.scene_latent_dim), agent_dim=int(model.cfg.agent_latent_dim),
+            scene_dim=int(model.cfg.scene_latent_dim),
+            agent_dim=int(model.cfg.agent_latent_dim),
         )
         sample = rollout(
-            model, states[positions], valid[positions], plans[positions],
-            maps[positions], map_valid[positions], device=device, history_frames=25,
-            motion_seed=None, controller=controller, controller_deterministic=False,
-            excluded_slots=(), influence_graph_config=influence_graph_config,
+            model,
+            states[positions],
+            valid[positions],
+            plans[positions],
+            maps[positions],
+            map_valid[positions],
+            device=device,
+            history_frames=25,
+            motion_seed=None,
+            controller=controller,
+            controller_deterministic=False,
+            excluded_slots=(),
+            influence_graph_config=influence_graph_config,
             exogenous_state=exogenous,
             record_policy_trace=False,
         )
@@ -398,32 +502,59 @@ def _natural_response_scores(
             follower = int(reference.events.follower_slot[event_index]) - 1
             if onset <= 0 or onset + 75 > 149:
                 continue
-            acceleration = actions[local, :, onset:onset + 75, follower]
+            acceleration = actions[local, :, onset : onset + 75, follower]
             previous = actions[local, :, onset - 1, follower, None]
-            jerk = (acceleration - torch.cat((previous, acceleration[:, :-1]), dim=1)).abs() / .04
+            jerk = (
+                acceleration - torch.cat((previous, acceleration[:, :-1]), dim=1)
+            ).abs() / 0.04
             response = torch.stack((acceleration, jerk), dim=-1)
             observed = torch.as_tensor(query.response[q], device=device)
-            scores_75.append(float(event_energy_score(response, observed[:75], scale) / np.sqrt(75.0)))
-            scores_25.append(float(event_energy_score(response[:, :25], observed[:25], scale) / 5.0))
-            legacy_25.append(float(legacy_event_energy_score(response[:, :25], observed[:25], torch.ones_like(scale))))
+            scores_75.append(
+                float(
+                    event_energy_score(response, observed[:75], scale) / np.sqrt(75.0)
+                )
+            )
+            scores_25.append(
+                float(event_energy_score(response[:, :25], observed[:25], scale) / 5.0)
+            )
+            legacy_25.append(
+                float(
+                    legacy_event_energy_score(
+                        response[:, :25], observed[:25], torch.ones_like(scale)
+                    )
+                )
+            )
             recordings.append(int(reference.events.recording_id[event_index]))
-            event_keys.append(event_identity(
-                reference.events.recording_id[event_index], reference.events.leader_id[event_index],
-                reference.events.follower_id[event_index], reference.events.absolute_onset_frame[event_index],
-            ))
+            event_keys.append(
+                event_identity(
+                    reference.events.recording_id[event_index],
+                    reference.events.leader_id[event_index],
+                    reference.events.follower_id[event_index],
+                    reference.events.absolute_onset_frame[event_index],
+                )
+            )
             response_np = response.detach().cpu().numpy()
             observed_np = observed[:75].detach().cpu().numpy()
             previous_np = previous[:, 0].detach().cpu().numpy()
             for future, previous_value in zip(response_np, previous_np):
-                generated_diagnostics.append(response_diagnostic(future, float(previous_value)))
-            observed_previous = float(reference.events.initial_conditions[event_index, 4])
-            observed_diagnostics.append(response_diagnostic(observed_np, observed_previous))
+                generated_diagnostics.append(
+                    response_diagnostic(future, float(previous_value))
+                )
+            observed_previous = float(
+                reference.events.initial_conditions[event_index, 4]
+            )
+            observed_diagnostics.append(
+                response_diagnostic(observed_np, observed_previous)
+            )
     if not scores_75:
         raise RuntimeError("natural response evaluation found no replayable events")
     diagnostic_names = tuple(generated_diagnostics[0])
     return {
-        "events": len(scores_75), "recordings": len(np.unique(recordings)), "futures_per_event": futures,
-        "event_keys": event_keys, "recording_id": recordings,
+        "events": len(scores_75),
+        "recordings": len(np.unique(recordings)),
+        "futures_per_event": futures,
+        "event_keys": event_keys,
+        "recording_id": recordings,
         "fair_energy_75_normalized": scores_75,
         "fair_energy_25_normalized": scores_25,
         "legacy_raw_v_25": legacy_25,
@@ -435,17 +566,25 @@ def _natural_response_scores(
         "response_diagnostics": {
             "generated": {
                 name: (
-                    float(np.mean([float(item[name]) for item in generated_diagnostics]))
+                    float(
+                        np.mean([float(item[name]) for item in generated_diagnostics])
+                    )
                     if name != "recovery_censored"
-                    else float(np.mean([bool(item[name]) for item in generated_diagnostics]))
-                ) for name in diagnostic_names
+                    else float(
+                        np.mean([bool(item[name]) for item in generated_diagnostics])
+                    )
+                )
+                for name in diagnostic_names
             },
             "observed": {
                 name: (
                     float(np.mean([float(item[name]) for item in observed_diagnostics]))
                     if name != "recovery_censored"
-                    else float(np.mean([bool(item[name]) for item in observed_diagnostics]))
-                ) for name in diagnostic_names
+                    else float(
+                        np.mean([bool(item[name]) for item in observed_diagnostics])
+                    )
+                )
+                for name in diagnostic_names
             },
         },
     }
@@ -453,43 +592,75 @@ def _natural_response_scores(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--world-config", type=Path, default=ROOT / "hierarchical_world_model/config/world_model.yaml")
-    parser.add_argument("--controller-config", type=Path, default=ROOT / "hierarchical_world_model/config/cih_world_model.yaml")
-    parser.add_argument("--candidate", type=Path, default=ROOT / "results/hierarchical_world_model/cih_wm/candidate_unaccepted/response_policy.pt")
+    parser.add_argument(
+        "--world-config",
+        type=Path,
+        default=ROOT / "hierarchical_world_model/config/world_model.yaml",
+    )
+    parser.add_argument(
+        "--controller-config",
+        type=Path,
+        default=ROOT / "hierarchical_world_model/config/cih_world_model.yaml",
+    )
+    parser.add_argument(
+        "--candidate",
+        type=Path,
+        default=ROOT
+        / "results/hierarchical_world_model/cih_wm/candidate_unaccepted/response_policy.pt",
+    )
     parser.add_argument("--split", choices=("validation", "test"), default="test")
-    parser.add_argument("--limit", type=int, default=None, help="diagnostic subset only; omitted means the complete split")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="diagnostic subset only; omitted means the complete split",
+    )
     parser.add_argument("--causal-rows", type=int, default=512)
     parser.add_argument("--output", type=Path, default=None)
-    parser.add_argument("--validation-report", type=Path, default=None,
-                        help="required for --split test; accepted complete formal validation for this checkpoint")
+    parser.add_argument(
+        "--validation-report",
+        type=Path,
+        default=None,
+        help="required for --split test; accepted complete formal validation for this checkpoint",
+    )
     args = parser.parse_args()
 
     world_config = load_protocol_config(args.world_config.resolve())
     controller_config = _load_yaml(args.controller_config.resolve())
-    if controller_config.get("schema_name") != "causal_influence_hierarchical_world_model":
+    if (
+        controller_config.get("schema_name")
+        != "causal_influence_hierarchical_world_model"
+    ):
         raise ValueError("controller config is not a CIH-WM contract")
     if bool(controller_config["method"].get("ood_use_nominal_shadow", False)):
         raise ValueError("CIH-WM forbids nominal-shadow actions as model inputs")
     device = select_device(world_config["training"].get("device", "auto"))
     set_seed(int(world_config["training"]["seed"]))
     experiment = prepare_experiment_data(world_config, ROOT)
-    split_rows = experiment.test_rows if args.split == "test" else experiment.validation_rows
+    split_rows = (
+        experiment.test_rows if args.split == "test" else experiment.validation_rows
+    )
     if args.limit is not None:
         if args.limit <= 0:
             raise ValueError("--limit must be positive")
-        split_rows = split_rows[:args.limit]
+        split_rows = split_rows[: args.limit]
     if args.split == "test":
         if args.validation_report is None or not args.validation_report.is_file():
-            raise RuntimeError("formal test requires --validation-report from an accepted complete formal validation")
+            raise RuntimeError(
+                "formal test requires --validation-report from an accepted complete formal validation"
+            )
         validation = json.loads(args.validation_report.read_text(encoding="utf-8"))
         if not (
             validation.get("split") == "validation"
             and validation.get("complete_split") is True
             and validation.get("accepted") is True
             and validation.get("evaluation_passed") is True
-            and Path(str(validation.get("checkpoint", ""))).resolve() == args.candidate.resolve()
+            and Path(str(validation.get("checkpoint", ""))).resolve()
+            == args.candidate.resolve()
         ):
-            raise RuntimeError("validation report is not an accepted complete formal evaluation of this candidate")
+            raise RuntimeError(
+                "validation report is not an accepted complete formal evaluation of this candidate"
+            )
     method, checkpoint = CausalInfluenceHierarchicalWorldModel.load(
         controller_config,
         root=ROOT,
@@ -512,30 +683,47 @@ def main() -> None:
     cache.mkdir(parents=True, exist_ok=True)
     with nullcontext(cache):
         plans = frozen_diffusion_plans(
-            experiment.bundle, split_rows, checkpoint=world_config["paths"]["diffusion_checkpoint"],
-            output_dir=cache, device=device, batch_size=32, ddim_steps=20,
-            experiment_scope=str(world_config["training"].get("experiment_scope", "full")),
+            experiment.bundle,
+            split_rows,
+            checkpoint=world_config["paths"]["diffusion_checkpoint"],
+            output_dir=cache,
+            device=device,
+            batch_size=32,
+            ddim_steps=20,
+            experiment_scope=str(
+                world_config["training"].get("experiment_scope", "full")
+            ),
         )
         response_plans = complete_endogenous_response_plans(
             plans, full_states, full_valid
         )
         baseline = _rollout_chunks(
-            model, states, valid, plans, maps, map_valid,
-            controller=NoReactionController().to(device), device=device,
+            model,
+            states,
+            valid,
+            plans,
+            maps,
+            map_valid,
+            controller=NoReactionController().to(device),
+            device=device,
         )
         candidate = _rollout_chunks(
-            model, states, valid, plans, maps, map_valid,
-            controller=controller, device=device,
+            model,
+            states,
+            valid,
+            plans,
+            maps,
+            map_valid,
+            controller=controller,
+            device=device,
             influence_graph_config=influence_config,
         )
         active = valid[:, ANCHOR_INDEX, 1:]
-        target = states[:, ANCHOR_INDEX + 1:174]
+        target = states[:, ANCHOR_INDEX + 1 : 174]
         baseline_metrics = _factual_metrics(_concat(baseline, "states"), target, active)
-        candidate_metrics = _factual_metrics(_concat(candidate, "states"), target, active)
-        baseline_actions = _concat(baseline, "background_actions")
-        candidate_actions = _concat(candidate, "background_actions")
-        action_delta = np.abs(candidate_actions - baseline_actions)
-        candidate_active = _controller_diagnostics(candidate, "active").astype(bool)
+        candidate_metrics = _factual_metrics(
+            _concat(candidate, "states"), target, active
+        )
         event_mask = np.asarray(arrays["is_evt_tail"][split_rows], bool)
         non_event = ~event_mask
         factual_delta = {
@@ -543,23 +731,38 @@ def main() -> None:
             for key in ("ADE_m", "FDE_m", "P95_displacement_error_m")
         }
         same_all_slot_inputs = (
-            np.array_equal(states, full_states) and np.array_equal(valid, full_valid)
+            np.array_equal(states, full_states)
+            and np.array_equal(valid, full_valid)
             and np.array_equal(plans, response_plans)
         )
         if same_all_slot_inputs:
             all_baseline, all_candidate = baseline, candidate
         else:
             all_baseline = _rollout_chunks(
-                model, full_states, full_valid, response_plans, maps, map_valid,
-                controller=NoReactionController().to(device), device=device, excluded_slots=(),
+                model,
+                full_states,
+                full_valid,
+                response_plans,
+                maps,
+                map_valid,
+                controller=NoReactionController().to(device),
+                device=device,
+                excluded_slots=(),
             )
             all_candidate = _rollout_chunks(
-                model, full_states, full_valid, response_plans, maps, map_valid,
-                controller=controller, device=device, excluded_slots=(),
+                model,
+                full_states,
+                full_valid,
+                response_plans,
+                maps,
+                map_valid,
+                controller=controller,
+                device=device,
+                excluded_slots=(),
                 influence_graph_config=influence_config,
             )
         all_active = full_valid[:, ANCHOR_INDEX, 1:]
-        all_target = full_states[:, ANCHOR_INDEX + 1:174]
+        all_target = full_states[:, ANCHOR_INDEX + 1 : 174]
         all_baseline_metrics = _factual_metrics(
             _concat(all_baseline, "states"), all_target, all_active
         )
@@ -579,23 +782,40 @@ def main() -> None:
             for key in ("ADE_m", "FDE_m", "P95_displacement_error_m")
         }
         tolerance = world_config["training"]
-        noninferior = all(
-            factual_delta[key] <= float(tolerance[f"factual_{key.split('_m')[0].lower()}_tolerance_m"])
-            if key != "P95_displacement_error_m"
-            else factual_delta[key] <= float(tolerance["factual_p95_tolerance_m"])
-            for key in factual_delta
-        ) and all(
-            factual_delta[key] <= float(controller_config["evaluation"]["factual_relative_tolerance"]) * baseline_metrics[key]
-            for key in factual_delta
-        ) and all(
-            candidate_metrics[key] <= float(ACCEPTANCE_GATES["factual_limits_m"][key])
-            for key in ACCEPTANCE_GATES["factual_limits_m"]
+        noninferior = (
+            all(
+                (
+                    factual_delta[key]
+                    <= float(
+                        tolerance[f"factual_{key.split('_m')[0].lower()}_tolerance_m"]
+                    )
+                    if key != "P95_displacement_error_m"
+                    else factual_delta[key]
+                    <= float(tolerance["factual_p95_tolerance_m"])
+                )
+                for key in factual_delta
+            )
+            and all(
+                factual_delta[key]
+                <= float(controller_config["evaluation"]["factual_relative_tolerance"])
+                * baseline_metrics[key]
+                for key in factual_delta
+            )
+            and all(
+                candidate_metrics[key]
+                <= float(ACCEPTANCE_GATES["factual_limits_m"][key])
+                for key in ACCEPTANCE_GATES["factual_limits_m"]
+            )
         )
         response_noninferior = all(
             response_factual_delta[key]
             <= float(
                 controller_config["evaluation"]["factual_absolute_tolerance_m"][
-                    "p95" if key == "P95_displacement_error_m" else key.split("_m")[0].lower()
+                    (
+                        "p95"
+                        if key == "P95_displacement_error_m"
+                        else key.split("_m")[0].lower()
+                    )
                 ]
             )
             for key in response_factual_delta
@@ -608,10 +828,19 @@ def main() -> None:
         all_baseline_actions = _concat(all_baseline, "background_actions")
         all_candidate_actions = _concat(all_candidate, "background_actions")
         all_action_delta = np.abs(all_candidate_actions - all_baseline_actions)
-        all_candidate_active = _controller_diagnostics(all_candidate, "active").astype(bool)
+        all_candidate_active = _controller_diagnostics(all_candidate, "active").astype(
+            bool
+        )
         causal = _causal_probe(
-            model, full_states, full_valid, response_plans, maps, map_valid, controller=controller,
-            device=device, rows=args.causal_rows,
+            model,
+            full_states,
+            full_valid,
+            response_plans,
+            maps,
+            map_valid,
+            controller=controller,
+            device=device,
+            rows=args.causal_rows,
             influence_graph_config=influence_config,
         )
         event_reference = ReactionEventReference.load(
@@ -621,29 +850,52 @@ def main() -> None:
             ROOT / controller_config["paths"]["human_response_evidence"] / args.split
         )
         candidate_response = _natural_response_scores(
-            model, controller, states=full_states, valid=full_valid,
-            plans=response_plans, maps=maps, map_valid=map_valid,
-            split_rows=split_rows, reference=event_reference, query=response_query,
-            device=device, influence_graph_config=influence_config,
+            model,
+            controller,
+            states=full_states,
+            valid=full_valid,
+            plans=response_plans,
+            maps=maps,
+            map_valid=map_valid,
+            split_rows=split_rows,
+            reference=event_reference,
+            query=response_query,
+            device=device,
+            influence_graph_config=influence_config,
         )
         supervised_path = args.candidate.parent / "response_supervised.pt"
         supervised_response = None
         ppo_increment = None
-        if supervised_path.is_file() and supervised_path.resolve() != args.candidate.resolve():
+        if (
+            supervised_path.is_file()
+            and supervised_path.resolve() != args.candidate.resolve()
+        ):
             supervised_controller = build_response_policy(
                 controller_config, root=ROOT, device=device, checkpoint=supervised_path
             ).eval()
             supervised_response = _natural_response_scores(
-                model, supervised_controller, states=full_states, valid=full_valid,
-                plans=response_plans, maps=maps, map_valid=map_valid,
-                split_rows=split_rows, reference=event_reference, query=response_query,
-                device=device, influence_graph_config=influence_config,
+                model,
+                supervised_controller,
+                states=full_states,
+                valid=full_valid,
+                plans=response_plans,
+                maps=maps,
+                map_valid=map_valid,
+                split_rows=split_rows,
+                reference=event_reference,
+                query=response_query,
+                device=device,
+                influence_graph_config=influence_config,
             )
             final_values = np.asarray(candidate_response["fair_energy_75_normalized"])
-            supervised_values = np.asarray(supervised_response["fair_energy_75_normalized"])
+            supervised_values = np.asarray(
+                supervised_response["fair_energy_75_normalized"]
+            )
             delta = supervised_values - final_values
             interval = recording_cluster_bootstrap(
-                delta, np.asarray(candidate_response["recording_id"]), seed=20260913,
+                delta,
+                np.asarray(candidate_response["recording_id"]),
+                seed=20260913,
             )
             ppo_increment = {
                 "mean_supervised_minus_final": float(delta.mean()),
@@ -673,8 +925,10 @@ def main() -> None:
         and distribution_passed
     )
     selection_eligible = bool(
-        args.split == "validation" and args.limit is None
-        and training_provenance["passed"] and evaluation_passed
+        args.split == "validation"
+        and args.limit is None
+        and training_provenance["passed"]
+        and evaluation_passed
     )
     report = {
         "schema": "cih_world_model_evaluation",
@@ -683,7 +937,9 @@ def main() -> None:
         "sequences": int(len(split_rows)),
         "checkpoint": str(args.candidate.resolve()),
         "checkpoint_sha256": file_sha256(args.candidate.resolve()),
-        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "code_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
         "working_tree_diff_hash": hashlib.sha256(
             subprocess.check_output(["git", "diff", "--binary"], cwd=ROOT)
         ).hexdigest(),
@@ -717,8 +973,14 @@ def main() -> None:
             },
         },
         "non_event_action_drift": {
-            "mean_abs_action_difference_mps2": float(all_action_delta[non_event].mean()) if non_event.any() else None,
-            "p95_abs_action_difference_mps2": float(np.quantile(all_action_delta[non_event], .95)) if non_event.any() else None,
+            "mean_abs_action_difference_mps2": (
+                float(all_action_delta[non_event].mean()) if non_event.any() else None
+            ),
+            "p95_abs_action_difference_mps2": (
+                float(np.quantile(all_action_delta[non_event], 0.95))
+                if non_event.any()
+                else None
+            ),
             "event_rows": int(event_mask.sum()),
             "non_event_rows": int(non_event.sum()),
         },
@@ -726,9 +988,15 @@ def main() -> None:
             "released_comparison_excluded_slots": [],
             "response_and_ads_excluded_slots": [],
             "active_slot_frames_in_all_slot_scope": int(all_candidate_active.sum()),
-            "changed_action_slot_frames_in_all_slot_scope": int((all_action_delta[..., 0] > 1.0e-6).sum()),
-            "material_action_change_slot_frames_in_all_slot_scope": int((all_action_delta[..., 0] > 0.05).sum()),
-            "maximum_abs_action_difference_mps2_in_all_slot_scope": float(all_action_delta[..., 0].max(initial=0.0)),
+            "changed_action_slot_frames_in_all_slot_scope": int(
+                (all_action_delta[..., 0] > 1.0e-6).sum()
+            ),
+            "material_action_change_slot_frames_in_all_slot_scope": int(
+                (all_action_delta[..., 0] > 0.05).sum()
+            ),
+            "maximum_abs_action_difference_mps2_in_all_slot_scope": float(
+                all_action_delta[..., 0].max(initial=0.0)
+            ),
         },
         "causal_probe": causal,
         "human_response_distribution": {
@@ -741,13 +1009,20 @@ def main() -> None:
         "accepted": bool(selection_eligible),
         "promotion_status": (
             "validation_selected_for_one_shot_test"
-            if selection_eligible else
-            "not_promotable_until_complete_validation_and_training_provenance_pass"
+            if selection_eligible
+            else "not_promotable_until_complete_validation_and_training_provenance_pass"
         ),
     }
-    output = args.output or ROOT / controller_config["paths"]["output_dir"] / f"cih_{args.split}_{args.candidate.stem}.json"
+    output = (
+        args.output
+        or ROOT
+        / controller_config["paths"]["output_dir"]
+        / f"cih_{args.split}_{args.candidate.stem}.json"
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(output)
 
 

@@ -13,22 +13,42 @@ import torch
 
 from diffusion.src.data import ANCHOR_INDEX
 from world_model.src.core.dynamics import KinematicTrafficDynamics
-from world_model.src.core.highd_metrics import factual_metrics as _shared_factual_metrics
-from world_model.src.core.highd_metrics import temporal_factual_metrics as _shared_temporal_factual_metrics
-from world_model.src.core.highd_metrics import distribution_metrics as _shared_distribution_metrics
-from world_model.src.core.highd_metrics import intervention_metrics as _shared_intervention_metrics
-from world_model.src.core.highd_metrics import intervention_dose_response as _shared_intervention_dose_response
+from world_model.src.core.highd_metrics import (
+    factual_metrics as _shared_factual_metrics,
+)
+from world_model.src.core.highd_metrics import (
+    temporal_factual_metrics as _shared_temporal_factual_metrics,
+)
+from world_model.src.core.highd_metrics import (
+    distribution_metrics as _shared_distribution_metrics,
+)
+from world_model.src.core.highd_metrics import (
+    intervention_metrics as _shared_intervention_metrics,
+)
+from world_model.src.core.highd_metrics import (
+    intervention_dose_response as _shared_intervention_dose_response,
+)
 from world_model.src.core.highd_metrics import semantic_cutin_agents
 from world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     scoped_canonical_trajectory,
 )
-from world_model.src.core.utils import ensure_dir, load_json, save_json, select_device, set_seed
+from world_model.src.core.utils import (
+    ensure_dir,
+    load_json,
+    save_json,
+    select_device,
+    set_seed,
+)
 
 from .data import ego_controls, prepare_experiment_data
 from .calibration import evaluation_response_calibration
 from .planner import frozen_diffusion_plans, stochastic_diffusion_plan_samples
-from .reaction_controller import ReactionController, ReactionControllerContext, make_reaction_controller
+from .reaction_controller import (
+    ReactionController,
+    ReactionControllerContext,
+    make_reaction_controller,
+)
 from .influence_graph import CausalInfluenceGraph, InfluenceGraphState
 from .randomness import WorldExogenousState
 
@@ -160,9 +180,9 @@ def rollout(
     maps = torch.from_numpy(np.asarray(map_polylines, np.float32)).to(device)
     map_valid = torch.from_numpy(np.asarray(map_polyline_valid, bool)).to(device)
     initial_reference = states[:, 1:, :2].clone()
-    logged_ego = torch.from_numpy(
-        _logged_ego_actions(logged_states, logged_valid)
-    ).to(device)
+    logged_ego = torch.from_numpy(_logged_ego_actions(logged_states, logged_valid)).to(
+        device
+    )
     scheduled_ego = _intervene(logged_ego, intervention, dose)
     if exogenous_state is not None:
         exogenous_state.validate(
@@ -175,9 +195,13 @@ def rollout(
             raise ValueError("exogenous state batch does not match rollout batch")
     if nominal_reference is not None:
         if nominal_reference.background_actions.shape[:2] != (len(states), 149):
-            raise ValueError("nominal reference actions must align with the current 149-frame rollout")
+            raise ValueError(
+                "nominal reference actions must align with the current 149-frame rollout"
+            )
         if nominal_reference.ego_actions.shape[:2] != (len(states), 149):
-            raise ValueError("nominal reference ego actions must align with the current 149-frame rollout")
+            raise ValueError(
+                "nominal reference ego actions must align with the current 149-frame rollout"
+            )
         if (
             nominal_reference.controller_diagnostics is None
             or "rule_action_ax" not in nominal_reference.controller_diagnostics
@@ -234,10 +258,15 @@ def rollout(
     controller_prior_nominal: list[torch.Tensor] = []
     controller_prior_correction: list[torch.Tensor] = []
     controller_extra: dict[str, list[torch.Tensor]] = {
-        name: [] for name in (
-            "policy_active", "execution_active", "release_active",
-            "requested_total_correction_ax", "projected_total_correction_ax",
-            "executed_total_correction_ax", "calibration_relative_to_prior_ax",
+        name: []
+        for name in (
+            "policy_active",
+            "execution_active",
+            "release_active",
+            "requested_total_correction_ax",
+            "projected_total_correction_ax",
+            "executed_total_correction_ax",
+            "calibration_relative_to_prior_ax",
             "correction_constraint_infeasible",
         )
     }
@@ -271,30 +300,59 @@ def rollout(
             raise ValueError("rollout snapshot batch does not match input batch")
         first_step = int(resume_state.response_index)
         for name in (
-            "states", "valid", "history", "history_valid", "filter_state", "slow_scene",
-            "slow_scene_noise", "agent_noise_state", "agent_style_state", "previous_current",
-            "committed_ego_controls", "intervention_memory", "lateral_intervention_memory",
-            "influence_state", "previous_background_actions", "previous_calibration_correction",
+            "states",
+            "valid",
+            "history",
+            "history_valid",
+            "filter_state",
+            "slow_scene",
+            "slow_scene_noise",
+            "agent_noise_state",
+            "agent_style_state",
+            "previous_current",
+            "committed_ego_controls",
+            "intervention_memory",
+            "lateral_intervention_memory",
+            "influence_state",
+            "previous_background_actions",
+            "previous_calibration_correction",
             "previous_causal_gate",
         ):
             locals_value = copy.deepcopy(getattr(resume_state, name))
-            if name == "states": states = locals_value
-            elif name == "valid": valid = locals_value
-            elif name == "history": history = locals_value
-            elif name == "history_valid": history_valid = locals_value
-            elif name == "filter_state": filter_state = locals_value
-            elif name == "slow_scene": slow_scene = locals_value
-            elif name == "slow_scene_noise": slow_scene_noise = locals_value
-            elif name == "agent_noise_state": agent_noise_state = locals_value
-            elif name == "agent_style_state": agent_style_state = locals_value
-            elif name == "previous_current": previous_current = locals_value
-            elif name == "committed_ego_controls": committed_ego_controls = locals_value
-            elif name == "intervention_memory": intervention_memory = locals_value
-            elif name == "lateral_intervention_memory": lateral_intervention_memory = locals_value
-            elif name == "influence_state": influence_state = locals_value
-            elif name == "previous_background_actions": previous_background_actions = locals_value
-            elif name == "previous_calibration_correction": previous_calibration_correction = locals_value
-            elif name == "previous_causal_gate": previous_causal_gate = locals_value
+            if name == "states":
+                states = locals_value
+            elif name == "valid":
+                valid = locals_value
+            elif name == "history":
+                history = locals_value
+            elif name == "history_valid":
+                history_valid = locals_value
+            elif name == "filter_state":
+                filter_state = locals_value
+            elif name == "slow_scene":
+                slow_scene = locals_value
+            elif name == "slow_scene_noise":
+                slow_scene_noise = locals_value
+            elif name == "agent_noise_state":
+                agent_noise_state = locals_value
+            elif name == "agent_style_state":
+                agent_style_state = locals_value
+            elif name == "previous_current":
+                previous_current = locals_value
+            elif name == "committed_ego_controls":
+                committed_ego_controls = locals_value
+            elif name == "intervention_memory":
+                intervention_memory = locals_value
+            elif name == "lateral_intervention_memory":
+                lateral_intervention_memory = locals_value
+            elif name == "influence_state":
+                influence_state = locals_value
+            elif name == "previous_background_actions":
+                previous_background_actions = locals_value
+            elif name == "previous_calibration_correction":
+                previous_calibration_correction = locals_value
+            elif name == "previous_causal_gate":
+                previous_causal_gate = locals_value
     snapshots: dict[int, RolloutState] = {}
     for start in range(first_step, 149, execute):
         count = min(execute, 149 - start)
@@ -407,27 +465,37 @@ def rollout(
                 influence_state,
                 previous_background_actions,
             )
-            threshold = float(getattr(
-                controller, "reaction_trigger_threshold_mps2",
-                model.cfg.intervention_trigger_threshold_mps2,
-            ))
+            threshold = float(
+                getattr(
+                    controller,
+                    "reaction_trigger_threshold_mps2",
+                    model.cfg.intervention_trigger_threshold_mps2,
+                )
+            )
             controller_enabled = (
-                committed_ego_controls[:, -1, 0] - committed_ego_controls[:, -2, 0]
-                < -threshold
-            ) if committed_ego_controls.shape[1] >= 2 else torch.zeros(
-                len(states), dtype=torch.bool, device=device
+                (
+                    committed_ego_controls[:, -1, 0] - committed_ego_controls[:, -2, 0]
+                    < -threshold
+                )
+                if committed_ego_controls.shape[1] >= 2
+                else torch.zeros(len(states), dtype=torch.bool, device=device)
             )
             context = ReactionControllerContext(
-                history=history, history_valid=history_valid, current=states,
-                current_valid=valid, committed_ego_controls=committed_ego_controls,
-                base_actions=base_actions, reference_actions=response.reference_actions,
+                history=history,
+                history_valid=history_valid,
+                current=states,
+                current_valid=valid,
+                committed_ego_controls=committed_ego_controls,
+                base_actions=base_actions,
+                reference_actions=response.reference_actions,
                 intervention_trigger=response.intervention_trigger,
                 intervention_memory=response.intervention_memory,
                 lateral_intervention_memory=response.lateral_intervention_memory,
                 agent_style_state=response.agent_style_state,
                 response_field_gain=response.response_field_gain,
                 response_sensitivity_bounds=model.response_sensitivity_bounds,
-                adapter_gain=torch.sigmoid(model.decoder.intervention_logit), cfg=model.cfg,
+                adapter_gain=torch.sigmoid(model.decoder.intervention_logit),
+                cfg=model.cfg,
                 reaction_enabled=controller_enabled,
                 reaction_phase=influence_state.phase,
                 reaction_age_frames=influence_state.age_frames,
@@ -446,12 +514,16 @@ def rollout(
                 previous_calibration_correction=previous_calibration_correction,
                 previous_causal_gate=previous_causal_gate,
                 policy_standard_normal=(
-                    None if exogenous_state is None else torch.from_numpy(
+                    None
+                    if exogenous_state is None
+                    else torch.from_numpy(
                         exogenous_state.policy_response_innovations[:, start]
                     ).to(device=device, dtype=states.dtype)
                 ),
                 policy_calibration_standard_normal=(
-                    None if exogenous_state is None else torch.from_numpy(
+                    None
+                    if exogenous_state is None
+                    else torch.from_numpy(
                         exogenous_state.policy_calibration_innovations[:, start]
                     ).to(device=device, dtype=states.dtype)
                 ),
@@ -463,7 +535,8 @@ def rollout(
             controller_active.append(output.active.detach())
             controller_rule_action.append(
                 torch.zeros_like(output.delta_ax)
-                if output.rule_action_ax is None else output.rule_action_ax.detach()
+                if output.rule_action_ax is None
+                else output.rule_action_ax.detach()
             )
             controller_calibration.append(
                 torch.zeros_like(output.delta_ax)
@@ -472,11 +545,13 @@ def rollout(
             )
             controller_causal_gate.append(
                 torch.zeros_like(output.delta_ax)
-                if output.causal_gate is None else output.causal_gate.detach()
+                if output.causal_gate is None
+                else output.causal_gate.detach()
             )
             controller_causal_delta.append(
                 torch.zeros_like(output.delta_ax)
-                if output.causal_delta_ax is None else output.causal_delta_ax.detach()
+                if output.causal_delta_ax is None
+                else output.causal_delta_ax.detach()
             )
             controller_influence_authority.append(influence_state.authority.detach())
             controller_influence_role.append(influence_state.role.detach())
@@ -495,9 +570,13 @@ def rollout(
                 if output.value is not None:
                     controller_value.append(output.value.detach())
             if output.response_prior_nominal_action_ax is not None:
-                controller_prior_nominal.append(output.response_prior_nominal_action_ax.detach())
+                controller_prior_nominal.append(
+                    output.response_prior_nominal_action_ax.detach()
+                )
             if output.response_prior_correction_ax is not None:
-                controller_prior_correction.append(output.response_prior_correction_ax.detach())
+                controller_prior_correction.append(
+                    output.response_prior_correction_ax.detach()
+                )
             for name, values in controller_extra.items():
                 value = getattr(output, name)
                 if value is not None:
@@ -508,7 +587,8 @@ def rollout(
             # committed on this tick, with shape ``[batch, slots, ...]``.
             previous_background_actions = response_actions[:, 0].detach()
             previous_calibration_correction = (
-                None if output.calibration_correction_ax is None
+                None
+                if output.calibration_correction_ax is None
                 else (
                     output.calibration_correction_ax[:, 0]
                     if output.calibration_correction_ax.ndim > 2
@@ -552,68 +632,126 @@ def rollout(
         ]
         boundary = start + count
         if boundary in snapshot_at_steps:
-            snapshots[boundary] = copy.deepcopy(RolloutState(
-                response_index=boundary, states=states, valid=valid,
-                history=history, history_valid=history_valid, filter_state=filter_state,
-                slow_scene=slow_scene, slow_scene_noise=slow_scene_noise,
-                agent_noise_state=agent_noise_state, agent_style_state=agent_style_state,
-                previous_current=previous_current,
-                committed_ego_controls=committed_ego_controls,
-                intervention_memory=intervention_memory,
-                lateral_intervention_memory=lateral_intervention_memory,
-                influence_state=influence_state,
-                previous_background_actions=previous_background_actions,
-                previous_calibration_correction=previous_calibration_correction,
-                previous_causal_gate=previous_causal_gate,
-            ))
+            snapshots[boundary] = copy.deepcopy(
+                RolloutState(
+                    response_index=boundary,
+                    states=states,
+                    valid=valid,
+                    history=history,
+                    history_valid=history_valid,
+                    filter_state=filter_state,
+                    slow_scene=slow_scene,
+                    slow_scene_noise=slow_scene_noise,
+                    agent_noise_state=agent_noise_state,
+                    agent_style_state=agent_style_state,
+                    previous_current=previous_current,
+                    committed_ego_controls=committed_ego_controls,
+                    intervention_memory=intervention_memory,
+                    lateral_intervention_memory=lateral_intervention_memory,
+                    influence_state=influence_state,
+                    previous_background_actions=previous_background_actions,
+                    previous_calibration_correction=previous_calibration_correction,
+                    previous_causal_gate=previous_causal_gate,
+                )
+            )
     return Rollout(
         torch.cat(generated, dim=1).cpu().numpy(),
         torch.cat(background_actions, dim=1).cpu().numpy(),
         torch.cat(executed_ego, dim=1).cpu().numpy(),
         torch.cat(reference_actions, dim=1).cpu().numpy(),
         torch.cat(base_background_actions, dim=1).cpu().numpy(),
-        None if not controller_alpha else {
-            "alpha": torch.stack(controller_alpha, dim=1).cpu().numpy(),
-            "delta_ax": torch.stack(controller_delta, dim=1).cpu().numpy(),
-            "active": torch.stack(controller_active, dim=1).cpu().numpy(),
-            "rule_action_ax": torch.stack(controller_rule_action, dim=1).cpu().numpy(),
-            "calibration_correction_ax": torch.stack(controller_calibration, dim=1).cpu().numpy(),
-            "causal_gate": torch.stack(controller_causal_gate, dim=1).cpu().numpy(),
-            "causal_delta_ax": torch.stack(controller_causal_delta, dim=1).cpu().numpy(),
-            "influence_authority": torch.stack(controller_influence_authority, dim=1).cpu().numpy(),
-            "influence_role": torch.stack(controller_influence_role, dim=1).cpu().numpy(),
-            "influence_direct": torch.stack(controller_influence_direct, dim=1).cpu().numpy(),
-            "influence_secondary": torch.stack(controller_influence_secondary, dim=1).cpu().numpy(),
-            **(
-                {"policy_features": torch.stack(controller_policy_features, dim=1).cpu().numpy()}
-                if len(controller_policy_features) == len(controller_alpha) else {}
-            ),
-            **(
-                {"raw_action": torch.stack(controller_raw_action, dim=1).cpu().numpy()}
-                if len(controller_raw_action) == len(controller_alpha) else {}
-            ),
-            **(
-                {"log_prob": torch.stack(controller_log_prob, dim=1).cpu().numpy()}
-                if len(controller_log_prob) == len(controller_alpha) else {}
-            ),
-            **(
-                {"value": torch.stack(controller_value, dim=1).cpu().numpy()}
-                if len(controller_value) == len(controller_alpha) else {}
-            ),
-            **(
-                {"response_prior_nominal_action_ax": torch.stack(controller_prior_nominal, dim=1).cpu().numpy()}
-                if len(controller_prior_nominal) == len(controller_alpha) else {}
-            ),
-            **(
-                {"response_prior_correction_ax": torch.stack(controller_prior_correction, dim=1).cpu().numpy()}
-                if len(controller_prior_correction) == len(controller_alpha) else {}
-            ),
-            **{
-                name: torch.stack(values, dim=1).cpu().numpy()
-                for name, values in controller_extra.items()
-                if len(values) == len(controller_alpha)
-            },
-        },
+        (
+            None
+            if not controller_alpha
+            else {
+                "alpha": torch.stack(controller_alpha, dim=1).cpu().numpy(),
+                "delta_ax": torch.stack(controller_delta, dim=1).cpu().numpy(),
+                "active": torch.stack(controller_active, dim=1).cpu().numpy(),
+                "rule_action_ax": torch.stack(controller_rule_action, dim=1)
+                .cpu()
+                .numpy(),
+                "calibration_correction_ax": torch.stack(controller_calibration, dim=1)
+                .cpu()
+                .numpy(),
+                "causal_gate": torch.stack(controller_causal_gate, dim=1).cpu().numpy(),
+                "causal_delta_ax": torch.stack(controller_causal_delta, dim=1)
+                .cpu()
+                .numpy(),
+                "influence_authority": torch.stack(
+                    controller_influence_authority, dim=1
+                )
+                .cpu()
+                .numpy(),
+                "influence_role": torch.stack(controller_influence_role, dim=1)
+                .cpu()
+                .numpy(),
+                "influence_direct": torch.stack(controller_influence_direct, dim=1)
+                .cpu()
+                .numpy(),
+                "influence_secondary": torch.stack(
+                    controller_influence_secondary, dim=1
+                )
+                .cpu()
+                .numpy(),
+                **(
+                    {
+                        "policy_features": torch.stack(
+                            controller_policy_features, dim=1
+                        )
+                        .cpu()
+                        .numpy()
+                    }
+                    if len(controller_policy_features) == len(controller_alpha)
+                    else {}
+                ),
+                **(
+                    {
+                        "raw_action": torch.stack(controller_raw_action, dim=1)
+                        .cpu()
+                        .numpy()
+                    }
+                    if len(controller_raw_action) == len(controller_alpha)
+                    else {}
+                ),
+                **(
+                    {"log_prob": torch.stack(controller_log_prob, dim=1).cpu().numpy()}
+                    if len(controller_log_prob) == len(controller_alpha)
+                    else {}
+                ),
+                **(
+                    {"value": torch.stack(controller_value, dim=1).cpu().numpy()}
+                    if len(controller_value) == len(controller_alpha)
+                    else {}
+                ),
+                **(
+                    {
+                        "response_prior_nominal_action_ax": torch.stack(
+                            controller_prior_nominal, dim=1
+                        )
+                        .cpu()
+                        .numpy()
+                    }
+                    if len(controller_prior_nominal) == len(controller_alpha)
+                    else {}
+                ),
+                **(
+                    {
+                        "response_prior_correction_ax": torch.stack(
+                            controller_prior_correction, dim=1
+                        )
+                        .cpu()
+                        .numpy()
+                    }
+                    if len(controller_prior_correction) == len(controller_alpha)
+                    else {}
+                ),
+                **{
+                    name: torch.stack(values, dim=1).cpu().numpy()
+                    for name, values in controller_extra.items()
+                    if len(values) == len(controller_alpha)
+                },
+            }
+        ),
         snapshots or None,
     )
 
@@ -667,9 +805,14 @@ def _distribution_metrics(
     active: np.ndarray,
 ) -> dict[str, Any]:
     return _shared_distribution_metrics(
-        samples, initial_states, target_states, target_actions,
-        target_highd_actions, active,
+        samples,
+        initial_states,
+        target_states,
+        target_actions,
+        target_highd_actions,
+        active,
     )
+
 
 def _dose_response_curve(
     baseline: Rollout,
@@ -681,8 +824,14 @@ def _dose_response_curve(
 ) -> dict[str, Any]:
     """Multi-dose response curves at the same horizons as natural matching."""
     return _shared_intervention_dose_response(
-        baseline, treatments, initial, active, kind, natural_calibration,
+        baseline,
+        treatments,
+        initial,
+        active,
+        kind,
+        natural_calibration,
     )
+
 
 def _intervention_metrics(
     baseline: Rollout,
@@ -694,14 +843,20 @@ def _intervention_metrics(
     natural_effects: np.ndarray | None = None,
 ) -> dict[str, float]:
     return _shared_intervention_metrics(
-        baseline, mild, strong, initial, active, kind, natural_effects,
+        baseline,
+        mild,
+        strong,
+        initial,
+        active,
+        kind,
+        natural_effects,
     )
+
 
 def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[str, Any]:
     """Evaluate the maintained model and persist its complete JSON report."""
     from .calibration import fit_natural_response_calibrator
     from .data import split_rows
-    from .model import FactualDynamicsModel
     from .train import load_checkpoint
 
     output = ensure_dir(config["paths"]["output_dir"])
@@ -749,9 +904,7 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
                 calibration["dose_sensitivity_p10_p90_per_mps2"], np.float32
             )
         else:
-            calibration_rows = split_rows(
-                experiment.bundle.arrays, "train", seed=seed
-            )
+            calibration_rows = split_rows(experiment.bundle.arrays, "train", seed=seed)
             calibrator, _ = fit_natural_response_calibrator(
                 experiment.bundle.arrays,
                 calibration_rows,
@@ -890,8 +1043,7 @@ def evaluate_world_model(config: dict[str, Any], *, config_dir: Path) -> dict[st
         target[:ablation_count],
         active[:ablation_count],
     )
-    # This is only a bounded evaluation cohort.  It is deliberately not the
-    # AMS/subset-simulation population; that estimator lives in IDM_subset.
+    # This is a bounded evaluation cohort, not a rare-event population estimate.
     stochastic_cohort_size = min(1024, len(rows))
     stochastic_rows = slice(0, stochastic_cohort_size)
     motion_seeds = tuple(seed + sample for sample in range(16))

@@ -1,9 +1,4 @@
-# Shared highway-env IDM ego policy for generated-scenario playback.
-# Used by:
-# - process_highD/scripts/play_cutin_tail_events.py
-# - process_highD/scripts/play_following_tail_events.py
-# - IDM_subset/scripts/play_final_level_cutin.py
-# - IDM_subset/scripts/play_final_level_following.py
+# Shared highway-env IDM ego policy for idm_ams.
 
 base:
   target_speed: 40.0

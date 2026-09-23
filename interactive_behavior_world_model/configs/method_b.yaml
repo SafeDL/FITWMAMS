@@ -1,0 +1,31 @@
+method_id: rolling_action_policy
+architecture: factorized_spatiotemporal_action_diffusion
+action_horizon_decisions: 15
+execute_decisions: 1
+diffusion_steps: 100
+denoising_candidates: [4, 8, 16]
+warm_start: true
+true_future_condition: false
+self_unfold:
+  decisions: 1
+  weight: 0.25
+  stop_gradient_through_generated_history: true
+flow_matching_efficiency_control:
+  status: single_seed_full_validation_complete
+  training_objective: independent_conditional_flow_matching
+  interpolation: linear_noise_to_action
+  sampler: fixed_step_euler
+  network_evaluations: [4, 8, 16]
+  validated_modes: [cold_start, warm_start]
+  validation_suites: [T1, T2a, latency]
+  same_architecture_data_and_action_normalization: true
+  primary_fit_seed: 20260919
+data_attribution:
+  status: BC_A2_B0_B2_B2R_B2RL_single_seed_full_validation_complete
+  tracks: [D0, D0+D1]
+  supported_d1_training_fractions: [0.01, 0.05, 0.25, 1.0]
+  validation_scope: full_D0_plus_full_D1
+  event_anchor_history_frames: 25
+  event_target_decisions: 15
+  normalization_scope: D0_train
+  primary_fit_seed: 20260919

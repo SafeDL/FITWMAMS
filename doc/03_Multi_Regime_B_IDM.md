@@ -73,10 +73,10 @@ train内使用K-means K=3；所有标准化只在train拟合。HDP-HSMM最大3�
 ## 5. 代码设计
 
 ```text
-multi_regime_bidm/src/hsmm.py              # documented finite-HSMM适配
-multi_regime_bidm/src/online_filter.py     # 因果显式持续时间过滤
-multi_regime_bidm/src/driver.py            # episode级联合参数与在线动作
-multi_regime_bidm/src/pymc_stage_b.py      # hierarchical/pooled NUTS
+reproduction/models/multi_regime_bidm/src/hsmm.py          # documented finite-HSMM适配
+reproduction/models/multi_regime_bidm/src/online_filter.py # 因果显式持续时间过滤
+reproduction/models/multi_regime_bidm/src/driver.py        # episode级联合参数与在线动作
+reproduction/models/multi_regime_bidm/src/pymc_stage_b.py  # hierarchical/pooled NUTS
 hierarchical_world_model/src/stochastic_drivers/  # 主项目接入与拒绝门
 ```
 
@@ -129,9 +129,9 @@ Dmax依据train持续时间设定，截断尾部质量必须报告。超出训�
 
 已实现CLI：
 ```bash
-python -m multi_regime_bidm.scripts.fit_stage_a
-python -m multi_regime_bidm.scripts.fit_stage_b_nuts
-python -m driver_reproduction.scripts.run_matched_evaluation
+python -m reproduction.models.multi_regime_bidm.scripts.fit_stage_a
+python -m reproduction.models.multi_regime_bidm.scripts.fit_stage_b_nuts
+python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model multi_regime --style-id 1 --allow-unaccepted
 ```
 

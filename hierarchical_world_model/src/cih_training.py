@@ -11,6 +11,7 @@ factual evaluator.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -53,22 +54,20 @@ class ResponseOptimizationConfig:
     max_grad_norm: float
 
 
-def load_cih_config(root: str | "Path") -> tuple[dict[str, Any], dict[str, Any]]:
+def load_cih_config(root: str | Path) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load the maintained CIH-WM method and factual configuration."""
-    from pathlib import Path
-
     workspace = Path(root)
     config_path = workspace / "hierarchical_world_model/config/cih_world_model.yaml"
     from .cih_model import load_cih_method_config
 
     config = load_cih_method_config(config_path)
-    world = yaml.safe_load((workspace / config["base_config"]).read_text(encoding="utf-8"))
+    world = yaml.safe_load(
+        (workspace / config["base_config"]).read_text(encoding="utf-8")
+    )
     return config, world
 
 
-def cih_result_root(root: str | "Path", config: dict[str, Any]):
-    from pathlib import Path
-
+def cih_result_root(root: str | Path, config: dict[str, Any]):
     return Path(root) / config["paths"]["output_dir"]
 
 
@@ -85,153 +84,275 @@ def response_optimization_config(values: dict[str, Any]) -> ResponseOptimization
     )
 
 
-def supported_event_indices(reference: ReactionEventReference, arrays: dict[str, np.ndarray]) -> np.ndarray:
+def supported_event_indices(
+    reference: ReactionEventReference, arrays: dict[str, np.ndarray]
+) -> np.ndarray:
     """Return supported, ego-led events present in this formal data slice."""
     rows = set(np.asarray(arrays["row_index"], np.int64).tolist())
     events = reference.events
     return np.asarray(
-        [index for index in events.indices(reference.supported_cells)
-         if events.leader_slot[index] == 0 and int(events.row_index[index]) in rows],
+        [
+            index
+            for index in events.indices(reference.supported_cells)
+            if events.leader_slot[index] == 0 and int(events.row_index[index]) in rows
+        ],
         np.int64,
     )
 
 
 def response_supervised_loss(
-    controller: CausalInfluenceResponsePolicy, cache: dict[str, torch.Tensor], indices: torch.Tensor,
-    *, prior_weight: float, non_weight: float, event_weight: float = 1.0,
-    non_event_weight: float = 1.0, event_gate_weight: float = 1.0,
+    controller: CausalInfluenceResponsePolicy,
+    cache: dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    *,
+    prior_weight: float,
+    non_weight: float,
+    event_weight: float = 1.0,
+    non_event_weight: float = 1.0,
+    event_gate_weight: float = 1.0,
     mechanism_weight: float = 1.0,
     direction_weight: float = 1.0,
     magnitude_weight: float = 0.1,
     direction_margin_mps2: float = 0.05,
 ) -> torch.Tensor:
     """Fit executable actions on logged physical histories."""
-    features = cache["features"][indices].to(next(controller.adapter.parameters()).device)
+    features = cache["features"][indices].to(
+        next(controller.adapter.parameters()).device
+    )
     distribution, _ = controller.adapter.distribution_and_value(features)
     mapped = controller.map_calibration_tensors(
         nominal=cache["nominal"][indices].to(features),
         prior_correction=cache["response_prior_correction"][indices].to(features),
         active=cache["active"][indices].to(features).bool(),
-        authority=cache["authority"][indices].to(features), raw=distribution.mean,
+        authority=cache["authority"][indices].to(features),
+        raw=distribution.mean,
         previous_calibration=cache["previous"][indices].to(features),
-        minimum=-8.0, maximum=4.0, dt_s=.04,
+        minimum=-8.0,
+        maximum=4.0,
+        dt_s=0.04,
         jerk_limit_mps3=controller.correction_jerk_limit_mps3,
         residual_max_mps2=controller.calibration_residual_max_mps2,
     )
-    target, event = cache["target"][indices].to(features), cache["event"][indices].to(features).bool()
+    target, event = (
+        cache["target"][indices].to(features),
+        cache["event"][indices].to(features).bool(),
+    )
     zero = mapped["final"].sum() * 0.0
-    event_loss = functional.huber_loss(mapped["final"][event], target[event]) if event.any() else zero
-    non_loss = functional.huber_loss(mapped["final"][~event], target[~event]) if (~event).any() else zero
-    non_calibration = mapped["calibration"][~event].abs().mean() if (~event).any() else zero
+    event_loss = (
+        functional.huber_loss(mapped["final"][event], target[event])
+        if event.any()
+        else zero
+    )
+    non_loss = (
+        functional.huber_loss(mapped["final"][~event], target[~event])
+        if (~event).any()
+        else zero
+    )
+    non_calibration = (
+        mapped["calibration"][~event].abs().mean() if (~event).any() else zero
+    )
     base = cache["base_action"][indices].to(features)
     factual_anchor = (mapped["final"] - base).abs().mean()
     # Compatibility arguments remain accepted so old launchers fail neither
     # parsing nor checkpoint loading.  Event-gate BCE and absolute rule-action
     # regression are deliberately absent from the human teacher objective.
-    del event_gate_weight, mechanism_weight, direction_weight, magnitude_weight, direction_margin_mps2
+    del (
+        event_gate_weight,
+        mechanism_weight,
+        direction_weight,
+        magnitude_weight,
+        direction_margin_mps2,
+    )
     return (
-        float(event_weight) * event_loss + float(non_event_weight) * non_loss
+        float(event_weight) * event_loss
+        + float(non_event_weight) * non_loss
         + float(prior_weight) * distribution.mean.square().mean()
         + float(non_weight) * (non_calibration + factual_anchor)
     )
 
 
-def _gae(reward: torch.Tensor, value: torch.Tensor, done: torch.Tensor, gamma: float, lam: float) -> tuple[torch.Tensor, torch.Tensor]:
+def _gae(
+    reward: torch.Tensor,
+    value: torch.Tensor,
+    done: torch.Tensor,
+    gamma: float,
+    lam: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
     advantage, tail = torch.zeros_like(reward), torch.zeros_like(reward[0])
     for index in range(len(reward) - 1, -1, -1):
-        next_value = torch.zeros_like(tail) if index == len(reward) - 1 else value[index + 1]
+        next_value = (
+            torch.zeros_like(tail) if index == len(reward) - 1 else value[index + 1]
+        )
         live = (~done[index]).float()
-        tail = reward[index] + gamma * next_value * live - value[index] + gamma * lam * live * tail
+        tail = (
+            reward[index]
+            + gamma * next_value * live
+            - value[index]
+            + gamma * lam * live * tail
+        )
         advantage[index] = tail
     return advantage, advantage + value
 
 
 def response_policy_update(
-    controller: CausalInfluenceResponsePolicy, reference_adapter: torch.nn.Module,
-    optimizer: torch.optim.Optimizer, buffer: dict[str, torch.Tensor], config: ResponseOptimizationConfig,
-    values: dict[str, Any], coefficient: float,
+    controller: CausalInfluenceResponsePolicy,
+    reference_adapter: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    buffer: dict[str, torch.Tensor],
+    config: ResponseOptimizationConfig,
+    values: dict[str, Any],
+    coefficient: float,
     auxiliary_loss: Callable[[], torch.Tensor] | None = None,
 ) -> tuple[dict[str, float], float]:
     """One clipped policy update over samples emitted by the CIH-WM executor."""
-    advantage, returns = _gae(buffer["reward"], buffer["value"], buffer["done"], config.gamma, config.gae_lambda)
+    advantage, returns = _gae(
+        buffer["reward"],
+        buffer["value"],
+        buffer["done"],
+        config.gamma,
+        config.gae_lambda,
+    )
     active = (buffer["mask"] & buffer["active"]).reshape(-1)
     if not active.any():
         raise RuntimeError("formal PPO buffer has no active supported samples")
     features = buffer["features"].reshape(-1, buffer["features"].shape[-1])[active]
-    raw, old = buffer["raw_action"].reshape(-1, 2)[active], buffer["log_prob"].reshape(-1)[active]
+    raw, old = (
+        buffer["raw_action"].reshape(-1, 2)[active],
+        buffer["log_prob"].reshape(-1)[active],
+    )
     advantage, returns = advantage.reshape(-1)[active], returns.reshape(-1)[active]
-    advantage = (advantage - advantage.mean()) / advantage.std().clamp_min(1.e-6)
+    advantage = (advantage - advantage.mean()) / advantage.std().clamp_min(1.0e-6)
     with torch.no_grad():
         recomputed, _, _ = controller.evaluate_raw_action(features, raw)
     # The trace crosses a NumPy serialization boundary; CUDA Normal.log_prob
     # can differ by a few float32 ulps when recomputed from that buffer.
-    if not torch.allclose(recomputed, old, rtol=1.e-5, atol=2.e-5):
+    if not torch.allclose(recomputed, old, rtol=1.0e-5, atol=2.0e-5):
         difference = (recomputed - old).abs()
         raise RuntimeError(
             "stored and recomputed PPO log probabilities differ before update: "
             f"max={float(difference.max()):.9g}, mean={float(difference.mean()):.9g}, "
             f"stored_range=({float(old.min()):.9g},{float(old.max()):.9g})"
         )
-    before = {name: value.detach().clone() for name, value in controller.adapter.state_dict().items()}
+    before = {
+        name: value.detach().clone()
+        for name, value in controller.adapter.state_dict().items()
+    }
     with torch.no_grad():
         before_distribution, _ = controller.adapter.distribution_and_value(features)
         before_mean = before_distribution.mean.clone()
         before_std = before_distribution.stddev.clone()
-    losses: list[float] = []; kls: list[float] = []; references: list[float] = []
+    losses: list[float] = []
+    kls: list[float] = []
+    references: list[float] = []
     for _ in range(config.epochs_per_update):
         current_kls: list[float] = []
-        for subset in torch.randperm(len(features), device=features.device).split(config.minibatch_size):
-            log_prob, entropy, value = controller.evaluate_raw_action(features[subset], raw[subset])
+        for subset in torch.randperm(len(features), device=features.device).split(
+            config.minibatch_size
+        ):
+            log_prob, entropy, value = controller.evaluate_raw_action(
+                features[subset], raw[subset]
+            )
             ratio = (log_prob - old[subset]).exp()
-            policy = -torch.minimum(ratio * advantage[subset], ratio.clamp(1.0 - config.clip_ratio, 1.0 + config.clip_ratio) * advantage[subset]).mean()
+            policy = -torch.minimum(
+                ratio * advantage[subset],
+                ratio.clamp(1.0 - config.clip_ratio, 1.0 + config.clip_ratio)
+                * advantage[subset],
+            ).mean()
             current, _ = controller.adapter.distribution_and_value(features[subset])
             with torch.no_grad():
-                reference, _ = reference_adapter.distribution_and_value(features[subset])
-            reference_kl = torch.distributions.kl_divergence(current, reference).sum(-1).mean()
-            auxiliary = policy.new_zeros(()) if auxiliary_loss is None else auxiliary_loss()
-            loss = policy + config.value_coefficient * functional.mse_loss(value, returns[subset]) - float(values["entropy_coefficient"]) * entropy.mean() + coefficient * reference_kl + auxiliary
-            optimizer.zero_grad(set_to_none=True); loss.backward()
-            torch.nn.utils.clip_grad_norm_(controller.adapter.parameters(), config.max_grad_norm); optimizer.step()
+                reference, _ = reference_adapter.distribution_and_value(
+                    features[subset]
+                )
+            reference_kl = (
+                torch.distributions.kl_divergence(current, reference).sum(-1).mean()
+            )
+            auxiliary = (
+                policy.new_zeros(()) if auxiliary_loss is None else auxiliary_loss()
+            )
+            loss = (
+                policy
+                + config.value_coefficient * functional.mse_loss(value, returns[subset])
+                - float(values["entropy_coefficient"]) * entropy.mean()
+                + coefficient * reference_kl
+                + auxiliary
+            )
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                controller.adapter.parameters(), config.max_grad_norm
+            )
+            optimizer.step()
             approximate = float((old[subset] - log_prob).mean().detach())
-            current_kls.append(approximate); kls.append(approximate); references.append(float(reference_kl.detach())); losses.append(float(loss.detach()))
+            current_kls.append(approximate)
+            kls.append(approximate)
+            references.append(float(reference_kl.detach()))
+            losses.append(float(loss.detach()))
         if current_kls and max(current_kls) > float(values["inner_stop_kl"]):
             break
     with torch.no_grad():
         current_distribution, _ = controller.adapter.distribution_and_value(features)
         frozen_before = torch.distributions.Normal(before_mean, before_std)
         full_update_kl = float(
-            torch.distributions.kl_divergence(frozen_before, current_distribution).sum(-1).mean()
+            torch.distributions.kl_divergence(frozen_before, current_distribution)
+            .sum(-1)
+            .mean()
         )
-    rolled_back = full_update_kl > float(values.get("full_update_kl_limit", float("inf")))
+    rolled_back = full_update_kl > float(
+        values.get("full_update_kl_limit", float("inf"))
+    )
     if rolled_back:
         controller.adapter.load_state_dict(before, strict=True)
-    mean_reference = float(np.mean(references)); target = float(values["reference_kl_target"])
-    coefficient = coefficient * (2.0 if mean_reference > 1.5 * target else .5 if mean_reference < target / 1.5 else 1.0)
-    coefficient = float(np.clip(coefficient, values["reference_kl_minimum"], values["reference_kl_maximum"]))
+    mean_reference = float(np.mean(references))
+    target = float(values["reference_kl_target"])
+    coefficient = coefficient * (
+        2.0
+        if mean_reference > 1.5 * target
+        else 0.5 if mean_reference < target / 1.5 else 1.0
+    )
+    coefficient = float(
+        np.clip(
+            coefficient, values["reference_kl_minimum"], values["reference_kl_maximum"]
+        )
+    )
     return {
-        "policy_loss": float(np.mean(losses)), "approx_kl": float(np.mean(kls)),
-        "reference_kl": mean_reference, "full_update_kl": full_update_kl,
+        "policy_loss": float(np.mean(losses)),
+        "approx_kl": float(np.mean(kls)),
+        "reference_kl": mean_reference,
+        "full_update_kl": full_update_kl,
         "rolled_back": bool(rolled_back),
     }, coefficient
 
 
 def _required_trace(
-    result: Rollout, *, device: torch.device, expected_steps: int = 149,
+    result: Rollout,
+    *,
+    device: torch.device,
+    expected_steps: int = 149,
 ) -> ResponsePolicyTrace:
     diagnostics = result.controller_diagnostics
     required = ("policy_features", "raw_action", "log_prob", "value", "policy_active")
     if diagnostics is None or any(name not in diagnostics for name in required):
-        missing = required if diagnostics is None else tuple(name for name in required if name not in diagnostics)
-        raise RuntimeError(f"formal rollout did not expose complete PPO trace: {missing}")
+        missing = (
+            required
+            if diagnostics is None
+            else tuple(name for name in required if name not in diagnostics)
+        )
+        raise RuntimeError(
+            f"formal rollout did not expose complete PPO trace: {missing}"
+        )
     tensors = {
         name: torch.from_numpy(np.asarray(diagnostics[name])).to(device)
         for name in required
     }
     features = tensors["policy_features"]
     if result.background_actions.shape[1] != expected_steps:
-        raise RuntimeError("response optimization requires the complete 149-frame rollout")
+        raise RuntimeError(
+            "response optimization requires the complete 149-frame rollout"
+        )
     if features.shape[:3] != (len(result.states), expected_steps, 6):
-        raise RuntimeError("formal controller feature trace is not [batch,149,6,features]")
+        raise RuntimeError(
+            "formal controller feature trace is not [batch,149,6,features]"
+        )
     if tensors["raw_action"].shape != (len(result.states), expected_steps, 6, 2):
         raise RuntimeError("formal controller raw-action trace is not [batch,149,6,2]")
     if tensors["log_prob"].shape != (len(result.states), expected_steps, 6):
@@ -272,9 +393,17 @@ def response_policy_trace(
     validation remains the default scoped evaluator without this override.
     """
     result = rollout(
-        model, states, valid, soft_plans, maps, map_valid,
-        device=device, history_frames=25, motion_seed=None,
-        controller=controller, controller_deterministic=deterministic,
+        model,
+        states,
+        valid,
+        soft_plans,
+        maps,
+        map_valid,
+        device=device,
+        history_frames=25,
+        motion_seed=None,
+        controller=controller,
+        controller_deterministic=deterministic,
         excluded_slots=(),
         influence_graph_config=influence_graph_config,
         intervention=intervention,
@@ -302,8 +431,7 @@ def _contrast_fields(trace: ResponsePolicyTrace) -> dict[str, torch.Tensor]:
     if missing:
         raise RuntimeError(f"causal contrast rollout is missing {missing}")
     result = {
-        name: torch.from_numpy(np.asarray(diagnostics[name]))
-        for name in required
+        name: torch.from_numpy(np.asarray(diagnostics[name])) for name in required
     }
     calibration = result["calibration_correction_ax"]
     result["previous"] = torch.cat(
@@ -339,12 +467,22 @@ def causal_contrast_cache(
     if maximum_rows is not None:
         count = min(count, max(int(maximum_rows), 0))
     records: dict[str, list[torch.Tensor]] = {
-        name: [] for name in (
-            "nominal_features", "nominal_action", "nominal_prior_correction",
-            "nominal_authority", "nominal_active", "nominal_previous",
-            "treated_features", "treated_action", "treated_prior_correction",
-            "treated_authority", "treated_active", "treated_previous",
-            "rule_delta", "secondary",
+        name: []
+        for name in (
+            "nominal_features",
+            "nominal_action",
+            "nominal_prior_correction",
+            "nominal_authority",
+            "nominal_active",
+            "nominal_previous",
+            "treated_features",
+            "treated_action",
+            "treated_prior_correction",
+            "treated_authority",
+            "treated_active",
+            "treated_previous",
+            "rule_delta",
+            "secondary",
         )
     }
     for start in range(0, count, max(int(batch_size), 1)):
@@ -388,8 +526,12 @@ def causal_contrast_cache(
         if not bool(selected.any()):
             continue
         records["nominal_features"].append(nominal["features"][selected])
-        records["nominal_action"].append(nominal["response_prior_nominal_action_ax"][selected])
-        records["nominal_prior_correction"].append(nominal["response_prior_correction_ax"][selected])
+        records["nominal_action"].append(
+            nominal["response_prior_nominal_action_ax"][selected]
+        )
+        records["nominal_prior_correction"].append(
+            nominal["response_prior_correction_ax"][selected]
+        )
         records["nominal_authority"].append(nominal["influence_authority"][selected])
         records["nominal_active"].append(nominal["active"][selected])
         records["nominal_previous"].append(nominal["previous"][selected])
@@ -401,13 +543,19 @@ def causal_contrast_cache(
             ("treated_active", "active"),
             ("treated_previous", "previous"),
         ):
-            records[key].append(torch.stack([item[source][selected] for item in treated], dim=1))
+            records[key].append(
+                torch.stack([item[source][selected] for item in treated], dim=1)
+            )
         records["rule_delta"].append(rule_delta[selected])
         records["secondary"].append(
-            torch.stack([item["influence_secondary"][selected] for item in treated], dim=1).any(dim=1)
+            torch.stack(
+                [item["influence_secondary"][selected] for item in treated], dim=1
+            ).any(dim=1)
         )
     if not records["nominal_features"]:
-        raise RuntimeError("causal contrast cache has no matched direct or secondary frames")
+        raise RuntimeError(
+            "causal contrast cache has no matched direct or secondary frames"
+        )
     result = {name: torch.cat(values, dim=0) for name, values in records.items()}
     result["doses"] = torch.tensor(doses, dtype=torch.float32)
     return result
@@ -445,7 +593,7 @@ def causal_contrast_loss(
             previous_calibration=values["previous"],
             minimum=-8.0,
             maximum=4.0,
-            dt_s=.04,
+            dt_s=0.04,
             jerk_limit_mps3=controller.correction_jerk_limit_mps3,
             scale_radius=controller.calibration_scale_radius,
             residual_max_mps2=controller.calibration_residual_max_mps2,
@@ -453,7 +601,9 @@ def causal_contrast_loss(
 
     nominal = mapped("nominal")
     dose_count = int(cache["treated_features"].shape[1])
-    treated = torch.stack([mapped("treated", index) for index in range(dose_count)], dim=1)
+    treated = torch.stack(
+        [mapped("treated", index) for index in range(dose_count)], dim=1
+    )
     predicted_delta = treated - nominal[:, None]
     rule_delta = cache["rule_delta"][indices].to(device)
     aligned = rule_delta.sign() * predicted_delta
@@ -462,8 +612,7 @@ def causal_contrast_loss(
     monotonic = torch.stack(
         [
             torch.relu(
-                aligned[:, index] - aligned[:, index + 1]
-                + float(direction_margin_mps2)
+                aligned[:, index] - aligned[:, index + 1] + float(direction_margin_mps2)
             ).mean()
             for index in range(dose_count - 1)
         ]
@@ -493,60 +642,100 @@ def response_teacher_cache(
     influence_graph_config: dict[str, float | int] | None = None,
 ) -> dict[str, torch.Tensor]:
     """Build supervised records from strictly logged, already-realized history."""
-    lookup = {int(row): index for index, row in enumerate(np.asarray(arrays["row_index"], np.int64))}
+    lookup = {
+        int(row): index
+        for index, row in enumerate(np.asarray(arrays["row_index"], np.int64))
+    }
     records: dict[str, list[torch.Tensor]] = {
-        name: [] for name in (
-            "features", "nominal", "response_prior_correction", "authority",
-            "active", "previous", "target", "event", "rule_target",
-            "base_action", "following",
+        name: []
+        for name in (
+            "features",
+            "nominal",
+            "response_prior_correction",
+            "authority",
+            "active",
+            "previous",
+            "target",
+            "event",
+            "rule_target",
+            "base_action",
+            "following",
         )
     }
     for start in range(0, len(event_indices), batch_size):
-        selected = np.asarray(event_indices[start:start + batch_size], np.int64)
-        positions = np.asarray([lookup[int(reference.events.row_index[index])] for index in selected], np.int64)
+        selected = np.asarray(event_indices[start : start + batch_size], np.int64)
+        positions = np.asarray(
+            [lookup[int(reference.events.row_index[index])] for index in selected],
+            np.int64,
+        )
         trace = response_policy_trace(
-            model, states=arrays["agent_states"][positions], valid=arrays["agent_valid"][positions],
-            soft_plans=plans[positions], maps=arrays["map_polylines"][positions],
-            map_valid=arrays["map_polyline_valid"][positions], controller=controller,
-            device=device, deterministic=True,
+            model,
+            states=arrays["agent_states"][positions],
+            valid=arrays["agent_valid"][positions],
+            soft_plans=plans[positions],
+            maps=arrays["map_polylines"][positions],
+            map_valid=arrays["map_polyline_valid"][positions],
+            controller=controller,
+            device=device,
+            deterministic=True,
             influence_graph_config=influence_graph_config,
             teacher_forced_logged_context=True,
         )
         diagnostics = trace.rollout.controller_diagnostics
         assert diagnostics is not None
-        nominal = torch.from_numpy(diagnostics["response_prior_nominal_action_ax"]).to(device)
-        correction = torch.from_numpy(diagnostics["response_prior_correction_ax"]).to(device)
-        authority = torch.from_numpy(diagnostics["influence_authority"]).to(device).float()
+        nominal = torch.from_numpy(diagnostics["response_prior_nominal_action_ax"]).to(
+            device
+        )
+        correction = torch.from_numpy(diagnostics["response_prior_correction_ax"]).to(
+            device
+        )
+        authority = (
+            torch.from_numpy(diagnostics["influence_authority"]).to(device).float()
+        )
         rule_target = torch.from_numpy(diagnostics["rule_action_ax"]).to(device)
-        base_action = torch.from_numpy(trace.rollout.base_background_actions[..., 0]).to(device)
+        base_action = torch.from_numpy(
+            trace.rollout.base_background_actions[..., 0]
+        ).to(device)
         influence_role = torch.from_numpy(diagnostics["influence_role"]).to(device)
         logged = torch.from_numpy(
-            (arrays["agent_states"][positions, ANCHOR_INDEX + 1:174, 1:, 2]
-             - arrays["agent_states"][positions, ANCHOR_INDEX:173, 1:, 2]) / .04
+            (
+                arrays["agent_states"][positions, ANCHOR_INDEX + 1 : 174, 1:, 2]
+                - arrays["agent_states"][positions, ANCHOR_INDEX:173, 1:, 2]
+            )
+            / 0.04
         ).to(device)
         logged_before_anchor = torch.from_numpy(
-            (arrays["agent_states"][positions, ANCHOR_INDEX, 1:, 2]
-             - arrays["agent_states"][positions, ANCHOR_INDEX - 1, 1:, 2]) / .04
+            (
+                arrays["agent_states"][positions, ANCHOR_INDEX, 1:, 2]
+                - arrays["agent_states"][positions, ANCHOR_INDEX - 1, 1:, 2]
+            )
+            / 0.04
         ).to(device)
         for batch, event_index in enumerate(selected):
             onset = int(reference.events.local_onset_frame[event_index]) - ANCHOR_INDEX
             follower = int(reference.events.follower_slot[event_index]) - 1
-            lower, upper = max(0, onset - PRE_EVENT_FRAMES), min(149, onset + RECOVERY_FRAMES)
+            lower, upper = max(0, onset - PRE_EVENT_FRAMES), min(
+                149, onset + RECOVERY_FRAMES
+            )
             for frame in range(lower, upper):
                 previous_logged = (
                     logged_before_anchor[batch, follower]
-                    if frame == 0 else logged[batch, frame - 1, follower]
+                    if frame == 0
+                    else logged[batch, frame - 1, follower]
                 )
                 previous_base = (
                     base_action[batch, frame, follower]
-                    if frame == 0 else base_action[batch, frame - 1, follower]
+                    if frame == 0
+                    else base_action[batch, frame - 1, follower]
                 )
                 previous = previous_logged - previous_base
                 feature = trace.features[batch, frame, follower].clone()
                 feature[-1] = previous / 2.0
                 records["features"].append(feature.cpu())
                 records["nominal"].append(nominal[batch, frame, follower].cpu())
-                records["response_prior_correction"].append(correction[batch, frame, follower].cpu())
+                records["response_prior_correction"].append(
+                    correction[batch, frame, follower].cpu()
+                )
                 records["authority"].append(authority[batch, frame, follower].cpu())
                 records["active"].append(trace.active[batch, frame, follower].cpu())
                 records["previous"].append(previous.cpu())
@@ -583,27 +772,44 @@ def response_policy_buffer(
     influence_graph_config: dict[str, float | int] | None = None,
 ) -> dict[str, torch.Tensor]:
     """Collect response-policy samples and distributional rewards."""
-    row_lookup = {int(row): index for index, row in enumerate(np.asarray(arrays["row_index"], np.int64))}
+    row_lookup = {
+        int(row): index
+        for index, row in enumerate(np.asarray(arrays["row_index"], np.int64))
+    }
     positions = np.asarray(
-        [row_lookup[int(reference.events.row_index[index])] for index in groups for _ in range(futures)],
+        [
+            row_lookup[int(reference.events.row_index[index])]
+            for index in groups
+            for _ in range(futures)
+        ],
         np.int64,
     )
     exogenous = WorldExogenousState.sample(
-        len(positions), seed=int(np.random.randint(0, 2**31 - 1)),
+        len(positions),
+        seed=int(np.random.randint(0, 2**31 - 1)),
         response_steps=149,
         scene_refresh_responses=int(model.cfg.scene_refresh_responses),
         scene_dim=int(model.cfg.scene_latent_dim),
         agent_dim=int(model.cfg.agent_latent_dim),
     )
     trace = response_policy_trace(
-        model, states=arrays["agent_states"][positions], valid=arrays["agent_valid"][positions],
-        soft_plans=plans[positions], maps=arrays["map_polylines"][positions],
-        map_valid=arrays["map_polyline_valid"][positions], controller=controller,
-        device=device, deterministic=False,
+        model,
+        states=arrays["agent_states"][positions],
+        valid=arrays["agent_valid"][positions],
+        soft_plans=plans[positions],
+        maps=arrays["map_polylines"][positions],
+        map_valid=arrays["map_polyline_valid"][positions],
+        controller=controller,
+        device=device,
+        deterministic=False,
         influence_graph_config=influence_graph_config,
         exogenous_state=exogenous,
     )
-    action = torch.from_numpy(trace.rollout.background_actions[..., 0]).to(device).transpose(0, 1)
+    action = (
+        torch.from_numpy(trace.rollout.background_actions[..., 0])
+        .to(device)
+        .transpose(0, 1)
+    )
     reward = torch.zeros_like(action)
     mask = torch.zeros_like(trace.active.transpose(0, 1), dtype=torch.bool)
     scale = torch.as_tensor(query_iqr, device=device)
@@ -619,21 +825,29 @@ def response_policy_buffer(
         if onset <= 0 or onset + RECOVERY_FRAMES > 149:
             continue
         begin, end = group * futures, (group + 1) * futures
-        acceleration = action[onset:onset + RECOVERY_FRAMES, begin:end, follower].transpose(0, 1)
+        acceleration = action[
+            onset : onset + RECOVERY_FRAMES, begin:end, follower
+        ].transpose(0, 1)
         prior = action[onset - 1, begin:end, follower][:, None]
-        jerk = (acceleration - torch.cat((prior, acceleration[:, :-1]), dim=1)).abs() / .04
+        jerk = (
+            acceleration - torch.cat((prior, acceleration[:, :-1]), dim=1)
+        ).abs() / 0.04
         response = torch.stack((acceleration, jerk), dim=-1)
         observed = torch.as_tensor(query_response[query_index], device=device)
         if observed.shape[0] < RECOVERY_FRAMES:
-            raise ValueError("human-response query cache must contain the 75-frame target")
+            raise ValueError(
+                "human-response query cache must contain the 75-frame target"
+            )
         contribution = loo_event_energy_rewards(
             response, observed[:RECOVERY_FRAMES], scale
         )
-        reward[onset + RECOVERY_FRAMES - 1, begin:end, follower] += weight * contribution
+        reward[onset + RECOVERY_FRAMES - 1, begin:end, follower] += (
+            weight * contribution
+        )
         # Actions before onset can alter the state at which the response score
         # begins, so every policy-active step through the score endpoint owns
         # credit under the finite-horizon Monte Carlo objective.
-        mask[:onset + RECOVERY_FRAMES, begin:end, follower] = True
+        mask[: onset + RECOVERY_FRAMES, begin:end, follower] = True
     steps = trace.active.shape[1]
     done = torch.zeros((steps, len(positions), 6), device=device, dtype=torch.bool)
     done[-1] = True

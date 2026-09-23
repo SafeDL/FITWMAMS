@@ -1,5 +1,9 @@
 # 随机驾驶人复现的共同协议
 
+所有论文方法的统一目录和证据状态以
+[`reproduction/registry.json`](../reproduction/registry.json) 为准。本文件只定义随机驾驶人
+子集的共同实验协议，不再承担整个仓库的分支索引。
+
 所有模型共享 highD 的原始 25 Hz 时钟；车辆以 25 Hz ballistic plant 推进，
 随机驾驶人每 0.2 s 决策一次，动作保持五个原生帧。模型的随机状态由自身生成并
 因果递推，plant 限幅不得反写 GP/AR 状态，评测器不得把真实未来输入驾驶人。
@@ -35,12 +39,13 @@ Multi-regime 的36-pair留出结果不可互相排名。
 统一证据汇总可由下列命令重建；它不会替代模型各自的拟合、driver和评测：
 
 ```bash
-python -m driver_reproduction.scripts.build_scorecard
-python -m driver_reproduction.scripts.run_matched_evaluation
+python -m reproduction.audit
+python -m reproduction.evaluation.driver_reproduction.scripts.build_scorecard
+python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m hierarchical_world_model.scripts.stochastic_drivers inventory
-pytest -q driver_reproduction/tests active_inference_driver/tests \
-  bayesian_ma_idm/tests dynamic_ar_idm/tests multi_regime_bidm/tests \
-  counterfactual_response/tests
+pytest -q reproduction/evaluation/driver_reproduction/tests reproduction/models/active_inference_driver/tests \
+  reproduction/models/bayesian_ma_idm/tests reproduction/models/dynamic_ar_idm/tests reproduction/models/multi_regime_bidm/tests \
+  reproduction/evaluation/counterfactual_response/tests
 ```
 
 新结果必须写明数据 lineage、split、后验用途和状态初始化。不要保留 smoke、旧修复前

@@ -6,12 +6,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from active_inference_driver.config import ActiveInferenceConfig
-from active_inference_driver.model import ActiveInferenceDriver
-from active_inference_driver.official_wrapper import OfficialPOMDP25Hz
-from bayesian_ma_idm.src.driver import BayesianIDMDriver
-from dynamic_ar_idm.model import DynamicIDMDriver
-from multi_regime_bidm.src.driver import MultiRegimeIDMDriver, load_hsmm_models
+from reproduction.models.active_inference_driver.config import ActiveInferenceConfig
+from reproduction.models.active_inference_driver.model import ActiveInferenceDriver
+from reproduction.models.active_inference_driver.official_wrapper import OfficialPOMDP25Hz
+from reproduction.models.bayesian_ma_idm.src.driver import BayesianIDMDriver
+from reproduction.models.dynamic_ar_idm.model import DynamicIDMDriver
+from reproduction.models.multi_regime_bidm.src.driver import MultiRegimeIDMDriver, load_hsmm_models
 
 from .interface import DriverSession
 
@@ -29,19 +29,19 @@ class DriverSpec:
 
 DRIVER_SPECS: dict[str, DriverSpec] = {
     "b_idm": DriverSpec(
-        "bayesian_ma_idm/evidence/deployment/b_idm_all_251.npz",
+        "reproduction/models/bayesian_ma_idm/evidence/deployment/b_idm_all_251.npz",
         "usable_routine_following_baseline", True, "paper mechanism; full local cohort fit",
     ),
     "ma_idm": DriverSpec(
-        "bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz",
+        "reproduction/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz",
         "usable_routine_following", True, "paper mechanism; full local cohort fit",
     ),
     "dynamic_ar5": DriverSpec(
-        "dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz",
+        "reproduction/models/dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz",
         "engineering_map_laplace_approximation", True, "paper model; NUTS did not converge",
     ),
     "multi_regime": DriverSpec(
-        "multi_regime_bidm/evidence/posterior/style_{style_id}_nuts_posterior.npz",
+        "reproduction/models/multi_regime_bidm/evidence/posterior/style_{style_id}_nuts_posterior.npz",
         "rejected_not_well_calibrated", False, "documented finite-HSMM adaptation",
     ),
     "active_inference_longitudinal": DriverSpec(
@@ -92,7 +92,7 @@ def create_driver_session(
         if style_id not in (0, 1, 2):
             raise ValueError("multi-regime style_id must be 0, 1 or 2")
         models = load_hsmm_models(
-            ROOT / "multi_regime_bidm/evidence/segmentation/stage_a_finite_hsmm_models.npz"
+            ROOT / "reproduction/models/multi_regime_bidm/evidence/segmentation/stage_a_finite_hsmm_models.npz"
         )
         driver = MultiRegimeIDMDriver.from_posterior(
             models[style_id], ROOT / spec.artifact.format(style_id=style_id), seed=seed,

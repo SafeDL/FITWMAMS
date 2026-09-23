@@ -98,9 +98,9 @@ AR在0.2s更新；25Hz中间4个tick不重复采样，不把ρ按dt幂次随意�
 ## 6. 当前代码组织
 
 ```text
-dynamic_ar_idm/model.py                                  # AR核与在线driver
-dynamic_ar_idm/fit.py                                    # MAP/Laplace及可选NUTS
-dynamic_ar_idm/scripts/                                  # 数据、拟合、评测和ring
+reproduction/models/dynamic_ar_idm/model.py              # AR核与在线driver
+reproduction/models/dynamic_ar_idm/fit.py                # MAP/Laplace及可选NUTS
+reproduction/models/dynamic_ar_idm/scripts/              # 数据、拟合、评测和ring
 hierarchical_world_model/src/stochastic_drivers/         # 主项目25 Hz接入边界
 ```
 
@@ -152,9 +152,9 @@ PDF11表2 AR5真实单位参考：`RMSE(a)=0.166, RMSE(v)=0.265, RMSE(s)=0.429`�
 [A] 正式最多20个train driver、4链、3000warmup+1000draw、CPU wall-clock 18h；只做p=0/5主要比较，p=1使用较小诊断预算。达到上限停止并留工件。模型拟合不需要从零PPO；GPU主要用于现有世界批量评测。
 
 ```bash
-python -m dynamic_ar_idm.scripts.fit --ar-order 5
-python -m dynamic_ar_idm.scripts.evaluate
-python -m driver_reproduction.scripts.run_matched_evaluation
+python -m reproduction.models.dynamic_ar_idm.scripts.fit --ar-order 5
+python -m reproduction.models.dynamic_ar_idm.scripts.evaluate
+python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model dynamic_ar5
 ```
 

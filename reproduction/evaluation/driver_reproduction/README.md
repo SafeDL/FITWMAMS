@@ -1,0 +1,51 @@
+# 随机驾驶人统一评测
+
+仓库级复现清单现统一位于 [`reproduction/`](../../README.md)。本目录只承担
+跨模型协议、匹配评测和证据汇总，不是另一个模型；论文机制、拟合代码与原生结果仍位于
+各自模型目录，主项目仿真接入位于 `hierarchical_world_model/src/stochastic_drivers/`。
+
+## 同协议highD结果
+
+共享cohort包含218个长跟驰事件。recording 25的全部182个事件用于训练，recording
+26/36的全部36个合格事件用于测试；每个事件使用5秒因果前缀、3秒闭环预测、64个future、
+25 Hz plant与5 Hz driver。以下数字可在这一基准内比较：
+
+| 模型 | position RMSE (m) | speed RMSE (m/s) | acceleration CRPS (m/s²) | 90% coverage |
+|---|---:|---:|---:|---:|
+| B-IDM | 0.76149 | 0.57096 | 0.20208 | 0.8637 |
+| MA-IDM | **0.22203** | **0.26495** | **0.13321** | 0.6900 |
+| Dynamic-AR(5) | 0.26524 | 0.30814 | 0.14851 | 0.7085 |
+| pooled B-IDM（multi基线） | 0.66775 | 0.52990 | 0.19170 | 0.3759 |
+| filtered multi-regime | 0.63131 | 0.49751 | 0.18336 | 0.4156 |
+
+MA-IDM在点预测和CRPS上最好；B-IDM区间更宽、覆盖率最高，但仍低于名义90%。
+Multi-regime优于同推断预算的pooled基线，却仍严重欠覆盖。测试协议完全相同，但论文特有
+推断方法和Stage-B观测预算不同，不能把这张表解释为算法复杂度受控实验。
+
+## 唯一入口
+
+```bash
+# 重建匹配评测及统一证据表
+python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
+python -m reproduction.evaluation.driver_reproduction.scripts.build_scorecard
+
+# 查看主项目允许接入的driver及证据状态
+python -m hierarchical_world_model.scripts.stochastic_drivers inventory
+
+# 回归测试
+pytest -q reproduction/evaluation/driver_reproduction/tests hierarchical_world_model/tests/test_stochastic_drivers.py \
+  reproduction/models/active_inference_driver/tests reproduction/models/bayesian_ma_idm/tests reproduction/models/dynamic_ar_idm/tests \
+  reproduction/models/multi_regime_bidm/tests reproduction/evaluation/counterfactual_response/tests
+```
+
+`artifacts/matched/` 仅保存匹配评测的train-only后验；`results/driver_reproduction/`保存测试
+预测和指标。B/MA的全251-pair仿真后验位于
+`reproduction/models/bayesian_ma_idm/evidence/deployment/`，不得
+拿部署后验重算留出指标。
+
+## 版本控制
+
+源码、配置、测试、JSON指标、图表、紧凑后验和共享评测队列都应跟随仓库。原始highD
+数据、本地环境/缓存、Active-Inference逐实验pickle、Dynamic-AR长链和可由脚本重建的
+全轨迹集合保持在Git之外。后三者在仓库中均有紧凑后验或JSON/图表摘要，不作为运行时
+基线的唯一副本。
