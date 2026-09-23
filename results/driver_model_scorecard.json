@@ -50,7 +50,7 @@
           }
         }
       },
-      "evidence": "bayesian_ma_idm/evidence/population/summary.json"
+      "evidence": "reproduction/models/bayesian_ma_idm/evidence/population/summary.json"
     },
     {
       "model": "ma_idm",
@@ -94,7 +94,7 @@
           }
         }
       },
-      "evidence": "bayesian_ma_idm/evidence/population/summary.json"
+      "evidence": "reproduction/models/bayesian_ma_idm/evidence/population/summary.json"
     },
     {
       "model": "dynamic_ar5",
@@ -330,7 +330,7 @@
           }
         }
       },
-      "evidence": "dynamic_ar_idm/artifacts/full_evaluation/natural_metrics_full_stable_map_rho.json"
+      "evidence": "reproduction/models/dynamic_ar_idm/artifacts/full_evaluation/natural_metrics_full_stable_map_rho.json"
     },
     {
       "model": "pooled_b_idm",
@@ -353,7 +353,7 @@
         "position_90_coverage": 0.36962962962962964,
         "mean_position_interval_width_m": 0.46906144601624056
       },
-      "evidence": "multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
+      "evidence": "reproduction/models/multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
     },
     {
       "model": "multi_regime_b_idm",
@@ -376,7 +376,7 @@
         "position_90_coverage": 0.40444444444444444,
         "mean_position_interval_width_m": 0.47536428805336045
       },
-      "evidence": "multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
+      "evidence": "reproduction/models/multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json"
     }
   ],
   "active_inference_adaptation": {
@@ -390,13 +390,13 @@
       "min_gap": 11.166730343807755,
       "full_replans": 2.023026315789474
     },
-    "evidence": "active_inference_driver/artifacts/full_highd/highd_evaluation.json"
+    "evidence": "reproduction/models/active_inference_driver/artifacts/full_highd/highd_evaluation.json"
   },
   "matched_highd_adaptation": {
     "benchmark_id": "highd_shared_218_train25_test26_36_25hz_v1",
     "comparison_status": "directly_comparable_test_protocol_with_model_specific_training",
     "protocol": {
-      "dataset": "multi_regime_bidm/evidence/dataset/highd_multi_regime_cohort_25hz.npz",
+      "dataset": "reproduction/models/multi_regime_bidm/evidence/dataset/highd_multi_regime_cohort_25hz.npz",
       "cohort_pairs": 218,
       "training_recordings": [
         25
@@ -490,7 +490,7 @@
           "median_terminal_gap_benefit_m": 8.819343759486635,
           "median_natural_gap_rmse_to_highd_m": 2.039090476078901
         },
-        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+        "evidence": "reproduction/evaluation/counterfactual_response/artifacts/response_metrics.json"
       },
       {
         "model": "ma_idm",
@@ -503,7 +503,7 @@
           "median_terminal_gap_benefit_m": 8.364431653919972,
           "median_natural_gap_rmse_to_highd_m": 2.5619328261312657
         },
-        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+        "evidence": "reproduction/evaluation/counterfactual_response/artifacts/response_metrics.json"
       },
       {
         "model": "dynamic_ar5",
@@ -516,7 +516,7 @@
           "median_terminal_gap_benefit_m": 7.8566704889561905,
           "median_natural_gap_rmse_to_highd_m": 2.3744687239273077
         },
-        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+        "evidence": "reproduction/evaluation/counterfactual_response/artifacts/response_metrics.json"
       },
       {
         "model": "multi_regime",
@@ -529,7 +529,7 @@
           "median_terminal_gap_benefit_m": 8.593879043798943,
           "median_natural_gap_rmse_to_highd_m": 2.6130546260185783
         },
-        "evidence": "counterfactual_response/artifacts/response_metrics.json"
+        "evidence": "reproduction/evaluation/counterfactual_response/artifacts/response_metrics.json"
       }
     ],
     "interpretation": "This is a matched internal response-mechanics test. It does not identify real human counterfactual correctness."

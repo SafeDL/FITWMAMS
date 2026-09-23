@@ -1,0 +1,19 @@
+method_id: semantic_response_policy
+prior: frozen_b0_r0
+mode: natural
+candidates_per_decision: 8
+response_samples_per_candidate: 2
+proxy_horizon_decisions: 15
+selection_rounds: 1
+selection: softmin_gumbel_sampling
+temperature: 0.5
+denoising_steps: 4
+formal_futures:
+  t1: 16
+  t2a: 16
+  t2b_paired: 8
+  t3_per_pnc: 4
+checkpoint_method_id: rolling_action_b0
+fit_seeds: [20260919, 20260920, 20260921]
+status: frozen_before_formal_test
+access_to_actual_sut_future: false
