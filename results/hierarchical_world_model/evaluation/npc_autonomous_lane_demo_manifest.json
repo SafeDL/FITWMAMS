@@ -1,0 +1,23 @@
+{
+  "baseline_raw_overlap": false,
+  "brake_npc_npc_overlap": false,
+  "brake_raw_overlap": false,
+  "first_second_follower_effect_mps2": -4.832263946533203,
+  "follower_autonomous_lane_active_frames": 123,
+  "follower_autonomous_lane_final_error_m": 0.04850208759307861,
+  "follower_autonomous_lane_target_y_m": 0.5199999809265137,
+  "follower_slot": 4,
+  "forced_leader_max_action_error_mps2": 0.0,
+  "forced_window_frames": [
+    25,
+    50
+  ],
+  "gif": "npc_autonomous_lane_demo.gif",
+  "leader_brake_setpoint_mps2": -8.0,
+  "leader_slot": 3,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "schema": "online_npc_to_npc_highd_gif_v1",
+  "scope": "selected highD Test diagnostic; forced NPC leader action",
+  "test_row": 83340
+}

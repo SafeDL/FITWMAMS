@@ -21,16 +21,16 @@ from normalizing_flow.src.features import (
 )
 from normalizing_flow.src.sampling import normalize_features
 
-from world_model.src.core.sequential_dataset import (
+from traffic_components.src.core.sequential_dataset import (
     load_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from world_model.src.core.utils import load_json
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.utils import load_json
+from traffic_components.src.core.evaluation_scope import (
     scoped_canonical_trajectory,
     scoped_slot_mask,
 )
-from world_model.src.hiqr.data import cohort_manifest
+from traffic_components.src.hiqr.data import cohort_manifest
 
 ANCHOR_INDEX = 24
 HORIZON_STEPS = 149

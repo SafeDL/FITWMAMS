@@ -20,7 +20,7 @@ from hierarchical_world_model.src.protocol import (  # noqa: E402
     RANDOMNESS_NAMESPACE, release_provenance, FORMAL_PROTOCOL,
 )
 from hierarchical_world_model.src.train import load_checkpoint, save_checkpoint  # noqa: E402
-from world_model.src.core.utils import (  # noqa: E402
+from traffic_components.src.core.utils import (  # noqa: E402
     file_sha256,
     load_json,
     save_json,

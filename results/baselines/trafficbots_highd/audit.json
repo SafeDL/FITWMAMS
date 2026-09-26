@@ -1,6 +1,7 @@
 {
   "audit_schema_version": 1,
   "checks": {
+    "all_background_scope": true,
     "cache_only_runtime_imports": true,
     "collision_filtering_disabled": true,
     "destination_ignores_future_scene": true,
@@ -14,6 +15,7 @@
     "prior_ignores_future_scene": true,
     "released_detach_enabled": true,
     "s0_validity_is_prior_validity": true,
+    "same_rear_present_in_test": true,
     "saved_crn_contains_actual_z_g": true
   },
   "data_contract": {
@@ -24,6 +26,12 @@
     "s0_background_agents_mean": 2.400354644862575,
     "s0_empty_background_sequences": 310,
     "test_sequences": 10151
+  },
+  "evaluation_scope": {
+    "excluded_background_slots": [],
+    "schema": "highd_all_background",
+    "semantics": "all canonical background slots, including same_rear, enter model inference, simulation, metrics, risk, and visualization",
+    "training_population_modified": false
   },
   "future_boundary_max_abs": {
     "destination_logits": 0.0,
@@ -41,7 +49,7 @@
   "provenance": {
     "checkpoint": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/checkpoints/best.ckpt",
     "checkpoint_sha256": "43437f39036a12abe45fb1f849c76b9584ea9961e0e4d881aec3129f57da28e4",
-    "evaluation_sha256": "8513ded054919a09f3e35ffc9cffcad37ae8fd5350495423f1d9bcb3231d3bb5",
+    "evaluation_sha256": "1b75e8e29e1044dad5e2f30fe09ad0e30bd9e3c4040c6c62dc1f477f93563b59",
     "forbidden_runtime_imports": [],
     "upstream_snapshot_commit": "9a379084adbefe9df005c4eae69e7a56c360a396"
   },

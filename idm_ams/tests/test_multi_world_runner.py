@@ -17,7 +17,7 @@ from idm_ams.src.multi_world_runner import (
     validate_comparison_contract,
 )
 from idm_ams.src.world_model_registry import get_world_model, world_model_ids
-from world_model.src.core.utils import file_sha256, load_json, save_json
+from traffic_components.src.core.utils import file_sha256, load_json, save_json
 
 
 def _config(tmp_path: Path, model_id: str) -> tuple[dict, Path]:

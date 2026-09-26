@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from world_model.src.core.utils import load_yaml, setup_logging  # noqa: E402
+from traffic_components.src.core.utils import load_yaml, setup_logging  # noqa: E402
 from diffusion.src.evaluation import evaluate_background_diffusion  # noqa: E402
 
 DEFAULT_CONFIG = ROOT / "diffusion/configs/highd_background_diffusion.yaml"

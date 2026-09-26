@@ -5,6 +5,7 @@ import pytest
 
 from hierarchical_world_model.src.stochastic_drivers import (
     LongitudinalObservation,
+    LongitudinalPrefix,
     create_driver_session,
     verify_driver_assets,
 )
@@ -54,3 +55,47 @@ def test_unaccepted_multi_regime_remains_executable_for_research() -> None:
     )
     session.reset(observation, seed=3)
     assert np.isfinite(session.step(observation).acceleration_mps2)
+
+
+def test_ma_idm_restores_completed_prefix_memory_and_records_provenance() -> None:
+    frames = 126
+    speed = np.linspace(17.0, 18.0, frames)
+    prefix = LongitudinalPrefix.from_native_series(
+        gap_m=np.linspace(28.0, 24.0, frames),
+        ego_speed_mps=speed,
+        leader_speed_mps=np.full(frames, 17.5),
+    )
+    assert len(prefix.time_s) == 25
+    # The final action [120,125] is complete at the origin and no sample after
+    # native frame 125 is required.
+    assert prefix.time_s[-1] == pytest.approx(4.8)
+    session = create_driver_session(
+        "ma_idm", seed=13, prefix_observations=prefix,
+    )
+    session.reset(LongitudinalObservation(24.0, 18.0, 17.5), seed=13)
+    assert len(session.driver._gp.times) == 25
+    assert session.driver._gp.times[-1] == pytest.approx(-0.2)
+    assert session.metadata["parameter_mode"] == "population"
+    assert session.metadata["prefix_memory_initialized"] is True
+
+
+def test_ma_idm_prefix_personalization_is_explicit_and_reproducible() -> None:
+    time = np.arange(8, dtype=float) * 0.2
+    prefix = LongitudinalPrefix(
+        time,
+        np.linspace(30.0, 24.0, 8),
+        np.linspace(17.0, 18.0, 8),
+        np.full(8, 17.5),
+        np.full(8, 0.4),
+    )
+    left = create_driver_session(
+        "ma_idm", seed=19, prefix_observations=prefix,
+        personalize_from_prefix=True, personalization_candidates=16,
+    )
+    right = create_driver_session(
+        "ma_idm", seed=19, prefix_observations=prefix,
+        personalize_from_prefix=True, personalization_candidates=16,
+    )
+    np.testing.assert_allclose(left.driver.theta, right.driver.theta)
+    assert left.metadata["parameter_mode"] == "prefix_personalized"
+    assert left.metadata["posterior_artifact"].endswith("ma_idm_all_251.npz")

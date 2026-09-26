@@ -9,8 +9,8 @@ from typing import Any, Iterable
 import numpy as np
 from PIL import Image, ImageDraw
 
-from world_model.src.core.utils import file_sha256, load_json, load_yaml, save_json
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.utils import file_sha256, load_json, load_yaml, save_json
+from traffic_components.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
 )
@@ -371,10 +371,7 @@ def build_comparison_report(
     if not records:
         raise FileNotFoundError("no completed IDM world-model results are available")
     _verify_result_contract(summaries, contract)
-    output_dir = _resolve_path(
-        suite.get("output", {}).get("comparison_dir", "../results/comparisons"),
-        suite_dir,
-    )
+    output_dir = _resolve_path(suite["output"]["comparison_dir"], suite_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "world_model_comparison.csv"
     figure_path = output_dir / "world_model_comparison.png"

@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from scipy.stats import ks_2samp
 
-from world_model.src.core.utils import ensure_dir, save_json, select_device, set_seed
+from traffic_components.src.core.utils import ensure_dir, save_json, select_device, set_seed
 
 from .config import WorldModelConfig
 from .calibration import fit_natural_response_calibrator

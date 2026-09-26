@@ -16,16 +16,16 @@ from process_highD.src.safety_envelope_risk import (
 )
 from tools.evt import GPDTailModel
 
-from .composition import HierarchicalWorldSampler
+from .composition import HierarchicalWorldSampler, SampledWorldBatch
 from .randomness import WorldExogenousState
-from world_model.src.core.evaluation_scope import scoped_agent_valid
+from traffic_components.src.core.evaluation_scope import scoped_agent_valid
 
 ADSActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
 
 
 @dataclass(frozen=True)
 class WorldRollout:
-    """HighwayEnv world trajectory, controls and EVT risk traces."""
+    """HighwayEnv states, controls, risk and per-frame safety evidence."""
 
     states: np.ndarray
     initial_valid: np.ndarray
@@ -34,6 +34,9 @@ class WorldRollout:
     event_risk: np.ndarray
     evt_score: np.ndarray | None
     numerical_valid: np.ndarray
+    collision_pairs: np.ndarray
+    crashed: np.ndarray
+    offroad: np.ndarray
 
 
 def hold_current_ego_action(observation: dict[str, torch.Tensor | int]) -> torch.Tensor:
@@ -123,12 +126,38 @@ def rollout_world(
     steps: int | None = None,
     evt_model: GPDTailModel | None = None,
     risk_options: SafetyEnvelopeRiskOptions | None = None,
+    reaction_controller: Any = "auto",
+    reference_rebase_weights: tuple[float, float] | None = (1.0, 0.0),
+    excluded_risk_slots: Iterable[str] = (),
+) -> WorldRollout:
+    """Roll out one generated world with causal online NPC response by default."""
+    sample = sampler.compose_exogenous(exogenous_state)
+    return _rollout_sample(
+        sampler,
+        sample,
+        ads_policy,
+        steps=steps,
+        evt_model=evt_model,
+        risk_options=risk_options,
+        reaction_controller=reaction_controller,
+        reference_rebase_weights=reference_rebase_weights,
+        excluded_risk_slots=excluded_risk_slots,
+    )
+
+
+def _rollout_sample(
+    sampler: HierarchicalWorldSampler,
+    sample: SampledWorldBatch,
+    ads_policy: ADSActionPolicy | Any,
+    *,
+    steps: int | None = None,
+    evt_model: GPDTailModel | None = None,
+    risk_options: SafetyEnvelopeRiskOptions | None = None,
     reaction_controller: Any = None,
     reference_rebase_weights: tuple[float, float] | None = (1.0, 0.0),
     excluded_risk_slots: Iterable[str] = (),
 ) -> WorldRollout:
-    """Replay a complete world; no ADS future action reaches a current response."""
-    sample = sampler.compose_exogenous(exogenous_state)
+    """Execute an already-composed sample without resampling its scene."""
     idm_config = getattr(ads_policy, "highway_env_idm_config", None)
     world = sampler.create_world(
         sample,
@@ -136,12 +165,16 @@ def rollout_world(
         controller=reaction_controller,
         reference_rebase_weights=reference_rebase_weights,
     )
-    horizon = min(sample.soft_plan.shape[1], exogenous_state.response_steps)
+    assert sample.exogenous_state is not None
+    horizon = min(sample.soft_plan.shape[1], sample.exogenous_state.response_steps)
     if steps is not None:
         horizon = min(horizon, int(steps))
     state_frames = [world.observe()["agent_states"].cpu().numpy()]
     ego_actions: list[np.ndarray] = []
     background_actions: list[np.ndarray] = []
+    collision_pairs: list[np.ndarray] = []
+    crashed: list[np.ndarray] = []
+    offroad: list[np.ndarray] = []
     for _ in range(horizon):
         if idm_config is None:
             action = torch.as_tensor(
@@ -160,6 +193,9 @@ def rollout_world(
         state_frames.append(transition["agent_state_frames"][:, 0].cpu().numpy())
         ego_actions.append(transition["ego_actions"][:, 0].cpu().numpy())
         background_actions.append(transition["background_actions"][:, 0].cpu().numpy())
+        collision_pairs.append(transition["collision_pairs"].cpu().numpy())
+        crashed.append(transition["crashed"].cpu().numpy())
+        offroad.append(transition["offroad"].cpu().numpy())
     states = np.stack(state_frames, axis=1).astype(np.float32)
     numerical_valid = np.isfinite(states).all(axis=(1, 2, 3))
     event_risk = trajectory_event_risk(
@@ -181,4 +217,7 @@ def rollout_world(
         event_risk=event_risk,
         evt_score=evt_score,
         numerical_valid=numerical_valid,
+        collision_pairs=np.stack(collision_pairs, axis=1).astype(bool),
+        crashed=np.stack(crashed, axis=1).astype(bool),
+        offroad=np.stack(offroad, axis=1).astype(bool),
     )

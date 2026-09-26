@@ -2,7 +2,7 @@
 
 This module is retained for model/loss unit tests and differentiable offline
 evaluation. It remains a compact deterministic test fixture; maintained
-factual and CIH evaluation uses :func:`evaluation.rollout` directly.
+factual evaluation uses :func:`evaluation.rollout` directly.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import torch
 
-from world_model.src.hiqr.filter import FilterState
+from traffic_components.src.hiqr.filter import FilterState
 
 from .model import FactualDynamicsModel
 from .randomness import WorldExogenousState
@@ -380,7 +380,7 @@ class ClosedLoopWorld:
             response_index=self.reference_index // self.model.cfg.execute_frames,
             scene_standard_normal=scene_noise,
             agent_standard_normal=agent_noise,
-            apply_intervention_adapter=self.controller is None,
+            apply_intervention_adapter=False,
             apply_explicit_ego_response=True,
         )
         self.filter_state = response.filter_state

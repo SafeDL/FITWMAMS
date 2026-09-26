@@ -21,10 +21,10 @@ from tools.plot_style import (
     get_pyplot,
     style_axes,
 )  # noqa: E402
-from world_model.src.core.sequential_dataset import (
+from traffic_components.src.core.sequential_dataset import (
     load_sequential_dataset,
 )  # noqa: E402
-from world_model.src.core.utils import ensure_dir, load_yaml, save_json  # noqa: E402
+from traffic_components.src.core.utils import ensure_dir, load_yaml, save_json  # noqa: E402
 
 CONFIG = ROOT / "diffusion/configs/highd_background_diffusion.yaml"
 OUTPUT = ROOT / "results/background_diffusion/design_audit"

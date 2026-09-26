@@ -29,7 +29,7 @@ from diffusion.src.data import (  # noqa: E402
 )
 from diffusion.src.sampling import decode_background_latents  # noqa: E402
 from diffusion.src.train import load_checkpoint  # noqa: E402
-from world_model.src.core.utils import (  # noqa: E402
+from traffic_components.src.core.utils import (  # noqa: E402
     ensure_dir,
     load_json,
     load_yaml,

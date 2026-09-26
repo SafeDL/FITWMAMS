@@ -1,0 +1,27 @@
+{
+  "batch_size": 32,
+  "collision_scenes_by_policy": {
+    "brake_right": 1,
+    "hold": 0,
+    "right": 1
+  },
+  "focus_is_right_target_lane_rear": true,
+  "focus_npc_slot_zero_based": 6,
+  "gif": "right_lane_meta_demo.gif",
+  "offroad_agent_frames_by_policy": {
+    "brake_right": 0,
+    "hold": 0,
+    "right": 0
+  },
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "policies": [
+    "matched hold-current ADS",
+    "semantic right lane change to mapped lane centre with entry-speed hold",
+    "-4 m/s^2 for frames 25-49 combined with semantic right lane change"
+  ],
+  "right_lane_terminal_error_m": 0.03843259811401367,
+  "scene_index": 4,
+  "schema": "generated_lane_meta_demo_v1",
+  "seed": 1701
+}

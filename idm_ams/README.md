@@ -16,6 +16,9 @@ Adaptive Multilevel Splitting（AMS，代码中采用 subset simulation + pCN pr
 
 两者的概率空间不同。固定 `K_GT` 的事实 HiQR 结果不能与 TrafficBots 的 full-prior
 结果直接排名；比较器会在 test-space 不一致时拒绝生成可发表结论。
+生成式世界模型公共接口现默认接入 MA-IDM NPC 响应；本目录已登记的 `factual_hiqr`
+比较协议则显式传 `reaction_controller=None`，继续测量原始 HiQR 背景车，不能把
+它的旧结果解释为新响应模型的结果。
 
 现有 TrafficBots checkpoint 按历史 `same_rear` 排除协议训练，因此默认 suite 禁用该
 适配器，运行时也会拒绝把它伪装成全背景车正式结果。完成全背景车重训和验收后才可启用。
@@ -66,6 +69,6 @@ clean worktree、冻结 checkpoint、匹配的哈希和全背景 EVT 契约。
 
 ## 当前限制
 
-恢复本评测代码不等于当前 CIH-WM 已通过 ADS 长尾验收。现有 CIH 响应候选仍因因果方向和
-剂量排序门槛失败而未晋升。只有在高精度事实层与经验证的自主交互策略合并、并为其定义
-可重放随机状态后，才能增加正式的 `cih_world_model` AMS 适配器。
+恢复本评测代码不等于当前分层世界模型已通过 ADS 长尾验收。历史 CIH 响应候选因因果
+方向和剂量排序门槛失败而未晋升；当前场景条件化 MA-IDM 仍缺完整闭环与随机校准。
+只有主方案通过统一验收并具有可重放随机状态后，才能增加正式 AMS 适配器。

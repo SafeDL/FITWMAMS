@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect or execute retained stochastic drivers through the CIH-WM boundary."""
+"""Inspect or execute retained stochastic drivers in the world model."""
 
 from __future__ import annotations
 

@@ -118,9 +118,9 @@ figure3/6之外极小timegap的结果只作为模型预测，原文明确0.5s条
 ## 5. 代码任务
 
 ```text
-reproduction/models/active_inference_driver/model.py            # 独立纵向适配（未通过bridge）
-reproduction/models/active_inference_driver/official_wrapper.py # 锁定官方v1.0.0的外部wrapper
-reproduction/models/active_inference_driver/scripts/            # 原生复现和25 Hz审计
+external_model_baselines/models/active_inference_driver/model.py            # 独立纵向适配（未通过bridge）
+external_model_baselines/models/active_inference_driver/official_wrapper.py # 锁定官方v1.0.0的外部wrapper
+external_model_baselines/models/active_inference_driver/scripts/            # 原生复现和25 Hz审计
 hierarchical_world_model/src/stochastic_drivers/  # 主项目注册与默认拒绝门
 ```
 

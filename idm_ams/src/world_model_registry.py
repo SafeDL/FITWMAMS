@@ -87,6 +87,7 @@ class WorldModelSpec:
                 evaluator.policy,
                 steps=evaluator.steps,
                 evt_model=evaluator.evt_model,
+                reaction_controller=None,  # Reproduce the registered factual baseline.
             )
             return rollout, world
         if self.model_id == "trafficbots":

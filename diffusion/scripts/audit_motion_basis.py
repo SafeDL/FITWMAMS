@@ -21,7 +21,7 @@ from diffusion.src.data import (  # noqa: E402
     pilot_rows,
     trajectory_reference_positions,
 )
-from world_model.src.core.utils import load_yaml, save_json  # noqa: E402
+from traffic_components.src.core.utils import load_yaml, save_json  # noqa: E402
 
 CONFIG = ROOT / "diffusion/configs/highd_background_diffusion.yaml"
 OUTPUT = ROOT / "results/background_diffusion/design_audit/motion_basis.json"

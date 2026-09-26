@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 
 from normalizing_flow.src.scenario import ScenarioBatch
-from world_model.src.core.evaluation_scope import scoped_slot_mask
+from traffic_components.src.core.evaluation_scope import scoped_slot_mask
 
 EMPIRICAL_K_RNG_SCHEMA_NAME = "empirical_fixed_k_world"
 EMPIRICAL_K_RNG_SCHEMA_VERSION = 2
@@ -313,9 +313,10 @@ class EmpiricalKContextSampler:
         c0 = self._c0[index].copy()
         slots = np.asarray(scoped_slot_mask(self._slot_mask[index]), bool)
         c0, slots = self.base_sampler._scope_condition(c0, slots)
-        # Dataset-level normalized inactive values can encode excluded-slot
-        # information.  The fixed-context protocol uses zeros, matching the
-        # scoped reconstruction path and keeping same_rear absent at inference.
+        # Dataset-level normalized inactive values can encode stale values for
+        # invalid slots. The fixed-context protocol uses zeros only for those
+        # invalid slots; every valid canonical slot, including same_rear,
+        # remains available to inference.
         scenario = ScenarioBatch(
             c0=c0,
             slot_mask=slots,

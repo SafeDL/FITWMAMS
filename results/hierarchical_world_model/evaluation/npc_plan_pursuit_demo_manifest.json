@@ -1,0 +1,17 @@
+{
+  "ads_acceleration_setpoint_mps2": -8.0,
+  "branch_raw_overlap": {
+    "hiqr_only": false,
+    "online": false
+  },
+  "gif": "npc_plan_pursuit_demo.gif",
+  "hiqr_base_mean_ax_effect_window_mps2": 3.3450262546539307,
+  "npc_slot": 2,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_mean_ax_effect_window_mps2": -0.9583502411842346,
+  "online_mean_plan_lag_effect_window_m": 2.328665256500244,
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "positive_hiqr_suppressed_frames": 117,
+  "schema": "online_npc_plan_pursuit_gif_v1",
+  "test_row": 32028
+}

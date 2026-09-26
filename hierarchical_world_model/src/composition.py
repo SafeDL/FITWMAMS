@@ -18,12 +18,12 @@ from normalizing_flow.src.sampling import (
     sample_scenarios,
 )
 from normalizing_flow.src.features import feature_valid_from_slot_mask
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.evaluation_scope import (
     EXCLUDED_EVALUATION_SLOTS,
     evaluation_scope_contract,
     scoped_slot_mask,
 )
-from world_model.src.core.utils import load_json
+from traffic_components.src.core.utils import load_json
 
 from .highway import HighwayEnvClosedLoopWorld
 from .train import load_checkpoint as load_response_checkpoint
@@ -67,6 +67,7 @@ class HierarchicalWorldSampler:
         device: str | torch.device = "cpu",
         ddim_steps: int = 20,
         excluded_slots: tuple[str, ...] = EXCLUDED_EVALUATION_SLOTS,
+        ma_idm_posterior: str | Path | None = None,
     ) -> None:
         self.device = torch.device(device)
         self.flow, _, self.flow_schema, _ = load_checkpoint_and_dataset(
@@ -89,6 +90,14 @@ class HierarchicalWorldSampler:
         self.diffusion.eval()
         self.response.eval()
         self.ddim_steps = int(ddim_steps)
+        from .stochastic_drivers.online import DEFAULT_MA_IDM_POSTERIOR
+
+        posterior = Path(
+            DEFAULT_MA_IDM_POSTERIOR if ma_idm_posterior is None else ma_idm_posterior
+        )
+        self.ma_idm_posterior = (
+            posterior if posterior.is_absolute() else Path(repo_root) / posterior
+        ).resolve()
         self.excluded_slots = tuple(str(slot) for slot in excluded_slots)
         # The default remains byte-for-byte the released evaluation scope.
         # Research callers must opt in explicitly to restore all trained slots.
@@ -295,15 +304,23 @@ class HierarchicalWorldSampler:
         sample: SampledWorldBatch,
         *,
         idm_config: dict[str, Any] | None = None,
-        controller: Any = None,
+        controller: Any = "auto",
         reference_rebase_weights: tuple[float, float] | None = None,
-        nominal_reference: Any = None,
     ) -> HighwayEnvClosedLoopWorld:
-        """Create the formal HighwayEnv execution world for one sampled batch."""
+        """Create a single-pass world with online MA-IDM NPC response."""
         if sample.exogenous_state is None:
             raise ValueError(
                 "formal HighwayEnv execution requires explicit world randomness"
             )
+        if isinstance(controller, str) and controller == "auto":
+            from .stochastic_drivers.online import (
+                OnlineMAIDMController,
+                sample_population_theta_from_world,
+            )
+            theta = sample_population_theta_from_world(
+                self.ma_idm_posterior, sample.exogenous_state
+            )
+            controller = OnlineMAIDMController(theta)
         batch = len(sample.initial_states)
         x = np.linspace(-200.0, 200.0, 8, dtype=np.float32)
         lane_offsets = np.arange(-3, 5, dtype=np.float32) * 3.6
@@ -329,16 +346,5 @@ class HierarchicalWorldSampler:
             torch.from_numpy(maps),
             torch.from_numpy(map_valid),
             exogenous_state=sample.exogenous_state,
-            nominal_reference_states=(
-                None if nominal_reference is None else nominal_reference.states
-            ),
-            nominal_reference_actions=(
-                None
-                if nominal_reference is None
-                else nominal_reference.background_actions
-            ),
-            nominal_initial_states=(
-                None if nominal_reference is None else nominal_reference.initial_states
-            ),
         )
         return world

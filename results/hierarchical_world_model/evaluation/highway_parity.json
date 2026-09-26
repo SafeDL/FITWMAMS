@@ -1,0 +1,134 @@
+{
+  "ads_acceleration_setpoint_mps2": null,
+  "evaluated_rows": 16,
+  "highway_collision_scene_count": 0,
+  "highway_factual_ADE_m": 0.03382032737135887,
+  "highway_offroad_scene_count": 0,
+  "included_test_row": 14241,
+  "initial_position_max_error_m": 0.0,
+  "lane_control_active_scene_count": 0,
+  "offline_comparison_only_not_full_test": true,
+  "offline_to_highway_ADE_m": 3.378306428203359e-05,
+  "offline_to_highway_P95_m": 0.0001220703125,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "per_scene": [
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.07061973959207535,
+      "offline_to_highway_ADE_m": 1.5453188098035753e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 61899
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.02826065942645073,
+      "offline_to_highway_ADE_m": 8.139755664160475e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 12639
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.026442762464284897,
+      "offline_to_highway_ADE_m": 1.82967160071712e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 122
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.041448794305324554,
+      "offline_to_highway_ADE_m": 3.102928167209029e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 88324
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.05276428908109665,
+      "offline_to_highway_ADE_m": 3.238779754610732e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 8220
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.031409647315740585,
+      "offline_to_highway_ADE_m": 4.062812513438985e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 13295
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.022712748497724533,
+      "offline_to_highway_ADE_m": 3.680999361677095e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 60113
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.027963949367403984,
+      "offline_to_highway_ADE_m": 2.5597169951652177e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 9270
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.037233930081129074,
+      "offline_to_highway_ADE_m": 3.977544474764727e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 15323
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.0321798250079155,
+      "offline_to_highway_ADE_m": 6.07506517553702e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 13160
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.03147200495004654,
+      "offline_to_highway_ADE_m": 3.812491922872141e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 59111
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.01857299730181694,
+      "offline_to_highway_ADE_m": 2.8836553610744886e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 41486
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.044226136058568954,
+      "offline_to_highway_ADE_m": 1.730815893097315e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 53972
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.034395623952150345,
+      "offline_to_highway_ADE_m": 8.29180862638168e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 84431
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.02861771546304226,
+      "offline_to_highway_ADE_m": 3.878774441545829e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 93008
+    },
+    {
+      "controller_active_frames": 0,
+      "highway_factual_ADE_m": 0.029640980064868927,
+      "offline_to_highway_ADE_m": 3.7935089494567364e-05,
+      "spatial_path_active_frames": 0,
+      "test_row": 14241
+    }
+  ],
+  "schema": "online_highway_offline_parity_v1",
+  "spatial_path_active_frame_count_highway": 0,
+  "spatial_path_active_frame_count_offline": 0,
+  "spatial_path_activity_agreement_rate": 1.0,
+  "test_split_size": 10151
+}

@@ -1,5 +1,5 @@
 {
-  "config_path": "/home/hp/FITWMAMS/process_highD/scripts/configs/highd_natural_evt.yaml",
+  "config_path": "/home/hp/FITWMAMS/process_highD/configs/highd_natural_evt.yaml",
   "raw_dir": "/home/hp/FITWMAMS/highD_dataset/Matlab/data",
   "output_dir": "/home/hp/FITWMAMS/results/highd_natural_driving_evt",
   "segment_csv": "/home/hp/FITWMAMS/results/highd_natural_driving_evt/natural_segments.csv",
@@ -87,6 +87,10 @@
     "require_c0_active_slots_through_full_window": true,
     "window_steps": 150,
     "semantics": "C0-active background slots remain present and non-abnormal"
+  },
+  "evaluation_scope": {
+    "excluded_risk_slots": [],
+    "training_population_modified": false
   },
   "slot_names": [
     "same_front",
@@ -934,6 +938,10 @@
   },
   "evt_summary": {
     "evt_kind": "raw",
+    "evaluation_scope": {
+      "excluded_risk_slots": [],
+      "training_population_modified": false
+    },
     "model_path": "/home/hp/FITWMAMS/results/highd_natural_driving_evt/evt/natural_evt_model.json",
     "segment_csv": "/home/hp/FITWMAMS/results/highd_natural_driving_evt/natural_segments.csv",
     "model_type": "gpd_pot_highd_natural_safety_envelope_intrusion_event_risk",

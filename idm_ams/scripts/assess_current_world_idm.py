@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from idm_ams.src.world_model_registry import get_world_model  # noqa: E402
-from world_model.src.core.utils import load_yaml, save_json  # noqa: E402
+from traffic_components.src.core.utils import load_yaml, save_json  # noqa: E402
 
 
 def _load(path: Path) -> dict:

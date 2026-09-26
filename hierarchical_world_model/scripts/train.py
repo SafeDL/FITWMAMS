@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: E402
 from hierarchical_world_model.src.train import train_world_model  # noqa: E402
-from world_model.src.core.utils import setup_logging  # noqa: E402
+from traffic_components.src.core.utils import setup_logging  # noqa: E402
 
 CONFIG = (
     ROOT

@@ -1,7 +1,7 @@
 # 随机驾驶人复现的共同协议
 
 所有论文方法的统一目录和证据状态以
-[`reproduction/registry.json`](../reproduction/registry.json) 为准。本文件只定义随机驾驶人
+[`external_model_baselines/registry.json`](../external_model_baselines/registry.json) 为准。本文件只定义随机驾驶人
 子集的共同实验协议，不再承担整个仓库的分支索引。
 
 所有模型共享 highD 的原始 25 Hz 时钟；车辆以 25 Hz ballistic plant 推进，
@@ -39,13 +39,13 @@ Multi-regime 的36-pair留出结果不可互相排名。
 统一证据汇总可由下列命令重建；它不会替代模型各自的拟合、driver和评测：
 
 ```bash
-python -m reproduction.audit
-python -m reproduction.evaluation.driver_reproduction.scripts.build_scorecard
-python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
+python -m external_model_baselines.audit
+python -m external_model_baselines.evaluation.driver_reproduction.scripts.build_scorecard
+python -m external_model_baselines.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m hierarchical_world_model.scripts.stochastic_drivers inventory
-pytest -q reproduction/evaluation/driver_reproduction/tests reproduction/models/active_inference_driver/tests \
-  reproduction/models/bayesian_ma_idm/tests reproduction/models/dynamic_ar_idm/tests reproduction/models/multi_regime_bidm/tests \
-  reproduction/evaluation/counterfactual_response/tests
+pytest -q external_model_baselines/evaluation/driver_reproduction/tests external_model_baselines/models/active_inference_driver/tests \
+  external_model_baselines/models/bayesian_ma_idm/tests external_model_baselines/models/dynamic_ar_idm/tests external_model_baselines/models/multi_regime_bidm/tests \
+  external_model_baselines/evaluation/counterfactual_response/tests
 ```
 
 新结果必须写明数据 lineage、split、后验用途和状态初始化。不要保留 smoke、旧修复前

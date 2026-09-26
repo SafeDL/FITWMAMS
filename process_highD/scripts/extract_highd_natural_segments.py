@@ -17,7 +17,7 @@ from process_highD.src.natural_evt_pipeline import (
 )  # noqa: E402
 
 DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parent / "configs" / "highd_natural_evt.yaml"
+    Path(__file__).resolve().parents[1] / "configs" / "highd_natural_evt.yaml"
 )
 
 

@@ -26,7 +26,7 @@ class LongitudinalObservation:
         *,
         length_sum_m: float,
     ) -> "LongitudinalObservation":
-        """Convert the CIH-WM ``[x,y,vx,vy,ax,ay]`` state convention."""
+        """Convert the world model's ``[x,y,vx,vy,ax,ay]`` state convention."""
         follower = np.asarray(follower_state, float)
         leader = np.asarray(leader_state, float)
         return cls(
@@ -34,6 +34,108 @@ class LongitudinalObservation:
             ego_speed_mps=float(np.linalg.norm(follower[2:4])),
             leader_speed_mps=float(np.linalg.norm(leader[2:4])),
             leader_acceleration_mps2=float(leader[4]),
+        )
+
+
+@dataclass(frozen=True)
+class LongitudinalPrefix:
+    """Completed causal 5 Hz actions observed before a rollout origin.
+
+    Every row describes a decision made at ``time_s`` from the corresponding
+    gap and speeds, followed by the acceleration that was realized over the
+    complete decision interval.  Consequently the final row must end no later
+    than the rollout origin; no future sample is needed to construct it.
+    """
+
+    time_s: np.ndarray
+    gap_m: np.ndarray
+    ego_speed_mps: np.ndarray
+    leader_speed_mps: np.ndarray
+    acceleration_mps2: np.ndarray
+    decision_dt_s: float = 0.2
+
+    def __post_init__(self) -> None:
+        arrays = tuple(
+            np.asarray(getattr(self, name), dtype=float)
+            for name in (
+                "time_s",
+                "gap_m",
+                "ego_speed_mps",
+                "leader_speed_mps",
+                "acceleration_mps2",
+            )
+        )
+        size = len(arrays[0])
+        if any(value.ndim != 1 or len(value) != size for value in arrays):
+            raise ValueError("longitudinal prefix fields must be equal-length vectors")
+        if size and (not all(np.isfinite(value).all() for value in arrays)):
+            raise ValueError("longitudinal prefix fields must be finite")
+        if size > 1 and np.any(np.diff(arrays[0]) <= 0.0):
+            raise ValueError("longitudinal prefix timestamps must be strictly increasing")
+        if float(self.decision_dt_s) <= 0.0:
+            raise ValueError("decision_dt_s must be positive")
+        for name, value in zip(
+            ("time_s", "gap_m", "ego_speed_mps", "leader_speed_mps", "acceleration_mps2"),
+            arrays,
+        ):
+            object.__setattr__(self, name, value)
+
+    @classmethod
+    def from_native_series(
+        cls,
+        *,
+        gap_m: np.ndarray,
+        ego_speed_mps: np.ndarray,
+        leader_speed_mps: np.ndarray,
+        native_dt_s: float = 0.04,
+        decision_dt_s: float = 0.2,
+        memory_s: float | None = 5.0,
+    ) -> "LongitudinalPrefix":
+        """Build prefix rows using only completed native-rate transitions."""
+        gap = np.asarray(gap_m, float)
+        speed = np.asarray(ego_speed_mps, float)
+        leader = np.asarray(leader_speed_mps, float)
+        if gap.ndim != 1 or speed.shape != gap.shape or leader.shape != gap.shape:
+            raise ValueError("native prefix series must be equal-length vectors")
+        ratio = float(decision_dt_s) / float(native_dt_s)
+        stride = int(round(ratio))
+        if stride <= 0 or not np.isclose(ratio, stride):
+            raise ValueError("decision_dt_s must be an integer number of native ticks")
+        if len(gap) <= stride:
+            return cls(*(np.empty(0, float) for _ in range(5)), decision_dt_s)
+        first = 0
+        if memory_s is not None:
+            first = max(0, len(gap) - 1 - int(round(float(memory_s) / native_dt_s)))
+            first += (-first) % stride
+        indices = np.arange(first, len(gap) - stride, stride, dtype=int)
+        acceleration = (speed[indices + stride] - speed[indices]) / float(decision_dt_s)
+        return cls(
+            indices.astype(float) * float(native_dt_s),
+            gap[indices],
+            speed[indices],
+            leader[indices],
+            acceleration,
+            float(decision_dt_s),
+        )
+
+    def as_array(self) -> np.ndarray:
+        return np.column_stack(
+            (
+                self.time_s,
+                self.gap_m,
+                self.ego_speed_mps,
+                self.leader_speed_mps,
+                self.acceleration_mps2,
+            )
+        )
+
+    def multi_regime_observations(self) -> np.ndarray:
+        return np.column_stack(
+            (
+                self.gap_m,
+                self.ego_speed_mps,
+                self.ego_speed_mps - self.leader_speed_mps,
+            )
         )
 
 
@@ -76,6 +178,8 @@ class DriverSession:
         min_acceleration_mps2: float = -8.0,
         max_acceleration_mps2: float = 4.0,
         kind: str = "idm",
+        metadata: dict[str, Any] | None = None,
+        default_prefix_observations: LongitudinalPrefix | np.ndarray | None = None,
     ) -> None:
         ratio = decision_dt_s / native_dt_s
         self.hold_frames = int(round(ratio))
@@ -86,6 +190,8 @@ class DriverSession:
         self.kind = kind
         self.min_acceleration_mps2 = float(min_acceleration_mps2)
         self.max_acceleration_mps2 = float(max_acceleration_mps2)
+        self.metadata = dict(metadata or {})
+        self.default_prefix_observations = default_prefix_observations
         self.native_frame = 0
         self.decision_index = 0
         self.held_requested = 0.0
@@ -96,15 +202,19 @@ class DriverSession:
         observation: LongitudinalObservation,
         *,
         seed: int = 0,
-        prefix_observations: np.ndarray | None = None,
+        prefix_observations: LongitudinalPrefix | np.ndarray | None = None,
     ) -> None:
         self.native_frame = 0
         self.decision_index = 0
         self.held_requested = 0.0
         self.held_applied = 0.0
+        if prefix_observations is None:
+            prefix_observations = self.default_prefix_observations
         if self.kind == "multi_regime":
             prefix = (
-                np.asarray(prefix_observations, float)
+                prefix_observations.multi_regime_observations()
+                if isinstance(prefix_observations, LongitudinalPrefix)
+                else np.asarray(prefix_observations, float)
                 if prefix_observations is not None
                 else np.asarray([[observation.gap_m, observation.ego_speed_mps,
                                   observation.ego_speed_mps - observation.leader_speed_mps]])
@@ -125,6 +235,13 @@ class DriverSession:
                 target_speed_mps=observation.leader_speed_mps,
                 seed=seed,
             )
+        elif self.kind == "bayesian_idm":
+            prefix = (
+                prefix_observations.as_array()
+                if isinstance(prefix_observations, LongitudinalPrefix)
+                else prefix_observations
+            )
+            self.driver.reset(seed=seed, prefix_observations=prefix)
         else:
             self.driver.reset(seed=seed)
 
@@ -187,7 +304,7 @@ class DriverSession:
         return command
 
     def snapshot(self) -> _SessionSnapshot:
-        """Copy NumPy-driver state for matched counterfactual branches."""
+        """Copy NumPy-driver state for deterministic branch replay."""
         if self.kind == "official_active_inference":
             raise NotImplementedError(
                 "the external official PyTorch agent is replayed by reset+seed, not deep-copied"

@@ -82,9 +82,9 @@ k_i(t,t')=\sigma_{k,i}^2\exp[-(t-t')^2/(2\ell_i^2)].
 
 当前实现：
 ```text
-reproduction/models/bayesian_ma_idm/src/driver.py            # B/MA在线随机状态
-reproduction/models/bayesian_ma_idm/src/reference_kernels.py # IDM/SE-GP参考核
-reproduction/models/bayesian_ma_idm/scripts/                 # 论文拟合及OOF评测
+external_model_baselines/models/bayesian_ma_idm/src/driver.py            # B/MA在线随机状态
+external_model_baselines/models/bayesian_ma_idm/src/reference_kernels.py # IDM/SE-GP参考核
+external_model_baselines/models/bayesian_ma_idm/scripts/                 # 论文拟合及OOF评测
 hierarchical_world_model/src/stochastic_drivers/      # 主项目25 Hz接入边界
 ```
 
@@ -132,14 +132,14 @@ gp_step(history, timestamp, standard_normal)
 [A] smoke：4个driver、2链、300warmup+300draw，目的仅检查代码。正式：20个train driver、4链、5000warmup+1000draw；先计算一次预计CPU成本，达到预注册wall-clock上限24h则保存为预算不足，不自动追加。PyMC是CPU工作负载，4090并不保证加速。
 
 统一使用 `tread` 环境。论文参考 NUTS 首次运行前安装固定依赖：
-`python -m pip install -r reproduction/models/bayesian_ma_idm/requirements-pymc.txt`。
+`python -m pip install -r external_model_baselines/models/bayesian_ma_idm/requirements-pymc.txt`。
 模型间只交换数值后验，不加载跨环境 pickle。
 
 已实现CLI：
 ```bash
-python -m reproduction.models.bayesian_ma_idm.scripts.fit_author_reference
-python -m reproduction.models.bayesian_ma_idm.scripts.run_full_cv --model ma_idm
-python -m reproduction.evaluation.driver_reproduction.scripts.run_matched_evaluation
+python -m external_model_baselines.models.bayesian_ma_idm.scripts.fit_author_reference
+python -m external_model_baselines.models.bayesian_ma_idm.scripts.run_full_cv --model ma_idm
+python -m external_model_baselines.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model ma_idm
 ```
 

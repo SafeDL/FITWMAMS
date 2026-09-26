@@ -12,7 +12,7 @@ import torch
 
 from normalizing_flow.src.constraints import derived_modes
 
-from world_model.src.core.utils import (
+from traffic_components.src.core.utils import (
     ensure_dir,
     load_json,
     save_json,

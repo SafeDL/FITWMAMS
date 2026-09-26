@@ -49,17 +49,17 @@ highD_dataset/**/*.csv
 *.h5
 *.hdf5
 
-# Curated reproduction inputs, posteriors and compact evidence
-!reproduction/models/active_inference_driver/artifacts/native_reproduction/full_torch220/Results_rear_end/Extracted_data.npy
-!reproduction/models/bayesian_ma_idm/evidence/**/*.npz
-!reproduction/models/dynamic_ar_idm/artifacts/data/*.npz
-!reproduction/models/dynamic_ar_idm/artifacts/full_data/*.npz
-!reproduction/models/dynamic_ar_idm/artifacts/full_evaluation/*.npz
-!reproduction/models/dynamic_ar_idm/artifacts/full_posterior/*.npz
-!reproduction/models/multi_regime_bidm/evidence/**/*.npz
-!reproduction/evaluation/driver_reproduction/artifacts/matched/b_idm_train25.npz
-!reproduction/evaluation/driver_reproduction/artifacts/matched/ma_idm_train25.npz
-!reproduction/evaluation/driver_reproduction/artifacts/matched/dynamic_ar5_train25.npz
+# Curated external-baseline inputs, posteriors and compact evidence
+!external_model_baselines/models/active_inference_driver/artifacts/native_reproduction/full_torch220/Results_rear_end/Extracted_data.npy
+!external_model_baselines/models/bayesian_ma_idm/evidence/**/*.npz
+!external_model_baselines/models/dynamic_ar_idm/artifacts/data/*.npz
+!external_model_baselines/models/dynamic_ar_idm/artifacts/full_data/*.npz
+!external_model_baselines/models/dynamic_ar_idm/artifacts/full_evaluation/*.npz
+!external_model_baselines/models/dynamic_ar_idm/artifacts/full_posterior/*.npz
+!external_model_baselines/models/multi_regime_bidm/evidence/**/*.npz
+!external_model_baselines/evaluation/driver_reproduction/artifacts/matched/b_idm_train25.npz
+!external_model_baselines/evaluation/driver_reproduction/artifacts/matched/ma_idm_train25.npz
+!external_model_baselines/evaluation/driver_reproduction/artifacts/matched/dynamic_ar5_train25.npz
 
 # Model checkpoints and learned weights
 *.pt
@@ -81,10 +81,13 @@ mlruns/
 tensorboard/
 
 # Reproducible experiment artifacts
-results/highd_shared_training_data/
+results/highd_shared_training_data/**
+!results/highd_shared_training_data/**/
+!results/highd_shared_training_data/**/README.md
 results/legacy/
 results/highd_world_model/
 results/interactive_behavior_world_model/
+results/npc_behavior_benchmark/
 results/idm_ams/
 
 # Large generated output media (usually recreated by scripts)

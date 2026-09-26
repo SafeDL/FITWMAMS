@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 from idm_ams.src.multi_world_runner import run_model_suite  # noqa: E402
 from idm_ams.src.world_model_registry import world_model_ids  # noqa: E402
-from world_model.src.core.utils import load_yaml  # noqa: E402
+from traffic_components.src.core.utils import load_yaml  # noqa: E402
 
 CONFIG = ROOT / "idm_ams/configs/world_models_idm.yaml"
 

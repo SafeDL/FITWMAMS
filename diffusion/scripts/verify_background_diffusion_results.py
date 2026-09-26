@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.data import load_data_bundle  # noqa: E402
-from world_model.src.core.utils import load_json, load_yaml  # noqa: E402
+from traffic_components.src.core.utils import load_json, load_yaml  # noqa: E402
 
 DEFAULT_CONFIG = ROOT / "diffusion/configs/highd_background_diffusion.yaml"
 

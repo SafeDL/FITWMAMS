@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from world_model.src.core.evaluation_scope import scoped_agent_valid
+from traffic_components.src.core.evaluation_scope import scoped_agent_valid
 
 
 def collision_and_min_gap(

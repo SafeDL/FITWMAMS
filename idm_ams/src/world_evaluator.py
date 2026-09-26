@@ -63,6 +63,7 @@ class CurrentWorldEvaluator:
                 self.policy,
                 steps=self.steps,
                 evt_model=self.evt_model,
+                reaction_controller=None,  # Historical factual-HiQR protocol.
             )
             collision, min_gap = collision_and_min_gap(
                 rollout.states, rollout.initial_valid

@@ -1,0 +1,51 @@
+{
+  "follower_change_windows": "mean ax frames 55:80 minus 25:50",
+  "full_test_rows": 10151,
+  "interpretation": "This stable-lane subset contains no one-second mean leader-acceleration increase above 1 m/s², so it does not calibrate the magnitude of forced +2/+4 m/s² ADS responses.",
+  "leader_change_windows": "mean ax frames 50:75 minus 25:50",
+  "same_lane_rear_scenes_within_45m": 1214,
+  "schema": "natural_leader_acceleration_support_v1",
+  "stable_lane_scenes": 1108,
+  "thresholds_mps2": {
+    "0.25": {
+      "decrease": {
+        "median_follower_change_mps2": 0.001600027084350586,
+        "scenes": 41
+      },
+      "increase": {
+        "median_follower_change_mps2": 0.03680001199245453,
+        "scenes": 51
+      }
+    },
+    "0.5": {
+      "decrease": {
+        "median_follower_change_mps2": -0.1656000167131424,
+        "scenes": 8
+      },
+      "increase": {
+        "median_follower_change_mps2": 0.06159999966621399,
+        "scenes": 3
+      }
+    },
+    "1.0": {
+      "decrease": {
+        "median_follower_change_mps2": -0.9387998580932617,
+        "scenes": 3
+      },
+      "increase": {
+        "median_follower_change_mps2": null,
+        "scenes": 0
+      }
+    },
+    "2.0": {
+      "decrease": {
+        "median_follower_change_mps2": null,
+        "scenes": 0
+      },
+      "increase": {
+        "median_follower_change_mps2": null,
+        "scenes": 0
+      }
+    }
+  }
+}

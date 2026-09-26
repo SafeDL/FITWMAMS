@@ -16,8 +16,8 @@ from diffusion.src.data import (
     smooth_position_residual,
 )
 from diffusion.src.train import load_checkpoint
-from world_model.src.core.utils import ensure_dir, file_sha256, save_json
-from world_model.src.core.evaluation_scope import EVALUATION_SCOPE_SCHEMA
+from traffic_components.src.core.utils import ensure_dir, file_sha256, save_json
+from traffic_components.src.core.evaluation_scope import EVALUATION_SCOPE_SCHEMA
 
 
 def _row_digest(rows: np.ndarray) -> str:
@@ -93,7 +93,7 @@ def frozen_diffusion_plans(
     checkpoint_hash = file_sha256(checkpoint)
     digest = _row_digest(selected)
     if cache.exists() and manifest_path.exists():
-        from world_model.src.core.utils import load_json
+        from traffic_components.src.core.utils import load_json
 
         manifest = load_json(manifest_path)
         if (

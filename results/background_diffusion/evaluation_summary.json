@@ -19,6 +19,11 @@
   "evaluation_scope": "oracle_sparse_state_knot_conditioned_reconstruction",
   "experiment_scope": "full",
   "guidance_scale": 1.0,
+  "headline_metrics": {
+    "ADE_m": 0.026366834621868705,
+    "FDE_m": 0.004632908940118978,
+    "distribution_similarity": 0.7763366706411396
+  },
   "metrics": {
     "action_distribution_fidelity": {
       "ax_mps2": {
@@ -812,11 +817,6 @@
   },
   "role": "state_knot_conditioned_open_loop_diffusion",
   "samples_per_condition": 4,
-  "headline_metrics": {
-    "ADE_m": 0.026366834621868705,
-    "FDE_m": 0.004632908940118978,
-    "distribution_similarity": 0.7763366706411396
-  },
   "split": "test",
   "target_representation": "smooth_reference_relative_dx_dy_residual",
   "trajectory_reference": "piecewise_cubic_hermite_2s_4s_end",

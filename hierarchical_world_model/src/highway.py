@@ -11,9 +11,9 @@ import numpy as np
 import torch
 
 from tools.idm_ego import IDM_PARAMETER_KEYS
-from world_model.src.hiqr.filter import FilterState
+from traffic_components.src.hiqr.filter import FilterState
 
-from .model import DiffusionGuidedHiQR
+from .model import DiffusionGuidedHiQR, HIGHD_INTEGRATION_SPEED_MAX_MPS
 from .influence_graph import CausalInfluenceGraph, InfluenceGraphState
 from .reaction_controller import (
     ReactionController,
@@ -130,7 +130,9 @@ class UnicycleDynamicsVehicleMixin:
             * duration
         )
         self.heading = heading + yaw_rate * duration
-        self.speed = float(np.clip(speed + acceleration * duration, 0.0, 50.0))
+        self.speed = float(np.clip(
+            speed + acceleration * duration, 0.0, HIGHD_INTEGRATION_SPEED_MAX_MPS
+        ))
         self._hiqr_control = np.asarray((acceleration, yaw_rate), np.float32)
         self.on_state_update()
 
@@ -164,6 +166,7 @@ class HighwayEnvWorldSnapshot:
     states: torch.Tensor
     history: torch.Tensor
     history_valid: torch.Tensor
+    reference: torch.Tensor
     reference_index: int
     filter_global: torch.Tensor | None
     filter_agents: torch.Tensor | None
@@ -179,6 +182,7 @@ class HighwayEnvWorldSnapshot:
     previous_base_background_actions: torch.Tensor | None
     previous_calibration_correction: torch.Tensor | None
     influence_state: InfluenceGraphState | None
+    controller_runtime_state: dict[str, torch.Tensor] | None
     traffic: tuple[HighwayEnvSnapshot, ...]
 
 
@@ -196,7 +200,7 @@ class HighwayEnvTraffic:
         dt_s: float = 0.04,
         lane_width_m: float = 3.6,
         lanes_count: int = 8,
-        speed_limit_mps: float = 50.0,
+        speed_limit_mps: float = HIGHD_INTEGRATION_SPEED_MAX_MPS,
         vehicle_length_m: float = 4.8,
         vehicle_width_m: float = 1.8,
         seed: int = 0,
@@ -299,6 +303,7 @@ class HighwayEnvTraffic:
             self.ego.LENGTH = self.vehicle_length_m
             self.ego.WIDTH = self.vehicle_width_m
             self.ego.diagonal = float(np.hypot(self.ego.LENGTH, self.ego.WIDTH))
+            self.ego.MAX_SPEED = HIGHD_INTEGRATION_SPEED_MAX_MPS
             for name in IDM_PARAMETER_KEYS:
                 if name in self.idm_config:
                     setattr(self.ego, name, float(self.idm_config[name]))
@@ -622,9 +627,6 @@ class HighwayEnvClosedLoopWorld:
         self.previous_base_background_actions: torch.Tensor | None = None
         self.previous_calibration_correction: torch.Tensor | None = None
         self.influence_state: InfluenceGraphState | None = None
-        self.nominal_reference_states: torch.Tensor | None = None
-        self.nominal_reference_actions: torch.Tensor | None = None
-        self.nominal_initial_states: torch.Tensor | None = None
 
     def _controller_context(self, response) -> ReactionControllerContext:
         assert self.history is not None and self.history_valid is not None
@@ -677,36 +679,13 @@ class HighwayEnvClosedLoopWorld:
             policy_calibration_standard_normal=self.policy_calibration_innovations[
                 :, self.reference_index
             ],
-            nominal_current=(
-                None
-                if self.nominal_reference_states is None
-                else (
-                    self.nominal_initial_states
-                    if self.reference_index == 0
-                    else self.nominal_reference_states[:, self.reference_index - 1]
-                )
-            ),
-            nominal_action_horizon=(
-                None
-                if self.nominal_reference_actions is None
-                else torch.cat(
-                    (
-                        self.nominal_reference_actions[:, self.reference_index :, :, 0],
-                        self.nominal_reference_actions[:, -1:, :, 0].expand(
-                            -1,
-                            max(
-                                0,
-                                self.model.cfg.preview_frames
-                                - self.nominal_reference_actions[
-                                    :, self.reference_index :
-                                ].shape[1],
-                            ),
-                            -1,
-                        ),
-                    ),
-                    dim=1,
-                )[:, : self.model.cfg.preview_frames].permute(0, 2, 1)
-            ),
+            planned_origin_xy=self.reference_base,
+            planned_current_xy=self.reference[:, self.reference_index],
+            planned_terminal_xy=self.reference[:, -1],
+            planned_path_xy=self.reference,
+            map_polylines=self.map_polylines,
+            map_polyline_valid=self.map_polyline_valid,
+            response_index=self.reference_index,
         )
 
     def _require(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -732,9 +711,6 @@ class HighwayEnvClosedLoopWorld:
         initial_history_valid: torch.Tensor | None = None,
         committed_ego_controls: torch.Tensor | None = None,
         deterministic_response: bool = False,
-        nominal_reference_states: torch.Tensor | None = None,
-        nominal_reference_actions: torch.Tensor | None = None,
-        nominal_initial_states: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | int]:
         states = torch.as_tensor(
             initial_states, dtype=torch.float32, device=self.device
@@ -788,34 +764,6 @@ class HighwayEnvClosedLoopWorld:
                     "initial history must be [batch,1..history_frames,7,6] "
                     "with a matching validity mask"
                 )
-        if (nominal_reference_states is None) != (
-            nominal_reference_actions is None
-        ) or (nominal_reference_states is None) != (nominal_initial_states is None):
-            raise ValueError(
-                "nominal reference states and actions must be provided together"
-            )
-        if nominal_reference_states is not None:
-            nominal_states = torch.as_tensor(
-                nominal_reference_states, dtype=states.dtype, device=self.device
-            )
-            nominal_actions = torch.as_tensor(
-                nominal_reference_actions, dtype=states.dtype, device=self.device
-            )
-            if (
-                nominal_states.ndim != 4
-                or nominal_states.shape[:1] != states.shape[:1]
-                or nominal_states.shape[2:] != (7, 6)
-            ):
-                raise ValueError("nominal reference states must be [batch,steps,7,6]")
-            if nominal_actions.shape != (*nominal_states.shape[:2], 6, 2):
-                raise ValueError("nominal reference actions must be [batch,steps,6,2]")
-            nominal_initial = torch.as_tensor(
-                nominal_initial_states, dtype=states.dtype, device=self.device
-            )
-            if nominal_initial.shape != states.shape:
-                raise ValueError("nominal initial states must be [batch,7,6]")
-        else:
-            nominal_states = nominal_actions = nominal_initial = None
         controls = None
         if committed_ego_controls is not None:
             controls = torch.as_tensor(
@@ -903,9 +851,8 @@ class HighwayEnvClosedLoopWorld:
         self.influence_state = InfluenceGraphState.empty(
             len(self.traffic), device=self.device
         )
-        self.nominal_reference_states = nominal_states
-        self.nominal_reference_actions = nominal_actions
-        self.nominal_initial_states = nominal_initial
+        if self.controller is not None:
+            self.controller.restore_runtime({})
         return self.observe()
 
     def observe(self) -> dict[str, torch.Tensor | int]:
@@ -913,6 +860,8 @@ class HighwayEnvClosedLoopWorld:
         return {
             "agent_states": states.detach().clone(),
             "agent_valid": valid.detach().clone(),
+            "map_polylines": self.map_polylines.detach().clone(),
+            "map_polyline_valid": self.map_polyline_valid.detach().clone(),
             "reference_index": self.reference_index,
         }
 
@@ -1040,7 +989,7 @@ class HighwayEnvClosedLoopWorld:
             agent_standard_normal=agent_noise,
             deterministic=self.deterministic_response,
             reference_rebase_weights=self.reference_rebase_weights,
-            apply_intervention_adapter=self.controller is None,
+            apply_intervention_adapter=False,
             # The learned frozen HiQR ego-response actuator is part of the
             # factual checkpoint.  Only the migrated handcrafted adapter is
             # mutually exclusive with a post-HiQR controller.
@@ -1143,6 +1092,12 @@ class HighwayEnvClosedLoopWorld:
                     if controller_output is None
                     else controller_output.active.detach().clone()
                 ),
+                "controller_spatial_path_active": (
+                    None
+                    if controller_output is None
+                    or controller_output.spatial_path_active is None
+                    else controller_output.spatial_path_active.detach().clone()
+                ),
                 "controller_phase": self.influence_state.phase.detach().clone(),
                 "controller_age_frames": self.influence_state.age_frames.detach().clone(),
                 "controller_features": (
@@ -1224,17 +1179,17 @@ class HighwayEnvClosedLoopWorld:
                     or controller_output.calibration_correction_ax is None
                     else controller_output.calibration_correction_ax.detach().clone()
                 ),
-                "controller_a2_nominal_action_ax": (
+                "controller_response_prior_nominal_action_ax": (
                     None
                     if controller_output is None
-                    or controller_output.a2_nominal_action_ax is None
-                    else controller_output.a2_nominal_action_ax.detach().clone()
+                    or controller_output.response_prior_nominal_action_ax is None
+                    else controller_output.response_prior_nominal_action_ax.detach().clone()
                 ),
-                "controller_a2_correction_ax": (
+                "controller_response_prior_correction_ax": (
                     None
                     if controller_output is None
-                    or controller_output.a2_correction_ax is None
-                    else controller_output.a2_correction_ax.detach().clone()
+                    or controller_output.response_prior_correction_ax is None
+                    else controller_output.response_prior_correction_ax.detach().clone()
                 ),
                 "influence_authority": (
                     None
@@ -1279,10 +1234,12 @@ class HighwayEnvClosedLoopWorld:
         states, _ = self._require()
         assert self.history is not None and self.history_valid is not None
         assert self.committed_ego_controls is not None
+        assert self.reference is not None
         return HighwayEnvWorldSnapshot(
             states=states.detach().clone(),
             history=self.history.detach().clone(),
             history_valid=self.history_valid.detach().clone(),
+            reference=self.reference.detach().clone(),
             reference_index=self.reference_index,
             filter_global=(
                 None
@@ -1310,6 +1267,9 @@ class HighwayEnvClosedLoopWorld:
                 self.previous_calibration_correction
             ),
             influence_state=self.influence_state,
+            controller_runtime_state=(
+                None if self.controller is None else self.controller.snapshot_runtime()
+            ),
             traffic=tuple(traffic.snapshot() for traffic in self.traffic),
         )
 
@@ -1325,6 +1285,7 @@ class HighwayEnvClosedLoopWorld:
         self.states = snapshot.states.detach().clone().to(self.device)
         self.history = snapshot.history.detach().clone().to(self.device)
         self.history_valid = snapshot.history_valid.detach().clone().to(self.device)
+        self.reference = snapshot.reference.detach().clone().to(self.device)
         self.reference_index = int(snapshot.reference_index)
         self.filter_state = (
             None
@@ -1356,4 +1317,6 @@ class HighwayEnvClosedLoopWorld:
             snapshot.previous_calibration_correction
         )
         self.influence_state = snapshot.influence_state
+        if self.controller is not None:
+            self.controller.restore_runtime(snapshot.controller_runtime_state or {})
         return self.observe()

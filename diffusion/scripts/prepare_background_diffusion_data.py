@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.train import prepare_training_data  # noqa: E402
-from world_model.src.core.utils import load_yaml, setup_logging  # noqa: E402
+from traffic_components.src.core.utils import load_yaml, setup_logging  # noqa: E402
 
 DEFAULT_CONFIG = ROOT / "diffusion/configs/highd_background_diffusion.yaml"
 

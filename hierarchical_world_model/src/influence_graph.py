@@ -1,4 +1,4 @@
-"""Causal, per-agent authority routing for CIH-WM responses."""
+"""Causal, per-agent authority routing for online world-model responses."""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ class CausalInfluenceGraph:
         parent = torch.where(direct, torch.zeros_like(old.parent), torch.full_like(old.parent, -1))
 
         # Chained propagation is an inactive compatibility path.  The
-        # maintained CIH-WM scope is direct ego-to-follower response, so this
+        # maintained direct-control scope is ego-to-follower response, so this
         # path cannot affect training, factual reconstruction, or ADS testing.
         secondary = torch.zeros_like(direct)
         secondary_ttc = torch.full_like(ttc, float("inf"))

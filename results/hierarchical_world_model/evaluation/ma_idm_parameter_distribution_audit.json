@@ -1,0 +1,222 @@
+{
+  "calibration_method": "Empirical-Bayes correlated log-normal hierarchical MAP with joint population covariance draws",
+  "calibration_pairs": 251,
+  "decision_grid_hz": 5,
+  "interpretation": "The two parameter distributions compare hierarchical population posterior-predictive draws with per-pair MAP fits from the same observed calibration cohort. This checks fit/population consistency and preserves correlated heterogeneity; it is not independent proof of parameter calibration. Separate leave-one-recording-out behavior evaluation is available but shows under-dispersed 90% position intervals; collision frequency is not a calibration target.",
+  "joint_dependence": {
+    "driver_map_spearman": [
+      [
+        1.0,
+        -0.08084775706667545,
+        0.13703407191941164,
+        0.2768615488074461,
+        0.07111174942289283
+      ],
+      [
+        -0.08084775706667545,
+        0.9999999999999998,
+        -0.057207864684526794,
+        0.15661991371004896,
+        -0.24627324156706534
+      ],
+      [
+        0.13703407191941164,
+        -0.05720786468452679,
+        1.0,
+        0.08576730285583749,
+        -0.05206715537170921
+      ],
+      [
+        0.2768615488074461,
+        0.15661991371004896,
+        0.08576730285583749,
+        0.9999999999999998,
+        0.2243803046185885
+      ],
+      [
+        0.07111174942289282,
+        -0.24627324156706534,
+        -0.052067155371709216,
+        0.22438030461858852,
+        1.0
+      ]
+    ],
+    "mean_absolute_pairwise_difference": 0.024915239014695008,
+    "parameter_order": [
+      "v0_mps",
+      "s0_m",
+      "T_s",
+      "alpha_mps2",
+      "beta_mps2"
+    ],
+    "population_posterior_predictive_spearman": [
+      [
+        1.0,
+        -0.06299738108634181,
+        0.1319887280435183,
+        0.2075256718365392,
+        0.03209477734565212
+      ],
+      [
+        -0.06299738108634183,
+        1.0,
+        -0.029566176947330627,
+        0.17900905481085105,
+        -0.2564870867080386
+      ],
+      [
+        0.1319887280435183,
+        -0.029566176947330627,
+        1.0,
+        0.08442356725787646,
+        -0.10027840347160058
+      ],
+      [
+        0.2075256718365392,
+        0.17900905481085105,
+        0.08442356725787646,
+        1.0,
+        0.2162761410528369
+      ],
+      [
+        0.03209477734565212,
+        -0.25648708670803866,
+        -0.10027840347160058,
+        0.2162761410528369,
+        0.9999999999999999
+      ]
+    ]
+  },
+  "leave_one_recording_out_behavior_validation": {
+    "horizons": {
+      "3.0": {
+        "acceleration_crps_mps2": 0.13431292656199406,
+        "position_90_coverage": 0.6319877316132296,
+        "position_rmse_m": 0.24993032640552137,
+        "speed_rmse_mps": 0.2627616632012626
+      },
+      "5.0": {
+        "acceleration_crps_mps2": 0.14864166781457833,
+        "position_90_coverage": 0.7124729652817301,
+        "position_rmse_m": 0.8367109978699254,
+        "speed_rmse_mps": 0.49258528129403567
+      }
+    },
+    "interpretation": "Independent recording holdouts exist, but the 90% position intervals are under-dispersed.",
+    "protocol": "recording-held-out rolling-origin; pair-weighted means; native 25 Hz plant / 5 Hz driver action",
+    "source": "external_model_baselines/models/bayesian_ma_idm/evidence/population/summary.json"
+  },
+  "parameters": {
+    "T_s": {
+      "driver_map_q05_q25_q50_q75_q95": [
+        0.26678977858119113,
+        0.6535500892662571,
+        1.1134317597104502,
+        1.6876151827378505,
+        3.557453708541017
+      ],
+      "fraction_driver_maps_inside_population_90pct_interval": 0.852589641434263,
+      "ks_statistic": 0.056306693227091587,
+      "population_posterior_predictive_q05_q25_q50_q75_q95": [
+        0.3282544012095355,
+        0.652640842638648,
+        1.0539086522147005,
+        1.7104404335252676,
+        3.4089673299858956
+      ],
+      "wasserstein_1d": 0.05752184132750644,
+      "wasserstein_over_driver_map_iqr": 0.05562690558907897
+    },
+    "alpha_mps2": {
+      "driver_map_q05_q25_q50_q75_q95": [
+        0.23057623321989829,
+        0.3864870563840894,
+        0.5349598701907294,
+        0.678292304015986,
+        1.0511676822397624
+      ],
+      "fraction_driver_maps_inside_population_90pct_interval": 0.8725099601593626,
+      "ks_statistic": 0.06940613545816732,
+      "population_posterior_predictive_q05_q25_q50_q75_q95": [
+        0.25269134144702415,
+        0.38433040481883585,
+        0.5149780350353232,
+        0.6907704678406683,
+        1.0576786417445838
+      ],
+      "wasserstein_1d": 0.018672074984537546,
+      "wasserstein_over_driver_map_iqr": 0.06398813981608652
+    },
+    "beta_mps2": {
+      "driver_map_q05_q25_q50_q75_q95": [
+        0.4405092953178199,
+        1.3425183042316073,
+        2.3148831980438715,
+        4.169137745033813,
+        7.999999999999998
+      ],
+      "fraction_driver_maps_inside_population_90pct_interval": 0.9243027888446215,
+      "ks_statistic": 0.06969999999999998,
+      "population_posterior_predictive_q05_q25_q50_q75_q95": [
+        0.5230158358364776,
+        1.2221129645664992,
+        2.2030008036465007,
+        3.9778936522287194,
+        8.0
+      ],
+      "wasserstein_1d": 0.14937627547848334,
+      "wasserstein_over_driver_map_iqr": 0.052846263392319175
+    },
+    "s0_m": {
+      "driver_map_q05_q25_q50_q75_q95": [
+        1.1462778371805713,
+        2.425174517573852,
+        3.9478311524497975,
+        6.120780043124319,
+        9.797766461168546
+      ],
+      "fraction_driver_maps_inside_population_90pct_interval": 0.900398406374502,
+      "ks_statistic": 0.047587649402390464,
+      "population_posterior_predictive_q05_q25_q50_q75_q95": [
+        1.2507414404272834,
+        2.3860049873338642,
+        3.755703329875218,
+        5.8795301852927615,
+        11.285739169828803
+      ],
+      "wasserstein_1d": 0.2095888217029677,
+      "wasserstein_over_driver_map_iqr": 0.05671298526152871
+    },
+    "v0_mps": {
+      "driver_map_q05_q25_q50_q75_q95": [
+        10.78614392696537,
+        14.983047175966217,
+        26.764927451223045,
+        31.591978653856653,
+        37.68799202667159
+      ],
+      "fraction_driver_maps_inside_population_90pct_interval": 0.9243027888446215,
+      "ks_statistic": 0.17391705179282874,
+      "population_posterior_predictive_q05_q25_q50_q75_q95": [
+        11.159846685184217,
+        16.848519241715888,
+        22.650868601073096,
+        30.194671356242083,
+        45.75908924630293
+      ],
+      "wasserstein_1d": 2.9195222410805095,
+      "wasserstein_over_driver_map_iqr": 0.17578025684355036
+    }
+  },
+  "posterior_predictive_draws": 50000,
+  "posterior_predictive_seed": 8127,
+  "recording_pair_counts": {
+    "25": 212,
+    "26": 38,
+    "36": 1
+  },
+  "schema": "ma_idm_population_parameter_distribution_audit_v1",
+  "source_artifact": "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz",
+  "source_sha256": "235e013fa424c8d65f50d7ad9a4e6466b66d163d46993d954e48e5f76bddbe9a",
+  "unique_follower_ids": 246
+}

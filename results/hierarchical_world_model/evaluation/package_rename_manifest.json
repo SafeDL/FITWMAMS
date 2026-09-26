@@ -1,0 +1,8 @@
+{
+  "change": "world_model package renamed to traffic_components",
+  "metrics_recomputed": false,
+  "original_runtime_sha256": "4a29b9daeb735d79e87cf01e3628fb7e661fb0fe63758e80eb39a135174bc071",
+  "current_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "generated_evaluation_script_sha256_before_package_rename": "dbe8b9d411702137c0cc5c6337f4ead4289c18c339f6685a2f3b2beaeff61223",
+  "generated_evaluation_script_sha256_current": "82a6322d67cdab111d87724dd53b1e690d8810f3ed4cf32d0ac1842cf587f578"
+}

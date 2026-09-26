@@ -1,0 +1,130 @@
+{
+  "schema_version": 2,
+  "policy": {
+    "catalog_root": "external_model_baselines",
+    "source_layout": "canonical_only",
+    "result_root": "results",
+    "rule": "Only executable external paper-derived models belong to model baselines; shared probes and test protocols belong to evaluation_tools."
+  },
+  "model_baselines": [
+    {
+      "id": "bayesian_ma_idm",
+      "family": "B-IDM / MA-IDM",
+      "catalog_path": "external_model_baselines/models/bayesian_ma_idm",
+      "implementation_path": "external_model_baselines/models/bayesian_ma_idm",
+      "paper": "references/Zhang-2024-Bayesian-calibration-of-the-intelli.pdf",
+      "status": "retained_baseline",
+      "scope": "Bayesian IDM and memory-augmented IDM on native 25 Hz highD data"
+    },
+    {
+      "id": "dynamic_ar_idm",
+      "family": "Dynamic-AR IDM",
+      "catalog_path": "external_model_baselines/models/dynamic_ar_idm",
+      "implementation_path": "external_model_baselines/models/dynamic_ar_idm",
+      "paper": "references/Calibrating Car-Following Models via Bayesian Dynamic Regression.pdf",
+      "status": "engineering_approximation",
+      "scope": "Paper mechanism retained; deployed posterior is the explicitly labelled stable MAP/Laplace approximation"
+    },
+    {
+      "id": "multi_regime_bidm",
+      "family": "Multi-regime B-IDM",
+      "catalog_path": "external_model_baselines/models/multi_regime_bidm",
+      "implementation_path": "external_model_baselines/models/multi_regime_bidm",
+      "paper": "references/Modeling car-following behaviors considering driver heterogeneity A multi-regime stochastic framework.pdf",
+      "status": "rejected_for_deployment",
+      "scope": "Documented finite-HSMM adaptation; retained as reproduction evidence, not a deployable simulator driver"
+    },
+    {
+      "id": "active_inference_driver",
+      "family": "Active Inference collision avoidance",
+      "catalog_path": "external_model_baselines/models/active_inference_driver",
+      "implementation_path": "external_model_baselines/models/active_inference_driver",
+      "paper": "references/Active inference as a model of collision avoidance behavior in human drivers.pdf",
+      "status": "official_wrapper_retained",
+      "scope": "Official v1.0.0 external wrapper and 25 Hz bridge; restricted upstream source is not copied"
+    },
+    {
+      "id": "trafficbots",
+      "family": "TrafficBots V1.5",
+      "catalog_path": "external_model_baselines/models/trafficbots",
+      "implementation_path": "external_model_baselines/models/trafficbots",
+      "paper": "references/TrafficBots V1.5 Traffic Simulation via Conditional VAEs and Transformers with Relative Pose Encodi.pdf",
+      "upstream_source": "ref_code/TrafficBotsV1.5-main",
+      "status": "adapted_external_baseline",
+      "scope": "Method-faithful highD adaptation, not a bit-exact WOMD training reproduction"
+    }
+  ],
+  "evaluation_tools": [
+    {
+      "id": "driver_reproduction",
+      "catalog_path": "external_model_baselines/evaluation/driver_reproduction",
+      "implementation_path": "external_model_baselines/evaluation/driver_reproduction",
+      "role": "matched benchmark, scorecard, and cross-model contracts"
+    },
+    {
+      "id": "counterfactual_response",
+      "catalog_path": "external_model_baselines/evaluation/counterfactual_response",
+      "implementation_path": "external_model_baselines/evaluation/counterfactual_response",
+      "role": "paired response probe over retained stochastic drivers; not a fifth model"
+    }
+  ],
+  "reference_only": [
+    {
+      "id": "vbd",
+      "path": "ref_code/VBD-main",
+      "reason": "upstream source snapshot only; no maintained FITWMAMS reproduction adapter"
+    },
+    {
+      "id": "catk",
+      "path": "ref_code/catk-main",
+      "reason": "upstream source snapshot only"
+    },
+    {
+      "id": "ad_rss_lib",
+      "path": "ref_code/ad-rss-lib",
+      "reason": "third-party dependency snapshot, not a behavior world model"
+    },
+    {
+      "id": "nflows",
+      "path": "ref_code/nflows-master",
+      "reason": "third-party library snapshot, not a behavior world model"
+    }
+  ],
+  "top_level_classification": {
+    "project_method": [
+      "diffusion",
+      "hierarchical_world_model",
+      "normalizing_flow",
+      "npc_behavior_benchmark"
+    ],
+    "shared_code": [
+      "world_model"
+    ],
+    "external_source_snapshots": [
+      "ref_code"
+    ],
+    "data_and_pipeline": [
+      "highD_dataset",
+      "process_highD"
+    ],
+    "simulation_dependency": [
+      "HighwayEnv"
+    ],
+    "documentation": [
+      "doc",
+      "references"
+    ],
+    "experiment_outputs": [
+      "results"
+    ],
+    "developer_tools": [
+      "tools"
+    ],
+    "evaluation_protocols": [
+      "idm_ams"
+    ],
+    "catalog": [
+      "external_model_baselines"
+    ]
+  }
+}

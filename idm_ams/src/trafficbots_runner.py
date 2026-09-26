@@ -9,19 +9,19 @@ import numpy as np
 
 from tools.evt import load_evt_model
 from tools.idm_ego import load_idm_ego_config
-from world_model.src.core.utils import (
+from traffic_components.src.core.utils import (
     file_sha256,
     load_json,
     load_yaml,
     save_json,
     select_device,
 )
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
     require_scoped_evt_model,
 )
-from reproduction.models.trafficbots.config import (
+from external_model_baselines.models.trafficbots.config import (
     load_config as load_trafficbots_config,
 )
 

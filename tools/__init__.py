@@ -1,2 +1,1 @@
-"""Shared safety and risk-scoring utilities."""
-
+"""Utilities shared by the active data, generation, and simulation modules."""

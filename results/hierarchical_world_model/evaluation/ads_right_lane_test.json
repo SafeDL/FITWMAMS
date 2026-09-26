@@ -1,0 +1,70 @@
+{
+  "adjacent_cohort_map_rule": "nearest mapped source; next mapped requested-side lane 1.8–5.4 m away; rear NPC within 1.8 m of target centre",
+  "evaluated_cohorts": [
+    "right"
+  ],
+  "full_test_screen": true,
+  "left_lane_rear": {},
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "protocol": "independent single-pass online branches; logged-ADS and same-ADS HiQR-only ablations used only after branch execution for metrics",
+  "right_lane_rear": {
+    "right": {
+      "ads_final_mapped_lane_error_max_m": 0.13878202438354492,
+      "ads_final_mapped_lane_error_p95_m": 0.05595600605010986,
+      "ads_lane_change_completion_rate": 1.0,
+      "collision_scene_counts": {
+        "adjusted": 449,
+        "ads_pursuit": 0,
+        "ego_npc": 449,
+        "npc_npc": 0,
+        "raw": 449
+      },
+      "effect_decomposition_max_error_mps2": 9.5367431640625e-07,
+      "expected_direction_rate": 0.5145482388973966,
+      "finite_scene_rate": 1.0,
+      "npc_autonomous_lane_frames": 0,
+      "npc_autonomous_lane_scenes": 0,
+      "npc_lane_repair_frames": 60,
+      "npc_spatial_path_frames": 258,
+      "receiver_autonomous_lane_scenes": 0,
+      "receiver_mean_abs_online_correction_mps2": 0.08891925761108194,
+      "receiver_mean_acceleration_effect_mps2": -0.020902429233363235,
+      "receiver_mean_hiqr_action_effect_mps2": 0.06639155599310842,
+      "receiver_mean_online_correction_effect_mps2": -0.08729398597436878,
+      "receiver_online_correction_active_frame_rate": 0.017478305257784585,
+      "receiver_spatial_path_frames": 0,
+      "same_ads_hiqr_only_ablation_counts": {
+        "adjusted_avoided_with_npc_response": 16,
+        "adjusted_introduced_with_npc_response": 0,
+        "adjusted_responsive_overlap_npc_response_added_pair_scene_count": 0,
+        "passive_adjusted_scene_count": 465,
+        "passive_ads_cutin_exposure_scene_count": 459,
+        "passive_ads_pursuit_scene_count": 0,
+        "passive_ego_npc_scene_count": 465,
+        "passive_included_ego_npc_scene_count": 465,
+        "passive_npc_npc_scene_count": 0,
+        "passive_raw_scene_count": 465,
+        "raw_avoided_with_npc_response": 16,
+        "raw_introduced_with_npc_response": 0,
+        "raw_responsive_overlap_npc_response_added_pair_scene_count": 0,
+        "responsive_adjusted_scene_count": 449,
+        "responsive_ads_cutin_exposure_scene_count": 445,
+        "responsive_ads_pursuit_scene_count": 0,
+        "responsive_ego_npc_scene_count": 449,
+        "responsive_included_ego_npc_scene_count": 449,
+        "responsive_npc_npc_scene_count": 0,
+        "responsive_raw_scene_count": 449
+      },
+      "scenes": 1306,
+      "within_45m_expected_direction_rate": 0.5406320541760722,
+      "within_45m_mean_acceleration_effect_mps2": -0.0308219929693291,
+      "within_45m_receiver_scenes": 886
+    }
+  },
+  "same_ads_hiqr_ablation_legacy_handcrafted_adapter_applied": false,
+  "same_lane_rear": {},
+  "schema": "online_ma_idm_ads_test_v2",
+  "screened_test_rows": 10151,
+  "test_split_size": 10151
+}

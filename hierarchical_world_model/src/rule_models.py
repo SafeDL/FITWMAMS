@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.core.utils import load_json, save_json
+from traffic_components.src.core.utils import load_json, save_json
 
 
 IDM_PARAMETER_NAMES = (
@@ -104,7 +104,7 @@ class RuleModelBundle:
         """Return IDM actions for arbitrary realized leader-follower edges.
 
         Indices may be ``[batch]`` or ``[batch, edges]``.  This is required by
-        CIH-WM's second influence level: a secondary follower responds to the
+        secondary influence level: a secondary follower responds to the
         directly affected NPC in front of it, rather than incorrectly using
         ego as its leader.
         """

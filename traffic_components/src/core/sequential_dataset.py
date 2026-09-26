@@ -1,0 +1,388 @@
+"""START-plus-ROLL sequence cache for relational world-model training.
+
+Each highD source window contributes its 150 recorded state points.  The first
+25 physical transitions are the Flow-conditioned START reconstruction and the
+remaining 124 transitions are the free ROLL continuation.  At 25 Hz this is
+``1.00 s START + 4.96 s ROLL = 5.96 s``; no terminal state is fabricated.
+"""
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from traffic_components.src.traffic_graph.highd_adapter import HighDGraphAdapter
+from .data import (
+    SPLIT_TO_INDEX,
+    _action_window,
+    _segment_slot_ids,
+    _state_window,
+    aligned_multichunk_indices,
+)
+from .utils import ensure_dir, load_json, save_json
+from process_highD.src.natural_segments import _build_vehicle_cache, _position_at
+from process_highD.src.preprocess import prepare_recording
+
+logger = logging.getLogger(__name__)
+
+# QR's canonical cache retains all 150 *recorded* points S0..S149 rather than
+# synthesising an S150 endpoint.  The baseline signature is only retained for
+# the independently maintained baseline models that still consume that cache.
+CANONICAL_SEQUENCE_CACHE_FORMAT = "highd_canonical_raw150"
+CANONICAL_SEQUENCE_PROTOCOL = "fixed_horizon_5p96"
+SEQUENCE_ARRAYS = (
+    "sequence_id", "agent_states", "agent_valid", "ego_index", "map_polylines",
+    "map_polyline_valid", "lane_graph_edges", "actions_highd", "split_index", "is_evt_tail",
+)
+# The first 24 cache positions are an invalid compatibility prefix.  Position
+# 24 is C0/S0; the following 149 entries are the remaining recorded states.
+HISTORY_PADDING_FRAMES = 24
+HISTORY_FRAMES = HISTORY_PADDING_FRAMES + 1
+RAW_WINDOW_STATE_FRAMES = 150
+FUTURE_TRANSITION_FRAMES = RAW_WINDOW_STATE_FRAMES - 1
+START_RECONSTRUCTION_FRAMES = 25
+ROLL_TRANSITION_FRAMES = FUTURE_TRANSITION_FRAMES - START_RECONSTRUCTION_FRAMES
+SEQUENCE_FRAMES = HISTORY_PADDING_FRAMES + RAW_WINDOW_STATE_FRAMES
+
+
+def sequence_cache_dir(output_dir: str | Path) -> Path:
+    return Path(output_dir) / "sequence_cache"
+
+
+def sequence_manifest_path(output_dir: str | Path) -> Path:
+    return sequence_cache_dir(output_dir) / "manifest.json"
+
+
+def sequence_cache_owner_dir(config: dict[str, Any], *, config_dir: Path) -> Path:
+    """Resolve the directory that owns a reusable sequence cache.
+
+    Fine-tuning experiments can write checkpoints to a new output directory
+    while reusing an immutable, already audited sequence cache.  This avoids
+    rebuilding data and prevents a trial run from overwriting the cache used by
+    an earlier checkpoint.
+    """
+    paths = config["paths"]
+    value = paths.get("sequence_cache_dir") or paths["output_dir"]
+    owner = Path(value)
+    return owner if owner.is_absolute() else (config_dir / owner).resolve()
+
+
+def sequence_cache_available(output_dir: str | Path) -> bool:
+    root = sequence_cache_dir(output_dir)
+    manifest_path = root / "manifest.json"
+    if not manifest_path.exists() or not all((root / f"{key}.npy").exists() for key in SEQUENCE_ARRAYS):
+        return False
+    try:
+        manifest = load_json(manifest_path)
+        return manifest.get("cache_format") == CANONICAL_SEQUENCE_CACHE_FORMAT
+    except (OSError, ValueError):
+        return False
+
+
+def _split_name(index: int) -> str:
+    return {value: name for name, value in SPLIT_TO_INDEX.items()}.get(int(index), "train")
+
+
+def _sequence_rows(arrays: dict[str, np.ndarray], *, max_sequences: int, seed: int) -> np.ndarray:
+    rows: list[np.ndarray] = []
+    for split in ("train", "val", "test"):
+        current = aligned_multichunk_indices(arrays, split, horizon_steps=25, max_chunks=5)
+        rows.extend(current)
+    if not rows:
+        raise RuntimeError("No aligned START + five ROLL chunks available for sequence cache")
+    index = np.asarray(rows, dtype=np.int64)
+    # Stable random order lets a bounded development cache retain all splits.
+    rng = np.random.default_rng(int(seed))
+    rng.shuffle(index)
+    if max_sequences > 0:
+        index = index[:int(max_sequences)]
+    return index
+
+
+def is_canonical_sequence_manifest(manifest: dict[str, Any]) -> bool:
+    """Whether a manifest fulfils the canonical non-fabricated contract."""
+    return (
+        manifest.get("cache_format") == CANONICAL_SEQUENCE_CACHE_FORMAT
+        and int(manifest.get("future_transition_frames", -1)) == FUTURE_TRANSITION_FRAMES
+        and int(manifest.get("start_reconstruction_frames", -1)) == START_RECONSTRUCTION_FRAMES
+        and int(manifest.get("roll_transition_frames", -1)) == ROLL_TRANSITION_FRAMES
+        and bool(manifest.get("lateral_event_integrity_required", False))
+        and bool(manifest.get("background_slot_stability_required", False))
+    )
+
+
+def _require_stable_background_slots(valid: np.ndarray) -> None:
+    """Assert that the canonical cache has no C0-active slot exits."""
+    values = np.asarray(valid, bool)
+    active = values[:, HISTORY_PADDING_FRAMES, 1:]
+    full = values[:, HISTORY_PADDING_FRAMES:, 1:].all(axis=1)
+    stable = (~active | full).all(axis=1)
+    unstable = np.flatnonzero(~stable)
+    if len(unstable):
+        raise RuntimeError(
+            f"sequence cache contains {len(unstable)} C0-active background-slot exits"
+        )
+
+
+def _uses_canonical_sequence_protocol(config: dict[str, Any]) -> bool:
+    return (
+        str(config.get("dataset", {}).get("sequence_protocol", ""))
+        == CANONICAL_SEQUENCE_PROTOCOL
+    )
+
+
+def _unnormalize_history(history: np.ndarray, history_valid: np.ndarray, schema: dict[str, Any]) -> np.ndarray:
+    norm = schema["normalization"]["state"]
+    mean = np.asarray(norm["mean"], dtype=np.float32)
+    std = np.asarray(norm["std"], dtype=np.float32)
+    raw = np.asarray(history, np.float32) * std.reshape(1, 1, -1) + mean.reshape(1, 1, -1)
+    return raw * np.asarray(history_valid, bool)[..., None]
+
+
+def prepare_sequential_dataset(
+    config: dict[str, Any], *, config_dir: Path, rebuild: bool = False, max_sequences: int | None = None,
+) -> dict[str, Any]:
+    """Prepare the explicitly selected cache protocol.
+
+    HiQR and diffusion opt into the canonical 5.96-second representation.
+    """
+    if not _uses_canonical_sequence_protocol(config):
+        raise ValueError(f"dataset.sequence_protocol must be {CANONICAL_SEQUENCE_PROTOCOL!r}")
+    return _prepare_canonical_sequence_dataset(
+        config, config_dir=config_dir, rebuild=rebuild, max_sequences=max_sequences,
+    )
+
+
+def _prepare_canonical_sequence_dataset(
+    config: dict[str, Any],
+    *,
+    config_dir: Path,
+    rebuild: bool = False,
+    max_sequences: int | None = None,
+) -> dict[str, Any]:
+    """Materialize one raw sequence for every canonical Flow/natural row."""
+    adapter_name = str(config.get("dataset", {}).get("adapter", "highd")).lower()
+    if adapter_name not in {"highd", "highd_adapter"}:
+        raise ValueError("only the highD sequence adapter is retained")
+    paths = config["paths"]
+    flow_schema_path = Path(paths["flow_schema"])
+    if not flow_schema_path.is_absolute():
+        flow_schema_path = (config_dir / flow_schema_path).resolve()
+    flow_schema = load_json(flow_schema_path)
+    flow_dataset = Path(flow_schema["dataset_npz"])
+    if not flow_dataset.exists():
+        raise FileNotFoundError(f"canonical Flow dataset is missing: {flow_dataset}")
+    output_dir = sequence_cache_owner_dir(config, config_dir=config_dir)
+    root = sequence_cache_dir(output_dir)
+    if sequence_cache_available(output_dir) and not rebuild:
+        manifest = load_json(sequence_manifest_path(output_dir))
+        if is_canonical_sequence_manifest(manifest):
+            return manifest
+        raise RuntimeError(
+            f"canonical sequences require cache format {CANONICAL_SEQUENCE_CACHE_FORMAT}, but {root} contains "
+            f"{manifest.get('cache_format')!r}; rebuild it explicitly."
+        )
+    if root.exists():
+        if not rebuild:
+            raise RuntimeError(
+                f"Outdated or partial sequence cache at {root}; rebuild it explicitly "
+                "before HiQR training/evaluation."
+            )
+        import shutil
+        shutil.rmtree(root)
+    ensure_dir(root)
+    with np.load(flow_dataset, allow_pickle=False) as source:
+        arrays = {
+            name: np.asarray(source[name]).copy()
+            for name in (
+                "segment_id",
+                "recording_id",
+                "ego_id",
+                "anchor_frame",
+                "primary_slot_index",
+                "split_index",
+                "is_evt_tail",
+            )
+        }
+    dataset_cfg = config.get("dataset", {})
+    graph_cfg = dict(config.get("graph", {}))
+    selected_max = int(max_sequences if max_sequences is not None else dataset_cfg.get("max_sequences", 0) or 0)
+    rows = np.arange(len(arrays["segment_id"]), dtype=np.int64)
+    if selected_max > 0:
+        rng = np.random.default_rng(int(config.get("split", {}).get("seed", 42)))
+        rng.shuffle(rows)
+        rows = rows[:selected_max]
+    if len(rows) == 0:
+        raise RuntimeError("No source sequences selected")
+    adapter = HighDGraphAdapter(
+        lane_width_m=float(graph_cfg.get("lane_width_m", 3.6)),
+        top_r_lanes=int(graph_cfg.get("top_r_lanes", 3)),
+    )
+    recording_cache: dict[int, tuple[Any, dict[int, dict[str, Any]]]] = {}
+    use_recording_lane_metadata = bool(graph_cfg.get("use_recording_lane_metadata", True))
+    highd_cfg: dict[str, Any] | None = None
+    raw_dir = Path(flow_schema.get("raw_dir", ""))
+    if not raw_dir.exists():
+        raise FileNotFoundError(f"sequence construction requires raw highD data: {raw_dir}")
+    from process_highD.src.io_utils import load_config as load_highd_config
+
+    highd_config_value = paths.get("highd_evt_config")
+    if not highd_config_value:
+        raise KeyError("paths.highd_evt_config is required to construct the raw START+ROLL sequence cache")
+    highd_config_path = Path(highd_config_value)
+    if not highd_config_path.is_absolute():
+        highd_config_path = (config_dir / highd_config_path).resolve()
+    highd_cfg = load_highd_config(str(highd_config_path))
+    natural_csv = Path(str(flow_schema.get("source_segments_csv", "")))
+    if not natural_csv.exists():
+        raise FileNotFoundError(f"sequence construction requires natural segment metadata: {natural_csv}")
+    natural_rows = pd.read_csv(natural_csv).set_index("segment_id", drop=False)
+
+    def _recording_data(recording_id: int) -> tuple[Any, dict[int, dict[str, Any]]]:
+        cached = recording_cache.get(int(recording_id))
+        if cached is None:
+            recording = prepare_recording(raw_dir, int(recording_id), highd_cfg)
+            cached = (recording, _build_vehicle_cache(recording))
+            recording_cache[int(recording_id)] = cached
+        return cached
+
+    def _recording_map(recording_id: int, ego_id: int, anchor_frame: int):
+        if not use_recording_lane_metadata:
+            return None
+        recording, vehicles = _recording_data(int(recording_id))
+        vehicle = vehicles.get(int(ego_id))
+        position = None if vehicle is None else _position_at(vehicle, int(anchor_frame))
+        if vehicle is None or position is None:
+            return None
+        lateral_sign = 1.0 if int(vehicle.get("direction", 0)) == 1 else -1.0
+        return adapter.map_from_recording_metadata(
+            recording.recording_meta, ego_global_y_m=float(vehicle["y_left"][position]), lateral_sign=lateral_sign,
+        )
+    s = len(rows)
+    # The graph keeps an invalid 24-frame compatibility prefix, then every
+    # physically recorded highD state S0..S149.  Actions label S0->S1 through
+    # S148->S149, so the final 4-tick response is real rather than padded.
+    t, n, m, p, r, action_t = (
+        SEQUENCE_FRAMES,
+        7,
+        8,
+        8,
+        int(config.get("graph", {}).get("top_r_lanes", 3)),
+        FUTURE_TRANSITION_FRAMES,
+    )
+    output: dict[str, np.ndarray] = {
+        "sequence_id": np.empty(s, dtype="U96"),
+        "agent_states": np.zeros((s, t, n, 6), np.float32), "agent_valid": np.zeros((s, t, n), bool),
+        "ego_index": np.zeros(s, np.int64),
+        "map_polylines": np.zeros((s, m, p, 6), np.float32), "map_polyline_valid": np.zeros((s, m, p), bool),
+        "lane_graph_edges": np.full((s, max(1, 2 * (m - 1)), 3), -1, np.int64),
+        "actions_highd": np.zeros((s, action_t, n - 1, 2), np.float32), "split_index": np.zeros(s, np.int64), "is_evt_tail": np.zeros(s, bool),
+    }
+    for out_i, row_index in enumerate(rows):
+        start = int(row_index)
+        segment_id = str(arrays["segment_id"][start])
+        if segment_id not in natural_rows.index:
+            raise KeyError(f"Natural metadata is missing sequence segment_id={segment_id}")
+        natural = natural_rows.loc[segment_id]
+        if isinstance(natural, pd.DataFrame):
+            natural = natural.iloc[0]
+        recording_id = int(arrays["recording_id"][start])
+        ego_id = int(arrays["ego_id"][start])
+        anchor_frame = int(arrays["anchor_frame"][start])
+        recording, vehicles = _recording_data(recording_id)
+        slot_ids = _segment_slot_ids(natural)
+        raw_window = _state_window(
+            vehicles,
+            ego_id=ego_id,
+            slot_ids=slot_ids,
+            start_frame=anchor_frame,
+            steps=RAW_WINDOW_STATE_FRAMES,
+            origin_frame=anchor_frame,
+        )
+        if raw_window is None:
+            raise RuntimeError(f"Could not construct raw highD window for {segment_id}")
+        raw_states, raw_valid = raw_window
+        highd_actions, action_valid = _action_window(
+            vehicles,
+            slot_ids=slot_ids,
+            start_frame=anchor_frame,
+            steps=FUTURE_TRANSITION_FRAMES,
+        )
+        # A control is supervised only when its next background state exists.
+        highd_actions[~(action_valid & raw_valid[1:, 1:])] = 0.0
+        states = np.zeros((t, n, 6), dtype=np.float32)
+        valid = np.zeros((t, n), dtype=bool)
+        states[HISTORY_PADDING_FRAMES:] = raw_states
+        valid[HISTORY_PADDING_FRAMES:] = raw_valid
+        primary = int(arrays["primary_slot_index"][start])
+        map_override = _recording_map(
+            recording_id, ego_id, anchor_frame
+        )
+        seq = adapter.adapt(
+            sequence_id=segment_id, recording_id=str(recording_id),
+            ego_id=str(ego_id), timestamps=np.arange(-HISTORY_PADDING_FRAMES, RAW_WINDOW_STATE_FRAMES, dtype=np.float32) / 25.0,
+            agent_states=states, agent_valid=valid, primary_agent_index=primary,
+            split=_split_name(int(arrays["split_index"][start])), is_evt_tail=bool(arrays["is_evt_tail"][start]),
+            map_override=map_override,
+        )
+        output["sequence_id"][out_i] = seq.sequence_id
+        output["agent_states"][out_i] = seq.agent_states
+        output["agent_valid"][out_i] = seq.agent_valid
+        output["ego_index"][out_i] = seq.ego_index
+        lm = min(m, seq.map_polylines.shape[0])
+        output["map_polylines"][out_i, :lm] = seq.map_polylines[:lm]
+        output["map_polyline_valid"][out_i, :lm] = seq.map_polyline_valid[:lm]
+        le = min(output["lane_graph_edges"].shape[1], len(seq.lane_graph_edges))
+        if le:
+            output["lane_graph_edges"][out_i, :le] = seq.lane_graph_edges[:le]
+        output["actions_highd"][out_i] = highd_actions
+        output["split_index"][out_i] = int(arrays["split_index"][start])
+        output["is_evt_tail"][out_i] = bool(arrays["is_evt_tail"][start])
+        if (out_i + 1) % 1000 == 0 or out_i + 1 == s:
+            logger.info("Prepared QR START+ROLL sequence %d/%d", out_i + 1, s)
+    _require_stable_background_slots(output["agent_valid"])
+    for key, value in output.items():
+        np.save(root / f"{key}.npy", value, allow_pickle=False)
+    manifest = {
+        "cache_format": CANONICAL_SEQUENCE_CACHE_FORMAT, "num_sequences": int(s), "frames": t,
+        "history_frames": HISTORY_FRAMES,
+        "raw_window_state_frames": RAW_WINDOW_STATE_FRAMES,
+        "future_transition_frames": FUTURE_TRANSITION_FRAMES,
+        "start_reconstruction_frames": START_RECONSTRUCTION_FRAMES,
+        "roll_transition_frames": ROLL_TRANSITION_FRAMES,
+        "start_reconstruction_seconds": START_RECONSTRUCTION_FRAMES / 25.0,
+        "roll_seconds": ROLL_TRANSITION_FRAMES / 25.0,
+        "total_rollout_seconds": FUTURE_TRANSITION_FRAMES / 25.0,
+        "start_semantics": "segment_start_behavior_reconstruction_not_risk_event_onset",
+        "fps": 25.0,
+        "source_dataset": str(natural_csv),
+        "flow_dataset": str(flow_dataset),
+        "flow_schema": str(flow_schema_path),
+        "adapter": adapter.version,
+        "lateral_event_integrity_required": bool(
+            flow_schema.get("lateral_event_integrity_required", False)
+        ),
+        "background_slot_stability_required": bool(
+            flow_schema.get("background_slot_stability_required", False)
+        ),
+        "uses_recording_lane_metadata": use_recording_lane_metadata,
+        "top_r_lanes": r, "arrays": list(SEQUENCE_ARRAYS),
+        "split_summary": {name: int(np.sum(output["split_index"] == value)) for name, value in SPLIT_TO_INDEX.items()},
+        "evt_tail_sequences": int(output["is_evt_tail"].sum()), "bounded_development_cache": bool(selected_max > 0),
+    }
+    save_json(manifest, sequence_manifest_path(output_dir))
+    return manifest
+
+
+def load_sequential_dataset(output_dir: str | Path) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    if not sequence_cache_available(output_dir):
+        raise FileNotFoundError(f"Missing sequence cache under {sequence_cache_dir(output_dir)}; run preparation first")
+    root = sequence_cache_dir(output_dir)
+    manifest = load_json(root / "manifest.json")
+    arrays = {key: np.load(root / f"{key}.npy", mmap_mode="r", allow_pickle=False) for key in SEQUENCE_ARRAYS}
+    if bool(manifest.get("background_slot_stability_required", False)):
+        _require_stable_background_slots(arrays["agent_valid"])
+    return arrays, manifest

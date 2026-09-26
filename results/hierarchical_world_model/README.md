@@ -1,12 +1,10 @@
-# 分层世界模型：保留证据
+# 分层世界模型结果
 
-此目录仅保留可复现当前结论所需的两层模型与其固定证据。
+当前仅保留两个运行资产/结果目录：
 
-```text
-factual_hiqr/   历史目录名；冻结事实转移层的最终权重、事实评测与校准元数据
-cih_wm/         当前 CIH-WM 的先验、固定证据、唯一完整候选与播放动画
-```
+- `factual_hiqr/`：`checkpoints/final_world_model.pt` 是在线闭环使用的冻结 HiQR 权重；同目录的 manifest 记录来源，`natural_response_calibration.json` 保存响应校准参考。
+- [`evaluation/`](evaluation/README.md)：唯一维护的评测包，包含全 10,151 条 Test 的事实重建、
+  ADS/NPC 响应评估、必要的因果归因审计、GIF，以及可重放的 Diffusion 计划缓存。
 
-`factual_hiqr/evaluation/evaluation.json` 保存的是历史掩码协议下的完整测试集事实重建结果：ADE 0.040227 m、FDE 0.036870 m、P95 0.090438 m。当前代码已改为全背景车口径（包含 `same_rear`）；在重新训练或评测前，该历史结果不可作为新协议的比较基线。
-
-`cih_wm/candidate_unaccepted/` 是唯一完成全量训练的 CIH-WM 候选。其 256 序列扩大诊断尚未达到因果方向一致率和 `same_rear` 事实非劣门槛，故没有完成候选晋升或一次性测试集评测。`cih_wm/playbacks/` 只用于直观检查，不能替代验收指标。
+旧截速事实报告与已否决 CIH 分支不再放在此目录。指标定义、限制和方法解释集中记录于
+[`doc/Traffic_World_Model_Convergence.md`](../../doc/Traffic_World_Model_Convergence.md)。

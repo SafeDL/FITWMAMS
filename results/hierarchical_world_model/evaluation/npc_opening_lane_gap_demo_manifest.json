@@ -1,0 +1,27 @@
+{
+  "ads_acceleration_setpoint_mps2": null,
+  "branch_overlap": {
+    "hiqr_only": {
+      "npc_npc_overlap": false,
+      "raw_overlap": false
+    },
+    "online": {
+      "npc_npc_overlap": false,
+      "raw_overlap": false
+    }
+  },
+  "front_gap_threshold_m": 6.8,
+  "gif": "npc_opening_lane_gap_demo.gif",
+  "hiqr_final_target_lane_error_m": -0.30025070905685425,
+  "npc_lane_control_active_frames": 0,
+  "npc_slot": 6,
+  "npc_spatial_path_active_frames": 0,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_final_target_lane_error_m": -0.30025070905685425,
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "schema": "online_npc_mapped_lane_gif_v1",
+  "source_lane_y_m": -4.139999866485596,
+  "target_lane_neighbour_slot": 3,
+  "target_lane_y_m": -0.33999985456466675,
+  "test_row": 76975
+}

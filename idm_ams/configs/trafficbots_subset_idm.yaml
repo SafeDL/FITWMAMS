@@ -4,7 +4,7 @@ paths:
   # Supplies only the shared external p(M,C0) initial-scene prior. K,
   # diffusion and HiQR are not loaded by the TrafficBots evaluator.
   common_world_config: ../../hierarchical_world_model/config/world_model.yaml
-  trafficbots_config: ../../reproduction/models/trafficbots/config/highd.yaml
+  trafficbots_config: ../../external_model_baselines/models/trafficbots/config/highd.yaml
   trafficbots_checkpoint: ../../results/baselines/trafficbots_highd/checkpoints/best.ckpt
   trafficbots_acceptance: ../../results/baselines/trafficbots_highd/full_acceptance.json
   trafficbots_audit: ../../results/baselines/trafficbots_highd/audit.json

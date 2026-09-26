@@ -1,0 +1,27 @@
+{
+  "all_branches_numerically_valid": true,
+  "batch_size": 8,
+  "collision_frames_by_policy": [
+    0,
+    0,
+    0
+  ],
+  "focus_npc_slot_zero_based": 1,
+  "gif": "ads_demo.gif",
+  "left_lane_final_lateral_error_m": -0.03355550765991211,
+  "offroad_agent_frames_by_policy": [
+    0,
+    0,
+    0
+  ],
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "policies": [
+    "hold_current_ego_action",
+    "absolute_-8_mps2_frames_25_to_49",
+    "semantic_left_lane_change_from_frame_25_with_entry_speed_hold"
+  ],
+  "scene_index": 5,
+  "schema": "online_ads_generated_gif_v1",
+  "seed": 5
+}

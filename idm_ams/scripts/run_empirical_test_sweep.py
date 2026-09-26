@@ -19,14 +19,14 @@ from idm_ams.src.world_subset_runner import (  # noqa: E402
     _resolve_path,
     _run_provenance,
 )
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.evaluation_scope import (
     scoped_canonical_trajectory,
 )  # noqa: E402
-from world_model.src.core.highd_metrics import semantic_cutin_agents  # noqa: E402
-from world_model.src.core.sequential_dataset import (
+from traffic_components.src.core.highd_metrics import semantic_cutin_agents  # noqa: E402
+from traffic_components.src.core.sequential_dataset import (
     load_sequential_dataset,
 )  # noqa: E402
-from world_model.src.core.utils import load_yaml, save_json  # noqa: E402
+from traffic_components.src.core.utils import load_yaml, save_json  # noqa: E402
 
 CONFIG = ROOT / "idm_ams/configs/world_subset_idm.yaml"
 

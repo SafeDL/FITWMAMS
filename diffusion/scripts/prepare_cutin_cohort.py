@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from diffusion.src.data import load_data_bundle  # noqa: E402
-from world_model.src.core.utils import (  # noqa: E402
+from traffic_components.src.core.utils import (  # noqa: E402
     ensure_dir,
     load_json,
     load_yaml,

@@ -1,0 +1,171 @@
+{
+  "actions": {
+    "brake_left": "-4 m/s^2 for frames 25-49 plus complete left lane change",
+    "brake_right": "-4 m/s^2 for frames 25-49 plus complete right lane change",
+    "hold": "matched exogenous reference; used only for after-the-fact NPC effect comparison",
+    "left": "complete map-centred left lane change; entry-speed hold",
+    "right": "complete map-centred right lane change; entry-speed hold"
+  },
+  "batch_size": 16,
+  "collision_policy": "Collisions and off-road events are reported outcomes with ADS cut-in exposure tags; neither is a zero-required pass gate.",
+  "first_batch_seed": 1701,
+  "lane_completion": {
+    "brake_left": {
+      "completed": 255,
+      "completion_rate": 0.99609375,
+      "incomplete_examples": [
+        {
+          "collision": false,
+          "generated_scene_index": 157,
+          "offroad": false,
+          "target_lane_y_m": 3.5999999046325684,
+          "terminal_heading_rad": 0.02225254476070404,
+          "terminal_lane_y_m": 3.5046792030334473
+        }
+      ],
+      "scenes": 256,
+      "terminal_error_max_m": 0.0953207015991211,
+      "terminal_error_p95_m": 0.03947728872299194
+    },
+    "brake_right": {
+      "completed": 256,
+      "completion_rate": 1.0,
+      "incomplete_examples": [],
+      "scenes": 256,
+      "terminal_error_max_m": 0.07489013671875,
+      "terminal_error_p95_m": 0.03956723213195801
+    },
+    "left": {
+      "completed": 256,
+      "completion_rate": 1.0,
+      "incomplete_examples": [],
+      "scenes": 256,
+      "terminal_error_max_m": 0.058402299880981445,
+      "terminal_error_p95_m": 0.03992891311645508
+    },
+    "right": {
+      "completed": 256,
+      "completion_rate": 1.0,
+      "incomplete_examples": [],
+      "scenes": 256,
+      "terminal_error_max_m": 0.04864001274108887,
+      "terminal_error_p95_m": 0.04008913040161133
+    }
+  },
+  "limitations": "Generated-world response audit; it supplements but does not replace held-out highD Test reconstruction or observed natural collision distributions.",
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "outcomes": {
+    "brake_left": {
+      "ads_cutin_exposure_scenes": 6,
+      "collision_rate": 0.0234375,
+      "collision_scenes": 6,
+      "numerically_finite": 256,
+      "offroad_rate": 0.0,
+      "offroad_scenes": 0,
+      "raw_geometric_overlap_rate": 0.0234375,
+      "raw_geometric_overlap_scenes": 6
+    },
+    "brake_right": {
+      "ads_cutin_exposure_scenes": 58,
+      "collision_rate": 0.21484375,
+      "collision_scenes": 55,
+      "numerically_finite": 256,
+      "offroad_rate": 0.0,
+      "offroad_scenes": 0,
+      "raw_geometric_overlap_rate": 0.2265625,
+      "raw_geometric_overlap_scenes": 58
+    },
+    "hold": {
+      "ads_cutin_exposure_scenes": 0,
+      "collision_rate": 0.0078125,
+      "collision_scenes": 2,
+      "numerically_finite": 256,
+      "offroad_rate": 0.0,
+      "offroad_scenes": 0,
+      "raw_geometric_overlap_rate": 0.0078125,
+      "raw_geometric_overlap_scenes": 2
+    },
+    "left": {
+      "ads_cutin_exposure_scenes": 4,
+      "collision_rate": 0.01171875,
+      "collision_scenes": 3,
+      "numerically_finite": 256,
+      "offroad_rate": 0.0,
+      "offroad_scenes": 0,
+      "raw_geometric_overlap_rate": 0.015625,
+      "raw_geometric_overlap_scenes": 4
+    },
+    "right": {
+      "ads_cutin_exposure_scenes": 65,
+      "collision_rate": 0.25390625,
+      "collision_scenes": 65,
+      "numerically_finite": 256,
+      "offroad_rate": 0.0,
+      "offroad_scenes": 0,
+      "raw_geometric_overlap_rate": 0.2578125,
+      "raw_geometric_overlap_scenes": 66
+    }
+  },
+  "scenes": 256,
+  "schema": "generated_lane_meta_actions_v1",
+  "target_lane_rear_npc_response": {
+    "brake_left": {
+      "braking_response_rate": 0.56,
+      "braking_response_scenes": 14,
+      "changed_action_rate": 0.96,
+      "changed_action_scenes": 24,
+      "mean_effect_mps2": -0.5605594516173005,
+      "median_effect_mps2": -0.28986847400665283,
+      "near_20m_braking_response_rate_among_closing": 0.8181818181818182,
+      "near_20m_braking_response_scenes": 9,
+      "near_20m_closing_scenes": 11,
+      "near_20m_mean_effect_mps2": -0.7212002849971343,
+      "near_20m_scenes": 14,
+      "scenes": 25
+    },
+    "brake_right": {
+      "braking_response_rate": 0.14583333333333334,
+      "braking_response_scenes": 7,
+      "changed_action_rate": 0.8541666666666666,
+      "changed_action_scenes": 41,
+      "mean_effect_mps2": -0.11980252369085065,
+      "median_effect_mps2": 0.0014573342632502317,
+      "near_20m_braking_response_rate_among_closing": 1.0,
+      "near_20m_braking_response_scenes": 2,
+      "near_20m_closing_scenes": 2,
+      "near_20m_mean_effect_mps2": -0.2141015023851112,
+      "near_20m_scenes": 27,
+      "scenes": 48
+    },
+    "left": {
+      "braking_response_rate": 0.44,
+      "braking_response_scenes": 11,
+      "changed_action_rate": 0.52,
+      "changed_action_scenes": 13,
+      "mean_effect_mps2": -0.6607961855924077,
+      "median_effect_mps2": -0.019683659076690674,
+      "near_20m_braking_response_rate_among_closing": 0.7272727272727273,
+      "near_20m_braking_response_scenes": 8,
+      "near_20m_closing_scenes": 11,
+      "near_20m_mean_effect_mps2": -1.088551582558596,
+      "near_20m_scenes": 14,
+      "scenes": 25
+    },
+    "right": {
+      "braking_response_rate": 0.020833333333333332,
+      "braking_response_scenes": 1,
+      "changed_action_rate": 0.041666666666666664,
+      "changed_action_scenes": 2,
+      "mean_effect_mps2": -0.029574269304871354,
+      "median_effect_mps2": -2.9347588679229375e-06,
+      "near_20m_braking_response_rate_among_closing": 0.5,
+      "near_20m_braking_response_scenes": 1,
+      "near_20m_closing_scenes": 2,
+      "near_20m_mean_effect_mps2": -0.05254816931086578,
+      "near_20m_scenes": 27,
+      "scenes": 48
+    }
+  },
+  "worlds": "Each branch starts from the same Flow/Diffusion exogenous sample and independently runs one causal closed loop with the online NPC controller."
+}

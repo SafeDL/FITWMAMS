@@ -1,10 +1,10 @@
-"""Configuration for the CIH-WM factual dynamics layer."""
+"""Configuration for the hierarchical world-model dynamics layer."""
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from world_model.src.hiqr.config import HiQRConfig
+from traffic_components.src.hiqr.config import HiQRConfig
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,15 @@
+{
+  "ads_intervention": "complete left lane change",
+  "diagnostic_mode": "no_gate",
+  "diagnostic_raw_overlap": true,
+  "gif": "ads_cutin_pass_demo.gif",
+  "no_pass_gate_npc_npc_overlap": false,
+  "no_pass_gate_raw_overlap": true,
+  "npc_slot": 4,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_npc_npc_overlap": false,
+  "online_raw_overlap": false,
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "schema": "online_ads_cutin_pass_gif_v1",
+  "test_row": 12462
+}

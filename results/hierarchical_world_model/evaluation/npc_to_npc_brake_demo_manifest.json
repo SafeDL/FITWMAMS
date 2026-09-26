@@ -1,0 +1,17 @@
+{
+  "follower_action_at_second_frame_brake_mps2": -0.47999998927116394,
+  "follower_action_at_second_frame_control_mps2": 0.0,
+  "follower_max_abs_jerk_mps3": 12.000000953674316,
+  "follower_response_frames": 84,
+  "gif": "npc_to_npc_brake_demo.gif",
+  "leader_brake_duration_s": 1.0,
+  "leader_brake_setpoint_mps2": -4.0,
+  "minimum_net_gap_brake_m": 5.6666669845581055,
+  "npc_npc_overlap": false,
+  "offroad": false,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "plant": "HighwayEnvTraffic",
+  "schema": "online_npc_to_npc_highway_probe_v1",
+  "scope": "synthetic controlled probe, not a highD test metric"
+}

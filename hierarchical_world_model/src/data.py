@@ -17,7 +17,7 @@ from diffusion.src.data import (
     pilot_rows,
     split_rows,
 )
-from world_model.src.core.dynamics import KinematicTrafficDynamics
+from traffic_components.src.core.dynamics import KinematicTrafficDynamics
 
 
 def ego_controls(source: np.ndarray, target: np.ndarray, dt_s: float) -> np.ndarray:

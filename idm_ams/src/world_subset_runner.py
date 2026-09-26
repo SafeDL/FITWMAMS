@@ -20,14 +20,14 @@ from hierarchical_world_model.src.protocol import release_provenance
 from tools.evt import GPDTailModel, load_evt_model
 from tools.idm_ego import load_idm_ego_config
 from diffusion.src.data import load_data_bundle, split_rows
-from world_model.src.core.utils import (
+from traffic_components.src.core.utils import (
     file_sha256,
     load_json,
     load_yaml,
     save_json,
     select_device,
 )
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
     require_scoped_evt_model,

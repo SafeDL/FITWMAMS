@@ -1,14 +1,56 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
+from process_highD.scripts.build_natural_evt import DEFAULT_CONFIG_PATH as EVT_CONFIG
+from process_highD.scripts.extract_highd_natural_segments import (
+    DEFAULT_CONFIG_PATH as EXTRACT_CONFIG,
+)
+from process_highD.scripts.play_highd_natural_events import (
+    DEFAULT_CONFIG_PATH as PLAYBACK_CONFIG,
+)
+from process_highD.scripts.prepare_highd_sequences import CONFIG as SEQUENCE_CONFIG
 from process_highD.src.natural_segments import (
     NaturalSegmentOptions,
     _audit_lateral_events,
     validate_lateral_integrity,
 )
+
+
+def test_config_layout_keeps_data_paths() -> None:
+    root = Path(__file__).resolve().parents[2]
+    evt_path = root / "process_highD/configs/highd_natural_evt.yaml"
+    assert EXTRACT_CONFIG == EVT_CONFIG == PLAYBACK_CONFIG == evt_path
+    assert SEQUENCE_CONFIG == root / "process_highD/configs/highd_sequences.yaml"
+
+    evt = yaml.safe_load(evt_path.read_text(encoding="utf-8"))
+    sequence = yaml.safe_load(SEQUENCE_CONFIG.read_text(encoding="utf-8"))
+    assert (evt_path.parent / evt["paths"]["raw_dir"]).resolve() == (
+        root / "highD_dataset/Matlab/data"
+    )
+    assert (evt_path.parent / evt["paths"]["output_dir"]).resolve() == (
+        root / "results/highd_natural_driving_evt"
+    )
+    for key, suffix in (
+        ("model_path", "evt/natural_evt_model.json"),
+        ("summary_path", "evt/natural_evt_summary.json"),
+        ("figure_dir", "evt/figures"),
+    ):
+        assert (evt_path.parent / evt["evt"][key]).resolve() == (
+            root / "results/highd_natural_driving_evt" / suffix
+        )
+    assert (
+        SEQUENCE_CONFIG.parent / sequence["paths"]["highd_evt_config"]
+    ).resolve() == evt_path
+    cache_dir = SEQUENCE_CONFIG.parent / sequence["paths"]["sequence_cache_dir"]
+    assert cache_dir.resolve() == root / (
+        "results/highd_shared_training_data/highd_sequence_cache"
+    )
 
 
 def _vehicle(vehicle_id: int, lane: np.ndarray, x: float) -> dict:

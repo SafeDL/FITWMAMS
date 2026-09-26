@@ -34,15 +34,20 @@ process_highD/src/io_utils.py
 
 `process_highD/src/preprocess.py` 的 `prepare_recording(raw_dir, recording_id, config)` 是当前唯一的 highD 读取入口。它按固定顺序执行：读取 recording、统一行驶方向、标记异常轨迹、重采样到配置的目标帧率。
 
-自然片段抽取、真实片段回放、`normalizing_flow/` 数据集构造和 `world_model/` 数据集构造均调用该函数。因此三处模块使用同一套原始轨迹坐标、异常标记和 25 Hz 采样规则。
+自然片段抽取、真实片段回放、`normalizing_flow/` 数据集构造和 `traffic_components/` 数据集构造均调用该函数。因此三处模块使用同一套原始轨迹坐标、异常标记和 25 Hz 采样规则。
 
 共享的 highway-env IDM ego helper 已移到 `tools/idm_ego.py`；`process_highD/` 内不再保留生成场景或分场景旧流程代码。
 
 配置文件：
 
 ```text
-process_highD/scripts/configs/highd_natural_evt.yaml
+process_highD/configs/highd_natural_evt.yaml
+process_highD/configs/highd_sequences.yaml
 ```
+
+配置已从 `scripts/configs/` 上移；相对路径仍解析到原来的数据和结果目录。
+已有 `natural_segments_summary.json` 的 `config_path` 是生成该结果时记录的旧路径，
+属于历史来源字段，未改写为本次迁移后的路径。
 
 ## 运行入口
 
@@ -71,7 +76,7 @@ python process_highD/scripts/prepare_highd_sequences.py --rebuild
 ```
 
 该入口只从当前清洗后的自然驾驶数据构建共享缓存，不训练世界模型；序列表示、交通图和
-动力学的共享实现仍位于 `world_model/src/core/`。
+动力学的共享实现仍位于 `traffic_components/src/core/`。
 
 播放最高风险自然片段：
 
@@ -326,13 +331,6 @@ python process_highD/scripts/play_highd_natural_events.py \
 ```text
 results/highd_natural_driving_evt/playbacks/
 ```
-
-## 已删除的旧流程
-
-旧 following/cut-in 分场景抽取、曝光估计、tail context 生成和生成场景播放入口已经从 `process_highD` 删除，包括旧的 `highd_default.yaml`、`estimate_*_exposure.py`、`select_*_tail_contexts.py`、`play_*_tail_events.py`、`event_extraction.py`、`event_playback.py`、`following_tail_generation.py` 和 `cutin_tail_generation.py`。共享 IDM helper 已移到 `tools/idm_ego.py`。
-
-following、cut-in、lane-change 仍不是 EVT 响应变量；其中 lane-change 完整性是
-数据质量门槛，strict cut-in 是通过上游语义检查得到的解释标签。
 
 ## 审查重点
 

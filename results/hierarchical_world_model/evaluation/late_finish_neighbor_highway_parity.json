@@ -1,0 +1,29 @@
+{
+  "ads_acceleration_setpoint_mps2": -8.0,
+  "evaluated_rows": 1,
+  "highway_collision_scene_count": 0,
+  "highway_factual_ADE_m": 4.317258834838867,
+  "highway_offroad_scene_count": 0,
+  "included_test_row": 46684,
+  "initial_position_max_error_m": 0.0,
+  "lane_control_active_scene_count": 1,
+  "offline_comparison_only_not_full_test": true,
+  "offline_to_highway_ADE_m": 0.00020541306002996862,
+  "offline_to_highway_P95_m": 0.0017585780296940356,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "per_scene": [
+    {
+      "controller_active_frames": 186,
+      "highway_factual_ADE_m": 4.317258834838867,
+      "offline_to_highway_ADE_m": 0.00020541306002996862,
+      "spatial_path_active_frames": 104,
+      "test_row": 46684
+    }
+  ],
+  "schema": "online_highway_offline_parity_v1",
+  "spatial_path_active_frame_count_highway": 104,
+  "spatial_path_active_frame_count_offline": 104,
+  "spatial_path_activity_agreement_rate": 1.0,
+  "test_split_size": 10151
+}

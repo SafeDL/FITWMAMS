@@ -20,7 +20,7 @@ from .rule_models import RuleModelBundle
 
 ControllerMode = Literal[
     "none", "handcrafted", "rl_residual", "rl_residual_idm",
-    "idm_only", "calibrated_residual", "causal_influence_response",
+    "idm_only", "calibrated_residual",
 ]
 # One second of realized relative history, committed ego controls, nominal
 # action/reference/event scalars, fixed-slot role, and six *causal* authority
@@ -74,6 +74,14 @@ class ReactionControllerContext:
     previous_base_background_actions: torch.Tensor | None = None
     previous_calibration_correction: torch.Tensor | None = None
     previous_causal_gate: torch.Tensor | None = None
+    # Model-generated Diffusion plan only; never a simulated or logged future.
+    planned_origin_xy: torch.Tensor | None = None
+    planned_current_xy: torch.Tensor | None = None
+    planned_terminal_xy: torch.Tensor | None = None
+    planned_path_xy: torch.Tensor | None = None
+    map_polylines: torch.Tensor | None = None
+    map_polyline_valid: torch.Tensor | None = None
+    response_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -100,6 +108,8 @@ class ReactionControllerOutput:
     causal_gate: torch.Tensor | None = None
     causal_delta_ax: torch.Tensor | None = None
     policy_active: torch.Tensor | None = None
+    spatial_path_active: torch.Tensor | None = None
+    autonomous_lane_active: torch.Tensor | None = None
     execution_active: torch.Tensor | None = None
     release_active: torch.Tensor | None = None
     requested_total_correction_ax: torch.Tensor | None = None
@@ -240,6 +250,14 @@ class ReactionController(nn.Module):
     """Base class for policies applied after frozen factual inference."""
 
     mode: ControllerMode = "none"
+
+    def snapshot_runtime(self) -> dict[str, torch.Tensor]:
+        """Mutable episode state needed for exact closed-loop replay."""
+        return {}
+
+    def restore_runtime(self, state: dict[str, torch.Tensor]) -> None:
+        if state:
+            raise ValueError(f"{type(self).__name__} has no mutable episode state")
 
     def forward(
         self, context: ReactionControllerContext, *, deterministic: bool = False
@@ -1140,256 +1158,6 @@ class ResponsePriorController(ReactionController):
         )
 
 
-class HumanResponseCalibrator(nn.Module):
-    """Small stochastic calibration head around a frozen response proposal."""
-
-    feature_dim = 128 + 5
-
-    def __init__(self, hidden_dim: int = 64, initial_log_std: float = -2.0) -> None:
-        super().__init__()
-        hidden = int(hidden_dim)
-        if hidden < 8:
-            raise ValueError("calibrator hidden dimension must be at least 8")
-        self.actor = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 2))
-        self.event_gate = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 1))
-        self.critic = nn.Sequential(nn.Linear(self.feature_dim, hidden), nn.SiLU(), nn.Linear(hidden, 1))
-        self.log_std = nn.Parameter(torch.full((2,), float(initial_log_std)))
-        nn.init.zeros_(self.actor[-1].weight)
-        nn.init.zeros_(self.actor[-1].bias)
-        nn.init.zeros_(self.event_gate[-1].weight)
-        nn.init.zeros_(self.event_gate[-1].bias)
-        # Retained only so historical checkpoints still load strictly.  The
-        # current two-dimensional stochastic policy owns every runtime choice.
-        for parameter in self.event_gate.parameters():
-            parameter.requires_grad_(False)
-
-    def distribution_and_value(self, features: torch.Tensor) -> tuple[torch.distributions.Normal, torch.Tensor]:
-        mean = self.actor(features)
-        return torch.distributions.Normal(mean, self.log_std.exp().expand_as(mean)), self.critic(features).squeeze(-1)
-
-    def event_gate_logits(self, features: torch.Tensor) -> torch.Tensor:
-        return self.event_gate(features).squeeze(-1)
-
-    def event_gate_probability(self, features: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
-        return (self.event_gate_logits(features) / max(float(temperature), 1.0e-3)).sigmoid()
-
-class CausalInfluenceResponsePolicy(ReactionController):
-    """Mechanism-guided prior plus learned, physically projected calibration."""
-
-    mode = "causal_influence_response"  # type: ignore[assignment]
-
-    def __init__(
-        self,
-        rule_model: RuleModelBundle,
-        *,
-        response_prior_checkpoint: str | None = None,
-        device: torch.device | None = None,
-        calibrator_hidden_dim: int = 64,
-        calibrator_initial_log_std: float = -2.0,
-        calibration_scale_radius: float = 0.75,
-        calibration_residual_max_mps2: float = 2.0,
-        event_calibration_strength: float = 1.0,
-        event_gate_temperature: float = 1.0,
-        correction_jerk_limit_mps3: float = 12.0,
-        reaction_trigger_threshold_mps2: float = 0.25,
-    ) -> None:
-        super().__init__()
-        if response_prior_checkpoint is None:
-            raise ValueError("response_prior_checkpoint is required")
-        self.prior = FrozenResponsePrior(rule_model, response_prior_checkpoint, device=device)
-        self.adapter = HumanResponseCalibrator(
-            hidden_dim=calibrator_hidden_dim,
-            initial_log_std=calibrator_initial_log_std,
-        )
-        self.calibration_scale_radius = max(float(calibration_scale_radius), 0.0)
-        self.calibration_residual_max_mps2 = max(
-            float(calibration_residual_max_mps2), 0.0
-        )
-        self.event_calibration_strength = float(event_calibration_strength)
-        self.event_gate_temperature = max(float(event_gate_temperature), 1.0e-3)
-        self.correction_jerk_limit_mps3 = max(float(correction_jerk_limit_mps3), 1.0e-3)
-        # This is the response layer's trigger, independent of the factual
-        # decoder.  highD's 25 Hz longitudinal commands change in roughly
-        # 0.25 m/s² increments, so a 0.5 threshold misses natural events.
-        self.reaction_trigger_threshold_mps2 = max(float(reaction_trigger_threshold_mps2), 0.0)
-
-    def execution_spec(self, cfg: Any) -> ExecutionSpec:
-        return ExecutionSpec(
-            minimum_acceleration_mps2=float(cfg.min_acceleration_mps2),
-            maximum_acceleration_mps2=float(cfg.max_acceleration_mps2),
-            dt_s=float(cfg.dt_s),
-            correction_jerk_limit_mps3=self.correction_jerk_limit_mps3,
-            residual_max_mps2=self.calibration_residual_max_mps2,
-        )
-
-    def train(self, mode: bool = True):
-        super().train(mode)
-        self.prior.eval()
-        return self
-
-    @staticmethod
-    def adapter_features(proposal: ResponsePriorProposal, previous_calibration: torch.Tensor) -> torch.Tensor:
-        return torch.cat((
-            proposal.hidden,
-            proposal.correction_ax[..., None] / 8.0,
-            proposal.base_action_ax[..., None] / 8.0,
-            (proposal.rule_action_ax - proposal.base_action_ax)[..., None] / 8.0,
-            proposal.authority[..., None],
-            previous_calibration[..., None] / 2.0,
-        ), dim=-1)
-
-    @staticmethod
-    def map_calibration(
-        *, proposal: ResponsePriorProposal, raw: torch.Tensor, previous_calibration: torch.Tensor,
-        minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
-        event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
-        scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
-        execution_spec: ExecutionSpec | None = None,
-    ) -> dict[str, torch.Tensor]:
-        """Calibrate a response proposal without rule or nominal-world overrides."""
-        return CausalInfluenceResponsePolicy.map_calibration_tensors(
-            nominal=proposal.nominal_action_ax, prior_correction=proposal.correction_ax,
-            active=proposal.active, authority=proposal.authority, raw=raw,
-            previous_calibration=previous_calibration, minimum=minimum, maximum=maximum,
-            dt_s=dt_s, jerk_limit_mps3=jerk_limit_mps3, event_gate=event_gate,
-            calibration_strength=calibration_strength,
-            scale_radius=scale_radius,
-            residual_max_mps2=residual_max_mps2,
-            execution_spec=execution_spec,
-        )
-
-    @staticmethod
-    def map_calibration_tensors(
-        *, nominal: torch.Tensor, prior_correction: torch.Tensor, active: torch.Tensor,
-        authority: torch.Tensor, raw: torch.Tensor, previous_calibration: torch.Tensor,
-        minimum: float, maximum: float, dt_s: float, jerk_limit_mps3: float = 12.0,
-        event_gate: torch.Tensor | None = None, calibration_strength: float = 1.0,
-        scale_radius: float = 0.75, residual_max_mps2: float = 2.0,
-        execution_spec: ExecutionSpec | None = None,
-    ) -> dict[str, torch.Tensor]:
-        spec = execution_spec or ExecutionSpec(
-            minimum_acceleration_mps2=float(minimum),
-            maximum_acceleration_mps2=float(maximum),
-            dt_s=float(dt_s),
-            correction_jerk_limit_mps3=float(jerk_limit_mps3),
-            residual_max_mps2=float(residual_max_mps2),
-        )
-        del event_gate, calibration_strength, scale_radius
-        base = nominal - prior_correction
-        policy_active = active.bool() & authority.gt(0.0)
-        # raw[0] selects retention of the complete frozen response prior:
-        # -1 reaches factual base, 0 preserves the prior, +1 doubles it.
-        scale = (1.0 + raw[..., 0]).clamp(0.0, 2.0)
-        residual = float(spec.residual_max_mps2) * torch.tanh(raw[..., 1])
-        policy_request = scale * prior_correction + authority * residual
-        requested = torch.where(policy_active, policy_request, torch.zeros_like(policy_request))
-        release = ~policy_active & previous_calibration.abs().gt(1.0e-6)
-        execution_active = policy_active | release
-
-        physical_lower = float(spec.minimum_acceleration_mps2) - base
-        physical_upper = float(spec.maximum_acceleration_mps2) - base
-        step = float(spec.correction_step_mps2)
-        jerk_lower = previous_calibration - step
-        jerk_upper = previous_calibration + step
-        lower = torch.maximum(physical_lower, jerk_lower)
-        upper = torch.minimum(physical_upper, jerk_upper)
-        infeasible = lower > upper
-        projected = torch.minimum(torch.maximum(requested, lower), upper)
-        # If base motion makes the intersection empty, preserve hard action
-        # bounds and expose the violated correction-continuity constraint.
-        hard_bounded = torch.minimum(torch.maximum(requested, physical_lower), physical_upper)
-        projected = torch.where(infeasible, hard_bounded, projected)
-        projected = torch.where(execution_active, projected, torch.zeros_like(projected))
-        final = (base + projected).clamp(
-            float(spec.minimum_acceleration_mps2), float(spec.maximum_acceleration_mps2)
-        )
-        executed = final - base
-        return {
-            "final": final,
-            "scale": scale,
-            "residual": residual,
-            "calibration": executed,
-            "pre_guard": base + requested,
-            "release": release,
-            "effective": execution_active,
-            "policy_active": policy_active,
-            "execution_active": execution_active,
-            "requested_total_correction": requested,
-            "projected_total_correction": projected,
-            "executed_total_correction": executed,
-            "calibration_relative_to_prior": executed - prior_correction,
-            "constraint_infeasible": infeasible & execution_active,
-            "physical_rewrite": (executed - requested).abs().gt(1.0e-6),
-        }
-
-    def evaluate_raw_action(self, features: torch.Tensor, raw_action: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        distribution, value = self.adapter.distribution_and_value(features)
-        return distribution.log_prob(raw_action).sum(-1), distribution.entropy().sum(-1), value
-
-    def forward(self, context: ReactionControllerContext, *, deterministic: bool = False) -> ReactionControllerOutput:
-        proposal = self.prior.proposal(context, deterministic=deterministic)
-        previous = (
-            torch.zeros_like(proposal.base_action_ax)
-            if context.previous_calibration_correction is None
-            else context.previous_calibration_correction
-        )
-        # Treat the committed ``[batch, slots]`` actuator state and the
-        # evaluator's one-frame ``[batch, 1, slots]`` action horizon as the
-        # same causal state, never as a broadcast over a feature dimension.
-        while previous.ndim < proposal.base_action_ax.ndim:
-            previous = previous.unsqueeze(-2)
-        previous = previous.to(proposal.base_action_ax)
-        features = self.adapter_features(proposal, previous)
-        distribution, value = self.adapter.distribution_and_value(features)
-        if deterministic:
-            raw = distribution.mean
-        elif context.policy_calibration_standard_normal is not None:
-            raw = distribution.mean + distribution.stddev * context.policy_calibration_standard_normal.to(distribution.mean)
-        else:
-            raw = distribution.rsample()
-        mapped = self.map_calibration(
-            proposal=proposal, raw=raw, previous_calibration=previous,
-            minimum=float(context.cfg.min_acceleration_mps2), maximum=float(context.cfg.max_acceleration_mps2),
-            dt_s=float(context.cfg.dt_s), jerk_limit_mps3=self.correction_jerk_limit_mps3,
-            scale_radius=self.calibration_scale_radius,
-            residual_max_mps2=self.calibration_residual_max_mps2,
-            execution_spec=self.execution_spec(context.cfg),
-        )
-        actions = context.base_actions.clone()
-        actions[:, 0, :, 0] = mapped["final"]
-        return ReactionControllerOutput(
-            actions=actions,
-            alpha=mapped["scale"],
-            delta_ax=mapped["final"] - proposal.base_action_ax,
-            active=mapped["effective"],
-            log_prob=distribution.log_prob(raw).sum(-1) * mapped["policy_active"].float(),
-            entropy=distribution.entropy().sum(-1) * mapped["policy_active"].float(),
-            value=value,
-            raw_action=raw,
-            rule_action_ax=proposal.rule_action_ax,
-            policy_features=features,
-            desired_action_ax=mapped["final"],
-            mechanism_scale=mapped["scale"],
-            residual_action_ax=mapped["residual"],
-            pre_guard_action_ax=mapped["pre_guard"],
-            physical_rewrite=mapped["physical_rewrite"],
-            correction_release=mapped["release"],
-            calibration_correction_ax=mapped["calibration"],
-            response_prior_nominal_action_ax=proposal.nominal_action_ax,
-            response_prior_correction_ax=proposal.correction_ax,
-            causal_gate=None,
-            causal_delta_ax=None,
-            policy_active=mapped["policy_active"],
-            execution_active=mapped["execution_active"],
-            release_active=mapped["release"],
-            requested_total_correction_ax=mapped["requested_total_correction"],
-            projected_total_correction_ax=mapped["projected_total_correction"],
-            executed_total_correction_ax=mapped["executed_total_correction"],
-            calibration_relative_to_prior_ax=mapped["calibration_relative_to_prior"],
-            correction_constraint_infeasible=mapped["constraint_infeasible"],
-        )
-
-
 def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tensor | float | None = None, **kwargs: Any) -> ReactionController:
     if mode == "none":
         return NoReactionController()
@@ -1407,6 +1175,4 @@ def make_reaction_controller(mode: ControllerMode, *, adapter_logit: torch.Tenso
         return IDMOnlyReactionController(**kwargs)
     if mode == "calibrated_residual":
         return CalibratedResidualReactionController(**kwargs)
-    if mode == "causal_influence_response":
-        return CausalInfluenceResponsePolicy(**kwargs)
     raise ValueError(f"unknown reaction controller mode {mode!r}")

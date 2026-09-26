@@ -12,11 +12,11 @@ import torch
 from hierarchical_world_model.src.highway import HighwayEnvTraffic
 from normalizing_flow.src.features import SLOT_NAMES, feature_index
 from normalizing_flow.src.sampling import load_checkpoint_and_dataset
-from reproduction.models.trafficbots.data import adapt_highd_batch
-from reproduction.models.trafficbots.evaluation import (
+from external_model_baselines.models.trafficbots.data import adapt_highd_batch
+from external_model_baselines.models.trafficbots.evaluation import (
     load_checkpoint as load_trafficbots_checkpoint,
 )
-from world_model.src.core.evaluation_scope import (
+from traffic_components.src.core.evaluation_scope import (
     evaluation_scope_contract,
     scoped_slot_mask,
 )

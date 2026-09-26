@@ -1,0 +1,58 @@
+{
+  "schema": "trafficbots_posterior_resimulation_v1",
+  "protocol_status": "scene_conditioned_posterior_not_prefix_only_prior",
+  "benchmark_id": "npc_interaction_benchmark_v1",
+  "split": "test",
+  "scenarios": 1024,
+  "background_scope": "all_six",
+  "device": "cuda",
+  "seed": 20260923,
+  "information_contract": {
+    "posterior_latent_inference": "complete reference scene at initialization only",
+    "destination": "reference-scene destination frozen at initialization",
+    "online_policy_state": "simulated current pose and motion",
+    "treated_branch_logged_future_state_overwrite": false,
+    "nominal_and_treated_share_latent_and_destination": true,
+    "independent_ads": true
+  },
+  "checkpoint": "/home/hp/FITWMAMS/results/baselines/trafficbots_highd/checkpoints/best.ckpt",
+  "checkpoint_sha256": "43437f39036a12abe45fb1f849c76b9584ea9961e0e4d881aec3129f57da28e4",
+  "factual_reconstruction": {
+    "ADE_m": 0.5301480293273926,
+    "FDE_m": 1.590360164642334,
+    "P50_displacement_error_m": 0.23053953796625137,
+    "P90_displacement_error_m": 1.2945198893547056,
+    "P95_displacement_error_m": 2.017703211307526,
+    "P99_displacement_error_m": 4.231220273971548,
+    "speed_MAE_mps": 0.3025241196155548,
+    "sequences": 1024,
+    "frames": 149
+  },
+  "paired_braking": {
+    "dose_mps2": 3.0,
+    "intervention_frames": [
+      25,
+      49
+    ],
+    "eligible_same_lane_rear_scenes": 65,
+    "response_rate": 0.9846153846153847,
+    "braking_direction_rate": 0.8307692307692308,
+    "median_latency_s": 0.08,
+    "mean_acceleration_effect_mps2": -0.29479148983955383,
+    "median_peak_braking_effect_mps2": -0.7366520166397095,
+    "all_npc_mean_absolute_action_change_mps2": 0.13573932647705078
+  },
+  "execution_audit": {
+    "finite": true,
+    "nominal_action_rewrite_rate": 0.017729961898769575,
+    "nominal_collision_scene_rate": 0.0,
+    "treated_collision_scene_rate": 0.0,
+    "minimum_treated_acceleration_mps2": -4.747805118560791,
+    "maximum_treated_acceleration_mps2": 4.0
+  },
+  "limitations": [
+    "Posterior reconstruction is a scene-conditioned resimulation diagnostic, not a prior-only deployment score.",
+    "The current report uses one deterministic posterior mode and does not assess posterior calibration.",
+    "No logged future state is injected online, but the initialization latent and destination intentionally encode the reference scene."
+  ]
+}

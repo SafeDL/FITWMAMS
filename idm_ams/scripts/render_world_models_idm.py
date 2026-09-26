@@ -15,7 +15,7 @@ from idm_ams.scripts.render_subset_playbacks import (  # noqa: E402
     render_subset_playbacks,
 )
 from idm_ams.src.multi_world_runner import load_model_configs  # noqa: E402
-from world_model.src.core.utils import load_yaml  # noqa: E402
+from traffic_components.src.core.utils import load_yaml  # noqa: E402
 
 CONFIG = ROOT / "idm_ams/configs/world_models_idm.yaml"
 

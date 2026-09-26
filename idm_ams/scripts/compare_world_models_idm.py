@@ -15,7 +15,7 @@ from idm_ams.src.multi_world_runner import (  # noqa: E402
     build_comparison_report,
     build_explicit_subset_comparison,
 )
-from world_model.src.core.utils import load_yaml  # noqa: E402
+from traffic_components.src.core.utils import load_yaml  # noqa: E402
 
 CONFIG = ROOT / "idm_ams/configs/world_models_idm.yaml"
 

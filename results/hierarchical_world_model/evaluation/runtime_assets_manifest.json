@@ -1,0 +1,10 @@
+{
+  "schema": "online_closed_loop_runtime_assets_v1",
+  "assets": {
+    "results/hierarchical_world_model/factual_hiqr/checkpoints/final_world_model.pt": "8f49d5f203f0a0f2ebf26890daf3ba5b9aa33d65864aaf58a6a223e6673f5cb9",
+    "results/background_diffusion/checkpoints/best_background_diffusion.pt": "f8056d956b5b095a807ba7d0f416e7394dacb10d241833d2917379b4fbad6fad",
+    "results/highd_natural_driving_flow/checkpoints/best_scenario_condition_flow.pt": "0f2fe7bcd72df8afa434a7ef36fb94e4c6af873f73ec261d5fdcc154374c2cc2",
+    "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz": "235e013fa424c8d65f50d7ad9a4e6466b66d163d46993d954e48e5f76bddbe9a",
+    "results/hierarchical_world_model/evaluation/plans_full/frozen_diffusion_test_plans.npz": "646e1f8e038c32a05852dff738b91f6c47f53bcfbcbcab5c83ea66613e7ebacd"
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "batch_size": 16,
+  "left_lane_completion_rate": 0.9970703125,
+  "left_lane_max_absolute_final_error_m": 1.6138978004455566,
+  "limitations": "This 128-scene generated runtime audit is separate from held-out highD Test; longer-horizon replanning and wider ADS policy coverage remain open.",
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "policies": {
+    "-2.0": {
+      "ads_cutin_exposure": 0,
+      "ads_pursuit_exposure": 0,
+      "collision": 0,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 0,
+      "geometric_raw_overlap": 0,
+      "offroad": 0,
+      "rear_correct": 282,
+      "rear_count": 283,
+      "rear_incorrect_examples": [
+        {
+          "anchor_y_m": -0.44903039932250977,
+          "final_y_m": -2.3410818576812744,
+          "generated_scene_index": 445,
+          "hold_final_y_m": -2.3413329124450684,
+          "mean_action_effect_mps2": 0.0018976907012984157,
+          "npc_slot": 2,
+          "route_switched": false
+        }
+      ],
+      "rear_route_switched_count": 0,
+      "rear_same_route_correct": 282,
+      "rear_same_route_count": 283
+    },
+    "-4.0": {
+      "ads_cutin_exposure": 0,
+      "ads_pursuit_exposure": 0,
+      "collision": 0,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 0,
+      "geometric_raw_overlap": 0,
+      "offroad": 0,
+      "rear_correct": 283,
+      "rear_count": 283,
+      "rear_incorrect_examples": [],
+      "rear_route_switched_count": 10,
+      "rear_same_route_correct": 273,
+      "rear_same_route_count": 273
+    },
+    "-6.0": {
+      "ads_cutin_exposure": 0,
+      "ads_pursuit_exposure": 0,
+      "collision": 1,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 1,
+      "geometric_raw_overlap": 1,
+      "offroad": 0,
+      "rear_correct": 278,
+      "rear_count": 283,
+      "rear_incorrect_examples": [
+        {
+          "anchor_y_m": -0.44903039932250977,
+          "final_y_m": -2.3386616706848145,
+          "generated_scene_index": 445,
+          "hold_final_y_m": -2.3413329124450684,
+          "mean_action_effect_mps2": 0.14242233335971832,
+          "npc_slot": 2,
+          "route_switched": false
+        },
+        {
+          "anchor_y_m": -0.13602451980113983,
+          "final_y_m": -3.4823176860809326,
+          "generated_scene_index": 470,
+          "hold_final_y_m": -0.736400842666626,
+          "mean_action_effect_mps2": 0.13911044597625732,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.20638908445835114,
+          "final_y_m": -3.5562562942504883,
+          "generated_scene_index": 543,
+          "hold_final_y_m": 0.1291339099407196,
+          "mean_action_effect_mps2": 0.6036281585693359,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.5506471991539001,
+          "final_y_m": 3.5283985137939453,
+          "generated_scene_index": 895,
+          "hold_final_y_m": 0.5101957321166992,
+          "mean_action_effect_mps2": 0.1759587675333023,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.4815937280654907,
+          "final_y_m": 3.5706284046173096,
+          "generated_scene_index": 994,
+          "hold_final_y_m": 0.40991514921188354,
+          "mean_action_effect_mps2": 0.02552015706896782,
+          "npc_slot": 2,
+          "route_switched": true
+        }
+      ],
+      "rear_route_switched_count": 134,
+      "rear_same_route_correct": 148,
+      "rear_same_route_count": 149
+    },
+    "-8.0": {
+      "ads_cutin_exposure": 0,
+      "ads_pursuit_exposure": 0,
+      "collision": 7,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 7,
+      "geometric_raw_overlap": 7,
+      "offroad": 0,
+      "rear_correct": 277,
+      "rear_count": 283,
+      "rear_incorrect_examples": [
+        {
+          "anchor_y_m": -0.46576884388923645,
+          "final_y_m": -3.534545660018921,
+          "generated_scene_index": 83,
+          "hold_final_y_m": -0.5442075729370117,
+          "mean_action_effect_mps2": 0.003997535910457373,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": -0.44903039932250977,
+          "final_y_m": -2.337501287460327,
+          "generated_scene_index": 445,
+          "hold_final_y_m": -2.3413329124450684,
+          "mean_action_effect_mps2": 1.0778617858886719,
+          "npc_slot": 2,
+          "route_switched": false
+        },
+        {
+          "anchor_y_m": -0.13602451980113983,
+          "final_y_m": -3.5245168209075928,
+          "generated_scene_index": 470,
+          "hold_final_y_m": -0.736400842666626,
+          "mean_action_effect_mps2": 0.2691701650619507,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.20638908445835114,
+          "final_y_m": -3.5562331676483154,
+          "generated_scene_index": 543,
+          "hold_final_y_m": 0.1291339099407196,
+          "mean_action_effect_mps2": 0.5760432481765747,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.6209467053413391,
+          "final_y_m": -3.5314955711364746,
+          "generated_scene_index": 557,
+          "hold_final_y_m": 0.36326295137405396,
+          "mean_action_effect_mps2": 0.07704465836286545,
+          "npc_slot": 2,
+          "route_switched": true
+        },
+        {
+          "anchor_y_m": 0.5506471991539001,
+          "final_y_m": 3.5528934001922607,
+          "generated_scene_index": 895,
+          "hold_final_y_m": 0.5101957321166992,
+          "mean_action_effect_mps2": 0.28023797273635864,
+          "npc_slot": 2,
+          "route_switched": true
+        }
+      ],
+      "rear_route_switched_count": 207,
+      "rear_same_route_correct": 75,
+      "rear_same_route_count": 76
+    },
+    "2.0": {
+      "ads_cutin_exposure": 5,
+      "ads_pursuit_exposure": 211,
+      "collision": 264,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 54,
+      "geometric_raw_overlap": 265,
+      "offroad": 0,
+      "rear_correct": 283,
+      "rear_count": 283,
+      "rear_incorrect_examples": [],
+      "rear_route_switched_count": 0,
+      "rear_same_route_correct": 283,
+      "rear_same_route_count": 283
+    },
+    "4.0": {
+      "ads_cutin_exposure": 8,
+      "ads_pursuit_exposure": 463,
+      "collision": 561,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 102,
+      "geometric_raw_overlap": 562,
+      "offroad": 0,
+      "rear_correct": 282,
+      "rear_count": 283,
+      "rear_incorrect_examples": [
+        {
+          "anchor_y_m": -0.44903039932250977,
+          "final_y_m": -2.340888261795044,
+          "generated_scene_index": 445,
+          "hold_final_y_m": -2.3413329124450684,
+          "mean_action_effect_mps2": -0.0009112979751080275,
+          "npc_slot": 2,
+          "route_switched": false
+        }
+      ],
+      "rear_route_switched_count": 0,
+      "rear_same_route_correct": 282,
+      "rear_same_route_count": 283
+    },
+    "hold": {
+      "ads_cutin_exposure": 0,
+      "ads_pursuit_exposure": 0,
+      "collision": 9,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 9,
+      "geometric_raw_overlap": 9,
+      "offroad": 0,
+      "rear_correct": 0,
+      "rear_count": 0,
+      "rear_incorrect_examples": [],
+      "rear_route_switched_count": 0,
+      "rear_same_route_correct": 0,
+      "rear_same_route_count": 0
+    },
+    "left": {
+      "ads_cutin_exposure": 31,
+      "ads_pursuit_exposure": 0,
+      "collision": 29,
+      "finite": 1024,
+      "geometric_adjusted_overlap": 31,
+      "geometric_raw_overlap": 31,
+      "offroad": 0,
+      "rear_correct": 0,
+      "rear_count": 0,
+      "rear_incorrect_examples": [],
+      "rear_route_switched_count": 0,
+      "rear_same_route_correct": 0,
+      "rear_same_route_count": 0
+    }
+  },
+  "protocol": "Flow-generated independent single-pass HighwayEnv worlds; hold-current ADS run used only for after-the-fact effect comparison",
+  "scenes": 1024,
+  "schema": "generated_online_ads_sweep_v1",
+  "seed_first_batch": 1701
+}

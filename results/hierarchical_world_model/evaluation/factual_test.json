@@ -1,0 +1,79 @@
+{
+  "ADE_m": 0.035606092423426036,
+  "FDE_m": 0.02758953913399262,
+  "ads_leader_correction_frames": 203,
+  "controller_mode": "online_ma_idm",
+  "evaluated_observed_max_speed_mps": 64.00025177001953,
+  "evaluated_observed_speed_samples_above_50_mps": 8176,
+  "evaluated_rows": 10151,
+  "factual_npc_npc_overlap_scenes": 0,
+  "factual_raw_overlap_scenes": 0,
+  "finite_scene_rate": 1.0,
+  "full_test": true,
+  "legacy_handcrafted_adapter_applied": false,
+  "npc_autonomous_lane_frames": 0,
+  "npc_autonomous_lane_scenes": 0,
+  "npc_frame_correction_rate": 8.428512169284188e-05,
+  "npc_lane_repair_frame_rate": 0.0,
+  "npc_lane_semantic_control_examples": [],
+  "npc_leader_correction_frames": 103,
+  "npc_leader_correction_scenes": 1,
+  "npc_planned_lane_change_count": 535,
+  "npc_planned_lane_completion_criteria": "target map lane centre error <0.75 m and heading <0.05 rad",
+  "npc_planned_lane_completion_rate": 0.9364485981308411,
+  "npc_planned_lane_terminal_error_p95_m": 0.7825399994850155,
+  "npc_spatial_path_frame_rate": 1.5424728152938383e-05,
+  "online_controller_sha256": "ee3a29f37bd3e71c1063f58e6d223118bf9abe7bc15750d15c2f5682f05708e0",
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "posterior": "/home/hp/FITWMAMS/external_model_baselines/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz",
+  "protocol": "logged ADS + frozen Diffusion plan + HiQR + online MA-IDM; one responsive rollout per scene",
+  "scene_ADE_p95_m": 0.05821844395375092,
+  "scene_ADE_p99_m": 0.08012914017542896,
+  "scene_with_correction_rate": 0.0011821495419170524,
+  "scene_with_lane_repair_rate": 0.0,
+  "scene_with_spatial_path_rate": 9.851246182642104e-05,
+  "schema": "online_ma_idm_factual_test_v1",
+  "test_split_size": 10151,
+  "worst_scene_ADE": [
+    {
+      "ADE_m": 0.4455881481469344,
+      "test_row": 67927
+    },
+    {
+      "ADE_m": 0.35295499251192847,
+      "test_row": 91678
+    },
+    {
+      "ADE_m": 0.2674625575942481,
+      "test_row": 70283
+    },
+    {
+      "ADE_m": 0.23506356565744285,
+      "test_row": 7905
+    },
+    {
+      "ADE_m": 0.231265074454698,
+      "test_row": 6693
+    },
+    {
+      "ADE_m": 0.18557978636466416,
+      "test_row": 14355
+    },
+    {
+      "ADE_m": 0.1828262917947449,
+      "test_row": 77405
+    },
+    {
+      "ADE_m": 0.16463615110256527,
+      "test_row": 51245
+    },
+    {
+      "ADE_m": 0.15604494082047635,
+      "test_row": 42410
+    },
+    {
+      "ADE_m": 0.1415586279542654,
+      "test_row": 4798
+    }
+  ]
+}

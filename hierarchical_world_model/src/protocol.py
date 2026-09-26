@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import platform
 import subprocess
 import sys
@@ -39,10 +38,6 @@ RANDOMNESS_NAMESPACE = {
     "training": "training_rng",
     "evaluation": "evaluation_rng",
 }
-RANDOMNESS_ABLATION = {
-    "samples": 16,
-    "motion_seed_offset": 100_000,
-}
 STAGED_TRAINING_GATES = {
     "probe_count": 128,
     "trajectory_diversity_min_m": 0.02,
@@ -52,144 +47,6 @@ STAGED_TRAINING_GATES = {
     "relative_ks_limit_ratio": 1.10,
     "base_factual_fde_fallback_weight": 0.25,
 }
-RANDOMNESS_ABLATION_GATES = {
-    "energy_improvement_min_fraction": 0.05,
-    "trajectory_pairwise_min_m": 0.02,
-    "terminal_pairwise_min_m": 0.05,
-    "speed_ax_degradation_max_ratio": 0.10,
-    "windowed_jerk_degradation_max_ratio": 0.10,
-    "response_minimum_observable_movement": 0.001,
-}
-SAMPLED_END_TO_END = {
-    "schema": "sampled_end_to_end",
-    "worlds": 1024,
-    "response_steps": 149,
-    "knot_frames": (50, 100, 149),
-    "knot_times_s": (2.0, 4.0, 5.96),
-}
-AMS_READINESS = {
-    "worlds": 2,
-    "steps": 64,
-    "seed": 20260823,
-}
-AMS_READINESS_GATES = {
-    "required_true": (
-        "formal_checkpoint_config_match",
-        "world_serialization_exact",
-        "same_world_same_ads_exact",
-        "snapshot_restore_exact",
-        "branch_changes_ego_trajectory",
-        "evt_score_monotone_on_calibration_probe",
-    ),
-    "finite_state_rate_min": 1.0,
-    "finite_evt_score_rate_min": 1.0,
-}
-ACCEPTANCE_GATES = {
-    "protocol": FORMAL_PROTOCOL,
-    "factual_limits_m": {
-        "ADE_m": 0.06,
-        "FDE_m": 0.06,
-        "P95_displacement_error_m": 0.12,
-    },
-    "intervention": {
-        "direction_success_rate_min": 0.95,
-        "dose_monotonicity_min": 0.95,
-        "separation_non_decrease_max": 0.15,
-        "separation_non_decrease_min": 0.90,
-        "response_latency_min_s": 0.04,
-    },
-}
-
-
-def check_ams_readiness_gate(
-    readiness: dict[str, Any], *, gates: dict[str, Any] | None = None
-) -> bool:
-    """Return whether the AMS readiness report satisfies its required payload gate."""
-    criteria = gates or AMS_READINESS_GATES
-    required = criteria.get("required_true", ())
-    if not all(bool(readiness.get(name)) for name in required):
-        return False
-    if float(readiness.get("finite_state_rate", 0.0)) < float(
-        criteria["finite_state_rate_min"]
-    ):
-        return False
-    if float(readiness.get("finite_evt_score_rate", 0.0)) < float(
-        criteria["finite_evt_score_rate_min"]
-    ):
-        return False
-    return True
-
-
-def check_formal_manifest_gate(
-    manifest: dict[str, Any],
-    *,
-    protocol: str | None = None,
-) -> bool:
-    """Return whether a final manifest declares a valid formal protocol contract."""
-    target = protocol or ACCEPTANCE_GATES["protocol"]
-    return (
-        bool(manifest.get("protocol") == target)
-        and bool(manifest.get("checkpoint_sha256"))
-        and bool(manifest.get("code_commit"))
-        and bool(manifest.get("worktree_clean_at_start"))
-    )
-
-
-def check_factual_fidelity_gate(metrics: dict[str, Any], *, limits: dict[str, float] | None = None) -> bool:
-    """Return whether sampled factual metrics satisfy the formal acceptance limits."""
-    budget = limits or ACCEPTANCE_GATES["factual_limits_m"]
-    return all(metrics.get(key, float("inf")) <= value for key, value in budget.items())
-
-
-def check_intervention_gate(
-    effects: dict[str, Any], *, thresholds: dict[str, float] | None = None
-) -> bool:
-    """Return whether intervention metrics meet strict responsiveness gate."""
-    table = thresholds or ACCEPTANCE_GATES["intervention"]
-    return (
-        effects["brake"]["direction_success_rate"] >= table["direction_success_rate_min"]
-        and effects["accelerate"]["direction_success_rate"] >= table["direction_success_rate_min"]
-        and effects["brake"]["dose_monotonicity_rate"] >= table["dose_monotonicity_min"]
-        and effects["accelerate"]["dose_monotonicity_rate"] >= table["dose_monotonicity_min"]
-        and effects["left"]["separation_non_decrease_rate"] >= table["separation_non_decrease_min"]
-        and all(
-            value["locality_ratio_far_to_near"] < table["separation_non_decrease_max"]
-            for value in effects.values()
-        )
-        and all(
-            value["response_latency_s"] >= table["response_latency_min_s"]
-            for value in effects.values()
-        )
-    )
-
-
-def check_sampled_end_to_end_gate(sampled: dict[str, Any], *, worlds: int = SAMPLED_END_TO_END["worlds"],
-                                 response_steps: int = SAMPLED_END_TO_END["response_steps"]) -> bool:
-    """Return whether sampled E2E report has the required minimum payload."""
-    risks = sampled.get("ADS_conditioned_sampled_world_risk", {})
-    k_adherence = sampled.get("sampled_K_to_diffusion_nonpaired_fidelity", {})
-    paired = sampled.get("paired_failure_table", {})
-    paired_world = sampled.get("paired_world_risk", {})
-    provenance = sampled.get("provenance", {})
-    finite_risk = all(
-        all(isinstance(value, (int, float)) and math.isfinite(float(value))
-            for value in summary.values() if isinstance(value, (int, float)))
-        for summary in risks.values()
-    )
-    return (
-        sampled.get("worlds") == worlds
-        and sampled.get("response_steps") == response_steps
-        and set(risks) == {"hold_current", "idm"}
-        and all(value["finite_state_rate"] == 1.0 for value in risks.values())
-        and finite_risk
-        and "k_adherence" in k_adherence
-        and set(paired) == {"both_safe", "idm_only_failure", "hold_only_failure", "both_failure"}
-        and all(len(paired_world.get(name, ())) == worlds for name in ("R_hold", "R_IDM", "Delta_R_IDM_minus_hold"))
-        and bool(provenance.get("code_commit"))
-        and bool(provenance.get("release_tag"))
-    )
-
-
 def long_horizon_constraint(flow_schema: dict[str, Any]) -> tuple[tuple[int, ...], tuple[float, ...]]:
     """Extract the declared Flow knot contract; never infer it from array length."""
     contract = flow_schema.get("long_horizon_constraint")

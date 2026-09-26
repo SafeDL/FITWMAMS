@@ -124,7 +124,7 @@ def test_external_condition_matches_the_training_dataset_contract():
     from pathlib import Path
 
     from diffusion.src.data import BackgroundTrajectoryDataset, load_data_bundle
-    from world_model.src.core.utils import load_json, load_yaml
+    from traffic_components.src.core.utils import load_json, load_yaml
 
     root = Path(__file__).resolve().parents[2]
     config_path = root / "diffusion/configs/highd_background_diffusion.yaml"

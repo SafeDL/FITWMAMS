@@ -1,6 +1,7 @@
 {
   "all_passed": true,
   "checks": {
+    "all_background_scope": true,
     "audit_checkpoint_alignment": true,
     "audit_test_cohort_alignment": true,
     "checkpoint_provenance": true,
@@ -11,6 +12,7 @@
     "oracle_diagnostic": true,
     "paired_crn": true,
     "prior_mode": true,
+    "same_rear_present_in_full_test": true,
     "schema": true,
     "stochastic_16": true
   },

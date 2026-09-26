@@ -1,0 +1,230 @@
+benchmark:
+  id: npc_interaction_benchmark_v1
+  source_commit: 21435d3ed8e4baaf94e22b24dcd85cb9ebfaf646
+  dataset: highD
+  split_policy: inherit_recording_split
+  include_all_background: true
+  excluded_slots: []
+  input_mode: prefix_only
+  population: fixed_identity_set
+  history_frames: 25
+  horizon_frames: 149
+  report_horizons_frames: [25, 75, 149]
+
+paths:
+  canonical_cache: ../../results/highd_shared_training_data/highd_sequence_cache/sequence_cache
+  natural_segments_csv: ../../results/highd_natural_driving_evt/natural_segments.csv
+  raw_highd_dir: ../../highD_dataset/Matlab/data
+  output_dir: ../../results/npc_behavior_benchmark/benchmark_v1
+
+simulation:
+  backend: shared_kinematic_traffic_dynamics
+  native_dt_s: 0.04
+  decision_dt_s: 0.20
+  longitudinal_bounds: [-8.0, 4.0]
+  yaw_rate_abs_max_rps: 0.6
+  lateral_acceleration_abs_max_mps2: 4.0
+  collision_geometry: oriented_boxes_true_dimensions
+  t1_t2a_contact_response: none_record_only
+  t3_termination: metrics_truncated_at_first_new_collision
+
+fixed_pnc:
+  trajectory_mpc:
+    category: model_driven_finite_trajectory_sampler
+    replan_frequency_hz: 5
+    prediction_model: constant_velocity_npc
+    horizon_s: 1.6
+    decision_dt_s: 0.20
+    acceleration_offsets_mps2: [-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0]
+    yaw_rate_offsets_rps: [-0.04, -0.02, 0.0, 0.02, 0.04]
+    candidates: 35
+    frozen_after_validation_seed: 20260919
+    validation_rationale: >-
+      On all 12,744 validation scenarios at K=4, reduced ego collision from
+      cruise PNC 0.01787 to 0.00179 while retaining 98.6% of ego progress;
+      also reduced NPC collision and off-road probability.
+  structured_bc_lane_stable:
+    category: learned_structured_state_pnc
+    checkpoint: ../../results/npc_behavior_benchmark/benchmark_v1/pnc/structured_bc/20260919/best.pt
+    training_seed: 20260919
+    training_rows: 71198
+    architecture: gru_temporal_plus_transformer_interaction
+    learned_yaw_residual_weight: 0.25
+    lane_reference: nearest_lane_center_at_prefix
+    runtime_fallback: none
+    frozen_after_validation_seed: 20260919
+    validation_rationale: >-
+      On all 12,744 validation scenarios at K=4, achieved ego collision
+      0.01922, ego off-road 0.00118, and progress 184.64 m. The lane-stable
+      head fixed the raw one-step BC controller's closed-loop drift without
+      collision-oracle access or runtime fallback.
+
+sampling:
+  fit_seeds: [20260919, 20260920, 20260921]
+  t1_futures: 16
+  t2a_futures: 16
+  t2b_paired_futures: 8
+  t3_futures_per_pnc: 4
+  independent_rollout_ids: true
+  matched_pair_noise: true
+
+t3_cohorts:
+  d0:
+    rows: all_strict_causal_scenarios
+    horizon_frames: 149
+    reporting: scenario_mean
+  d1_events:
+    rows: all_events_with_background_response_agent
+    identity: unique_event_id
+    horizon_frames: 75
+    reporting: event_family_macro_mean
+    rationale: all D1 event anchors have 75 post-onset frames; only four have 149
+  representative_pnc_by_category:
+    rule: cruise
+    model_driven: trajectory_mpc
+    learned: structured_bc_lane_stable
+
+probes:
+  manifest_version: npc_interaction_d3_longitudinal_v1
+  selection: closest_same_lane_leader_npc_follower_per_prefix
+  gap_bounds_m: [5.0, 80.0]
+  minimum_response_speed_mps: 5.0
+  minimum_stimulus_speed_mps: 3.0
+  horizon_s: 3.0
+  pulse_duration_s: 1.0
+  brake_doses_mps2: [1.5, 3.0, 5.0]
+  speed_recovery_doses_mps2: [0.5, 1.0, 2.0]
+  response_threshold_mps2: 0.2
+  response_threshold_sensitivity_mps2: [0.1, 0.3]
+  response_consecutive_decisions: 2
+  matched_noise_across_doses: true
+
+lateral_probes:
+  manifest_version: npc_interaction_d3_lateral_v1
+  selection: prefix_only_adjacent_lane_merge_and_same_lane_leader_cut_out
+  maximum_anchors_per_scene_per_family: 1
+  target_lateral_shift_bounds_m: [2.0, 5.0]
+  merge_gap_bounds_m: [2.0, 50.0]
+  cut_out_gap_bounds_m: [5.0, 50.0]
+  cut_out_target_lane_clearance_m: 12.0
+  strong_dose_constant_velocity_new_collision_allowed: false
+  controller_rate_doses_rps: [0.6, 0.9, 1.2]
+  horizon_s: 3.0
+  response_definition:
+    merge: sustained_braking_0p2_mps2_or_away_yaw_0p015_rps
+    cut_out: sustained_acceleration_0p2_mps2
+  response_consecutive_decisions: 2
+  matched_pair_noise: true
+  matched_noise_across_doses: true
+
+selection:
+  status: frozen_before_test
+  selection_split: validation
+  # Frozen historical comparator for this prefix-only benchmark; not the
+  # maintained hierarchical-world-model candidate or its runtime dependency.
+  primary_method: rolling_action_b2rl_s2
+  primary_method_label: B2-RL
+  interaction_extension: rolling_action_b2rlp_e3
+  interaction_extension_label: B2-RLP-e3
+  interaction_extension_status: frozen_before_lateral_d3_test
+  primary_checkpoint_seed: 20260919
+  action_denoising_steps: 8
+  rolling_warm_start: true
+  rationale: >-
+    B2-RL was frozen after three-seed full validation. Relative to B2-R it
+    reduced mean T1 FES by 1.41%, T2a macro FES by 2.79%, D3 stimulated
+    collision probability by 11.2%, and cruise-PNC NPC off-road probability
+    by 5.33%, while raising D3 response probability from 0.3332 to 0.3458.
+
+method_c:
+  checkpoint_method_id: rolling_action_b0
+  policy_method_id: semantic_c2
+  prior: frozen_b0_r0_same_seed
+  mode: natural
+  candidates_per_decision: 8
+  response_samples_per_candidate: 2
+  proxy_horizon_decisions: 15
+  selection_rounds: 1
+  selection: softmin_gumbel_sampling
+  temperature: 0.5
+  denoising_steps: 4
+  access_to_actual_sut_future: false
+  status: frozen_before_formal_test
+  validation_note: >-
+    On the complete seed19 validation split at K=4, response-aware C2 changed
+    T1 FES from 0.730422 to 0.730036 and T2a macro FES from 0.163989 to
+    0.163783 relative to fixed-plan C1, while costing roughly 2.3x T1 wall
+    time. The configuration is retained for the required three-direction
+    formal comparison, not because it dominates the B-family Pareto front.
+
+method_b2r:
+  base: rolling_action_b2
+  paired_teacher: ma_idm_train_only
+  response_weight: 0.10
+  locality_weight: 0.02
+  direction_weight: 0.05
+  self_rollout_weight: 0.25
+  paired_denoising_timestep: 79
+  response_observation_delay_s: 0.20
+  learning_rate: 3.0e-5
+  epochs: 8
+
+method_b2rl:
+  checkpoint_method_id: rolling_action_b2rl_s2
+  base: rolling_action_b2r
+  mechanism: lateral_weighted_differentiable_self_rollout
+  trajectory_weight: 0.20
+  lateral_trajectory_multiplier: 10.0
+  learning_rate: 3.0e-5
+  epochs: 6
+  response_weight: 0.10
+  locality_weight: 0.02
+  direction_weight: 0.05
+  self_rollout_weight: 0.25
+
+method_b2rlp:
+  checkpoint_method_id: rolling_action_b2rlp_e3
+  base: rolling_action_b2rl_s2
+  mechanism: paired_lateral_response_sensitivity_preservation
+  lateral_teacher: rolling_action_b2r_frozen_same_seed
+  training_probe_split: train_only
+  controller_rate_doses_rps: [0.6, 0.9, 1.2]
+  observation_delays_s: [0.2, 0.4, 0.6, 0.8]
+  paired_denoising_timestep: 79
+  learning_rate: 1.0e-5
+  epochs: 3
+  lateral_response_weight: 0.05
+  lateral_direction_weight: 0.005
+  lateral_yaw_direction_weight: 0.0
+  lateral_locality_weight: 0.02
+  trajectory_weight: 0.20
+  lateral_trajectory_multiplier: 10.0
+  response_weight: 0.10
+  locality_weight: 0.02
+  direction_weight: 0.05
+  self_rollout_weight: 0.25
+  selection_note: >-
+    Three configurations were compared on validation only. The three-epoch
+    checkpoint maximized lateral D3 response subject to pre-freeze gates of
+    no more than 2% T1 FES regression and 5% cruise-PNC NPC off-road
+    regression on the common 512-scenario gate. It raised response by 19.0%
+    with a 4.2% locality cost and passed both gates. Full validation then
+    confirmed the effect in all three seeds before formal test execution;
+    the frozen lateral-D3 test improved mean response by 19.48% and reduced
+    stimulated collision by 4.26%, with a 1.55% locality cost and no gain in
+    active lateral avoidance.
+
+training:
+  max_epochs: 50
+  validation_patience: 6
+  batch_size: 256
+  num_workers: 4
+
+metrics:
+  bootstrap_replicates: 2000
+  confidence_level: 0.95
+
+execution:
+  causal_window_policy: nearest_complete_174_within_original_window
+  require_complete_fixed_population: true
+  preserve_existing_artifacts: true

@@ -1,0 +1,17 @@
+{
+  "adjusted_overlap_scenes": 27,
+  "ads_cutin_exposure_scenes": 27,
+  "batch_size": 16,
+  "collision_scenes": 24,
+  "completion_criteria": "mapped target lane centre error <0.15 m and absolute heading <0.02 rad",
+  "completion_rate": 1.0,
+  "finite_scenes": 1024,
+  "incomplete_examples": [],
+  "maximum_absolute_final_lane_error_m": 0.059591054916381836,
+  "offroad_scenes": 0,
+  "online_runtime_sha256": "b97d1d80cf4fdb57146ebbcfba49008279a5b6380151726cace0c8915ec95ff2",
+  "raw_overlap_scenes": 27,
+  "scenes": 1024,
+  "schema": "generated_left_lane_completion_audit_v1",
+  "seed_first_batch": 1701
+}

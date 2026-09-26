@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from world_model.src.core.utils import (
+from traffic_components.src.core.utils import (
     ensure_dir,
     save_json,
     select_device,

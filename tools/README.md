@@ -1,50 +1,15 @@
-# tools：跨模块公共工具
+# 跨模块工具
 
-`tools/` 存放工程内多个数据、生成和仿真模块共同使用的轻量工具。重复实现且语义不属于
-某个单独模块的函数，应优先放在这里。
+这里只保留被当前主链实际复用的实现：
 
-## 当前内容
+| 文件 | 职责 | 使用方 |
+| --- | --- | --- |
+| `evt.py` | POT/GPD 尾部模型和 EVT 标定 | highD 预处理、世界模型、IDM–AMS |
+| `idm_ego.py`、`idm_ego.yaml` | 固定 ADS IDM 参数和辅助函数 | 世界模型、IDM–AMS |
+| `plot_style.py` | 论文图与 GIF 的统一绘图样式 | Flow、Diffusion、世界模型等 |
 
-```text
-tools/
-├── io.py                 # resolve_path、load_npz、write_json、write_csv
-├── evt.py                # POT/GPD EVT tail model、return level 和 S_EVT 标定
-├── risk.py               # y_long 计算、闭环风险和 EVT risk_score 标定
-├── highd_longitudinal.py # highD following 事件重建与共享 y_long 计算
-├── highd_cutin.py        # highD cut-in 事件重建、raw context 和风险评分
-├── highd_exposure.py     # 暴露量、独立峰值和 tail rate 汇总
-├── context.py            # context NPZ 读取和单条 context 组装
-├── normalization.py      # numpy / torch 归一化与反归一化
-├── diffusion_adapter.py  # frozen diffusion prior 的共享适配器
-├── plot_style.py         # 跨模块复用的论文绘图样式
-├── idm_ego.py            # highway-env IDM ego 参数读取和 rollout helper
-└── idm_ego.yaml          # IDM–AMS 评测共用的 ego 参数
-```
-
-## 使用原则
-
-- 风险评分统一从 `tools/risk.py` 引入，避免各工程维护不同公式。
-- EVT 模型统一从 `tools/evt.py` 引入，避免 highD 拟合和闭环仿真使用不同尾部映射。
-- NPZ、JSON、CSV 和配置路径解析统一使用 `tools/io.py`。
-- 学术绘图样式统一使用 `tools/plot_style.py`，避免各模块维护不同字体和线型。
-- highway-env IDM ego 参数放在 `tools/idm_ego.yaml`，由对应评估器读取；当前交通世界的
-  IDM 闭环策略实现在 `idm_ams/src/idm_policy.py`。
-- 子模块不应新增仅做转发的兼容入口；调用点应直接 import `tools/` 中的真实实现。
-- 不把模块私有训练逻辑、模型结构或脚本默认参数放进 `tools/`。
-
-## 风险评分口径
-
-`tools/risk.py` 提供可配置的纵向风险评分实现，主要供 subset 闭环和旧 longitudinal/cut-in context 工具复用。当前 `process_highD/` 自然驾驶等长片段 EVT 主响应变量为 `process_highD/src/safety_envelope_risk.py` 中的 `R_SEI`。
-
-- subset 闭环仿真使用 `y_long`：`1/TTC`、`1/THW`、`1/gap` 和 `DRAC` 的 softmax-pool 聚合，再加 collision、near collision 和 hard-brake 配置项。
-- 如果配置 `evt.score_space: evt` 且提供 EVT model，`risk_score` 表示
-  `S_EVT(y_long) = -log P_EVT(Y_long > y_long)`；否则 `risk_score`
-  回退为 raw `y_long`。
-如果后续需要调整危险得分公式，应优先修改 `tools/risk.py` 和对应 YAML：
-闭环事件验证使用 `closed_loop_risk_scoring`；highD 自然驾驶等长片段 EVT 使用 `R_SEI` 并应修改 `process_highD/scripts/configs/highd_natural_evt.yaml`。
-修改后需要同步更新相关 README。
-
-## 维护边界
-
-`tools/` 只放跨模块复用的真实实现。
-不要在这里放只服务单个脚本的私有训练逻辑，也不要新增仅做 import 转发的兼容模块。
+旧的 longitudinal/cut-in 风险、暴露量、context NPZ、frozen diffusion adapter、
+通用 I/O 和归一化模块没有现行调用方，已移除。当前自然驾驶 EVT 的风险定义位于
+[`process_highD/src/safety_envelope_risk.py`](../process_highD/src/safety_envelope_risk.py)，
+配置位于 [`process_highD/configs/highd_natural_evt.yaml`](../process_highD/configs/highd_natural_evt.yaml)。
+不要在此添加仅转发 import 的兼容入口；只服务单个模块的实现应留在该模块内部。

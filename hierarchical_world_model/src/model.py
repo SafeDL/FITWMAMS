@@ -1,4 +1,4 @@
-"""Observation-filtered factual dynamics used by CIH-WM.
+"""Observation-filtered factual dynamics used by the hierarchical world model.
 
 The released checkpoint was historically called Diffusion-Guided HiQR.  The
 implementation is kept checkpoint-compatible while exposing the components
@@ -15,11 +15,11 @@ import torch
 import torch.nn.functional as functional
 from torch import nn
 
-from world_model.src.core.dynamics import DynamicsConfig, KinematicTrafficDynamics
-from world_model.src.hiqr.encoder import (
+from traffic_components.src.core.dynamics import DynamicsConfig, KinematicTrafficDynamics
+from traffic_components.src.hiqr.encoder import (
     UnifiedRelationalQueryEncoder as RelationalObservationEncoder,
 )
-from world_model.src.hiqr.filter import (
+from traffic_components.src.hiqr.filter import (
     FilterState,
     ObservedHierarchicalInteractionFilter as HierarchicalBeliefFilter,
 )
@@ -33,6 +33,11 @@ from .reference import (
 )
 from .reaction_controller import ReactionControllerContext, apply_handcrafted_response
 from .stochastic import CausalInteractionResponseField, GraphCoupledLatentTransition
+
+
+# highD test reaches 63.98 m/s; six seconds of +4 m/s² ADS control remains
+# below 90 m/s. This is an integration ceiling, not a road speed limit.
+HIGHD_INTEGRATION_SPEED_MAX_MPS = 100.0
 
 
 @dataclass(frozen=True)
@@ -352,13 +357,14 @@ class FactualDynamicsModel(nn.Module):
         )
         self.dynamics = KinematicTrafficDynamics(
             DynamicsConfig(
+                speed_max_mps=HIGHD_INTEGRATION_SPEED_MAX_MPS,
                 acceleration_min_mps2=self.cfg.min_acceleration_mps2,
                 acceleration_max_mps2=self.cfg.max_acceleration_mps2,
             )
         )
 
     def component_contract(self) -> dict[str, str]:
-        """Name the checkpoint-compatible factual components used by CIH-WM."""
+        """Name the checkpoint-compatible factual dynamics components."""
         return {
             "observation_encoder": "relational agents, history and map encoding",
             "belief_filter": "observation-filtered scene and per-agent state",
@@ -743,8 +749,7 @@ class FactualDynamicsModel(nn.Module):
         }
 
 
-# Compatibility names for released checkpoints and downstream callers.  New
-# CIH-WM code uses the functional names above; module/parameter keys are
-# unchanged, so the accepted factual checkpoint loads without conversion.
+# Compatibility names for released checkpoints and downstream callers. Public
+# code uses the functional names above; parameter keys stay checkpoint-compatible.
 DiffusionGuidedJerkDecoder = CoordinatedJerkDecoder
 DiffusionGuidedHiQR = FactualDynamicsModel
