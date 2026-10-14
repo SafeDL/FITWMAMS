@@ -11,8 +11,16 @@ import numpy as np
 import torch
 
 from normalizing_flow.src.constraints import derived_modes
+from tools.plot_style import (
+    GENERATED_COLOR,
+    PAPER_FIGURE_DPI,
+    PAPER_PANEL_LABELSIZE,
+    REAL_COLOR,
+    get_pyplot,
+    style_axes,
+)
 
-from traffic_components.src.core.utils import (
+from hierarchical_world_model.src.core.utils import (
     ensure_dir,
     load_json,
     save_json,
@@ -26,7 +34,6 @@ from .data import (
     fit_constraint_statistics,
     load_data_bundle,
     make_loader,
-    pilot_rows,
     split_rows,
 )
 from .model import BackgroundTrajectoryDiffusion, DiffusionModelConfig
@@ -35,78 +42,74 @@ LOGGER = logging.getLogger(__name__)
 CHECKPOINT_SCHEMA = "highd_background_trajectory_diffusion"
 
 
-def _tensorboard_writer(path: Path):
-    """Defer the optional TensorBoard import until logging is enabled."""
-    from torch.utils.tensorboard import SummaryWriter
-
-    return SummaryWriter(str(path))
-
-
 def save_training_curves(history: list[dict[str, float]], path: Path) -> None:
     """Save the compact diagnostics needed to judge convergence."""
-    import matplotlib.pyplot as plt
-
+    plt = get_pyplot()
     epochs = [row["epoch"] for row in history]
-    figure, axes = plt.subplots(1, 4, figsize=(16, 3.6))
+    figure, axes = plt.subplots(1, 4, figsize=(13.2, 3.5))
     panels = (
-        ("loss", "total loss"),
-        ("denoising_mse", "denoising objective"),
-        ("long_horizon", "state-knot residual"),
-        ("trajectory_position", "position residual"),
+        ("loss", "Total loss"),
+        ("denoising_mse", "Denoising objective"),
+        ("long_horizon", "Knot residual error"),
+        ("trajectory_position", "Position residual loss"),
     )
-    for axis, (metric, title) in zip(axes, panels):
+    for label, axis, (metric, title) in zip("abcd", axes, panels):
         axis.plot(
-            epochs, [row.get(f"train_{metric}", 0.0) for row in history], label="train"
+            epochs,
+            [row.get(f"train_{metric}", 0.0) for row in history],
+            color=REAL_COLOR,
+            label="Train",
         )
         axis.plot(
             epochs,
             [row.get(f"val_{metric}", 0.0) for row in history],
-            label="validation",
+            color=GENERATED_COLOR,
+            label="Validation",
         )
-        axis.set(title=title, xlabel="epoch")
-        axis.grid(alpha=0.25)
-    axes[0].legend()
+        axis.set(title=title, xlabel="Epoch")
+        axis.set_yscale("log")
+        style_axes(axis)
+        axis.text(
+            -0.12,
+            1.04,
+            label,
+            transform=axis.transAxes,
+            fontsize=PAPER_PANEL_LABELSIZE,
+            fontweight="bold",
+        )
+    axes[0].set_ylabel("Loss")
+    axes[0].legend(frameon=False)
     figure.tight_layout()
-    figure.savefig(path, dpi=180)
+    figure.savefig(path, dpi=PAPER_FIGURE_DPI)
     plt.close(figure)
 
 
 def _model_config(
-    config: dict[str, Any], contract: dict[str, Any] | None = None
+    config: dict[str, Any], contract: dict[str, Any]
 ) -> DiffusionModelConfig:
-    model = config.get("model", {})
-    diffusion = config.get("diffusion", {})
-    loss = config.get("loss", {})
+    model = config["model"]
+    diffusion = config["diffusion"]
+    loss = config["loss"]
     return DiffusionModelConfig(
-        condition_dim=int((contract or {}).get("condition_dim", 118)),
-        constraint_agents=int((contract or {}).get("constraint_agents", 6)),
-        constraint_dim=len(
-            (contract or {})
-            .get("trajectory_constraint", {})
-            .get("feature_names", range(12))
-        ),
-        denoiser=str(model.get("denoiser", "factorized_spatiotemporal")),
-        hidden_dim=int(model.get("hidden_dim", 128)),
-        num_layers=int(model.get("num_layers", 4)),
-        num_heads=int(model.get("num_heads", 4)),
-        dropout=float(model.get("dropout", 0.1)),
-        diffusion_steps=int(diffusion.get("steps", 100)),
-        prediction_type=str(diffusion.get("prediction_type", "epsilon")),
-        condition_dropout_prob=float(diffusion.get("condition_dropout_prob", 0.0)),
-        min_snr_gamma=float(diffusion.get("min_snr_gamma", 0.0)),
-        x0_clip_abs=float(diffusion.get("x0_clip_abs", 10.0)),
-        x0_weight=float(loss.get("x0_weight", 0.1)),
-        smooth_weight=float(loss.get("smooth_weight", 0.0)),
-        long_horizon_weight=float(loss.get("long_horizon_weight", 0.0)),
-        trajectory_position_weight=float(loss.get("trajectory_position_weight", 0.0)),
-        trajectory_velocity_weight=float(loss.get("trajectory_velocity_weight", 0.0)),
-        target_scale_x=float(
-            (contract or {}).get("position_residual", {}).get("std", [1.0, 1.0])[0]
-        ),
-        target_scale_y=float(
-            (contract or {}).get("position_residual", {}).get("std", [1.0, 1.0])[1]
-        ),
-        dt_s=float((contract or {}).get("dt_s", 0.04)),
+        condition_dim=int(contract["condition_dim"]),
+        c0_dim=int(contract["c0_dim"]),
+        constraint_agents=int(contract["constraint_agents"]),
+        constraint_dim=len(contract["trajectory_constraint"]["feature_names"]),
+        hidden_dim=int(model["hidden_dim"]),
+        num_layers=int(model["num_layers"]),
+        num_heads=int(model["num_heads"]),
+        dropout=float(model["dropout"]),
+        diffusion_steps=int(diffusion["steps"]),
+        min_snr_gamma=float(diffusion["min_snr_gamma"]),
+        x0_clip_abs=float(diffusion["x0_clip_abs"]),
+        x0_weight=float(loss["x0_weight"]),
+        smooth_weight=float(loss["smooth_weight"]),
+        long_horizon_weight=float(loss["long_horizon_weight"]),
+        trajectory_position_weight=float(loss["trajectory_position_weight"]),
+        trajectory_velocity_weight=float(loss["trajectory_velocity_weight"]),
+        target_scale_x=float(contract["position_residual"]["std"][0]),
+        target_scale_y=float(contract["position_residual"]["std"][1]),
+        dt_s=float(contract["dt_s"]),
     )
 
 
@@ -118,44 +121,33 @@ def prepare_training_data(
     bundle = load_data_bundle(config, config_dir)
     train_rows = split_rows(bundle.arrays, "train")
     condition_mode = str(config.get("dataset", {}).get("condition_mode", ""))
-    if condition_mode != "c0_long_horizon_state_knots":
-        raise ValueError("diffusion condition_mode must be c0_long_horizon_state_knots")
+    if condition_mode != "c0_position_knots":
+        raise ValueError("diffusion condition_mode must be c0_position_knots")
     if bool(config.get("dataset", {}).get("include_ego_future", False)):
         raise ValueError("dataset.include_ego_future must remain false")
-    target_representation = "smooth_reference_relative_dx_dy_residual"
-    if contract_path.exists():
-        contract = load_json(contract_path)
-        compatible = (
-            contract.get("target_representation") == target_representation
-            and contract.get("condition_mode") == "c0_long_horizon_state_knots"
-            and not bool(contract.get("ego_future_in_condition", True))
+    target_representation = "single_smoothed_pchip_position_residual"
+    if config["dataset"]["target_representation"] != target_representation:
+        raise ValueError(
+            f"diffusion target_representation must be {target_representation}"
         )
-        if compatible:
-            current = trajectory_data_contract(
-                bundle,
-                {
-                    "constraint": contract["trajectory_constraint"],
-                    "position_residual": contract["position_residual"],
-                },
-            )
-            for key in ("sequence_manifest_sha256",):
-                if contract.get(key) != current[key]:
-                    LOGGER.warning(
-                        "Dataset contract no longer matches %s; refitting "
-                        "statistics for the current canonical data",
-                        key,
-                    )
-                    contract = None
-                    break
-        else:
-            contract = None
-    else:
-        contract = None
+    contract = None
+    if contract_path.exists():
+        saved = load_json(contract_path)
+        current = trajectory_data_contract(
+            bundle,
+            {
+                "c0": saved["c0_normalization"],
+                "constraint": saved["trajectory_constraint"],
+                "position_residual": saved["position_residual"],
+            },
+        )
+        if saved == current:
+            contract = saved
     if contract is None:
         sorted_rows = train_rows.copy()
         sorted_rows.sort()
         LOGGER.info(
-            "Fitting trajectory-knot and smooth-position statistics on %d train sequences",
+            "Fitting knot and position-residual statistics on %d train sequences",
             len(train_rows),
         )
         statistics = fit_constraint_statistics(bundle, sorted_rows)
@@ -179,38 +171,6 @@ def _move(
             "target",
             "target_mask",
         }
-    }
-
-
-def _expanded_training_rows(
-    rows: np.ndarray,
-    arrays: dict[str, np.ndarray],
-    semantic_cutin: np.ndarray,
-    training: dict[str, Any],
-) -> tuple[np.ndarray, dict[str, int]]:
-    """Retain every natural row and add a small number of rare repeats."""
-    selected = np.asarray(rows, dtype=np.int64)
-    cutin = np.asarray(semantic_cutin, dtype=bool)
-    if cutin.shape != selected.shape:
-        raise ValueError("semantic cut-in mask must align with training rows")
-    rare = training.get("rare_cohort_sampling", {})
-    evt_repeats = max(int(rare.get("evt_tail_extra_repeats", 0)), 0)
-    cutin_repeats = max(int(rare.get("semantic_cutin_extra_repeats", 0)), 0)
-    tail = np.asarray(arrays["is_evt_tail"])[selected].astype(bool)
-    parts = [selected]
-    if evt_repeats:
-        parts.extend([selected[tail]] * evt_repeats)
-    if cutin_repeats:
-        parts.extend([selected[cutin]] * cutin_repeats)
-    expanded = np.concatenate(parts)
-    np.random.default_rng(int(training.get("seed", 42))).shuffle(expanded)
-    return expanded, {
-        "unique_natural_sequences": int(len(selected)),
-        "evt_tail_unique_sequences": int(tail.sum()),
-        "semantic_cutin_unique_sequences": int(cutin.sum()),
-        "evt_tail_extra_repeats": evt_repeats,
-        "semantic_cutin_extra_repeats": cutin_repeats,
-        "epoch_training_samples": int(len(expanded)),
     }
 
 
@@ -243,7 +203,7 @@ def _train_epoch(
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optimizer.step()
         _update_ema(ema_model, model, ema_decay)
-        size = int(batch["target"].shape[0])
+        size = int(batch["target_mask"].flatten(1).any(dim=1).sum())
         for name in totals:
             totals[name] += float(losses[name].detach()) * size
         samples += size
@@ -268,16 +228,14 @@ def _fixed_validation(
         "trajectory_velocity": 0.0,
     }
     samples = 0
-    generator = (
-        torch.Generator(device=device) if device.type == "cuda" else torch.Generator()
-    )
+    generator = torch.Generator(device=device)
     generator.manual_seed(int(seed))
     for raw_batch in loader:
         batch = _move(raw_batch, device)
-        size = int(batch["target"].shape[0])
+        size = int(batch["target_mask"].flatten(1).any(dim=1).sum())
         timesteps = torch.randint(
             model.config.diffusion_steps,
-            (size,),
+            (batch["target"].shape[0],),
             device=device,
             generator=generator,
         )
@@ -321,7 +279,7 @@ def _checkpoint(
     contract: dict[str, Any],
     epoch: int,
     best: float,
-    ema_model: BackgroundTrajectoryDiffusion | None = None,
+    ema_model: BackgroundTrajectoryDiffusion,
 ) -> dict[str, Any]:
     return {
         "checkpoint_schema": CHECKPOINT_SCHEMA,
@@ -329,9 +287,7 @@ def _checkpoint(
         "best_validation_loss": float(best),
         "model_config": model.config.to_dict(),
         "model_state": model.state_dict(),
-        "ema_model_state": (
-            model.state_dict() if ema_model is None else ema_model.state_dict()
-        ),
+        "ema_model_state": ema_model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
         "scheduler_state": scheduler.state_dict(),
         "dataset_contract": contract,
@@ -354,7 +310,6 @@ def load_checkpoint(
     path: str | Path,
     *,
     device: torch.device,
-    use_ema: bool = True,
 ) -> tuple[BackgroundTrajectoryDiffusion, dict[str, Any]]:
     state = torch.load(Path(path), map_location=device, weights_only=False)
     if state.get("checkpoint_schema") != CHECKPOINT_SCHEMA:
@@ -363,12 +318,7 @@ def load_checkpoint(
     model = BackgroundTrajectoryDiffusion(DiffusionModelConfig(**model_config)).to(
         device
     )
-    weights = (
-        state.get("ema_model_state", state["model_state"])
-        if use_ema
-        else state["model_state"]
-    )
-    model.load_state_dict(weights)
+    model.load_state_dict(state["model_state"])
     return model, state
 
 
@@ -395,58 +345,41 @@ def train_background_diffusion(
     *,
     config_dir: Path,
     resume: Path | None = None,
-    warm_start: Path | None = None,
 ) -> dict[str, Any]:
     training = config["training"]
     output = ensure_dir(config["paths"]["output_dir"])
     checkpoint_dir = output / "checkpoints"
     last_path = checkpoint_dir / "last_training_state.pt"
     best_path = checkpoint_dir / "best_background_diffusion.pt"
-    existing = last_path if last_path.exists() else best_path
-    if resume is None and warm_start is None and existing.exists():
-        raise FileExistsError(
-            f"refusing to overwrite existing checkpoint: {existing}; "
-            "use --resume, --warm-start or a new output directory"
-        )
     set_seed(int(training.get("seed", 42)))
+    torch.set_float32_matmul_precision("high")
     device = select_device(training.get("device", "auto"))
     bundle, contract = prepare_training_data(config, config_dir)
-    maximum_train = int(config.get("dataset", {}).get("max_train_sequences", 0))
-    maximum_val = int(config.get("dataset", {}).get("max_val_sequences", 2048))
-    train_rows = pilot_rows(
-        bundle,
-        "train",
-        maximum=maximum_train,
-        seed=int(training.get("seed", 42)),
-    )
-    val_rows = pilot_rows(
-        bundle,
-        "val",
-        maximum=maximum_val,
-        seed=int(training.get("fixed_validation_seed", 12345)),
-    )
-    epoch_train_rows = train_rows
+    train_rows = split_rows(bundle.arrays, "train")
+    val_rows = split_rows(bundle.arrays, "val")
     flow_rows = bundle.flow_row_for_sequence[train_rows]
+    train_has_background = np.asarray(bundle.flow_arrays["slot_mask"])[flow_rows].any(
+        axis=1
+    )
+    val_flow_rows = bundle.flow_row_for_sequence[val_rows]
+    val_has_background = np.asarray(bundle.flow_arrays["slot_mask"])[val_flow_rows].any(
+        axis=1
+    )
     modes = derived_modes(
         np.asarray(bundle.flow_arrays["trajectory_constraint"])[flow_rows],
         np.asarray(bundle.flow_arrays["slot_mask"])[flow_rows],
     )
     sampling_manifest = {
-        "sampling": (
-            "full_recording_level_train_split"
-            if maximum_train <= 0
-            else "fixed_size_stratified_pilot"
-        ),
+        "sampling": "full_recording_level_train_split",
         "unique_natural_sequences": int(len(train_rows)),
         "evt_tail_unique_sequences": int(
             np.asarray(bundle.arrays["is_evt_tail"])[train_rows].sum()
         ),
-        "lane_change_unique_sequences": int(
-            (modes[..., 1] != 0).any(1).sum()
-        ),
+        "lane_change_unique_sequences": int((modes[..., 1] != 0).any(1).sum()),
         "epoch_training_samples": int(len(train_rows)),
+        "sequences_with_background_targets": int(train_has_background.sum()),
     }
-    train_dataset = BackgroundTrajectoryDataset(bundle, epoch_train_rows, contract)
+    train_dataset = BackgroundTrajectoryDataset(bundle, train_rows, contract)
     val_dataset = BackgroundTrajectoryDataset(bundle, val_rows, contract)
     train_loader = make_loader(
         train_dataset,
@@ -477,59 +410,31 @@ def train_background_diffusion(
         eta_min=float(training.get("minimum_learning_rate", 3.0e-5)),
     )
     checkpoint_dir = ensure_dir(checkpoint_dir)
-    history_path = output / "training_history.json"
+    history_path = output / "training.json"
     start_epoch = 0
     best = float("inf")
     history: list[dict[str, float]] = []
-    warm_start_epoch: int | None = None
-    if warm_start is not None:
-        restored, state = load_checkpoint(warm_start, device=device)
-        if state["dataset_contract"] != contract:
-            raise ValueError("cannot warm-start with a different dataset contract")
-        structural_fields = (
-            "condition_dim",
-            "horizon_steps",
-            "target_dim",
-            "hidden_dim",
-            "num_layers",
-            "num_heads",
-            "diffusion_steps",
-            "prediction_type",
-            "constraint_agents",
-            "constraint_dim",
-            "denoiser",
-        )
-        if any(
-            getattr(restored.config, name) != getattr(model.config, name)
-            for name in structural_fields
-        ):
-            raise ValueError(
-                "cannot warm-start across incompatible diffusion structures"
-            )
-        model.load_state_dict(restored.state_dict())
-        ema_model.load_state_dict(restored.state_dict())
-        warm_start_epoch = int(state["epoch"])
     if resume is not None:
-        restored, state = load_checkpoint(resume, device=device, use_ema=False)
+        state = torch.load(resume, map_location=device, weights_only=False)
         required_training_state = {"optimizer_state", "scheduler_state"}
         if not required_training_state.issubset(state):
             raise ValueError(
                 "--resume requires an unfinished training-state checkpoint; "
-                "use --warm-start with a final checkpoint"
+                "a compact final checkpoint cannot resume optimization"
             )
         if state["dataset_contract"] != contract:
             raise ValueError("cannot resume with a different dataset contract")
-        if restored.config != model.config:
+        if state["model_config"] != model.config.to_dict():
             raise ValueError(
                 "resume checkpoint model config does not match the run config"
             )
-        model.load_state_dict(restored.state_dict())
-        ema_model.load_state_dict(state.get("ema_model_state", state["model_state"]))
+        model.load_state_dict(state["model_state"])
+        ema_model.load_state_dict(state["ema_model_state"])
         optimizer.load_state_dict(state["optimizer_state"])
         scheduler.load_state_dict(state["scheduler_state"])
         start_epoch = int(state["epoch"])
         best = float(state["best_validation_loss"])
-        history = list(load_json(history_path)) if history_path.exists() else []
+        history = load_json(history_path)["history"]
     early_stopping_patience = max(int(training.get("early_stopping_patience", 0)), 0)
     early_stopping_minimum_delta = max(
         float(training.get("early_stopping_minimum_delta", 0.0)), 0.0
@@ -539,11 +444,6 @@ def train_background_diffusion(
         best, last_improvement_epoch = _selection_state(
             history, early_stopping_minimum_delta
         )
-    writer = (
-        _tensorboard_writer(output / "tensorboard")
-        if training.get("tensorboard", True)
-        else None
-    )
     LOGGER.info(
         "Training background diffusion on %s: train=%d val=%d epochs=%d resume_epoch=%d",
         device,
@@ -554,76 +454,68 @@ def train_background_diffusion(
     )
     completed_epoch = start_epoch
     early_stopped = False
-    try:
-        for epoch in range(start_epoch + 1, epochs + 1):
-            train_metrics = _train_epoch(
-                model,
-                ema_model,
-                train_loader,
-                optimizer,
-                device,
-                float(training.get("grad_clip", 1.0)),
-                ema_decay,
-            )
-            validation = _fixed_validation(
-                ema_model,
-                val_loader,
-                device,
-                int(training.get("fixed_validation_seed", 12345)),
-            )
-            scheduler.step()
-            row = {
-                "epoch": epoch,
-                "learning_rate": float(optimizer.param_groups[0]["lr"]),
-                **{f"train_{key}": value for key, value in train_metrics.items()},
-                **{f"val_{key}": value for key, value in validation.items()},
-            }
-            history.append(row)
-            save_json(history, history_path)
-            if writer is not None:
-                for name, value in row.items():
-                    if name != "epoch":
-                        writer.add_scalar(f"background_diffusion/{name}", value, epoch)
-            improved = validation["loss"] < best - early_stopping_minimum_delta
-            if improved:
-                best = validation["loss"]
-                last_improvement_epoch = epoch
-            state = _checkpoint(
-                model,
-                optimizer,
-                scheduler,
-                contract,
-                epoch,
-                best,
-                ema_model=ema_model,
-            )
-            torch.save(state, last_path)
-            if improved:
-                torch.save(_inference_checkpoint(state), best_path)
+    for epoch in range(start_epoch + 1, epochs + 1):
+        train_metrics = _train_epoch(
+            model,
+            ema_model,
+            train_loader,
+            optimizer,
+            device,
+            float(training.get("grad_clip", 1.0)),
+            ema_decay,
+        )
+        validation = _fixed_validation(
+            ema_model,
+            val_loader,
+            device,
+            int(training.get("fixed_validation_seed", 12345)),
+        )
+        scheduler.step()
+        row = {
+            "epoch": epoch,
+            "learning_rate": float(optimizer.param_groups[0]["lr"]),
+            **{f"train_{key}": value for key, value in train_metrics.items()},
+            **{f"val_{key}": value for key, value in validation.items()},
+        }
+        history.append(row)
+        save_json({"history": history}, history_path)
+        improved = validation["loss"] < best - early_stopping_minimum_delta
+        if improved:
+            best = validation["loss"]
+            last_improvement_epoch = epoch
+        state = _checkpoint(
+            model,
+            optimizer,
+            scheduler,
+            contract,
+            epoch,
+            best,
+            ema_model=ema_model,
+        )
+        torch.save(state, last_path)
+        if improved:
+            torch.save(_inference_checkpoint(state), best_path)
+        LOGGER.info(
+            "epoch=%d train=%.5f val=%.5f best=%.5f",
+            epoch,
+            train_metrics["loss"],
+            validation["loss"],
+            best,
+        )
+        completed_epoch = epoch
+        if (
+            early_stopping_patience > 0
+            and epoch - last_improvement_epoch >= early_stopping_patience
+        ):
+            early_stopped = True
             LOGGER.info(
-                "epoch=%d train=%.5f val=%.5f best=%.5f",
+                "early stopping at epoch=%d after %d epochs without "
+                "validation improvement >= %.3g",
                 epoch,
-                train_metrics["loss"],
-                validation["loss"],
-                best,
+                early_stopping_patience,
+                early_stopping_minimum_delta,
             )
-            completed_epoch = epoch
-            if (
-                early_stopping_patience > 0
-                and epoch - last_improvement_epoch >= early_stopping_patience
-            ):
-                early_stopped = True
-                LOGGER.info(
-                    "early stopping at epoch=%d after %d epochs without "
-                    "validation improvement >= %.3g",
-                    epoch,
-                    early_stopping_patience,
-                    early_stopping_minimum_delta,
-                )
-                break
-    finally:
-        if writer is not None:
-            writer.close()
+            break
     summary = {
         "status": "complete",
         "requested_epochs": epochs,
@@ -637,20 +529,21 @@ def train_background_diffusion(
         "train_sequences": len(train_rows),
         "train_epoch_samples": len(train_dataset),
         "validation_sequences": len(val_dataset),
+        "train_sequences_with_background_targets": int(train_has_background.sum()),
+        "validation_sequences_with_background_targets": int(val_has_background.sum()),
         "lane_change_train_sequences": int(
             sampling_manifest["lane_change_unique_sequences"]
         ),
-        "experiment_scope": (
-            "full" if maximum_train <= 0 and maximum_val <= 0 else "pilot"
-        ),
-        "full_training": bool(maximum_train <= 0 and maximum_val <= 0),
-        "warm_start_checkpoint": str(warm_start) if warm_start is not None else None,
-        "warm_start_epoch": warm_start_epoch,
+        "experiment_scope": "full",
+        "full_training": True,
         "ema_decay": ema_decay,
         "validation_and_sampling_weights": "EMA weights",
         "sampling": sampling_manifest,
     }
-    save_json(summary, output / "training_summary.json")
-    save_training_curves(history, output / "training_curves.png")
+    save_json({"summary": summary, "history": history}, history_path)
+    save_training_curves(
+        history,
+        ensure_dir(output / "figures") / "training_curves.png",
+    )
     last_path.unlink(missing_ok=True)
     return summary

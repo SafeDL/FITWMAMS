@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from traffic_components.src.core.sequential_dataset import load_sequential_dataset
+from hierarchical_world_model.src.core.sequential_dataset import load_sequential_dataset
 
 ANCHOR_INDEX = 24
 STATE_POINTS = 150

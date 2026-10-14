@@ -9,8 +9,13 @@ from typing import Any, Iterable
 import numpy as np
 from PIL import Image, ImageDraw
 
-from traffic_components.src.core.utils import file_sha256, load_json, load_yaml, save_json
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.utils import (
+    file_sha256,
+    load_json,
+    load_yaml,
+    save_json,
+)
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
 )
@@ -603,7 +608,8 @@ def build_explicit_subset_comparison(
         "interpretation_limits": [
             "Reported AMS intervals use the existing final-level binomial approximation and do not account for MCMC correlation.",
             "Final-population collision fractions and top-case playback statistics are tail-conditioned diagnostics, not unconditional probabilities.",
-            "The two models share p(M,C0) as a distribution but these runs are independent rather than sample-wise paired.",
+            "The two models share the EVT-tail p(M,C0) distribution but these "
+            "runs are independent rather than sample-wise paired.",
         ],
         "artifacts": {
             "table_csv": str(csv_path),

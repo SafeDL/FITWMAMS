@@ -27,32 +27,21 @@ def build_maf_flow(
     from nflows.transforms.permutations import ReversePermutation
 
     layers = []
-    num_layers = int(model_cfg.get("num_layers", 6))
-    hidden_features = int(model_cfg.get("hidden_features", 128))
-    num_blocks = int(model_cfg.get("num_blocks", 2))
-    dropout = float(model_cfg.get("dropout_probability", 0.0))
-    use_residual = bool(model_cfg.get("use_residual_blocks", True))
-    use_batch_norm = bool(model_cfg.get("use_batch_norm", False))
-    transform_type = str(model_cfg.get("transform_type", "rq_spline")).lower()
-    if transform_type != "rq_spline":
-        raise ValueError(
-            f"Unsupported MAF transform_type={transform_type!r}; expected 'rq_spline'"
-        )
-    for _ in range(num_layers):
+    for _ in range(int(model_cfg["num_layers"])):
         layers.append(
             MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
                 features=int(num_features),
-                hidden_features=hidden_features,
+                hidden_features=int(model_cfg["hidden_features"]),
                 context_features=int(context_features),
-                num_bins=int(model_cfg.get("num_bins", 8)),
+                num_bins=int(model_cfg["num_bins"]),
                 tails="linear",
-                tail_bound=float(model_cfg.get("tail_bound", 4.0)),
-                num_blocks=num_blocks,
-                use_residual_blocks=use_residual,
+                tail_bound=float(model_cfg["tail_bound"]),
+                num_blocks=int(model_cfg["num_blocks"]),
+                use_residual_blocks=True,
                 random_mask=False,
                 activation=F.relu,
-                dropout_probability=dropout,
-                use_batch_norm=use_batch_norm,
+                dropout_probability=float(model_cfg["dropout_probability"]),
+                use_batch_norm=False,
             )
         )
         layers.append(ReversePermutation(features=int(num_features)))

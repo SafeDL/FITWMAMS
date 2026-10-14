@@ -17,10 +17,11 @@ from matplotlib.transforms import Affine2D  # noqa: E402
 import numpy as np
 import pandas as pd
 
-from process_highD.src.io_utils import ensure_dir, load_config, resolve_data_path
+from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.loader import HighDRecording
 from process_highD.src.natural_segments import SLOT_NAMES
 from process_highD.src.preprocess import prepare_recording
+from tools.plot_style import PAPER_SERIF_FONTS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +33,8 @@ class NaturalPlaybackOptions:
     view_width_m: float = 160.0
     trail_frames: int = 50
     max_background_vehicles: int = 120
-    dpi: int = 100
-    figsize: tuple[float, float] = (12.0, 4.8)
+    dpi: int = 120
+    figsize: tuple[float, float] = (12.0, 3.0)
     lane_width_m: float = 3.75
 
 
@@ -42,6 +43,15 @@ TARGET_COLOR = "#1f78b4"
 SLOT_COLOR = "#ff7f0e"
 BACKGROUND_COLOR = "#bdbdbd"
 ROAD_COLOR = "#6f7378"
+
+matplotlib.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": PAPER_SERIF_FONTS,
+        "mathtext.fontset": "stix",
+        "axes.unicode_minus": False,
+    }
+)
 
 SLOT_LABELS = {
     "same_front": "front",
@@ -66,7 +76,7 @@ def _vehicle_row(frame: pd.DataFrame, vehicle_id: int) -> pd.Series | None:
 def _lane_markings(recording: HighDRecording) -> list[float]:
     lines: list[float] = []
     for key in ("upperLaneMarkings", "lowerLaneMarkings"):
-        values = np.asarray(recording.recording_meta.get(key, []), dtype=float)
+        values = np.asarray(recording.recording_meta[key], dtype=float)
         values = values[np.isfinite(values)]
         lines.extend(float(value) for value in values)
     return sorted(set(round(value, 6) for value in lines))
@@ -75,23 +85,17 @@ def _lane_markings(recording: HighDRecording) -> list[float]:
 def _slot_vehicle_ids(row: pd.Series) -> dict[int, str]:
     out: dict[int, str] = {}
     for slot in SLOT_NAMES:
-        column = f"{slot}_id"
-        if column not in row:
-            continue
-        try:
-            vehicle_id = int(row[column])
-        except (TypeError, ValueError):
-            continue
+        vehicle_id = int(row[f"{slot}_id"])
         if vehicle_id > 0:
             out[vehicle_id] = slot
     return out
 
 
 def _focus_vehicle(row: pd.Series) -> tuple[int, str]:
-    cutin_id = int(row.get("primary_cutin_target_id", -1))
+    cutin_id = int(row["primary_cutin_target_id"])
     if cutin_id > 0:
         return cutin_id, "cut-in target"
-    peak_id = int(row.get("peak_neighbor_id", -1))
+    peak_id = int(row["peak_neighbor_id"])
     return peak_id, "risk target"
 
 
@@ -142,22 +146,15 @@ def _window_track_slice(
 def _vehicle_dimensions(
     *,
     recording: HighDRecording,
-    row: pd.Series,
     vehicle_id: int,
 ) -> tuple[float, float]:
-    if int(vehicle_id) in recording.tracks_meta.index:
-        meta = recording.tracks_meta.loc[int(vehicle_id)]
-        length = max(float(meta.get("width", 4.5)), 0.5)
-        width = max(float(meta.get("height", 1.8)), 0.4)
-    else:
-        length = max(float(row.get("width", 4.5)), 0.5)
-        width = max(float(row.get("height", 1.8)), 0.4)
-    return length, width
+    meta = recording.tracks_meta.loc[int(vehicle_id)]
+    return float(meta["width"]), float(meta["height"])
 
 
 def _vehicle_heading(row: pd.Series, *, lateral_sign: float) -> float:
-    vx = float(row.get("xVelocity", row.get("vx", 0.0)))
-    vy = float(lateral_sign) * float(row.get("yVelocity", row.get("vy", 0.0)))
+    vx = float(row["xVelocity"])
+    vy = float(lateral_sign) * float(row["yVelocity"])
     if abs(vx) + abs(vy) < 1.0e-9:
         return 0.0
     return float(np.arctan2(vy, vx))
@@ -179,7 +176,6 @@ def _draw_vehicle(
 ) -> None:
     length, width = _vehicle_dimensions(
         recording=recording,
-        row=row,
         vehicle_id=vehicle_id,
     )
     x = float(row["x"]) - float(origin_x)
@@ -237,13 +233,10 @@ def _draw_vehicle_trail(
     color: str,
     zorder: int,
 ) -> None:
-    try:
-        track = recording.get_vehicle_track(int(vehicle_id))
-    except KeyError:
-        return
+    track = recording.get_vehicle_track(int(vehicle_id))
     trail_start = max(int(start_frame), int(frame_id) - int(trail_frames))
     window = track.loc[(track.index >= trail_start) & (track.index <= int(frame_id))]
-    if len(window) < 2 or "x" not in window or "y" not in window:
+    if len(window) < 2:
         return
     xs = pd.to_numeric(window["x"], errors="coerce").to_numpy(dtype=np.float64)
     ys = pd.to_numeric(window["y"], errors="coerce").to_numpy(dtype=np.float64)
@@ -289,7 +282,7 @@ def _draw_frame(
     recording: HighDRecording,
     row: pd.Series,
     frame_id: int,
-    risk_trace: np.ndarray | None,
+    risk_trace: np.ndarray,
     options: NaturalPlaybackOptions,
     origin_x: float,
     origin_y: float,
@@ -303,8 +296,8 @@ def _draw_frame(
 
     ego_id = int(row["ego_id"])
     slot_ids = _slot_vehicle_ids(row)
-    peak_neighbor_id = int(row.get("peak_neighbor_id", -1))
-    peak_slot_name = str(row.get("peak_slot_name", "") or "")
+    peak_neighbor_id = int(row["peak_neighbor_id"])
+    peak_slot_name = str(row["peak_slot_name"])
     focus_vehicle_id, focus_label = _focus_vehicle(row)
     frame = recording.get_frame(int(frame_id))
     ego = _vehicle_row(frame, ego_id)
@@ -388,7 +381,7 @@ def _draw_frame(
             color=SLOT_COLOR,
             alpha=0.92,
             zorder=4,
-            label=SLOT_LABELS.get(slot, slot.replace("_", " ")),
+            label=SLOT_LABELS[slot],
         )
 
     if focus_vehicle_id > 0 and target is not None:
@@ -450,24 +443,18 @@ def _draw_frame(
     offset = int(frame_id) - start
     elapsed = float(offset) / max(float(target_fps), 1.0e-6)
     event_risk = float(row["event_risk"])
-    current_risk = float("nan")
-    if risk_trace is not None and risk_trace.size:
-        trace_offset = int(np.clip(offset, 0, risk_trace.size - 1))
-        current_risk = float(risk_trace[trace_offset])
-    risk_text = (
-        f"R={current_risk:.3f}/{event_risk:.3f}"
-        if np.isfinite(current_risk)
-        else f"R={event_risk:.3f}"
-    )
-    peak_frame = int(row.get("peak_risk_frame", row.get("window_end_frame", frame_id)))
+    trace_offset = int(np.clip(offset, 0, risk_trace.size - 1))
+    current_risk = float(risk_trace[trace_offset])
+    risk_text = f"R={current_risk:.3f}/{event_risk:.3f}"
+    peak_frame = int(row["peak_risk_frame"])
     peak_text = (
         f"peak={peak_slot_name}#{peak_neighbor_id}"
         if peak_neighbor_id > 0 and peak_slot_name
         else "peak=n/a"
     )
     semantic_text = (
-        f"lane changes={int(row.get('num_lane_changes', 0))}, "
-        f"strict cut-ins={int(row.get('num_strict_cutins', 0))}"
+        f"lane changes={int(row['num_lane_changes'])}, "
+        f"strict cut-ins={int(row['num_strict_cutins'])}"
     )
     ax.set_xlim(*x_limits)
     transformed_y_limits = [
@@ -483,7 +470,10 @@ def _draw_frame(
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
     ax.tick_params(labelsize=8)
-    if abs(int(frame_id) - peak_frame) <= max(int(options.frame_stride), 1) // 2:
+    if (
+        event_risk > 0.0
+        and abs(int(frame_id) - peak_frame) <= max(int(options.frame_stride), 1) // 2
+    ):
         ax.text(
             0.01,
             0.93,
@@ -501,7 +491,7 @@ def _draw_frame(
                 "pad": 2.0,
             },
         )
-    crossing_frame = int(row.get("primary_cutin_cross_frame", -1))
+    crossing_frame = int(row["primary_cutin_cross_frame"])
     if (
         crossing_frame > 0
         and abs(int(frame_id) - crossing_frame)
@@ -530,14 +520,10 @@ def _risk_trace_for_row(
     row: pd.Series,
     *,
     risk_trace_npz: Path,
-) -> np.ndarray | None:
-    if not risk_trace_npz.exists() or "risk_trace_row" not in row:
-        return None
+) -> np.ndarray:
     trace_index = int(row["risk_trace_row"])
     with np.load(risk_trace_npz) as data:
         traces = data["risk_trace"]
-        if trace_index < 0 or trace_index >= traces.shape[0]:
-            return None
         return np.asarray(traces[trace_index], dtype=np.float64)
 
 
@@ -553,7 +539,7 @@ def render_natural_tail_event_gif(
     cfg = load_config(str(config_path))
     raw_dir = resolve_data_path(cfg["paths"]["raw_dir"], config_path)
     recording_id = int(segment_row["recording_id"])
-    target_fps = int(cfg.get("sampling", {}).get("target_fps", 25))
+    target_fps = int(cfg["sampling"]["target_fps"])
     recording = prepare_recording(raw_dir, recording_id, cfg)
 
     start_frame = int(segment_row["window_start_frame"])
@@ -580,24 +566,14 @@ def render_natural_tail_event_gif(
     risk_trace = _risk_trace_for_row(segment_row, risk_trace_npz=risk_trace_npz)
     first_frame = recording.get_frame(start_frame)
     ego_first = _vehicle_row(first_frame, int(segment_row["ego_id"]))
-    origin_x = 0.0 if ego_first is None else float(ego_first["x"])
-    origin_y = 0.0 if ego_first is None else float(ego_first["y"])
-    if "ego_driving_direction" in segment_row:
-        ego_direction = int(segment_row["ego_driving_direction"])
-    elif int(segment_row["ego_id"]) in recording.tracks_meta.index:
-        ego_direction = int(
-            recording.tracks_meta.loc[int(segment_row["ego_id"])].get(
-                "drivingDirection",
-                1,
-            )
-        )
-    else:
-        ego_direction = 1
+    origin_x = float(ego_first["x"])
+    origin_y = float(ego_first["y"])
+    ego_direction = int(segment_row["ego_driving_direction"])
     display_lateral_sign = _lateral_sign(ego_direction)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=options.figsize, dpi=int(options.dpi))
-    fig.subplots_adjust(left=0.065, right=0.965, bottom=0.18, top=0.83)
+    fig.subplots_adjust(left=0.06, right=0.98, bottom=0.24, top=0.76)
     duration_ms = max(
         int(
             round(
@@ -635,19 +611,12 @@ def render_natural_tail_event_gif(
 def render_natural_tail_events(
     *,
     config_path: Path,
-    tail_contexts_csv: Path,
+    contexts: pd.DataFrame,
     output_dir: Path,
     risk_trace_npz: Path,
     top_k: int,
     options: NaturalPlaybackOptions | None = None,
 ) -> list[Path]:
-    if not tail_contexts_csv.exists():
-        raise FileNotFoundError(
-            f"Natural tail contexts CSV not found: {tail_contexts_csv}"
-        )
-    contexts = pd.read_csv(tail_contexts_csv)
-    if contexts.empty:
-        raise RuntimeError(f"Natural tail contexts CSV is empty: {tail_contexts_csv}")
     contexts = contexts.sort_values(
         ["event_risk", "recording_id", "window_start_frame"],
         ascending=[False, True, True],
@@ -656,7 +625,7 @@ def render_natural_tail_events(
     if int(top_k) > 0:
         contexts = contexts.head(int(top_k))
 
-    output_dir = ensure_dir(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     outputs: list[Path] = []
     for rank, (_, row) in enumerate(contexts.iterrows(), start=1):
         segment_id = str(row["segment_id"]).replace("/", "_")

@@ -1,59 +1,80 @@
-# IDM–AMS 自动驾驶长尾评测
+# 高危长尾 ADS 测试
 
-本目录维护“固定 ADS 控制器 + 行为世界模型”的稀有失效评测协议。它是评测工具，
-不是 IDM 模型、不是新的世界模型，也不属于论文方法复现目录。
+本目录负责第三步：把第二条分支生成的高危场景条件送入第一条分支的交通世界模型，再运行
+被测 ADS。
 
-评测以 HighwayEnv 的原生 `IDMVehicle` 作为固定被测 ADS，在同一个 149 帧、25 Hz、
-全背景车辆范围内运行背景交通模型，通过 EVT 风险分数定义最终失效事件，并用
-Adaptive Multilevel Splitting（AMS，代码中采用 subset simulation + pCN proposal）
-估计低概率长尾风险。
+当前示例 ADS 使用 `HighwayEnv` 的 IDM 控制器。评测工具也可接入其他满足同一逐步动作接口的
+ADS；IDM 不是本文的交通世界模型。
 
-## 当前适配器
-
-- `factual_hiqr`：Flow → Diffusion → 冻结事实 HiQR。该名称刻意不使用
-  “hierarchical”或“CIH-WM”，因为当前 AMS 执行链尚未接入通过验收的 CIH 自主响应层。
-- `trafficbots`：TrafficBots V1.5-HighD 外部行为世界模型基线。
-
-两者的概率空间不同。固定 `K_GT` 的事实 HiQR 结果不能与 TrafficBots 的 full-prior
-结果直接排名；比较器会在 test-space 不一致时拒绝生成可发表结论。
-生成式世界模型公共接口现默认接入 MA-IDM NPC 响应；本目录已登记的 `factual_hiqr`
-比较协议则显式传 `reaction_controller=None`，继续测量原始 HiQR 背景车，不能把
-它的旧结果解释为新响应模型的结果。
-
-现有 TrafficBots checkpoint 按历史 `same_rear` 排除协议训练，因此默认 suite 禁用该
-适配器，运行时也会拒绝把它伪装成全背景车正式结果。完成全背景车重训和验收后才可启用。
-
-所有新评测统一使用 `highd_all_background`，包括 `same_rear`。EVT 模型必须来自
-`results/highd_natural_driving_evt/`，不得混用历史 same-rear-excluded 工件。
-
-## 目录
+## 当前主链
 
 ```text
-idm_ams/
-├── configs/                  # 评测协议与模型适配器配置
-├── src/                      # AMS、IDM 执行、模型注册和结果校验
-├── scripts/                  # 运行、审计和回放入口
-└── tests/                    # 算法及协议契约测试
-
-results/idm_ams/   # 新运行产生的结果
+EVT 筛选尾部事件
+        ↓
+Flow 采样 M、C0、K、D
+        ↓
+Diffusion 在车辆尺寸条件下重建 149 帧连续软轨迹
+        ↓
+HiQR + 在线响应进行闭环仿真
+        ↓
+HighwayEnv 中运行被测 ADS
+        ↓
+R_SEI、EVT 分数、碰撞、最小间距和越界
 ```
 
-## 当前结果状态
+本目录保留两种互不替代的测试空间：
 
-当前没有新的正式 AMS 全量结果。旧 `IDM_subset/results/` 来自已经废止的模型命名、背景车
-范围和概率空间，未迁移到新目录，避免被误认为当前结论。恢复后的算法、随机状态、模型注册、
-比较和回放代码已通过 20 个单元/契约测试；`pytest` 的通过信息不等同于一次 AMS 实验。
+- `world_subset_idm.yaml`：从尾部联合条件分布采样完整新场景，用于高危测试；
+- `world_factual_k_gt.yaml`：固定测试集真实 `(M,C0,K_GT,D_GT)`，用于分析事实精度和响应能力。
 
-下一次实际运行会分别写入：
+高危生成不能读取 `K_GT`，否则会把测试集真实未来当成生成结果；事实评测必须保留 `K_GT`，
+否则无法判断世界模型对真实轨迹的重建误差。两条路径共用 Diffusion、HiQR 和逐帧在线响应。
 
-- `results/idm_ams/factual_hiqr/fixed_k_gt/subset/`：事实 HiQR 的子集模拟结果；
-- `results/idm_ams/factual_hiqr/fixed_k_gt/monte_carlo/`：独立 Monte Carlo 对照；
-- `results/idm_ams/factual_hiqr/fixed_k_gt/test_sweep/`：完整 held-out context 诊断；
-- `results/idm_ams/comparisons/`：协议一致时的跨模型比较。
+Diffusion 的轨迹是软参考，不是闭环车辆必须遵守的命令。NPC 受 ADS 或其他车辆干扰后，
+可以通过跟驰和换道决策偏离参考；不能因为参考已经包含换道而禁止重新决策。
+被测自车仍由 ADS 控制，NPC 的响应模型不接管自车。
+默认换道决策的验证选择和限制见世界模型 README。更换在线响应策略后，原先的闭环危险度
+和失效概率必须重算；不能仅修改模型名称后继续沿用旧结果。
+当前默认组件已经统一到共享 Train 的 HiQR、标定 IDM、校准 MOBIL和学习型换道路径，
+并启用参考失效后的实际状态续接。选择清单在世界模型的 `artifacts/selection.json`。
 
-这些目录由运行命令创建，不预置空目录或复制旧结果。
+世界随机变量会显式保存初始条件、位置结点、扩散噪声、驾驶人参数和响应噪声。相同随机变量
+可以逐点重放，也可以让多个 ADS 在同一世界中分别运行。
+
+`world_subset_idm.yaml` 通过 `paths.world_model_config` 读取
+`hierarchical_world_model/config.yaml`。后一个配置同时指定 Flow、Diffusion 和 HiQR
+权重。`c0_base_latent` 为 26 维，只决定 `C0`；车辆尺寸从相同占位模式的尾部经验分布采样。
+子集模拟的 `mutation_blocks` 还明确包含 `diffusion_noise`：每次场景条件或扩散噪声变化，
+都会重新执行 Diffusion，再进入 HiQR 闭环。因此这个入口不是“只采样 Flow 后直接仿真”。
+
+## 两种评测
+
+- Monte Carlo：独立抽取尾部条件世界，统计给定 ADS 下的危险和碰撞；
+- 子集模拟：逐级保留更危险的世界，用于寻找尾部中的更极端失效。
+
+两者输出的 `probability` 都以 EVT 尾部世界为总体，即
+`P(闭环危险度达到目标 | EVT 尾部场景分布)`。它不是全部自然驾驶中的无条件失效概率，不能直接
+用来表示现实道路事故率。
+
+EVT 先确定 Flow 的 2,964 条目标事件；闭环运行后再计算 `R_SEI`，确认生成场景在被测 ADS 下是否仍然危险。
+
+尾部 Flow 只提高高危场景的采样比例，不保证每次闭环运行都超过 EVT 门槛，因为 ADS 和背景车
+在线响应会改变实际轨迹。因此最终是否属于高危事件，以闭环后的危险度为准。
+
+## 当前状态
+
+当前 Diffusion 不输入尺寸；真实或经验采样的尺寸用于车辆几何和危险度。
+世界模型 Test 一致性检查见 `results/hierarchical_world_model/factual_test/verification.json`，
+不代表生成场景的失效概率已经得到可靠估计。
+
+尾部 Flow 的部分分布指标仍有偏差，报告保留这些结果；单个指标超线不直接禁止使用。
+入口核对 EVT-tail 来源和已发布组件是否匹配，不再要求干净 Git、发布标签或 SHA 清单。
+是否适合测试，依据初始占用、连续轨迹、实际执行和尾部关系判断。
+当前没有更新后完整主线的 Monte Carlo 或子集模拟结论，旧概率不能继续代表新模型。
 
 ## 运行
+
+开发检查：
 
 ```bash
 conda activate tread
@@ -61,14 +82,19 @@ python -m idm_ams.scripts.run_world_models_idm \
   --development --models factual_hiqr --estimators subset
 ```
 
-`--development` 允许在脏工作树中进行工程验证，并强制把结果标记为非正式。正式运行要求
-clean worktree、冻结 checkpoint、匹配的哈希和全背景 EVT 契约。
+固定 `K_GT` 的测试集事实评测：
 
-核心 AMS 实现在 `src/world_subset_simulation.py`。每一层保存显式随机世界、阈值、
-接受率和数值有效性；最终层的碰撞占比是条件尾部分布诊断，不能解释成无条件碰撞率。
+```bash
+python idm_ams/scripts/run_empirical_test_sweep.py
+```
 
-## 当前限制
+结果会写到：
 
-恢复本评测代码不等于当前分层世界模型已通过 ADS 长尾验收。历史 CIH 响应候选因因果
-方向和剂量排序门槛失败而未晋升；当前场景条件化 MA-IDM 仍缺完整闭环与随机校准。
-只有主方案通过统一验收并具有可重放随机状态后，才能增加正式 AMS 适配器。
+```text
+results/idm_ams/hierarchical_world_model/evt_tail_with_dimensions/
+├── subset/
+└── monte_carlo/
+```
+
+运行记录配置、组件来源和实际版本；选定参数后不在 Test 上重选。
+运行成功不等于概率已可靠，更不等于现实道路事故率；分布偏差和估计范围需随结果说明。

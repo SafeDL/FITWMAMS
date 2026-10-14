@@ -11,8 +11,8 @@ from typing import Any
 import numpy as np
 import torch
 
-from traffic_components.src.core.utils import file_sha256, save_json
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.utils import file_sha256, save_json
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
 )

@@ -14,18 +14,41 @@ from idm_ams.src import world_subset_runner
 from idm_ams.src import trafficbots_runner
 
 
-def test_formal_runner_rejects_a_dirty_worktree(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_shared_world_preflight_allows_dirty_worktree(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(
         world_subset_runner,
         "_run_provenance",
         lambda config: {"repository_commit": "abc", "worktree_dirty": True},
     )
-    with pytest.raises(
-        RuntimeError, match="formal IDM evaluation requires a clean worktree"
-    ):
-        world_subset_runner._require_formal_provenance({}, Path("."))
+    monkeypatch.setattr(
+        world_subset_runner,
+        "_world_config",
+        lambda *a: (
+            {"paths": {"evaluation_checkpoint": str(tmp_path / "shared.pt")}},
+            tmp_path / "world.yaml",
+        ),
+    )
+    monkeypatch.setattr(
+        world_subset_runner,
+        "load_selected_components",
+        lambda *a: (
+            {
+                "selected_arm": "rules_recovery",
+                "reference_recovery_enabled": True,
+                "source": "shared",
+            },
+            {},
+        ),
+    )
+    monkeypatch.setattr(
+        world_subset_runner,
+        "_require_tail_flow_quality",
+        lambda *a: {"tail_flow_quality_gates_passed": False},
+    )
+    result = world_subset_runner._require_formal_provenance({}, tmp_path)
+    assert result["worktree_dirty"]
+    assert result["reference_recovery_enabled"]
+    assert not result["tail_flow_quality_gates_passed"]
 
 
 def test_formal_trafficbots_runner_rejects_a_dirty_worktree(
@@ -68,23 +91,7 @@ def test_trafficbots_runner_rejects_historical_masked_checkpoint_scope(
         trafficbots_runner._require_trafficbots_provenance(config, tmp_path)
 
 
-def test_formal_runner_binds_manifest_to_the_current_world_artifact(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    checkpoint = tmp_path / "final_world_model.pt"
-    checkpoint.write_bytes(b"frozen world model")
-    manifest = checkpoint.with_name("final_model_manifest.json")
-    manifest.write_text(
-        json.dumps(
-            {
-                "checkpoint_sha256": world_subset_runner.file_sha256(checkpoint),
-                "code_commit": "abc",
-                "release_tag": "v1.0.0",
-                "worktree_clean_at_start": True,
-            }
-        ),
-        encoding="utf-8",
-    )
+def test_shared_world_preflight_rejects_mixed_components(tmp_path, monkeypatch):
     monkeypatch.setattr(
         world_subset_runner,
         "_run_provenance",
@@ -93,24 +100,49 @@ def test_formal_runner_binds_manifest_to_the_current_world_artifact(
     monkeypatch.setattr(
         world_subset_runner,
         "_world_config",
-        lambda config, config_dir: (
-            {"paths": {"evaluation_checkpoint": str(checkpoint)}},
-            tmp_path / "release.yaml",
+        lambda *a: (
+            {"paths": {"evaluation_checkpoint": str(tmp_path / "old.pt")}},
+            tmp_path / "world.yaml",
         ),
     )
-    monkeypatch.setattr(
-        world_subset_runner,
-        "release_provenance",
-        lambda **kwargs: {
-            "code_commit": "abc",
-            "release_tag": "v1.0.0",
-            "worktree_clean_at_start": True,
-        },
+
+    def reject(checkpoint):
+        raise ValueError("world components differ from the published shared chain")
+
+    monkeypatch.setattr(world_subset_runner, "load_selected_components", reject)
+    with pytest.raises(ValueError, match="published shared chain"):
+        world_subset_runner._require_formal_provenance({}, tmp_path)
+
+
+def test_tail_flow_distribution_deviation_is_reported_not_rejected(
+    tmp_path: Path,
+) -> None:
+    checkpoint = tmp_path / "tail_flow/checkpoints/best.pt"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_bytes(b"tail flow")
+    (checkpoint.parent.parent / "manifest.json").write_text(
+        json.dumps(
+            {
+                "population": "evt_tail",
+                "all_quality_gates_passed": False,
+            }
+        ),
+        encoding="utf-8",
     )
+    config = {"paths": {"flow_checkpoint": str(checkpoint)}}
 
-    provenance = world_subset_runner._require_formal_provenance({}, tmp_path)
+    result = world_subset_runner._require_tail_flow_quality(config, tmp_path)
+    assert not result["tail_flow_quality_gates_passed"]
 
-    assert provenance[
-        "formal_artifact_checkpoint_sha256"
-    ] == world_subset_runner.file_sha256(checkpoint)
-    assert provenance["formal_manifest_release_tag"] == "v1.0.0"
+
+def test_generated_world_still_requires_tail_flow(tmp_path):
+    checkpoint = tmp_path / "flow/checkpoints/best.pt"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_bytes(b"flow")
+    (checkpoint.parent.parent / "manifest.json").write_text(
+        json.dumps({"population": "natural", "all_quality_gates_passed": True})
+    )
+    with pytest.raises(RuntimeError, match="EVT-tail Flow"):
+        world_subset_runner._require_tail_flow_quality(
+            {"paths": {"flow_checkpoint": str(checkpoint)}}, tmp_path
+        )

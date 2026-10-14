@@ -1,0 +1,24 @@
+{
+  "checkpoint": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+  "checkpoint_mtime_ns": 1791307976402222219,
+  "checkpoint_size_bytes": 3193029,
+  "condition_dim": 68,
+  "ddim_steps": 20,
+  "evaluation_scope": "highd_all_background",
+  "experiment_scope": "full",
+  "initial_noise": "zero",
+  "inputs": {
+    "decoder": {
+      "mtime_ns": 1791652310746674261,
+      "path": "/home/hp/FITWMAMS/hierarchical_world_model/src/planner.py",
+      "size_bytes": 4095
+    },
+    "scenario_dataset": {
+      "mtime_ns": 1791272000315982551,
+      "path": "/home/hp/FITWMAMS/results/highd_shared_training_data/scenario_conditions/dataset.npz",
+      "size_bytes": 30514284
+    }
+  },
+  "sequences": 10151,
+  "target_representation": "single_smoothed_pchip_position_residual"
+}

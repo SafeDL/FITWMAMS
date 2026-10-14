@@ -1,0 +1,94 @@
+{
+  "sampled_val_distribution": {
+    "duration_s": {
+      "ks": 0.2159090909090909,
+      "model_q05_q50_q95": [
+        4.44,
+        5.6000000000000005,
+        6.89
+      ],
+      "observed_q05_q50_q95": [
+        4.968,
+        5.699999999999999,
+        7.156
+      ],
+      "wasserstein": 0.2845454545454546
+    },
+    "peak_vy_mps": {
+      "ks": 0.125,
+      "model_q05_q50_q95": [
+        0.7128882706165314,
+        1.0035337805747986,
+        1.320663332939148
+      ],
+      "observed_q05_q50_q95": [
+        0.8010000109672546,
+        1.0499999523162842,
+        1.2699999809265137
+      ],
+      "wasserstein": 0.04157171432267536
+    }
+  },
+  "selection": {
+    "execution": {
+      "completed_within_observed_exposure": 22,
+      "duration_error_s": {
+        "mean": 0.5545454545454547,
+        "q50_q95": [
+          0.43999999999999995,
+          1.23
+        ]
+      },
+      "events": 22,
+      "final_target_error_m": {
+        "mean": 0.007247112014076906,
+        "q50_q95": [
+          0.004353836178779602,
+          0.01744218468666076
+        ]
+      },
+      "lateral_RMSE_m": {
+        "mean": 0.203888123516332,
+        "q50_q95": [
+          0.18551699072122574,
+          0.35944157093763346
+        ]
+      },
+      "lateral_jerk_q99_mps3": {
+        "mean": 0.8935048094933684,
+        "q50_q95": [
+          0.9230894675850869,
+          1.2404534807801253
+        ]
+      },
+      "logged_jerk_q99_mps3": {
+        "mean": 0.44931837329810337,
+        "q50_q95": [
+          0.5000001034140586,
+          0.6258750879466535
+        ]
+      },
+      "longitudinal_condition_clipped_events": 0,
+      "maximum_vx_condition_error_mps": 3.814697265625e-06,
+      "peak_ay_mps2": {
+        "mean": 0.5048206705938686,
+        "q50_q95": [
+          0.5171566605567932,
+          0.6280071943998337
+        ]
+      },
+      "peak_vy_error_mps": {
+        "mean": 0.10987813093445518,
+        "q50_q95": [
+          0.12102970480918884,
+          0.20544867217540727
+        ]
+      }
+    },
+    "integration": "shared complete/window runtime kinematic_unicycle with actual longitudinal and normal-acceleration limits",
+    "parameter_choice": "existing Val-selected ridge1/frequency1.2; no new search",
+    "parameters_reselected": false,
+    "score": 0.2593426689708775,
+    "selection_evidence": "/home/hp/FITWMAMS/archive/hierarchical_world_model/main_chain_cleanup/results/lateral_event_validation/method_comparison.json"
+  }
+}

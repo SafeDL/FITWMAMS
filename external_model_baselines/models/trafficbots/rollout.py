@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 
-from traffic_components.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
 
 from .data import DT_S
 

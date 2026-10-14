@@ -50,12 +50,11 @@ paired branches never overwrite an online agent with its logged future state.
 It is intentionally labelled scene-conditioned posterior resimulation and is
 not interchangeable with the prior-only benchmark score.
 
-```bash
-conda run -n trafficbots-highd python -m \
-  npc_behavior_benchmark.scripts.evaluate_trafficbots_posterior_resimulation \
-  --limit 128
-```
+This old NPC-benchmark entry is retired. Its code is archived under
+`archive/hierarchical_world_model/benchmarks/npc_behavior/`; it is not another
+active world-model pipeline. Use the current TrafficBots scripts above for the
+maintained paper baseline.
 
 The retained report is
 `results/baselines/trafficbots_highd/posterior_resimulation.json`.
-The example writes `posterior_resimulation_run.json` in the same directory.
+This is retained historical evidence, not a rerun after the cleanup.

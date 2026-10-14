@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "ADE_matches_records": true,
+    "FDE_matches_records": true,
+    "P95_matches_samples": true,
+    "complete_test": true,
+    "condition_dim_68_without_dimensions": true,
+    "contacts_match_records": true,
+    "current_diffusion": true,
+    "jerk_P99_matches_samples": true,
+    "natural_train_and_val_only": true,
+    "recording_disjoint": true,
+    "report_matches_frozen_components": true,
+    "test_row_identity": true,
+    "test_scene_identity": true
+  },
+  "passed": true,
+  "scope": "current Test K_GT reconstruction and component provenance; ADS generation is a separate application, not required reconstruction evidence",
+  "split_sizes": {
+    "test": 10151,
+    "train": 72771,
+    "val": 13133
+  }
+}

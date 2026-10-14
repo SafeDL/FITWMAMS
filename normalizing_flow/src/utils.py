@@ -12,9 +12,9 @@ import numpy as np
 import yaml
 
 
-def setup_logging(level: str = "INFO") -> None:
+def setup_logging() -> None:
     logging.basicConfig(
-        level=getattr(logging, str(level).upper(), logging.INFO),
+        level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 
@@ -62,22 +62,19 @@ def ensure_dir(path: str | Path) -> Path:
 
 
 def set_seed(seed: int) -> None:
+    import torch
+
     random.seed(int(seed))
     np.random.seed(int(seed))
-    try:
-        import torch
-
-        torch.manual_seed(int(seed))
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(int(seed))
-    except ModuleNotFoundError:
-        pass
+    torch.manual_seed(int(seed))
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(int(seed))
 
 
 def select_device(name: str = "auto"):
     import torch
 
-    pref = str(name or "auto").lower()
+    pref = str(name).lower()
     if pref == "cpu":
         return torch.device("cpu")
     if pref == "cuda":
@@ -93,17 +90,9 @@ def add_local_nflows_to_path(repo_root: str | Path) -> Path:
     """Make the bundled nflows reference implementation importable."""
     import sys
 
-    nflows_root = Path(repo_root).resolve() / "ref_code" / "nflows-master"
+    nflows_root = Path(repo_root).resolve() / "external_resources" / "upstream_code" / "nflows-master"
     if not nflows_root.exists():
         raise FileNotFoundError(f"Bundled nflows tree not found: {nflows_root}")
     if str(nflows_root) not in sys.path:
         sys.path.insert(0, str(nflows_root))
     return nflows_root
-
-
-def repo_root_from_file(path: str | Path) -> Path:
-    p = Path(path).resolve()
-    for candidate in [p, *p.parents]:
-        if (candidate / "process_highD").exists() and (candidate / "ref_code").exists():
-            return candidate
-    raise RuntimeError(f"Could not infer repository root from {path}")

@@ -11,26 +11,24 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from hierarchical_world_model.src.protocol import load_protocol_config  # noqa: E402
+from hierarchical_world_model.src.config import load_protocol_config  # noqa: E402
 from hierarchical_world_model.src.train import train_world_model  # noqa: E402
-from traffic_components.src.core.utils import setup_logging  # noqa: E402
+from hierarchical_world_model.src.core.utils import setup_logging  # noqa: E402
 
-CONFIG = (
-    ROOT
-    / "hierarchical_world_model/config/world_model.yaml"
-)
+CONFIG = ROOT / "hierarchical_world_model/config.yaml"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Train the maintained hierarchical traffic world model."
     )
-    parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--stage", choices=("base", "stochastic_heads"), default="base")
     args = parser.parse_args()
-    config_path = args.config.resolve()
+    config_path = CONFIG
     setup_logging()
-    train_world_model(load_protocol_config(config_path), config_dir=ROOT, stage=args.stage)
+    train_world_model(
+        load_protocol_config(config_path), config_dir=ROOT, stage=args.stage
+    )
 
 
 if __name__ == "__main__":

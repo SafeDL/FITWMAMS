@@ -17,7 +17,8 @@ from idm_ams.src.multi_world_runner import (
     validate_comparison_contract,
 )
 from idm_ams.src.world_model_registry import get_world_model, world_model_ids
-from traffic_components.src.core.utils import file_sha256, load_json, save_json
+from hierarchical_world_model.src.core.utils import file_sha256, load_json, save_json
+from hierarchical_world_model.src.randomness import WORLD_RANDOM_BLOCKS
 
 
 def _config(tmp_path: Path, model_id: str) -> tuple[dict, Path]:
@@ -66,6 +67,7 @@ def _config(tmp_path: Path, model_id: str) -> tuple[dict, Path]:
 def test_registry_exposes_only_canonical_world_model_ids() -> None:
     assert world_model_ids() == ("factual_hiqr", "trafficbots")
     assert get_world_model("factual_hiqr").model_id == "factual_hiqr"
+    assert get_world_model("factual_hiqr").random_blocks == WORLD_RANDOM_BLOCKS
     assert get_world_model("trafficbots").model_id == "trafficbots"
     with pytest.raises(ValueError, match="unknown IDM world model"):
         get_world_model("HiQR")

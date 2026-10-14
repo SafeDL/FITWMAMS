@@ -17,8 +17,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from idm_ams.src.world_model_registry import get_world_model  # noqa: E402
-from traffic_components.src.core.utils import load_json, load_yaml, save_json  # noqa: E402
-from traffic_components.src.core.evaluation_scope import (  # noqa: E402
+from hierarchical_world_model.src.core.utils import load_json, load_yaml, save_json  # noqa: E402
+from hierarchical_world_model.src.core.evaluation_scope import (  # noqa: E402
     evaluation_scope_contract,
     scoped_agent_valid,
 )
@@ -125,9 +125,12 @@ def _diverse_factual_hiqr_cases(
     with np.load(subset_dir / "world_subset_final_population.npz") as population:
         response_randomness = (
             "diffusion_noise",
+            "driver_latent",
+            "maneuver_latent",
             "scene_innovations",
             "agent_response_innovations",
             "policy_response_innovations",
+            "policy_calibration_innovations",
         )
         metrics = (
             "evt_score",
@@ -163,7 +166,6 @@ def _diverse_factual_hiqr_cases(
             evaluator.policy,
             steps=evaluator.steps,
             evt_model=evaluator.evt_model,
-            reaction_controller=None,  # Match the stored factual-HiQR population.
         )
         for local, index in enumerate(indices):
             records.append(

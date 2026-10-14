@@ -134,7 +134,7 @@ def paired_intervention_losses(
     Each branch sees identical history at its first response boundary.  The
     changed ego control is then integrated, so a background action can change
     only at the following 25 Hz boundary.  This is the same causal contract
-    used by the offline ``ClosedLoopWorld`` and the held-out intervention
+    used by the HighwayEnv world and the held-out intervention
     evaluator; directly
     editing ``current`` would leak an unexecuted ego action into the policy.
     """
@@ -145,9 +145,7 @@ def paired_intervention_losses(
         for name, value in batch.items()
         if isinstance(value, torch.Tensor)
     }
-    responses_count = int(
-        round(0.8 / (model.cfg.execute_frames * model.cfg.dt_s))
-    )
+    responses_count = int(round(0.8 / (model.cfg.execute_frames * model.cfg.dt_s)))
     # These are drawn once, then addressed by response boundary and reused in
     # every nominal/treatment branch.  This is genuine common-random-number
     # training: a branch difference can no longer be reduced by resampling a
@@ -180,12 +178,15 @@ def paired_intervention_losses(
         agent_style_state = None
         previous_current = None
         committed_ego_controls = selected.get("committed_ego_controls")
+        controls_valid = selected.get("committed_ego_controls_valid")
         intervention_memory = None
         lateral_intervention_memory = None
         actions = []
         for response in range(responses_count):
             start = response * model.cfg.execute_frames
-            preview = selected["soft_reference"][:, start:]
+            preview = selected["soft_reference"][
+                :, start : start + model.cfg.preview_frames
+            ]
             if preview.shape[1] < model.cfg.preview_frames:
                 preview = torch.cat(
                     (
@@ -220,6 +221,7 @@ def paired_intervention_losses(
                 agent_noise_state=agent_noise_state,
                 agent_style_state=agent_style_state,
                 committed_ego_controls=committed_ego_controls,
+                committed_ego_controls_valid=controls_valid,
                 intervention_memory=intervention_memory,
                 lateral_intervention_memory=lateral_intervention_memory,
                 response_index=response,
@@ -240,19 +242,25 @@ def paired_intervention_losses(
                 controls = torch.cat(
                     (ego_control[:, None], output.mean[:, frame]), dim=1
                 )
-                current = model.dynamics.step(
-                    current, controls, valid, model.cfg.dt_s
-                )
+                current = model.dynamics.step(current, controls, valid, model.cfg.dt_s)
                 frames.append(current)
             if committed_ego_controls is not None:
                 committed_ego_controls = torch.cat(
                     (committed_ego_controls, ego_control[:, None]), dim=1
                 )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
+                if controls_valid is not None:
+                    controls_valid = torch.cat(
+                        (
+                            controls_valid,
+                            torch.ones(
+                                count, 1, dtype=torch.bool, device=current.device
+                            ),
+                        ),
+                        dim=1,
+                    )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
             block = torch.stack(frames, dim=1)
             block_valid = valid[:, None].expand(-1, len(frames), -1)
-            history = torch.cat((history, block), dim=1)[
-                :, -model.cfg.history_frames :
-            ]
+            history = torch.cat((history, block), dim=1)[:, -model.cfg.history_frames :]
             history_valid = torch.cat((history_valid, block_valid), dim=1)[
                 :, -model.cfg.history_frames :
             ]
@@ -330,9 +338,7 @@ def paired_intervention_losses(
             mild_bounds = bounds
             strong_bounds = bounds
         mild_effect = (sign * mild_delta).mean(dim=1)
-        strong_effect = (
-            sign * (strong[..., 0] - baseline[..., 0])
-        ).mean(dim=1)
+        strong_effect = (sign * (strong[..., 0] - baseline[..., 0])).mean(dim=1)
         strength_terms.append(
             masked_mean(
                 functional.relu(mild_bounds[..., 0] - mild_effect)
@@ -365,6 +371,7 @@ def closed_loop_factual_loss(
     *,
     maximum_sequences: int = 8,
     deterministic_forward: bool = True,
+    generator: torch.Generator | None = None,
 ) -> torch.Tensor:
     """Expose the 25 Hz policy to one second of logged closed-loop state drift."""
     count = min(int(maximum_sequences), len(batch["current"]))
@@ -381,11 +388,12 @@ def closed_loop_factual_loss(
     agent_style_state = None
     previous_current = None
     committed_ego_controls = selected.get("committed_ego_controls")
+    controls_valid = selected.get("committed_ego_controls_valid")
     intervention_memory = None
     lateral_intervention_memory = None
     predicted_states = []
     for step in range(selected["closed_ego_actions"].shape[1]):
-        preview = selected["soft_reference"][:, step:]
+        preview = selected["soft_reference"][:, step : step + model.cfg.preview_frames]
         if preview.shape[1] < model.cfg.preview_frames:
             preview = torch.cat(
                 (
@@ -417,10 +425,32 @@ def closed_loop_factual_loss(
             agent_noise_state=agent_noise_state,
             agent_style_state=agent_style_state,
             committed_ego_controls=committed_ego_controls,
+            committed_ego_controls_valid=controls_valid,
             intervention_memory=intervention_memory,
             lateral_intervention_memory=lateral_intervention_memory,
             response_index=step,
             deterministic=deterministic_forward,
+            scene_standard_normal=(
+                None
+                if deterministic_forward
+                else torch.randn(
+                    count,
+                    model.cfg.scene_latent_dim,
+                    device=current.device,
+                    generator=generator,
+                )
+            ),
+            agent_standard_normal=(
+                None
+                if deterministic_forward
+                else torch.randn(
+                    count,
+                    7,
+                    model.cfg.agent_latent_dim,
+                    device=current.device,
+                    generator=generator,
+                )
+            ),
         )
         controls = torch.cat(
             (selected["closed_ego_actions"][:, step, None], output.mean[:, 0]), dim=1
@@ -435,6 +465,14 @@ def closed_loop_factual_loss(
                 ),
                 dim=1,
             )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
+            if controls_valid is not None:
+                controls_valid = torch.cat(
+                    (
+                        controls_valid,
+                        torch.ones(count, 1, dtype=torch.bool, device=current.device),
+                    ),
+                    dim=1,
+                )[:, -model.cfg.intervention_trigger_history_frames - 1 :]
         predicted_states.append(current[:, 1:])
         history = torch.cat((history, current[:, None]), dim=1)[
             :, -model.cfg.history_frames :
@@ -454,7 +492,9 @@ def closed_loop_factual_loss(
     frame_valid = valid[:, None, 1:].expand(-1, predicted.shape[1], -1)
     position = torch.linalg.vector_norm(predicted[..., :2] - target[..., :2], dim=-1)
     velocity = torch.linalg.vector_norm(predicted[..., 2:4] - target[..., 2:4], dim=-1)
-    return masked_mean(position, frame_valid) + 0.25 * masked_mean(velocity, frame_valid)
+    return masked_mean(position, frame_valid) + 0.25 * masked_mean(
+        velocity, frame_valid
+    )
 
 
 def training_losses(
@@ -466,17 +506,21 @@ def training_losses(
     include_intervention: bool = True,
     intervention_sequences: int = 8,
     deterministic_forward: bool = False,
+    include_closed_loop: bool = True,
+    closed_loop_sequences: int | None = None,
+    generator: torch.Generator | None = None,
 ) -> dict[str, torch.Tensor]:
     output = model(
         batch["history"],
         batch["history_valid"],
         batch["current"],
         batch["current_valid"],
-        batch["soft_reference"],
+        batch["soft_reference"][:, : model.cfg.preview_frames],
         batch["reference_base"],
         batch["map_polylines"],
         batch["map_polyline_valid"],
         committed_ego_controls=batch.get("committed_ego_controls"),
+        committed_ego_controls_valid=batch.get("committed_ego_controls_valid"),
         scene_standard_normal=scene_noise,
         agent_standard_normal=agent_noise,
         deterministic=deterministic_forward,
@@ -496,24 +540,52 @@ def training_losses(
         terms["energy"] = terms["factual"].new_zeros(())
     else:
         second = model(
-            batch["history"], batch["history_valid"], batch["current"],
-            batch["current_valid"], batch["soft_reference"], batch["reference_base"],
-            batch["map_polylines"], batch["map_polyline_valid"],
-            scene_standard_normal=-scene_noise, agent_standard_normal=-agent_noise,
+            batch["history"],
+            batch["history_valid"],
+            batch["current"],
+            batch["current_valid"],
+            batch["soft_reference"][:, : model.cfg.preview_frames],
+            batch["reference_base"],
+            batch["map_polylines"],
+            batch["map_polyline_valid"],
+            committed_ego_controls=batch.get("committed_ego_controls"),
+            committed_ego_controls_valid=batch.get("committed_ego_controls_valid"),
+            scene_standard_normal=torch.randn(
+                scene_noise.shape,
+                device=scene_noise.device,
+                dtype=scene_noise.dtype,
+                generator=generator,
+            ),
+            agent_standard_normal=torch.randn(
+                agent_noise.shape,
+                device=agent_noise.device,
+                dtype=agent_noise.dtype,
+                generator=generator,
+            ),
             deterministic=False,
         )
         frame_valid = batch["current_valid"][:, None, 1:].expand(
             -1, output.actions.shape[1], -1
         )
         target_position = batch["target_states"][..., :2]
-        first_distance = torch.linalg.vector_norm(output.states[..., :2] - target_position, dim=-1)
-        second_distance = torch.linalg.vector_norm(second.states[..., :2] - target_position, dim=-1)
-        pair_distance = torch.linalg.vector_norm(output.states[..., :2] - second.states[..., :2], dim=-1)
-        terms["energy"] = masked_mean(0.5 * (first_distance + second_distance - pair_distance), frame_valid)
+        first_distance = torch.linalg.vector_norm(
+            output.states[..., :2] - target_position, dim=-1
+        )
+        second_distance = torch.linalg.vector_norm(
+            second.states[..., :2] - target_position, dim=-1
+        )
+        pair_distance = torch.linalg.vector_norm(
+            output.states[..., :2] - second.states[..., :2], dim=-1
+        )
+        terms["energy"] = masked_mean(
+            0.5 * (first_distance + second_distance - pair_distance), frame_valid
+        )
     if include_intervention:
         terms.update(
             paired_intervention_losses(
-                model, batch, maximum_sequences=intervention_sequences,
+                model,
+                batch,
+                maximum_sequences=intervention_sequences,
                 deterministic_forward=deterministic_forward,
             )
         )
@@ -529,10 +601,17 @@ def training_losses(
         )
     terms["closed_loop_factual"] = (
         closed_loop_factual_loss(
-            model, batch, maximum_sequences=intervention_sequences,
+            model,
+            batch,
+            maximum_sequences=(
+                intervention_sequences
+                if closed_loop_sequences is None
+                else closed_loop_sequences
+            ),
             deterministic_forward=deterministic_forward,
+            generator=generator,
         )
-        if include_intervention
+        if include_closed_loop
         else terms["factual"].new_zeros(())
     )
     terms["loss"] = (

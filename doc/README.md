@@ -1,5 +1,7 @@
-# 项目文档
+# 文档索引
 
-`style.md` 是代码和文件组织规范。`Traffic_World_Model_Convergence.md` 记录当前世界模型的技术方案与收敛结论；`ADS_Behavior_World_Model_Assessment.md` 和 `HighD_Behavior_World_Model_Evaluation.md` 保存评估口径与阶段性分析。
+研究方案见 [论文 idea](研究方案整理+20260926.pdf)，工程目标与实施顺序见
+[总索引](00_总索引与实施顺序.md)。编码和结果整理约定见 [style.md](style.md)。
 
-`00_Common_Protocol.md` 及 `01_`–`04_` 文档描述驾驶人模型对照的共同协议和具体方法，不是当前在线世界模型的运行入口。
+`01`–`12` 文档记录原始设计；2026-09-29 范围修订见总索引。T09 搜索已退役，T10 中依赖搜索的正式矩阵不再实施。实际完成情况和指标以
+[`results/`](../results/README.md) 下的原始报告为准；方案中的目标值不等于已验证结果。

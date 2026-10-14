@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 from scipy.spatial import cKDTree
-from traffic_components.src.core.evaluation_scope import scoped_canonical_trajectory
+from hierarchical_world_model.src.core.evaluation_scope import scoped_canonical_trajectory
 
 
 def _condition_key(

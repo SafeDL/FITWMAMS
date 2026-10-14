@@ -1,6 +1,6 @@
 # Multi-regime B-IDM：highD documented adaptation
 
-本目录对应 `doc/03_Multi_Regime_B_IDM.md` 和 Wu et al. (2025) 的多机制随机跟驰框架。当前实现保留论文的三层结构：
+本目录实现 Wu et al. (2025) 的多机制随机跟驰框架。当前实现保留论文的三层结构：
 
 1. 以平均时距、最大加速度和最大减速度进行三类驾驶风格聚类；
 2. 以 `[gap, speed, closing speed]` 进行显式持续时间状态分段；
@@ -42,7 +42,7 @@ python -m external_model_baselines.models.multi_regime_bidm.scripts.evaluate_rec
 python -m external_model_baselines.models.multi_regime_bidm.scripts.visualize_recording_heldout
 ```
 
-`src/driver.py::MultiRegimeIDMDriver` 明确分开 `observe` 与 `decision`：prefix初始化后只用已实现状态更新过滤器，episode内保留联合regime参数。这个小队列留出诊断只与独立拟合且共享创新的pooled baseline比较；共同协议见 [`doc/00_Common_Protocol.md`](../../../doc/00_Common_Protocol.md)。
+`src/driver.py::MultiRegimeIDMDriver` 明确分开 `observe` 与 `decision`：prefix初始化后只用已实现状态更新过滤器，episode内保留联合regime参数。这个小队列留出诊断只与独立拟合且共享创新的pooled baseline比较；共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
 
 该driver已接入论文主项目，但由于欠覆盖默认被注册表拒绝。研究诊断必须显式执行：
 `python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model multi_regime --style-id 1 --allow-unaccepted`。

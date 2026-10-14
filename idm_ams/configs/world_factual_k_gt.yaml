@@ -1,0 +1,32 @@
+# Held-out highD factual evaluation with logged long-horizon position knots.
+
+paths:
+  world_model_config: ../../hierarchical_world_model/config.yaml
+  evt_model: ../../results/evt/evt_model.json
+  idm_ego_config: ../../tools/idm_ego.yaml
+
+simulation:
+  steps: 149
+  ddim_steps: 20
+  execution_backend: local_highway_env
+
+test_space:
+  kind: empirical_test_fixed_k_gt
+  split: test
+
+evaluation_scope:
+  schema: highd_all_background
+  excluded_background_slots: []
+
+runtime:
+  device: auto
+  batch_size: 32
+
+failure_event:
+  return_period: 100
+
+test_sweep:
+  response_draws_per_context: 1
+  max_contexts: 0
+  seed: 20260927
+  output_dir: ../../results/idm_ams/hierarchical_world_model/factual_k_gt_with_dimensions

@@ -3,24 +3,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import hashlib
 from pathlib import Path
 
 import numpy as np
 
-TRAFFICBOTS_RNG_SCHEMA = "trafficbots_idm_rng_v1"
+TRAFFICBOTS_RNG_SCHEMA = "trafficbots_idm_rng_with_dimensions"
 TRAFFICBOTS_RANDOM_BLOCKS = (
     "scenario_uniform",
     "c0_base_latent",
     "personality_latent",
     "destination_uniform",
 )
+TRAFFICBOTS_RANDOM_STREAMS = {
+    "scenario_uniform": 1,
+    "c0_base_latent": 2,
+    "personality_latent": 3,
+    "destination_uniform": 4,
+}
 
 
 def _block_rng(seed: int, block: str) -> np.random.Generator:
-    material = f"{TRAFFICBOTS_RNG_SCHEMA}:{int(seed)}:{block}".encode("utf-8")
-    child_seed = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
-    return np.random.default_rng(child_seed)
+    stream = TRAFFICBOTS_RANDOM_STREAMS[block]
+    return np.random.default_rng(np.random.SeedSequence((int(seed), 2, stream)))
 
 
 @dataclass(frozen=True)
@@ -46,7 +50,7 @@ class TrafficBotsExogenousState:
         n = self.batch_size
         expected = {
             "scenario_uniform": (n,),
-            "c0_base_latent": (n, 40),
+            "c0_base_latent": (n, 26),
             "personality_latent": (n, 8, int(latent_dim)),
             "destination_uniform": (n, 8),
         }
@@ -76,7 +80,7 @@ class TrafficBotsExogenousState:
                 int(n), dtype=np.float64
             ),
             c0_base_latent=_block_rng(seed, "c0_base_latent").standard_normal(
-                (int(n), 40), dtype=np.float32
+                (int(n), 26), dtype=np.float32
             ),
             personality_latent=_block_rng(seed, "personality_latent").standard_normal(
                 (int(n), 8, int(latent_dim)), dtype=np.float32
@@ -85,7 +89,6 @@ class TrafficBotsExogenousState:
                 (int(n), 8), dtype=np.float64
             ),
         )
-        state.validate(latent_dim=latent_dim)
         return state
 
     def as_dict(self) -> dict[str, np.ndarray]:

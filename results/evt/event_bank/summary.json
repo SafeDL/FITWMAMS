@@ -1,0 +1,26 @@
+{
+  "schema": "fitwmams_testing_event_bank_v2",
+  "events": 96055,
+  "evt_fit_threshold_u": 0.5346742868423462,
+  "target_exceedance_rate": 0.03085732132632346,
+  "split_counts": {
+    "test": 10151,
+    "train": 72771,
+    "val": 13133
+  },
+  "cohort_counts": {
+    "normal": 2964,
+    "empirical": 2964,
+    "evt": 2496
+  },
+  "interaction_groups": 46582,
+  "interaction_grouping": {
+    "min_shared_actors": 2,
+    "min_actor_overlap": 0.5,
+    "max_group_span_windows": 2.0,
+    "transitive_merge": false
+  },
+  "untracked_higher_risk_events": 7689,
+  "evt_model": "/home/hp/FITWMAMS/results/evt/evt_model.json",
+  "source_segment_csv": "/home/hp/FITWMAMS/results/evt/natural_segments.csv"
+}

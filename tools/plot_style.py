@@ -1,4 +1,5 @@
 """Shared plotting style for paper-oriented result figures."""
+
 from __future__ import annotations
 
 import os
@@ -6,9 +7,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 REAL_COLOR = "#4C78A8"
 GENERATED_COLOR = "#F58518"
+SAMPLED_COLOR = "#54A24B"
 REFERENCE_COLOR = "#333333"
 PAPER_FIGURE_DPI = 300
 PAPER_SERIF_FONTS = [
@@ -49,6 +50,8 @@ PAPER_PANEL_RC = {
     "savefig.bbox": "tight",
     "savefig.pad_inches": 0.04,
 }
+
+
 def configure_matplotlib() -> Any:
     """Configure matplotlib for deterministic, serif, mathtext-ready figures."""
     cache_dir = Path(tempfile.gettempdir()) / "tread_matplotlib_cache"

@@ -9,7 +9,7 @@ neighbor slots assigned at the anchor frame.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -42,33 +42,11 @@ class NaturalSegmentOptions:
     window_steps: int = 150
     anchor_stride_steps: int = 150
     min_ego_speed_mps: float = 5.0
-    require_passenger_car_ego: bool = True
-    require_ego_no_abnormal: bool = True
-    require_valid_ego_lane_full_window: bool = True
     max_slot_longitudinal_distance_m: float = 150.0
-    require_stable_background_slots: bool = True
-    require_complete_lateral_events: bool = True
     lateral_pre_cross_steps: int = 25
     lateral_post_cross_steps: int = 50
     lateral_stable_steps: int = 5
-    excluded_risk_slots: tuple[str, ...] = ()
-    sei: SafetyEnvelopeRiskOptions = field(default_factory=SafetyEnvelopeRiskOptions)
-
-    def __post_init__(self) -> None:
-        if not self.require_stable_background_slots:
-            raise ValueError(
-                "highD natural-segment cleaning requires C0-active background "
-                "slots to remain valid through the complete window; "
-                "require_stable_background_slots cannot be disabled"
-            )
-        if not self.require_complete_lateral_events:
-            raise ValueError(
-                "highD natural-segment cleaning requires complete lateral "
-                "events; require_complete_lateral_events cannot be disabled"
-            )
-        unknown = set(self.excluded_risk_slots) - set(SLOT_NAMES)
-        if unknown:
-            raise ValueError(f"unknown excluded risk slots: {sorted(unknown)}")
+    sei: SafetyEnvelopeRiskOptions = SafetyEnvelopeRiskOptions()
 
     @property
     def total_steps(self) -> int:
@@ -76,59 +54,39 @@ class NaturalSegmentOptions:
 
 
 def options_from_config(config: dict[str, Any]) -> NaturalSegmentOptions:
-    sampling = dict(config.get("sampling", {}))
-    segment = dict(config.get("segments", {}))
-    risk = dict(config.get("risk", {}))
-    fps = float(sampling.get("target_fps", 25))
-    window_seconds = float(segment.get("window_seconds", 6.0))
+    sampling = config["sampling"]
+    segment = config["segments"]
+    fps = float(sampling["target_fps"])
+    window_seconds = float(segment["window_seconds"])
     window_steps = int(round(window_seconds * fps))
     anchor_stride_steps = int(
-        round(float(segment.get("anchor_stride_seconds", window_seconds)) * fps)
+        round(float(segment["anchor_stride_seconds"]) * fps)
     )
     return NaturalSegmentOptions(
         fps=fps,
-        window_steps=max(window_steps, 1),
-        anchor_stride_steps=max(anchor_stride_steps, 1),
-        min_ego_speed_mps=float(segment.get("min_ego_speed_mps", 5.0)),
-        require_passenger_car_ego=bool(segment.get("require_passenger_car_ego", True)),
-        require_ego_no_abnormal=bool(segment.get("require_ego_no_abnormal", True)),
-        require_valid_ego_lane_full_window=bool(
-            segment.get("require_valid_ego_lane_full_window", True)
-        ),
+        window_steps=window_steps,
+        anchor_stride_steps=anchor_stride_steps,
+        min_ego_speed_mps=float(segment["min_ego_speed_mps"]),
         max_slot_longitudinal_distance_m=float(
-            segment.get("max_slot_longitudinal_distance_m", 150.0)
+            segment["max_slot_longitudinal_distance_m"]
         ),
-        require_stable_background_slots=bool(
-            segment.get("require_stable_background_slots", True)
+        lateral_pre_cross_steps=int(
+            round(float(segment["lateral_pre_cross_seconds"]) * fps)
         ),
-        require_complete_lateral_events=bool(
-            segment.get("require_complete_lateral_events", True)
+        lateral_post_cross_steps=int(
+            round(float(segment["lateral_post_cross_seconds"]) * fps)
         ),
-        lateral_pre_cross_steps=max(
-            1,
-            int(round(float(segment.get("lateral_pre_cross_seconds", 1.0)) * fps)),
-        ),
-        lateral_post_cross_steps=max(
-            1,
-            int(round(float(segment.get("lateral_post_cross_seconds", 2.0)) * fps)),
-        ),
-        lateral_stable_steps=max(1, int(segment.get("lateral_stable_steps", 5))),
-        excluded_risk_slots=tuple(
-            str(value) for value in segment.get("excluded_risk_slots", ())
-        ),
-        sei=SafetyEnvelopeRiskOptions.from_config(risk, fps=fps),
+        lateral_stable_steps=int(segment["lateral_stable_steps"]),
+        sei=SafetyEnvelopeRiskOptions.from_config(config["risk"]),
     )
 
 
 def validate_lateral_integrity(
     rows: pd.DataFrame,
     *,
-    required: bool,
     source: str,
 ) -> None:
     """Reject stale downstream data built before lateral-event cleaning."""
-    if not required:
-        return
     column = "lateral_event_complete"
     if column not in rows.columns:
         raise RuntimeError(
@@ -145,12 +103,9 @@ def validate_lateral_integrity(
 def validate_stable_background_slots(
     rows: pd.DataFrame,
     *,
-    required: bool,
     source: str,
 ) -> None:
     """Reject downstream data not cleaned for full-horizon slot stability."""
-    if not required:
-        return
     column = "background_slots_stable"
     if column not in rows.columns:
         raise RuntimeError(
@@ -167,24 +122,15 @@ def validate_stable_background_slots(
 def validate_natural_segment_contract(
     rows: pd.DataFrame,
     *,
-    options: NaturalSegmentOptions,
     source: str,
 ) -> None:
     """Require every downstream consumer to use the one cleaned cohort."""
-    validate_lateral_integrity(
-        rows,
-        required=options.require_complete_lateral_events,
-        source=source,
-    )
-    validate_stable_background_slots(
-        rows,
-        required=options.require_stable_background_slots,
-        source=source,
-    )
+    validate_lateral_integrity(rows, source=source)
+    validate_stable_background_slots(rows, source=source)
 
 
 def _is_passenger_car(meta_row: pd.Series) -> bool:
-    return str(meta_row.get("class", "")).strip().lower() == "car"
+    return str(meta_row["class"]).strip().lower() == "car"
 
 
 def _lateral_sign(driving_direction: int) -> float:
@@ -196,9 +142,7 @@ def _lateral_sign(driving_direction: int) -> float:
 def _lane_left_coordinate(
     lane_id: int, lane_info: dict[str, Any], direction: int
 ) -> float:
-    lane = lane_info.get("lanes", {}).get(int(lane_id))
-    if lane is None:
-        return float("nan")
+    lane = lane_info["lanes"][int(lane_id)]
     return _lateral_sign(direction) * float(lane["center"])
 
 
@@ -208,7 +152,7 @@ def _adjacent_lanes_ego_left(
     direction: int,
 ) -> tuple[int | None, int | None]:
     lanes_key = "direction_1_lanes" if int(direction) == 1 else "direction_2_lanes"
-    lane_ids = [int(value) for value in lane_info.get(lanes_key, [])]
+    lane_ids = [int(value) for value in lane_info[lanes_key]]
     if int(lane_id) not in lane_ids:
         return None, None
 
@@ -247,9 +191,8 @@ def _build_vehicle_cache(recording: Any) -> dict[int, dict[str, Any]]:
         if not continuous:
             frame_to_pos = {int(frame): idx for idx, frame in enumerate(frames)}
         row = meta.loc[vid]
-        direction = int(row.get("drivingDirection", 0))
+        direction = int(row["drivingDirection"])
         lat_sign = _lateral_sign(direction)
-        zeros = np.zeros(frames.size, dtype=np.float32)
         cache[vid] = {
             "id": vid,
             "frames": frames,
@@ -261,37 +204,22 @@ def _build_vehicle_cache(recording: Any) -> dict[int, dict[str, Any]]:
             "y": track["y"].to_numpy(dtype=np.float32, copy=True),
             "y_left": (lat_sign * track["y"].to_numpy(dtype=np.float32, copy=True)),
             "vx": track["xVelocity"].to_numpy(dtype=np.float32, copy=True),
-            "vy": track.get("yVelocity", pd.Series(zeros, index=track.index)).to_numpy(
-                dtype=np.float32,
-                copy=True,
-            ),
+            "vy": track["yVelocity"].to_numpy(dtype=np.float32, copy=True),
             "vy_left": (
                 lat_sign
-                * track.get("yVelocity", pd.Series(zeros, index=track.index)).to_numpy(
-                    dtype=np.float32,
-                    copy=True,
-                )
+                * track["yVelocity"].to_numpy(dtype=np.float32, copy=True)
             ),
-            "ax": track.get(
-                "xAcceleration",
-                pd.Series(zeros, index=track.index),
-            ).to_numpy(dtype=np.float32, copy=True),
+            "ax": track["xAcceleration"].to_numpy(dtype=np.float32, copy=True),
             "ay_left": (
                 lat_sign
-                * track.get(
-                    "yAcceleration",
-                    pd.Series(zeros, index=track.index),
-                ).to_numpy(dtype=np.float32, copy=True)
+                * track["yAcceleration"].to_numpy(dtype=np.float32, copy=True)
             ),
             "lane": track["laneId"].to_numpy(dtype=np.int16, copy=True),
-            "abnormal": track.get(
-                "_abnormal",
-                pd.Series(False, index=track.index),
-            ).to_numpy(dtype=bool, copy=True),
-            "length": float(row.get("width", np.nan)),
-            "lat_width": float(row.get("height", np.nan)),
+            "abnormal": track["_abnormal"].to_numpy(dtype=bool, copy=True),
+            "length": float(row["width"]),
+            "lat_width": float(row["height"]),
             "direction": direction,
-            "class": str(row.get("class", "")),
+            "class": str(row["class"]),
         }
     return cache
 
@@ -319,18 +247,6 @@ def _position_at(vehicle: dict[str, Any], frame: int) -> int | None:
             return None
         return frame_i - int(vehicle["initial"])
     return vehicle["frame_to_pos"].get(frame_i)
-
-
-def _has_full_range(vehicle: dict[str, Any], start_frame: int, steps: int) -> bool:
-    if steps <= 0:
-        return False
-    end_frame = int(start_frame) + int(steps) - 1
-    if vehicle["continuous"]:
-        return int(start_frame) >= vehicle["initial"] and end_frame <= vehicle["final"]
-    frame_to_pos = vehicle["frame_to_pos"]
-    return all(
-        int(frame) in frame_to_pos for frame in range(int(start_frame), end_frame + 1)
-    )
 
 
 def _slice_range(
@@ -424,7 +340,7 @@ def _select_slots_at_anchor(
     slot_dist = np.full(len(SLOT_NAMES), np.inf, dtype=np.float64)
     ego_x = float(ego["x"][ego_pos])
     counts: Counter[str] = Counter()
-    for other_id in frame_index.get(int(anchor_frame), np.asarray([], dtype=np.int64)):
+    for other_id in frame_index[int(anchor_frame)]:
         oid = int(other_id)
         if oid == int(ego_id) or oid not in vehicles:
             continue
@@ -466,9 +382,7 @@ def _background_slots_stable(
     for vehicle_id in np.asarray(slot_ids, dtype=np.int64):
         if int(vehicle_id) < 0:
             continue
-        vehicle = vehicles.get(int(vehicle_id))
-        if vehicle is None:
-            return False, "background_slot_not_found"
+        vehicle = vehicles[int(vehicle_id)]
         selector, present = _slice_range(vehicle, start_frame, window_steps)
         if not bool(np.all(present)):
             return False, "background_slot_exits_window"
@@ -488,13 +402,10 @@ def compute_segment_risk(
     slot_ids: np.ndarray,
     vehicles: dict[int, dict[str, Any]],
     options: NaturalSegmentOptions,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     window_steps = int(options.total_steps)
     ego = vehicles[int(ego_id)]
     ego_selector, ego_valid = _slice_range(ego, int(anchor_frame), window_steps)
-    if not bool(np.all(ego_valid)):
-        raise ValueError("ego must be present for the complete risk window")
-
     ego_ax = _values(ego, "ax", ego_selector, ego_valid)
     components = np.zeros((window_steps, len(RISK_COMPONENT_NAMES)), dtype=np.float32)
 
@@ -505,15 +416,10 @@ def compute_segment_risk(
     ego_ay_left = _values(ego, "ay_left", ego_selector, ego_valid)
     pair_sei_scores: list[np.ndarray] = []
     slot_pair_matrix = np.zeros((window_steps, len(SLOT_NAMES)), dtype=np.float32)
-    slot_time_mask = np.zeros((window_steps, len(SLOT_NAMES)), dtype=bool)
     for slot_idx, vehicle_id in enumerate(np.asarray(slot_ids, dtype=np.int64)):
-        if SLOT_NAMES[slot_idx] in options.excluded_risk_slots:
-            continue
         if int(vehicle_id) < 0:
             continue
-        other = vehicles.get(int(vehicle_id))
-        if other is None:
-            continue
+        other = vehicles[int(vehicle_id)]
         other_selector, other_present = _slice_range(
             other,
             int(anchor_frame),
@@ -528,7 +434,6 @@ def compute_segment_risk(
                     np.asarray(other_selector)[other_present]
                 ]
         valid = other_present & ~other_abnormal
-        slot_time_mask[:, slot_idx] = valid
         other_x = _values(other, "x", other_selector, valid)
         other_y_left = _values(other, "y_left", other_selector, valid)
         other_vx = _values(other, "vx", other_selector, valid)
@@ -608,7 +513,6 @@ def compute_segment_risk(
     return (
         risk_trace.astype(np.float32),
         components.astype(np.float32),
-        slot_time_mask,
         risk_info,
     )
 
@@ -647,7 +551,7 @@ def _collect_untracked_candidate_ids(
         if right_lane is not None:
             candidate_lanes.add(int(right_lane))
         ego_x = float(ego["x"][ego_pos])
-        for other_id in frame_index.get(frame, np.asarray([], dtype=np.int64)):
+        for other_id in frame_index[frame]:
             oid = int(other_id)
             if oid == int(ego_id) or oid in slot_vehicle_ids or oid not in vehicles:
                 continue
@@ -686,13 +590,11 @@ def _vehicle_between(
     target_x = float(vehicles[target_id]["x"][target_pos])
     if target_x <= ego_x:
         return True
-    for vehicle_id in frame_index.get(frame, np.asarray([], dtype=np.int64)):
+    for vehicle_id in frame_index[frame]:
         other_id = int(vehicle_id)
         if other_id in {ego_id, target_id}:
             continue
-        other = vehicles.get(other_id)
-        if other is None:
-            continue
+        other = vehicles[other_id]
         position = _position_at(other, frame)
         if position is None or bool(other["abnormal"][position]):
             continue
@@ -763,9 +665,7 @@ def _audit_lateral_events(
     events: list[tuple[int, int, int, int]] = []
     rejection = ""
     for vehicle_id in sorted(set(vehicle_ids)):
-        vehicle = vehicles.get(int(vehicle_id))
-        if vehicle is None:
-            continue
+        vehicle = vehicles[int(vehicle_id)]
         selector, present = _slice_range(vehicle, start_frame, int(options.total_steps))
         lane = _values(vehicle, "lane", selector, present, fill_value=-1).astype(
             np.int16
@@ -830,22 +730,11 @@ def compute_untracked_audit(
     lane_info: dict[str, Any],
     options: NaturalSegmentOptions,
     tracked_peak_pair_risk: float,
+    candidate_ids: list[int],
 ) -> dict[str, Any]:
     window_steps = int(options.total_steps)
     ego = vehicles[int(ego_id)]
     ego_selector, ego_valid = _slice_range(ego, int(anchor_frame), window_steps)
-    if not bool(np.all(ego_valid)):
-        raise ValueError("ego must be present for the complete untracked audit window")
-
-    candidate_ids = _collect_untracked_candidate_ids(
-        ego_id=int(ego_id),
-        anchor_frame=int(anchor_frame),
-        slot_ids=slot_ids,
-        vehicles=vehicles,
-        frame_index=frame_index,
-        lane_info=lane_info,
-        options=options,
-    )
     if not candidate_ids:
         return {
             "num_untracked_candidates": 0,
@@ -866,9 +755,7 @@ def compute_untracked_audit(
     best_id = -1
     best_offset = -1
     for other_id in candidate_ids:
-        other = vehicles.get(int(other_id))
-        if other is None:
-            continue
+        other = vehicles[int(other_id)]
         if not (np.isfinite(other["length"]) and np.isfinite(other["lat_width"])):
             continue
         other_selector, other_present = _slice_range(
@@ -933,16 +820,14 @@ def _valid_lanes_for_direction(
     direction: int,
 ) -> bool:
     lanes_key = "direction_1_lanes" if int(direction) == 1 else "direction_2_lanes"
-    allowed = {int(value) for value in lane_info.get(lanes_key, [])}
-    if not allowed:
-        return False
+    allowed = {int(value) for value in lane_info[lanes_key]}
     return all(int(value) in allowed for value in np.asarray(lane_values).ravel())
 
 
 def build_natural_segments_for_recording(
     recording: Any,
     options: NaturalSegmentOptions,
-) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, dict[str, Any]]:
+) -> tuple[pd.DataFrame, np.ndarray, dict[str, Any]]:
     """Build fixed-length natural segment metadata and risk traces."""
     lane_info = parse_lane_markings(recording.recording_meta)
     vehicles = _build_vehicle_cache(recording)
@@ -950,13 +835,12 @@ def build_natural_segments_for_recording(
 
     rows: list[dict[str, Any]] = []
     risk_traces: list[np.ndarray] = []
-    slot_masks: list[np.ndarray] = []
     reject: Counter[str] = Counter()
 
     for ego_id in recording.tracks_meta.index:
         ego_id = int(ego_id)
         ego_meta = recording.tracks_meta.loc[ego_id]
-        if options.require_passenger_car_ego and not _is_passenger_car(ego_meta):
+        if not _is_passenger_car(ego_meta):
             reject["ego_not_passenger_car"] += 1
             continue
         ego = vehicles[ego_id]
@@ -998,16 +882,13 @@ def build_natural_segments_for_recording(
                 total_lane = ego["lane"][positions]
                 anchor_pos = positions[0]
 
-            if options.require_ego_no_abnormal and bool(np.any(total_abnormal)):
+            if bool(np.any(total_abnormal)):
                 reject["ego_abnormal_total_window"] += 1
                 continue
-            if (
-                options.require_valid_ego_lane_full_window
-                and not _valid_lanes_for_direction(
-                    total_lane,
-                    lane_info,
-                    int(ego["direction"]),
-                )
+            if not _valid_lanes_for_direction(
+                total_lane,
+                lane_info,
+                int(ego["direction"]),
             ):
                 reject["ego_invalid_lane_total_window"] += 1
                 continue
@@ -1034,7 +915,7 @@ def build_natural_segments_for_recording(
                 window_steps=int(options.total_steps),
                 vehicles=vehicles,
             )
-            if options.require_stable_background_slots and not slots_stable:
+            if not slots_stable:
                 reject[slot_reject_reason] += 1
                 continue
             untracked_ids = _collect_untracked_candidate_ids(
@@ -1060,12 +941,10 @@ def build_natural_segments_for_recording(
                 frame_index=frame_index,
                 lane_info=lane_info,
             )
-            if options.require_complete_lateral_events and not bool(
-                lateral_audit["complete"]
-            ):
+            if not bool(lateral_audit["complete"]):
                 reject[f"incomplete_{lateral_audit['reject_reason']}"] += 1
                 continue
-            risk_trace, components, slot_time_mask, risk_info = compute_segment_risk(
+            risk_trace, components, risk_info = compute_segment_risk(
                 ego_id=ego_id,
                 anchor_frame=int(anchor_frame),
                 slot_ids=slot_ids,
@@ -1081,8 +960,9 @@ def build_natural_segments_for_recording(
                 lane_info=lane_info,
                 options=options,
                 tracked_peak_pair_risk=float(risk_info["peak_pair_risk"]),
+                candidate_ids=untracked_ids,
             )
-            event_risk = float(np.max(risk_trace))
+            event_risk = float(risk_trace[-1])
             peak_offset = int(np.argmax(risk_trace))
             max_components = np.max(components, axis=0)
 
@@ -1141,27 +1021,19 @@ def build_natural_segments_for_recording(
             }
             for slot_idx, slot_name in enumerate(SLOT_NAMES):
                 row[f"{slot_name}_id"] = int(slot_ids[slot_idx])
-                presence_fraction = float(np.mean(slot_time_mask[:, slot_idx]))
-                row[f"{slot_name}_window_presence_fraction"] = presence_fraction
             for comp_idx, comp_name in enumerate(RISK_COMPONENT_NAMES):
                 row[f"max_{comp_name}"] = float(max_components[comp_idx])
 
             rows.append(row)
             risk_traces.append(risk_trace)
-            slot_masks.append(slot_time_mask)
 
     if risk_traces:
         risk_array = np.stack(risk_traces, axis=0).astype(np.float32)
-        slot_mask_array = np.stack(slot_masks, axis=0)
     else:
         risk_array = np.zeros((0, int(options.total_steps)), dtype=np.float32)
-        slot_mask_array = np.zeros(
-            (0, int(options.total_steps), len(SLOT_NAMES)),
-            dtype=bool,
-        )
     summary = {
         "recording_id": int(recording.recording_id),
         "num_segments": int(len(rows)),
         "reject_counts": {key: int(value) for key, value in sorted(reject.items())},
     }
-    return pd.DataFrame(rows), risk_array, slot_mask_array, summary
+    return pd.DataFrame(rows), risk_array, summary

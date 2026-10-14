@@ -1,6 +1,6 @@
 # Dynamic-AR IDM（highD，25 Hz）
 
-本目录对应 `doc/02_Dynamic_AR_IDM.md`，实现 Zhang、Wang 与 Sun（2024）的随机驾驶人模型：
+本目录实现 Zhang、Wang 与 Sun（2024）的随机驾驶人模型：
 
 ```text
 a_t = IDM(h_t; theta) + e_t
@@ -74,6 +74,6 @@ pytest -q external_model_baselines/models/dynamic_ar_idm/tests
 
 当前拟合采用作者 highD speed likelihood，不把论文联合位置/速度似然误称为已实现。作者 notebook 使用共享 `rho`，本实现保持这一约定。NUTS 的 R-hat、ESS、divergence、BFMI 与 AR 平稳性均显式写入报告。
 
-`model.py::DynamicIDMDriver` 保留episode参数、最新在前的残差历史和外生创新；plant限幅不反写AR状态。AR(0)/AR(5) 重跑分别写入 `dynamic_ar0_full_posterior_stationarity.json` 和 `dynamic_ar5_full_posterior_stationarity.json`，不会再互相覆盖。本模块的同驾驶人评测不可与 out-of-fold MA-IDM 排名；共同协议见 [`doc/00_Common_Protocol.md`](../../../doc/00_Common_Protocol.md)。
+`model.py::DynamicIDMDriver` 保留episode参数、最新在前的残差历史和外生创新；plant限幅不反写AR状态。AR(0)/AR(5) 重跑分别写入 `dynamic_ar0_full_posterior_stationarity.json` 和 `dynamic_ar5_full_posterior_stationarity.json`，不会再互相覆盖。本模块的同驾驶人评测不可与 out-of-fold MA-IDM 排名；共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
 
 论文主项目接入：`python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model dynamic_ar5`。接入层只部署平稳MAP rho；未收敛NUTS和非平稳Laplace抽样仍保留为审计证据。

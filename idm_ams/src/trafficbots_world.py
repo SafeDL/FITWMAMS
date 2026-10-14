@@ -11,12 +11,12 @@ import torch
 
 from hierarchical_world_model.src.highway import HighwayEnvTraffic
 from normalizing_flow.src.features import SLOT_NAMES, feature_index
-from normalizing_flow.src.sampling import load_checkpoint_and_dataset
+from normalizing_flow.src.scenario import load_checkpoint as load_flow_checkpoint
 from external_model_baselines.models.trafficbots.data import adapt_highd_batch
 from external_model_baselines.models.trafficbots.evaluation import (
     load_checkpoint as load_trafficbots_checkpoint,
 )
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     scoped_slot_mask,
 )
@@ -35,6 +35,7 @@ class TrafficBotsInitialWorld:
     map_polylines: np.ndarray
     map_polyline_valid: np.ndarray
     exogenous_state: TrafficBotsExogenousState
+    vehicle_dimensions: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -43,22 +44,21 @@ class TrafficBotsIDMRollout:
     initial_valid: np.ndarray
     ego_actions: np.ndarray
     background_actions: np.ndarray
+    vehicle_dimensions: np.ndarray
 
 
 def _initial_states_from_c0(c0: np.ndarray, slot_mask: np.ndarray) -> np.ndarray:
     """Restore `[batch,7,6]` states without importing diffusion code."""
     values = np.asarray(c0, np.float32)
     slots = np.asarray(slot_mask, bool)
-    if values.ndim != 2 or values.shape[1] != 40 or slots.shape != (len(values), 6):
-        raise ValueError("C0/slot mask must have shapes [batch,40]/[batch,6]")
+    if values.ndim != 2 or values.shape[1] != 26 or slots.shape != (len(values), 6):
+        raise ValueError("C0/slot mask must have shapes [batch,26]/[batch,6]")
     states = np.zeros((len(values), 7, 6), np.float32)
-    states[:, 0, 2:] = values[
+    states[:, 0, 2:4] = values[
         :,
         [
             feature_index(None, "ego_vx_mps"),
             feature_index(None, "ego_vy_left_mps"),
-            feature_index(None, "ego_ax_mps2"),
-            feature_index(None, "ego_ay_left_mps2"),
         ],
     ]
     for slot, name in enumerate(SLOT_NAMES):
@@ -71,8 +71,8 @@ def _initial_states_from_c0(c0: np.ndarray, slot_mask: np.ndarray) -> np.ndarray
                 + values[active, feature_index(name, "rel_vx_mps")],
                 states[active, 0, 3]
                 + values[active, feature_index(name, "rel_vy_left_mps")],
-                values[active, feature_index(name, "other_ax_mps2")],
-                values[active, feature_index(name, "other_ay_left_mps2")],
+                np.zeros(active.sum(), np.float32),
+                np.zeros(active.sum(), np.float32),
             ),
             axis=-1,
         )
@@ -98,17 +98,17 @@ class TrafficBotsInitialSampler:
         self,
         *,
         flow_checkpoint: str | Path,
-        flow_output_dir: str | Path,
         repo_root: str | Path,
         device: str | torch.device,
     ) -> None:
         self.device = torch.device(device)
-        self.flow, _, _, _ = load_checkpoint_and_dataset(
+        self.flow, payload = load_flow_checkpoint(
             flow_checkpoint,
-            flow_output_dir,
             repo_root=repo_root,
             device=self.device,
         )
+        if payload.get("metrics", {}).get("population") != "evt_tail":
+            raise ValueError("generated ADS tests require an EVT-tail Flow checkpoint")
         self.flow.eval()
         self.evaluation_scope = evaluation_scope_contract()
 
@@ -117,9 +117,11 @@ class TrafficBotsInitialSampler:
         self, exogenous_state: TrafficBotsExogenousState
     ) -> TrafficBotsInitialWorld:
         exogenous_state.validate()
-        c0, slot_mask = self.flow.sample_initial_conditions_from_base_randomness(
-            exogenous_state.scenario_uniform,
-            exogenous_state.c0_base_latent,
+        c0, slot_mask, dimensions = (
+            self.flow.sample_initial_conditions_from_base_randomness(
+                exogenous_state.scenario_uniform,
+                exogenous_state.c0_base_latent,
+            )
         )
         slot_mask = np.asarray(scoped_slot_mask(slot_mask), bool)
         states = _initial_states_from_c0(c0, slot_mask)
@@ -134,6 +136,9 @@ class TrafficBotsInitialSampler:
             map_polylines=polylines,
             map_polyline_valid=map_valid,
             exogenous_state=exogenous_state,
+            vehicle_dimensions=np.where(
+                valid[..., None], dimensions, (4.8, 1.8)
+            ).astype(np.float32),
         )
 
 
@@ -222,6 +227,7 @@ class TrafficBotsHighwayEnvWorld:
             sample.map_polylines,
             sample.map_polyline_valid,
         )
+        adapted["agent/size"][:, :7, :2] = sample.vehicle_dimensions
         self.batch = self.module._move(
             {name: torch.from_numpy(value.copy()) for name, value in adapted.items()},
             self.device,
@@ -253,7 +259,12 @@ class TrafficBotsHighwayEnvWorld:
         for index in range(len(states)):
             traffic = HighwayEnvTraffic(dt_s=0.04, seed=index)
             realized.append(
-                traffic.reset(states[index], valid[index], idm_config=self.idm_config)
+                traffic.reset(
+                    states[index],
+                    valid[index],
+                    idm_config=self.idm_config,
+                    vehicle_dimensions=sample.vehicle_dimensions[index],
+                )
             )
             self.traffic.append(traffic)
         realized_tensor = torch.from_numpy(np.stack(realized)).to(self.device)
@@ -368,4 +379,5 @@ def rollout_trafficbots_idm(
         initial_valid=sample.initial_valid.copy(),
         ego_actions=np.stack(ego_actions, axis=1).astype(np.float32),
         background_actions=np.stack(background_actions, axis=1).astype(np.float32),
+        vehicle_dimensions=sample.vehicle_dimensions.copy(),
     )

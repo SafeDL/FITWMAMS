@@ -5,9 +5,24 @@ import numpy as np
 from hierarchical_world_model.src.randomness import WorldExogenousState
 from hierarchical_world_model.src.empirical_context import EmpiricalKWorldState
 from idm_ams.src.idm_policy import HighwayEnvIDMPolicy
+from idm_ams.src.metrics import collision_and_min_gap
 from idm_ams.src.world_evaluator import WorldEvaluation
 from idm_ams.src.world_subset_simulation import run_world_subset_simulation
 from idm_ams.src.world_subset_simulation import _mutated_world
+
+
+def test_actual_length_changes_collision_and_clearance() -> None:
+    states = np.zeros((2, 1, 7, 6), np.float32)
+    states[:, :, 1, 0] = 7.0
+    valid = np.zeros((2, 7), bool)
+    valid[:, :2] = True
+    dimensions = np.full((2, 7, 2), (4.8, 1.8), np.float32)
+    dimensions[1, 1, 0] = 16.0
+
+    collision, gap = collision_and_min_gap(states, valid, dimensions)
+
+    np.testing.assert_array_equal(collision, [False, True])
+    np.testing.assert_allclose(gap, [2.2, 0.0])
 
 
 def test_idm_policy_is_a_highway_env_marker() -> None:
@@ -122,7 +137,10 @@ def test_empirical_k_world_mutation_never_resamples_c0_or_k() -> None:
     assert proposal.as_dict().keys() == {
         "test_row_uniform",
         "diffusion_noise",
+        "driver_latent",
+        "maneuver_latent",
         "scene_innovations",
         "agent_response_innovations",
         "policy_response_innovations",
+        "policy_calibration_innovations",
     }

@@ -3,7 +3,7 @@
 This directory adapts the core model from
 https://github.com/zhejz/TrafficBotsV1.5 (snapshot commit
 `9a379084adbefe9df005c4eae69e7a56c360a396`, mirrored in
-`ref_code/TrafficBotsV1.5-main`). Copied upstream files retain their original
+`external_resources/upstream_code/TrafficBotsV1.5-main`). Copied upstream files retain their original
 CC BY-NC 4.0 license headers.
 
 The vendored model/utility files are unchanged except for:

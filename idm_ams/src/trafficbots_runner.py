@@ -9,14 +9,14 @@ import numpy as np
 
 from tools.evt import load_evt_model
 from tools.idm_ego import load_idm_ego_config
-from traffic_components.src.core.utils import (
+from hierarchical_world_model.src.core.utils import (
     file_sha256,
     load_json,
     load_yaml,
     save_json,
     select_device,
 )
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
     require_scoped_evt_model,
@@ -38,6 +38,7 @@ from .world_subset_runner import (
     _level_rows,
     _monte_carlo_uncertainty,
     _resolve_path,
+    _require_tail_flow_quality,
     _run_provenance,
     _save_final_population,
     _save_top_cases,
@@ -76,8 +77,12 @@ def _require_trafficbots_provenance(
     actual = file_sha256(checkpoint)
     if declared != actual:
         raise RuntimeError("TrafficBots audit does not match the selected checkpoint")
+    repo_root = Path(__file__).resolve().parents[2]
+    common_path = _resolve_path(config["paths"]["common_world_config"], config_dir)
+    tail_flow_quality = _require_tail_flow_quality(load_yaml(common_path), repo_root)
     return {
         **run,
+        **tail_flow_quality,
         "trafficbots_checkpoint_sha256": actual,
         "trafficbots_acceptance_sha256": file_sha256(acceptance),
         "trafficbots_audit_sha256": file_sha256(audit),
@@ -105,10 +110,8 @@ def _build_evaluator(
     evt_path = _resolve_path(config["paths"]["evt_model"], config_dir)
     require_scoped_evt_model(evt_path)
     flow_checkpoint = _resolve_path(common["paths"]["flow_checkpoint"], repo_root)
-    flow_output = _resolve_path(common["paths"]["flow_output_dir"], repo_root)
     initial_sampler = TrafficBotsInitialSampler(
         flow_checkpoint=flow_checkpoint,
-        flow_output_dir=flow_output,
         repo_root=repo_root,
         device=device,
     )
@@ -130,7 +133,9 @@ def _build_evaluator(
         "device": str(device),
         "execution_backend": backend,
         "background_dynamics_contract": TRAFFICBOTS_IDM_DYNAMICS_CONTRACT,
-        "initial_scene_prior": "shared_external_Flow_p(M,C0); no K enters TrafficBots",
+        "initial_scene_prior": (
+            "shared external EVT-tail Flow p(M,C0); no K enters TrafficBots"
+        ),
         "common_world_config": str(common_path),
         "common_world_config_sha256": file_sha256(common_path),
         "flow_checkpoint": str(flow_checkpoint),
@@ -199,6 +204,7 @@ def run_trafficbots_subset_from_config(
         "estimator": "adaptive_multilevel_splitting_pcn_subset_simulation",
         "formal": bool(formal),
         "probability": result.probability,
+        "probability_scope": "conditional_on_evt_tail_initial_state_prior",
         "final_failure_fraction": result.final_failure_fraction,
         "failure_event": target,
         "stop_reason": result.stop_reason,
@@ -214,7 +220,7 @@ def run_trafficbots_subset_from_config(
             "pcn_beta": float(settings["pcn_beta"]),
             "mcmc_steps": int(settings["mcmc_steps"]),
         },
-        "world_prior": "p_ext(M,C0) * N(Z;0,I) * U(destination_base)",
+        "world_prior": "p_tail_ext(M,C0) * N(Z;0,I) * U(destination_base)",
         "evaluation_contract": {
             "population_scope": evaluation_scope_contract(),
             "steps": int(config["simulation"].get("steps", 149)),
@@ -310,10 +316,11 @@ def run_trafficbots_monte_carlo_from_config(
         "estimator": "independent_monte_carlo",
         "formal": bool(formal),
         "probability": probability,
+        "probability_scope": "conditional_on_evt_tail_initial_state_prior",
         "failure_count": int(failure.sum()),
         "failure_event": target,
         "simulation_counts": {"world_evaluations": total},
-        "world_prior": "p_ext(M,C0) * N(Z;0,I) * U(destination_base)",
+        "world_prior": "p_tail_ext(M,C0) * N(Z;0,I) * U(destination_base)",
         "evaluation_contract": {
             "population_scope": evaluation_scope_contract(),
             "steps": int(config["simulation"].get("steps", 149)),

@@ -4,58 +4,158 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import numpy as np
 import torch
 
+from .scene_geometry import (
+    torch_adjacent_lane_index,
+    torch_map_lane_geometry,
+    torch_nearest_lane_geometry,
+)
 
 ROLE_NONE = 0
 ROLE_SAME_LANE_FOLLOWER = 1
 ROLE_CUTIN_CONFLICT = 2
 ROLE_ADJACENT_FOLLOWER = 3
-ROLE_SECONDARY_FOLLOWER = 4
 
 
-def dynamic_candidate_scene_mask(
-    states: np.ndarray,
-    valid: np.ndarray,
+@dataclass(frozen=True)
+class DynamicInteractionRelations:
+    """Current actor relations, recomputed once before every joint action."""
+
+    lane_index: torch.Tensor
+    leader_index: torch.Tensor
+    leader_gap_m: torch.Tensor
+    leader_ttc_s: torch.Tensor
+    adjacent_front_index: torch.Tensor
+    adjacent_rear_index: torch.Tensor
+    adjacent_lane_index: torch.Tensor
+    crossing_conflict: torch.Tensor
+
+
+def build_dynamic_interaction_relations(
+    states: torch.Tensor,
+    valid: torch.Tensor,
+    map_polylines: torch.Tensor,
+    map_polyline_valid: torch.Tensor,
     *,
-    rows: np.ndarray | None = None,
-    start_frame: int = 24,
-    stop_frame: int = 173,
-    radius_m: float = 50.0,
+    vehicle_lengths_m: torch.Tensor | None = None,
+    lane_half_width_m: float = 1.8,
     prediction_horizon_s: float = 1.5,
-    batch_size: int = 2048,
-) -> np.ndarray:
-    """Offline-only scene selection using the union over observed frames.
+) -> DynamicInteractionRelations:
+    """Resolve leaders and adjacent-lane neighbors from realized state only."""
+    if states.ndim != 3 or states.shape[1:] != (7, 6):
+        raise ValueError("states must have shape [batch,7,6]")
+    if valid.shape != states.shape[:2]:
+        raise ValueError("valid must have shape [batch,7]")
+    lane_y, lane_present, lane_width = torch_map_lane_geometry(
+        map_polylines,
+        map_polyline_valid,
+        fallback_width_m=2.0 * float(lane_half_width_m),
+    )
+    lane_index, _, current_width, _ = torch_nearest_lane_geometry(
+        states[..., 1], lane_y, lane_present, lane_width
+    )
+    actor_half_width = 0.5 * current_width
+    batch, actors = states.shape[:2]
+    other = states[:, None]
+    follower = states[:, :, None]
+    dx = other[..., 0] - follower[..., 0]
+    dy = other[..., 1] - follower[..., 1]
+    future_dy = dy + (other[..., 3] - follower[..., 3]) * float(prediction_horizon_s)
+    overlap = (
+        torch.minimum(dy.abs(), future_dy.abs()) < actor_half_width[..., None]
+    ) | (dy * future_dy <= 0.0)
+    identity = torch.eye(actors, dtype=torch.bool, device=states.device)[None]
+    candidate = valid[:, :, None] & valid[:, None, :] & ~identity & dx.gt(0.0) & overlap
+    lengths = (
+        torch.full(states.shape[:2], 4.8, dtype=states.dtype, device=states.device)
+        if vehicle_lengths_m is None
+        else torch.as_tensor(
+            vehicle_lengths_m, dtype=states.dtype, device=states.device
+        )
+    )
+    if lengths.shape != states.shape[:2]:
+        raise ValueError("vehicle_lengths_m must have shape [batch,7]")
+    pair_length = 0.5 * (lengths[:, :, None] + lengths[:, None, :])
+    gap = dx - pair_length
+    closing = follower[..., 2] - other[..., 2]
+    projected_gap = gap - closing * float(prediction_horizon_s)
+    unsafe = candidate & projected_gap.lt(
+        torch.maximum(torch.full_like(projected_gap, 2.0), 0.1 * follower[..., 2])
+    )
+    nearest_score = torch.where(candidate, gap, torch.full_like(gap, float("inf")))
+    risk_score = torch.where(unsafe, projected_gap, torch.full_like(gap, float("inf")))
+    leader_index = torch.where(
+        unsafe.any(dim=-1), risk_score.argmin(dim=-1), nearest_score.argmin(dim=-1)
+    )
+    has_leader = candidate.any(dim=-1)
+    selected_gap = torch.gather(gap, 2, leader_index[..., None]).squeeze(-1)
+    selected_closing = torch.gather(closing, 2, leader_index[..., None]).squeeze(-1)
+    selected_ttc = torch.where(
+        has_leader & selected_gap.gt(0.0) & selected_closing.gt(1.0e-4),
+        selected_gap / selected_closing.clamp_min(1.0e-4),
+        torch.full_like(selected_gap, float("inf")),
+    )
+    leader_index = torch.where(
+        has_leader, leader_index, torch.full_like(leader_index, -1)
+    )
+    selected_gap = torch.where(
+        has_leader, selected_gap.clamp_min(0.05), torch.full_like(selected_gap, 1.0e6)
+    )
 
-    Future logged states are used only to decide whether a recording belongs
-    in the training/evaluation population.  They are never exposed to the
-    online influence graph or controller.
-    """
-    values, present = np.asarray(states), np.asarray(valid, bool)
-    indices = np.arange(len(values), dtype=np.int64) if rows is None else np.asarray(rows, np.int64)
-    selected = np.zeros(len(indices), dtype=bool)
-    stop = min(int(stop_frame), values.shape[1])
-    for begin in range(0, len(indices), max(int(batch_size), 1)):
-        end = min(begin + max(int(batch_size), 1), len(indices))
-        source = indices[begin:end]
-        window = values[source, int(start_frame):stop]
-        mask = present[source, int(start_frame):stop, 1:]
-        relative = window[:, :, 1:, :2] - window[:, :, :1, :2]
-        distance = np.linalg.norm(relative, axis=-1)
-        rear_sector = (
-            (relative[..., 0] <= 5.0) & (relative[..., 0] >= -float(radius_m))
-            & (distance <= float(radius_m))
+    # Side axis is [-y, +y].  Resolve nearest front and rear independently.
+    adjacent_front = torch.full(
+        (batch, actors, 2), -1, dtype=torch.long, device=states.device
+    )
+    adjacent_rear = torch.full_like(adjacent_front, -1)
+    adjacent_lane = torch.full_like(adjacent_front, -1)
+    for side_index, side in enumerate((-1.0, 1.0)):
+        target, has_target = torch_adjacent_lane_index(
+            lane_index, lane_y, lane_present, lane_width, side=int(side)
         )
-        rel_vy = window[:, :, 1:, 3] - window[:, :, :1, 3]
-        future_dy = relative[..., 1] + rel_vy * float(prediction_horizon_s)
-        swept = (
-            (np.abs(relative[..., 1]) >= 1.8)
-            & (np.minimum(np.abs(relative[..., 1]), np.abs(future_dy)) < 1.8)
-            & (distance <= float(radius_m))
+        safe_target = target.clamp_min(0)
+        adjacent_lane[..., side_index] = torch.where(
+            has_target, safe_target, torch.full_like(target, -1)
         )
-        selected[begin:end] = (mask & (rear_sector | swept)).any(axis=(1, 2))
-    return selected
+        in_target = lane_index[:, None, :].eq(safe_target[:, :, None])
+        common = (
+            valid[:, :, None]
+            & valid[:, None, :]
+            & ~identity
+            & in_target
+            & has_target[..., None]
+        )
+        front_score = torch.where(
+            common & dx.gt(0.0), dx, torch.full_like(dx, float("inf"))
+        )
+        rear_score = torch.where(
+            common & dx.lt(0.0), -dx, torch.full_like(dx, float("inf"))
+        )
+        front = front_score.argmin(dim=-1)
+        rear = rear_score.argmin(dim=-1)
+        adjacent_front[..., side_index] = torch.where(
+            torch.isfinite(front_score.amin(dim=-1)), front, torch.full_like(front, -1)
+        )
+        adjacent_rear[..., side_index] = torch.where(
+            torch.isfinite(rear_score.amin(dim=-1)), rear, torch.full_like(rear, -1)
+        )
+    crossing = (
+        valid[:, :, None]
+        & valid[:, None, :]
+        & ~identity
+        & ~(dy.abs() < actor_half_width[..., None])
+        & overlap
+    )
+    return DynamicInteractionRelations(
+        lane_index=lane_index,
+        leader_index=leader_index,
+        leader_gap_m=selected_gap,
+        leader_ttc_s=selected_ttc,
+        adjacent_front_index=adjacent_front,
+        adjacent_rear_index=adjacent_rear,
+        adjacent_lane_index=adjacent_lane,
+        crossing_conflict=crossing,
+    )
 
 
 @dataclass(frozen=True)
@@ -104,35 +204,37 @@ class CausalInfluenceGraph:
         self,
         *,
         radius_m: float = 50.0,
-        enable_secondary: bool = False,
-        secondary_radius_m: float = 35.0,
         prediction_horizon_s: float = 1.5,
         lane_half_width_m: float = 1.8,
         release_ttc_s: float = 4.0,
         stable_release_frames: int = 13,
         recovery_frames: int = 15,
-        secondary_authority_decay: float = 0.6,
         activation_brake_mps2: float = 0.5,
     ) -> None:
         self.radius_m = float(radius_m)
-        self.enable_secondary = bool(enable_secondary)
-        self.secondary_radius_m = float(secondary_radius_m)
         self.prediction_horizon_s = float(prediction_horizon_s)
         self.lane_half_width_m = float(lane_half_width_m)
         self.release_ttc_s = float(release_ttc_s)
         self.stable_release_frames = int(stable_release_frames)
         self.recovery_frames = int(recovery_frames)
         self.activation_brake_mps2 = max(float(activation_brake_mps2), 0.0)
-        if not 0.0 < float(secondary_authority_decay) < 1.0:
-            raise ValueError("secondary authority decay must lie inside (0, 1)")
-        self.secondary_authority_decay = float(secondary_authority_decay)
 
     @staticmethod
-    def _pair_metrics(parent: torch.Tensor, child: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    def _pair_metrics(
+        parent: torch.Tensor,
+        child: torch.Tensor,
+        parent_length: torch.Tensor | None = None,
+        child_length: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, ...]:
         dx = child[..., 0] - parent[..., 0]
         dy = child[..., 1] - parent[..., 1]
         closing = child[..., 2] - parent[..., 2]
-        gap = -dx - 4.8
+        pair_length = (
+            torch.full_like(dx, 4.8)
+            if parent_length is None or child_length is None
+            else 0.5 * (parent_length + child_length)
+        )
+        gap = -dx - pair_length
         ttc = torch.where(
             (gap > 0.0) & (closing > 1.0e-4),
             gap / closing.clamp_min(1.0e-4),
@@ -147,28 +249,67 @@ class CausalInfluenceGraph:
         history: torch.Tensor,
         previous: InfluenceGraphState | None,
         previous_background_actions: torch.Tensor | None = None,
+        *,
+        relations: DynamicInteractionRelations | None = None,
+        vehicle_dimensions: torch.Tensor | None = None,
     ) -> InfluenceGraphState:
         batch = len(current)
         old = previous or InfluenceGraphState.empty(batch, device=current.device)
         ego = current[:, :1]
         npc = current[:, 1:]
-        dx, dy, gap, closing, ttc = self._pair_metrics(ego, npc)
+        dimensions = (
+            torch.full(
+                (*current.shape[:2], 2), 0.0, dtype=current.dtype, device=current.device
+            )
+            if vehicle_dimensions is None
+            else torch.as_tensor(
+                vehicle_dimensions, dtype=current.dtype, device=current.device
+            )
+        )
+        if vehicle_dimensions is None:
+            dimensions[..., 0] = 4.8
+            dimensions[..., 1] = 1.8
+        if dimensions.shape != (*current.shape[:2], 2):
+            raise ValueError("vehicle_dimensions must have shape [batch,7,2]")
+        dx, dy, gap, closing, ttc = self._pair_metrics(
+            ego, npc, dimensions[:, :1, 0], dimensions[:, 1:, 0]
+        )
         distance = torch.sqrt(dx.square() + dy.square())
-        same_lane = dy.abs() < self.lane_half_width_m
+        same_lane = dy.abs() < 0.5 * (dimensions[:, :1, 1] + dimensions[:, 1:, 1])
         rear_sector = (dx <= 5.0) & (dx >= -self.radius_m) & (distance <= self.radius_m)
 
         # Constant-velocity swept-corridor test.  It catches adjacent cut-ins
         # without consuming a planned or future ego command.
         rel_vy = npc[..., 3] - ego[..., 3]
         future_dy = dy + rel_vy * self.prediction_horizon_s
-        lane_overlap = torch.minimum(dy.abs(), future_dy.abs()) < self.lane_half_width_m
+        lane_overlap = torch.minimum(dy.abs(), future_dy.abs()) < 0.5 * (
+            dimensions[:, :1, 1] + dimensions[:, 1:, 1]
+        )
         future_dx = dx + (npc[..., 2] - ego[..., 2]) * self.prediction_horizon_s
-        swept_gap = torch.minimum(dx.abs(), future_dx.abs()) - 4.8
+        swept_gap = torch.minimum(dx.abs(), future_dx.abs()) - 0.5 * (
+            dimensions[:, :1, 0] + dimensions[:, 1:, 0]
+        )
         adjacent = (~same_lane) & lane_overlap & (distance <= self.radius_m)
-        following_risk = same_lane & (dx < 0.0) & (gap > 0.0) & (
-            (ttc < self.release_ttc_s) | (gap < 30.0)
+        following_risk = (
+            same_lane
+            & (dx < 0.0)
+            & (gap > 0.0)
+            & ((ttc < self.release_ttc_s) | (gap < 30.0))
         )
         cutin_risk = adjacent & (swept_gap < 12.0)
+        if relations is not None:
+            relation_leader = relations.leader_index[:, 1:]
+            relation_crossing = relations.crossing_conflict[:, 1:, 0]
+            same_lane = relations.lane_index[:, 1:].eq(relations.lane_index[:, :1])
+            adjacent = relation_crossing
+            ego_is_leader = relation_leader.eq(0)
+            gap = torch.where(ego_is_leader, relations.leader_gap_m[:, 1:], gap)
+            ttc = torch.where(ego_is_leader, relations.leader_ttc_s[:, 1:], ttc)
+            following_risk = relation_leader.eq(0) & (
+                (relations.leader_ttc_s[:, 1:] < self.release_ttc_s)
+                | (relations.leader_gap_m[:, 1:] < 30.0)
+            )
+            cutin_risk = relation_crossing & (swept_gap < 12.0)
         # Scope is intentionally broader than an emergency trigger.  It says
         # which local relations a residual policy may inspect; the policy can
         # still select an exact zero correction when HiQR is already suitable.
@@ -197,41 +338,13 @@ class CausalInfluenceGraph:
             torch.full_like(role, ROLE_ADJACENT_FOLLOWER),
             role,
         )
-        parent = torch.where(direct, torch.zeros_like(old.parent), torch.full_like(old.parent, -1))
+        parent = torch.where(
+            direct, torch.zeros_like(old.parent), torch.full_like(old.parent, -1)
+        )
 
-        # Chained propagation is an inactive compatibility path.  The
-        # maintained direct-control scope is ego-to-follower response, so this
-        # path cannot affect training, factual reconstruction, or ADS testing.
+        # NPC-to-NPC responses use physical leaders in the online controller,
+        # not a second-level authority label in this ego stimulus graph.
         secondary = torch.zeros_like(direct)
-        secondary_ttc = torch.full_like(ttc, float("inf"))
-        secondary_gap = torch.full_like(gap, float("inf"))
-        for parent_slot in (range(6) if self.enable_secondary else ()):
-            parent_active = direct[:, parent_slot]
-            if not bool(parent_active.any()):
-                continue
-            leader = npc[:, parent_slot : parent_slot + 1]
-            child_dx, child_dy, child_gap, child_closing, child_ttc = self._pair_metrics(leader, npc)
-            parent_braking = (
-                torch.zeros(batch, dtype=torch.bool, device=current.device)
-                if previous_background_actions is None
-                else previous_background_actions[:, parent_slot, 0] < -0.5
-            )
-            candidate = (
-                parent_active[:, None]
-                & valid[:, 1:]
-                & (torch.arange(6, device=current.device)[None] != parent_slot)
-                & (child_dx < 0.0)
-                & (child_gap > 0.0)
-                & (child_gap < self.secondary_radius_m)
-                & (child_dy.abs() < self.lane_half_width_m)
-                & ((child_ttc < self.release_ttc_s) | parent_braking[:, None])
-            )
-            new_edge = candidate & ~direct & ~secondary
-            secondary |= new_edge
-            parent = torch.where(new_edge, torch.full_like(parent, parent_slot + 1), parent)
-            secondary_ttc = torch.where(new_edge, child_ttc, secondary_ttc)
-            secondary_gap = torch.where(new_edge, child_gap, secondary_gap)
-        role = torch.where(secondary, torch.full_like(role, ROLE_SECONDARY_FOLLOWER), role)
 
         conflict = direct | secondary
         # Release only after conflict has cleared and distance has been opening
@@ -239,7 +352,9 @@ class CausalInfluenceGraph:
         if history.shape[1] >= 2:
             old_ego = history[:, -2, :1]
             old_npc = history[:, -2, 1:]
-            old_distance = torch.linalg.vector_norm(old_npc[..., :2] - old_ego[..., :2], dim=-1)
+            old_distance = torch.linalg.vector_norm(
+                old_npc[..., :2] - old_ego[..., :2], dim=-1
+            )
             opening = distance > old_distance
         else:
             opening = torch.zeros_like(conflict)
@@ -252,7 +367,8 @@ class CausalInfluenceGraph:
         # accumulating; otherwise the first clear frame would reset the phase
         # and the configured release counter could never reach its threshold.
         safe_frames = torch.where(
-            safe & old.phase.eq(1), old.safe_frames + 1,
+            safe & old.phase.eq(1),
+            old.safe_frames + 1,
             torch.where(conflict, torch.zeros_like(old.safe_frames), old.safe_frames),
         )
         begin_recovery = old.phase.eq(1) & (safe_frames >= self.stable_release_frames)
@@ -264,7 +380,11 @@ class CausalInfluenceGraph:
             torch.where(
                 begin_recovery | continuing_recovery,
                 torch.full_like(old.phase, 2),
-                torch.where(continuing_clearing, torch.ones_like(old.phase), torch.zeros_like(old.phase)),
+                torch.where(
+                    continuing_clearing,
+                    torch.ones_like(old.phase),
+                    torch.zeros_like(old.phase),
+                ),
             ),
         )
         recovery = torch.where(
@@ -273,40 +393,40 @@ class CausalInfluenceGraph:
             torch.where(
                 begin_recovery,
                 torch.full_like(old.recovery_remaining, self.recovery_frames),
-                torch.where(continuing_recovery, old.recovery_remaining - 1, torch.zeros_like(old.recovery_remaining)),
+                torch.where(
+                    continuing_recovery,
+                    old.recovery_remaining - 1,
+                    torch.zeros_like(old.recovery_remaining),
+                ),
             ),
         )
-        # A second-level follower receives less authority than a directly
-        # affected agent.  This prevents a small upstream intervention from
-        # being amplified as it propagates through the traffic chain.
-        base_authority = torch.where(
-            direct,
-            torch.ones_like(distance),
+        base_authority = direct.to(distance.dtype)
+        authority = (
             torch.where(
-                secondary,
-                torch.full_like(distance, self.secondary_authority_decay),
-                torch.zeros_like(distance),
-            ),
+                phase.eq(2),
+                recovery.to(distance) / float(max(self.recovery_frames, 1)),
+                torch.where(continuing_clearing, old.authority, base_authority),
+            )
+            * valid[:, 1:].float()
         )
-        authority = torch.where(
-            phase.eq(2),
-            recovery.to(distance) / float(max(self.recovery_frames, 1)),
-            torch.where(continuing_clearing, old.authority, base_authority),
-        ) * valid[:, 1:].float()
         # Recovery is still part of the same causal episode.  Retaining the
         # last role and parent keeps its feature semantics stable while the
         # continuous authority envelope returns the vehicle to HiQR.
         retained_episode = phase.ne(0)
         role = torch.where(retained_episode & role.eq(ROLE_NONE), old.role, role)
         parent = torch.where(retained_episode & parent.lt(0), old.parent, parent)
-        direct = torch.where(retained_episode & ~direct & old.direct, old.direct, direct)
-        secondary = torch.where(retained_episode & ~secondary & old.secondary, old.secondary, secondary)
-        age = torch.where(phase.ne(0), old.age_frames + 1, torch.zeros_like(old.age_frames))
-        predicted_ttc = torch.where(secondary, secondary_ttc, ttc)
+        direct = torch.where(
+            retained_episode & ~direct & old.direct, old.direct, direct
+        )
+        secondary = torch.where(
+            retained_episode & ~secondary & old.secondary, old.secondary, secondary
+        )
+        age = torch.where(
+            phase.ne(0), old.age_frames + 1, torch.zeros_like(old.age_frames)
+        )
+        predicted_ttc = ttc
         min_gap = torch.where(
-            secondary,
-            secondary_gap,
-            torch.where(direct, torch.minimum(gap, swept_gap), torch.full_like(gap, float("inf"))),
+            direct, torch.minimum(gap, swept_gap), torch.full_like(gap, float("inf"))
         )
         return InfluenceGraphState(
             authority=authority,

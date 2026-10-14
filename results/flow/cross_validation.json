@@ -1,0 +1,86 @@
+{
+  "protocol": "recording_group_5_fold_fixed_epochs_train_fold_normalization",
+  "folds": [
+    {
+      "fold": 1,
+      "fit_events": 2375,
+      "held_out_events": 589,
+      "fit_recordings": 48,
+      "held_out_recordings": 12,
+      "joint_nll": 92.96953423440152,
+      "mask_nll": 1.90302886703828,
+      "c0_nll": 35.627427313242784,
+      "k_nll": 55.43907178480475,
+      "diagonal_gaussian_continuous_nll": 89.46319020663833,
+      "diagonal_gmm8_continuous_nll": 82.6126218882697
+    },
+    {
+      "fold": 2,
+      "fit_events": 2368,
+      "held_out_events": 596,
+      "fit_recordings": 48,
+      "held_out_recordings": 12,
+      "joint_nll": 89.24240296639051,
+      "mask_nll": 1.9173170256134648,
+      "c0_nll": 34.99327138606334,
+      "k_nll": 52.331816602873324,
+      "diagonal_gaussian_continuous_nll": 86.62108682725776,
+      "diagonal_gmm8_continuous_nll": 81.21886123300519
+    },
+    {
+      "fold": 3,
+      "fit_events": 2369,
+      "held_out_events": 595,
+      "fit_recordings": 48,
+      "held_out_recordings": 12,
+      "joint_nll": 91.75113084296218,
+      "mask_nll": 1.9585311248522848,
+      "c0_nll": 35.92492983521534,
+      "k_nll": 53.86766839548319,
+      "diagonal_gaussian_continuous_nll": 88.19848409651533,
+      "diagonal_gmm8_continuous_nll": 82.51589402400079
+    },
+    {
+      "fold": 4,
+      "fit_events": 2371,
+      "held_out_events": 593,
+      "fit_recordings": 48,
+      "held_out_recordings": 12,
+      "joint_nll": 94.04300580338322,
+      "mask_nll": 1.856471095479158,
+      "c0_nll": 36.051636771448145,
+      "k_nll": 56.13490395763069,
+      "diagonal_gaussian_continuous_nll": 90.13265667956611,
+      "diagonal_gmm8_continuous_nll": 83.49903354145314
+    },
+    {
+      "fold": 5,
+      "fit_events": 2373,
+      "held_out_events": 591,
+      "fit_recordings": 48,
+      "held_out_recordings": 12,
+      "joint_nll": 90.08806990931683,
+      "mask_nll": 1.9533736330603586,
+      "c0_nll": 35.29112055176608,
+      "k_nll": 52.84357732524323,
+      "diagonal_gaussian_continuous_nll": 87.18759452302812,
+      "diagonal_gmm8_continuous_nll": 81.17784484616384
+    }
+  ],
+  "mean": {
+    "joint_nll": 91.61882875129086,
+    "mask_nll": 1.9177443492087094,
+    "c0_nll": 35.57767717154714,
+    "k_nll": 54.12340761320704,
+    "diagonal_gaussian_continuous_nll": 88.32060246660112,
+    "diagonal_gmm8_continuous_nll": 82.20485110657854
+  },
+  "std": {
+    "joint_nll": 1.7725216878152965,
+    "mask_nll": 0.037159511780296625,
+    "c0_nll": 0.3927701642968823,
+    "k_nll": 1.4622076608905947,
+    "diagonal_gaussian_continuous_nll": 1.324841161746729,
+    "diagonal_gmm8_continuous_nll": 0.8904887165301666
+  }
+}

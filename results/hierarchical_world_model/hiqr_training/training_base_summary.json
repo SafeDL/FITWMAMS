@@ -1,0 +1,33 @@
+{
+  "best_checkpoint": "checkpoints/base_best.pt",
+  "best_epoch": 49,
+  "best_validation_metric": 1.732261070972403,
+  "data_protocol": {
+    "diffusion": {
+      "mtime_ns": 1791307976402222219,
+      "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+      "size_bytes": 3193029
+    },
+    "fit_split": "train",
+    "history_selection": "last_observed_frame_index",
+    "initialization": "from_scratch",
+    "selection_split": "val",
+    "source": "/home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache",
+    "test_used_for_fit_or_selection": false
+  },
+  "deterministic_forward": true,
+  "early_stopped": false,
+  "epochs_completed": 50,
+  "experiment_scope": "full",
+  "minimum_epochs": 20,
+  "patience": 10,
+  "response_frequency_hz": 25.0,
+  "selection_metric": "full natural Val factual + two independent trajectory samples + one-second closed-loop supervision; no synthetic intervention or KS gate",
+  "stage": "base",
+  "stage_trainable": "backbone",
+  "status": "complete",
+  "stop_reason": "maximum_epochs",
+  "test_sequences_reserved": 10151,
+  "train_sequences": 72771,
+  "validation_sequences": 13133
+}

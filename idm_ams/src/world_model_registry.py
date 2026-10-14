@@ -87,7 +87,7 @@ class WorldModelSpec:
                 evaluator.policy,
                 steps=evaluator.steps,
                 evt_model=evaluator.evt_model,
-                reaction_controller=None,  # Reproduce the registered factual baseline.
+                reaction_controller="auto",
             )
             return rollout, world
         if self.model_id == "trafficbots":
@@ -118,7 +118,7 @@ ROOT = Path(__file__).resolve().parents[2]
 _MODELS = {
     "factual_hiqr": WorldModelSpec(
         model_id="factual_hiqr",
-        display_name="Frozen factual Flow–Diffusion–HiQR",
+        display_name="Flow–Diffusion–HiQR responsive world",
         background_label="HiQR background",
         background_color="#3274a1",
         background_color_name="blue",
@@ -128,16 +128,20 @@ _MODELS = {
             "c0_base_latent",
             "k_base_latent",
             "diffusion_noise",
+            "driver_latent",
+            "maneuver_latent",
             "scene_innovations",
             "agent_response_innovations",
             "policy_response_innovations",
+            "policy_calibration_innovations",
         ),
         provenance_keys=(
-            "flow_checkpoint_sha256",
-            "diffusion_checkpoint_sha256",
-            "response_checkpoint_sha256",
-            "evt_model_sha256",
-            "idm_ego_config_sha256",
+            "flow_checkpoint_mtime_ns",
+            "diffusion_checkpoint_mtime_ns",
+            "response_checkpoint_mtime_ns",
+            "world_selection_mtime_ns",
+            "evt_model_mtime_ns",
+            "idm_ego_config_mtime_ns",
             "execution_backend",
             "hiqr_vehicle_dynamics_contract",
         ),

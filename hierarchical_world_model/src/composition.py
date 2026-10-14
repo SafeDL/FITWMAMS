@@ -9,25 +9,60 @@ from typing import Any
 import numpy as np
 import torch
 
-from diffusion.src.data import prepare_flow_condition, smooth_position_residual
+from diffusion.src.data import decode_residual_trajectory, prepare_flow_condition
 from diffusion.src.train import load_checkpoint as load_diffusion_checkpoint
 from normalizing_flow.src.sampling import (
-    load_checkpoint_and_dataset,
     sample_constraints,
-    sample_constraints_from_base_randomness,
     sample_scenarios,
 )
+from normalizing_flow.src.scenario import load_checkpoint as load_flow_checkpoint
 from normalizing_flow.src.features import feature_valid_from_slot_mask
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.evaluation_scope import (
     EXCLUDED_EVALUATION_SLOTS,
     evaluation_scope_contract,
     scoped_slot_mask,
 )
-from traffic_components.src.core.utils import load_json
+from hierarchical_world_model.src.core.utils import load_json, load_yaml
 
 from .highway import HighwayEnvClosedLoopWorld
 from .train import load_checkpoint as load_response_checkpoint
+from .data import artifact_identity
 from .randomness import WorldExogenousState
+from .stochastic_drivers.idm_population import (
+    MODEL_PATH as DRIVER_MODEL_PATH,
+    sample_theta,
+)
+from .stochastic_drivers.lane_trajectory import MODEL_PATH as LANE_MODEL_PATH
+
+DEFAULT_WORLD_SELECTION = (
+    Path(__file__).resolve().parents[2]
+    / "results/hierarchical_world_model/model_assets/selection.json"
+)
+
+
+def load_selected_components(response_checkpoint: str | Path):
+    """Load the published chain and reject the known old/new asset mismatch."""
+    selection = load_json(DEFAULT_WORLD_SELECTION)
+    checkpoint = Path(response_checkpoint).resolve()
+    with np.load(DRIVER_MODEL_PATH) as values:
+        population = dict(values)
+    if (
+        selection["status"] != "selected_after_shared_val_review"
+        or selection["selected_model"] != "mobil"
+        or Path(selection["response_checkpoint"]).resolve() != checkpoint
+        or selection["response_checkpoint_mtime_ns"] != checkpoint.stat().st_mtime_ns
+        or selection["diffusion"] != artifact_identity(selection["diffusion"]["path"])
+        or Path(selection["driver_parameter_source"]).resolve()
+        != DRIVER_MODEL_PATH.resolve()
+        or selection["driver_population"]
+        != {name: population[name].tolist() for name in ("log_mean", "log_cov")}
+        or Path(selection["lane_trajectory_model"]).resolve()
+        != LANE_MODEL_PATH.resolve()
+        or selection["lane_trajectory_model_mtime_ns"]
+        != LANE_MODEL_PATH.stat().st_mtime_ns
+    ):
+        raise ValueError("world components differ from the published shared chain")
+    return selection, population
 
 
 def split_motion_seed(seed: int) -> tuple[int, int]:
@@ -45,11 +80,11 @@ class SampledWorldBatch:
     initial_states: np.ndarray
     initial_valid: np.ndarray
     soft_plan: np.ndarray
-    state_knot_reference: np.ndarray
     scenario_seed: int
     motion_seed: int
     response_seed: int
     exogenous_state: WorldExogenousState | None = None
+    vehicle_dimensions: np.ndarray | None = None
 
 
 class HierarchicalWorldSampler:
@@ -59,7 +94,6 @@ class HierarchicalWorldSampler:
         self,
         *,
         flow_checkpoint: str | Path,
-        flow_output_dir: str | Path,
         diffusion_checkpoint: str | Path,
         diffusion_contract: str | Path,
         response_checkpoint: str | Path,
@@ -67,15 +101,19 @@ class HierarchicalWorldSampler:
         device: str | torch.device = "cpu",
         ddim_steps: int = 20,
         excluded_slots: tuple[str, ...] = EXCLUDED_EVALUATION_SLOTS,
-        ma_idm_posterior: str | Path | None = None,
     ) -> None:
         self.device = torch.device(device)
-        self.flow, _, self.flow_schema, _ = load_checkpoint_and_dataset(
+        self.generated_road = load_yaml(
+            Path(repo_root) / "hierarchical_world_model/config.yaml"
+        )["generated_road"]
+        self.flow, flow_payload = load_flow_checkpoint(
             flow_checkpoint,
-            flow_output_dir,
             repo_root=repo_root,
             device=self.device,
         )
+        if flow_payload.get("metrics", {}).get("population") != "evt_tail":
+            raise ValueError("generated worlds require an EVT-tail Flow checkpoint")
+        self.flow_schema = self.flow.schema
         self.diffusion, diffusion_payload = load_diffusion_checkpoint(
             diffusion_checkpoint, device=self.device
         )
@@ -86,21 +124,14 @@ class HierarchicalWorldSampler:
         self.response, _ = load_response_checkpoint(
             response_checkpoint, device=self.device
         )
+        self.selection, self.driver_population = load_selected_components(
+            response_checkpoint
+        )
         self.flow.eval()
         self.diffusion.eval()
         self.response.eval()
         self.ddim_steps = int(ddim_steps)
-        from .stochastic_drivers.online import DEFAULT_MA_IDM_POSTERIOR
-
-        posterior = Path(
-            DEFAULT_MA_IDM_POSTERIOR if ma_idm_posterior is None else ma_idm_posterior
-        )
-        self.ma_idm_posterior = (
-            posterior if posterior.is_absolute() else Path(repo_root) / posterior
-        ).resolve()
         self.excluded_slots = tuple(str(slot) for slot in excluded_slots)
-        # The default remains byte-for-byte the released evaluation scope.
-        # Research callers must opt in explicitly to restore all trained slots.
         self.evaluation_scope = (
             evaluation_scope_contract()
             if self.excluded_slots == EXCLUDED_EVALUATION_SLOTS
@@ -176,13 +207,12 @@ class HierarchicalWorldSampler:
                     f"diffusion_noise must have shape {tuple(target_mask.shape)}"
                 )
         if exogenous_state is not None:
+            if exogenous_state.batch_size != len(scenario.c0):
+                raise ValueError("exogenous state and scenario batch sizes differ")
             exogenous_state.validate(
-                response_steps=exogenous_state.response_steps,
                 scene_dim=self.response.cfg.scene_latent_dim,
                 agent_dim=self.response.cfg.agent_latent_dim,
             )
-            if exogenous_state.batch_size != len(scenario.c0):
-                raise ValueError("exogenous state and scenario batch sizes differ")
             initial_noise = torch.from_numpy(exogenous_state.diffusion_noise).to(
                 self.device
             )
@@ -193,29 +223,34 @@ class HierarchicalWorldSampler:
             initial_noise=initial_noise,
             generator=generator,
         )
-        residual_mean = np.asarray(
-            self.diffusion_contract["position_residual"]["mean"], np.float32
-        )
-        residual_std = np.asarray(
-            self.diffusion_contract["position_residual"]["std"], np.float32
-        )
-        residual = normalized.cpu().numpy().reshape(-1, 149, 6, 2)
-        residual = smooth_position_residual(residual * residual_std + residual_mean)
-        macro = np.stack([item["trajectory_reference"] for item in prepared])
         active = np.asarray(scenario.slot_mask, bool)
-        soft = (macro + residual) * active[:, None, :, None]
         initial = np.stack([item["c0_states"] for item in prepared])
+        soft = decode_residual_trajectory(
+            normalized.cpu().numpy(),
+            np.stack([item["trajectory_reference"] for item in prepared]),
+            active,
+            self.diffusion_contract,
+        )
         valid = np.concatenate((np.ones((len(active), 1), bool), active), axis=1)
+        dimensions = np.where(
+            valid[..., None],
+            np.asarray(scenario.vehicle_dimensions, np.float32),
+            np.asarray((4.8, 1.8), np.float32),
+        )
+        if dimensions.shape != (len(active), 7, 2):
+            raise ValueError("vehicle_dimensions must have shape [batch,7,2]")
+        if not np.isfinite(dimensions).all() or np.any(dimensions <= 0.0):
+            raise ValueError("vehicle_dimensions must be finite and positive")
         return SampledWorldBatch(
             scenario=scenario,
             initial_states=initial,
             initial_valid=valid,
             soft_plan=soft.astype(np.float32),
-            state_knot_reference=macro.astype(np.float32),
             scenario_seed=int(scenario_seed),
             motion_seed=int(motion_seed),
             response_seed=response_seed,
             exogenous_state=exogenous_state,
+            vehicle_dimensions=dimensions,
         )
 
     def compose_exogenous(
@@ -227,15 +262,18 @@ class HierarchicalWorldSampler:
             scene_dim=self.response.cfg.scene_latent_dim,
             agent_dim=self.response.cfg.agent_latent_dim,
         )
-        c0, slot_mask = self.flow.sample_initial_conditions_from_base_randomness(
-            exogenous_state.scenario_uniform,
-            exogenous_state.c0_base_latent,
+        c0, slot_mask, dimensions = (
+            self.flow.sample_initial_conditions_from_base_randomness(
+                exogenous_state.scenario_uniform,
+                exogenous_state.c0_base_latent,
+            )
         )
         c0, slot_mask = self._scope_condition(c0, slot_mask)
         scenario = self.flow.sample_constraints_from_base_randomness(
             c0,
             slot_mask,
             exogenous_state.k_base_latent,
+            dimensions,
         )
         return self._compose(
             scenario,
@@ -251,7 +289,12 @@ class HierarchicalWorldSampler:
         sampled = sample_scenarios(self.flow, int(n), scenario_seed)
         c0, slot_mask = self._scope_condition(sampled.c0, sampled.slot_mask)
         scenario = sample_constraints(
-            self.flow, c0, slot_mask, int(n), int(scenario_seed) + 1
+            self.flow,
+            c0,
+            slot_mask,
+            sampled.vehicle_dimensions,
+            int(n),
+            int(scenario_seed) + 1,
         )
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
@@ -261,6 +304,7 @@ class HierarchicalWorldSampler:
         self,
         c0: np.ndarray,
         slot_mask: np.ndarray,
+        vehicle_dimensions: np.ndarray,
         n: int,
         *,
         scenario_seed: int,
@@ -272,31 +316,12 @@ class HierarchicalWorldSampler:
             self.flow,
             c0,
             slot_mask,
+            vehicle_dimensions,
             int(n),
             scenario_seed,
         )
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
-        )
-
-    def compose_constraints_from_base_randomness(
-        self,
-        c0: np.ndarray,
-        slot_mask: np.ndarray,
-        *,
-        k_base_latent: np.ndarray,
-        diffusion_noise: np.ndarray,
-    ) -> SampledWorldBatch:
-        """Compose a logged-C0 world without reading held-out future knots."""
-        c0, slot_mask = self._scope_condition(c0, slot_mask)
-        scenario = sample_constraints_from_base_randomness(
-            self.flow, c0, slot_mask, k_base_latent
-        )
-        return self._compose(
-            scenario,
-            scenario_seed=0,
-            motion_seed=0,
-            diffusion_noise=diffusion_noise,
         )
 
     def create_world(
@@ -307,37 +332,47 @@ class HierarchicalWorldSampler:
         controller: Any = "auto",
         reference_rebase_weights: tuple[float, float] | None = None,
     ) -> HighwayEnvClosedLoopWorld:
-        """Create a single-pass world with online MA-IDM NPC response."""
+        """Use the published shared IDM, MOBIL and actual-state continuation."""
         if sample.exogenous_state is None:
-            raise ValueError(
-                "formal HighwayEnv execution requires explicit world randomness"
-            )
-        if isinstance(controller, str) and controller == "auto":
+            raise ValueError("HighwayEnv execution requires explicit world randomness")
+        if isinstance(controller, str):
+            if controller != "auto":
+                raise ValueError(
+                    "only controller='auto' is maintained; pass an object for an ablation"
+                )
             from .stochastic_drivers.online import (
                 OnlineMAIDMController,
-                sample_population_theta_from_world,
+                calibrated_mobil_parameters,
             )
-            theta = sample_population_theta_from_world(
-                self.ma_idm_posterior, sample.exogenous_state
+
+            theta = sample_theta(
+                self.driver_population, sample.exogenous_state.driver_latent
             )
-            controller = OnlineMAIDMController(theta)
+            controller = OnlineMAIDMController(
+                theta,
+                maneuver_latent=sample.exogenous_state.maneuver_latent,
+                **calibrated_mobil_parameters(self.selection["mobil"]),
+            )
         batch = len(sample.initial_states)
         x = np.linspace(-200.0, 200.0, 8, dtype=np.float32)
-        lane_offsets = np.arange(-3, 5, dtype=np.float32) * 3.6
+        lane_offsets = np.asarray(self.generated_road["lane_centers_m"], np.float32)
+        lanes = len(lane_offsets)
         maps = np.zeros((batch, 8, 8, 6), np.float32)
-        maps[..., 0] = x[None, None]
-        maps[..., 1] = (
+        maps[:, :lanes, :, 0] = x[None, None]
+        maps[:, :lanes, :, 1] = (
             sample.initial_states[:, None, 0, 1, None] + lane_offsets[None, :, None]
         )
-        maps[..., 2] = 1.0
-        maps[..., 4] = 3.6
-        map_valid = np.ones((batch, 8, 8), bool)
+        maps[:, :lanes, :, 2] = 1.0
+        maps[:, :lanes, :, 4] = self.generated_road["lane_width_m"]
+        map_valid = np.zeros((batch, 8, 8), bool)
+        map_valid[:, :lanes] = True
         world = HighwayEnvClosedLoopWorld(
             self.response,
             device=self.device,
             idm_config=idm_config,
             controller=controller,
             reference_rebase_weights=reference_rebase_weights,
+            reference_recovery_enabled=self.selection["reference_recovery_enabled"],
         )
         world.reset(
             torch.from_numpy(sample.initial_states),
@@ -346,5 +381,6 @@ class HierarchicalWorldSampler:
             torch.from_numpy(maps),
             torch.from_numpy(map_valid),
             exogenous_state=sample.exogenous_state,
+            vehicle_dimensions=sample.vehicle_dimensions,
         )
         return world

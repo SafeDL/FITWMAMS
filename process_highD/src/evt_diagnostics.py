@@ -1,4 +1,4 @@
-"""EVT diagnostic plots for highD natural fixed-window risk calibration."""
+"""EVT diagnostic plots for preprocessed highD fixed-window risks."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 from scipy.stats import genpareto
 
-from tools.evt import empirical_survival, fit_gpd_excess
+from tools.evt import fit_gpd_excess
 from tools.plot_style import (
     GENERATED_COLOR,
     PAPER_FIGURE_DPI,
@@ -21,18 +21,6 @@ from tools.plot_style import (
     get_pyplot,
     style_axes,
 )
-
-
-def _mean_excess_rows(
-    values: np.ndarray,
-    candidates: list[dict[str, float]],
-) -> tuple[np.ndarray, np.ndarray]:
-    u_values = np.asarray([row["u"] for row in candidates], dtype=np.float64)
-    means = []
-    for u_value in u_values:
-        excess = values[values > u_value] - u_value
-        means.append(float(np.mean(excess)) if excess.size else float("nan"))
-    return u_values, np.asarray(means, dtype=np.float64)
 
 
 def _math_name(name: str) -> str:
@@ -162,18 +150,14 @@ def write_gpd_diagnostic_panel(
     model: Any,
     values: np.ndarray,
     risk_variable: str = "R_tau",
-    output_filename: str = "peak_evt_gpd_diagnostic_panel.png",
-    output_key: str = "peak_gpd_diagnostic_panel",
-    force: bool = True,
+    output_filename: str = "gpd_diagnostics.png",
+    output_key: str = "gpd_diagnostics",
     max_plot_value: float | None = None,
     stability_legend_loc: str = "lower left",
     stability_threshold_ymax: float = 1.0,
 ) -> dict[str, str]:
     """Write a six-panel POT/GPD diagnostic plot for peak EVT calibration."""
     path = figure_dir / output_filename
-    if path.exists() and not force:
-        return {output_key: str(path)}
-
     values = np.asarray(values, dtype=np.float64)
     values = values[np.isfinite(values)]
     candidates = list(getattr(model, "threshold_candidates", []) or [])
@@ -482,218 +466,227 @@ def write_gpd_diagnostic_panel(
         fig.tight_layout(**PAPER_SIX_PANEL_LAYOUT)
         fig.savefig(path, dpi=PAPER_FIGURE_DPI)
         plt.close(fig)
-    return {output_key: str(path)}
+    outputs = {output_key: str(path)}
+    outputs.update(
+        _write_gpd_diagnostic_figures(
+            figure_dir,
+            model=model,
+            values=values,
+            risk_variable=risk_variable,
+            survival_band=(survival_grid, survival_low, survival_high),
+            stability_band=(band_u, xi_low, xi_high, scale_low, scale_high),
+        )
+    )
+    return outputs
 
 
-def write_evt_diagnostic_plots(
+def _write_gpd_diagnostic_figures(
     figure_dir: Path,
     *,
     model: Any,
     values: np.ndarray,
-    risk_variable: str = "R_tau",
-    histogram_filename: str = "peak_evt_r_tau_histogram.png",
-    histogram_key: str = "peak_r_tau_histogram",
+    risk_variable: str = "R_SEI",
+    survival_band: tuple[np.ndarray, np.ndarray, np.ndarray],
+    stability_band: tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ],
 ) -> dict[str, str]:
-    """Write standard EVT diagnostic plots without exposure-dependent plots."""
-    plt = get_pyplot()
-
+    """Write focused standalone versions of the six GPD diagnostics."""
     values = np.asarray(values, dtype=np.float64)
     values = values[np.isfinite(values)]
-    if values.size == 0:
-        return {}
-
+    u = float(model.u)
+    xi = float(model.xi)
+    beta = float(model.beta)
+    tail = np.sort(values[values > u])
+    excess = tail - u
+    candidates = sorted(model.threshold_candidates, key=lambda row: float(row["u"]))
+    candidate_u = np.asarray([row["u"] for row in candidates], dtype=float)
+    candidate_xi = np.asarray([row["xi"] for row in candidates], dtype=float)
+    modified_scale = np.asarray(
+        [row["modified_scale"] for row in candidates], dtype=float
+    )
+    mean_excess = np.asarray(
+        [np.mean(values[values > threshold] - threshold) for threshold in candidate_u]
+    )
+    empirical_cdf = np.arange(1, excess.size + 1, dtype=float) / (excess.size + 1.0)
+    gpd_quantiles = genpareto.ppf(empirical_cdf, c=xi, loc=0.0, scale=beta)
+    gpd_cdf = genpareto.cdf(excess, c=xi, loc=0.0, scale=beta)
+    risk_math = _math_name(risk_variable)
     figure_dir.mkdir(parents=True, exist_ok=True)
-    paths: dict[str, str] = {}
+    plt = get_pyplot()
+    outputs: dict[str, str] = {}
 
-    risk_label = str(risk_variable)
-    risk_math = _math_name(risk_label)
-    risk_peak_math = rf"{risk_math},\mathrm{{peak}}"
-    x_limit = float(np.quantile(values, 0.999))
-    x_limit = max(x_limit, float(model.u) * 1.05, 1.0)
-    fig, ax = plt.subplots(figsize=(8.0, 4.8), constrained_layout=True)
-    clipped_values = values[values <= x_limit]
-    _, bins, _ = ax.hist(
-        clipped_values,
-        bins=70,
-        color=REAL_COLOR,
-        alpha=0.62,
-        label="Empirical peaks",
-    )
-    ax.axvline(
-        float(model.u),
-        color=REFERENCE_COLOR,
-        linestyle="--",
-        label=r"POT threshold $u_e$",
-    )
-    tail_count = int(np.sum(values > float(model.u)))
-    if tail_count > 0 and x_limit > float(model.u):
-        bin_width = float(np.mean(np.diff(bins)))
-        xs = np.linspace(float(model.u), x_limit, 320)
-        tail_pdf = genpareto.pdf(
-            xs - float(model.u),
-            c=float(model.xi),
-            scale=float(model.beta),
+    with plt.rc_context(PAPER_PANEL_RC):
+        fig, ax = plt.subplots(figsize=(7.2, 4.8), constrained_layout=True)
+        _counts, bins, _patches = ax.hist(
+            values,
+            bins=64,
+            color=REAL_COLOR,
+            alpha=0.76,
+            label="Peak distribution",
         )
-        expected_tail_bin_count = tail_count * bin_width * tail_pdf
+        xs = np.linspace(u, float(np.max(values)), 360)
+        bin_width = float(np.mean(np.diff(bins)))
+        density = genpareto.pdf(xs - u, c=xi, loc=0.0, scale=beta)
         ax.plot(
             xs,
-            np.maximum(expected_tail_bin_count, 1.0e-12),
+            np.maximum(excess.size * bin_width * density, 1.0e-12),
             color=GENERATED_COLOR,
-            linewidth=2.2,
-            label="GPD fit",
+            linewidth=1.8,
+            label="GPD fitted tail",
         )
-    ax.set_yscale("log")
-    ax.set_xlim(left=0.0, right=x_limit)
-    ax.set_xlabel(rf"Peak original risk ${risk_math}$")
-    ax.set_ylabel("Count (log)")
-    ax.set_title(rf"Peak ${risk_math}$ distribution")
-    style_axes(ax)
-    ax.legend(frameon=False)
-    path = figure_dir / histogram_filename
-    fig.savefig(path, dpi=PAPER_FIGURE_DPI)
-    plt.close(fig)
-    paths[histogram_key] = str(path)
-
-    sorted_values = np.sort(values[values >= float(model.u)])
-    if sorted_values.size:
-        empirical = empirical_survival(values, sorted_values)
-        model_survival = model.survival(sorted_values)
-        fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.8), constrained_layout=True)
-        focus_max = float(
-            max(
-                float(model.return_levels.get("z100", model.return_level(100))) * 1.35,
-                np.quantile(values, 0.995),
-            )
-        )
-        panels = (
-            (axes[0], focus_max, "return-level region"),
-            (axes[1], float(np.max(values)), "full tail"),
-        )
-        for ax, right_limit, title in panels:
-            mask = sorted_values <= right_limit
-            ax.scatter(
-                sorted_values[mask],
-                empirical[mask],
-                color=REAL_COLOR,
-                label="Empirical",
-                s=7,
-                alpha=0.38,
-            )
-            ax.plot(
-                sorted_values[mask],
-                model_survival[mask],
-                label="GPD",
-                linewidth=2.0,
-                color=GENERATED_COLOR,
-            )
-            ax.axvline(
-                float(model.u), color=REFERENCE_COLOR, linestyle="--", label=r"$u_e$"
-            )
-            ax.set_yscale("log")
-            ax.set_xlabel(rf"Peak ${risk_math}$")
-            ax.set_title(title)
-            style_axes(ax)
-        axes[0].set_ylabel(rf"$\Pr({risk_peak_math} > y)$")
-        axes[1].legend(frameon=False)
-        path = figure_dir / "peak_evt_survival_fit.png"
+        ax.axvline(u, color=REFERENCE_COLOR, linestyle="--", label=r"selected $u_e$")
+        ax.set_yscale("log")
+        ax.set_xlabel(rf"Original risk ${risk_math}$")
+        ax.set_ylabel("Count")
+        ax.set_title("Peak distribution")
+        style_axes(ax)
+        ax.legend(frameon=False)
+        path = figure_dir / "risk_distribution.png"
         fig.savefig(path, dpi=PAPER_FIGURE_DPI)
         plt.close(fig)
-        paths["peak_survival_fit"] = str(path)
+        outputs["risk_distribution"] = str(path)
 
-    candidates = model.threshold_candidates
-    if candidates:
-        u = np.asarray([row["u"] for row in candidates], dtype=np.float64)
-        xi = np.asarray([row["xi"] for row in candidates], dtype=np.float64)
-        modified_scale = np.asarray(
-            [row["modified_scale"] for row in candidates],
-            dtype=np.float64,
+        fig, ax = plt.subplots(figsize=(7.2, 4.8), constrained_layout=True)
+        empirical_survival = np.maximum(
+            _empirical_survival(values, tail), 1.0 / len(values)
         )
-        exceedance_rate = np.asarray(
-            [row["exceedance_rate"] for row in candidates],
-            dtype=np.float64,
+        fitted_survival = np.maximum(np.asarray(model.survival(tail), float), 1.0e-12)
+        survival_x, survival_low, survival_high = survival_band
+        ax.fill_between(
+            survival_x,
+            np.maximum(survival_low, 1.0e-12),
+            np.maximum(survival_high, 1.0e-12),
+            color=GENERATED_COLOR,
+            alpha=0.20,
+            linewidth=0.0,
+            label="95% bootstrap CI",
         )
-        fig, axes = plt.subplots(3, 1, figsize=(8.0, 7.2), sharex=True)
-        for ax in axes:
-            ax.axvline(
-                float(model.u), color=REFERENCE_COLOR, linestyle="--", linewidth=1.3
-            )
-            ax.axvspan(
-                float(model.u),
-                float(np.max(u)),
-                color=GENERATED_COLOR,
-                alpha=0.08,
-                label=rf"${risk_math}>u_e$",
-            )
-            style_axes(ax)
-        axes[0].plot(u, xi, linewidth=1.4)
-        axes[0].scatter(
-            [float(model.u)], [float(model.xi)], color=REFERENCE_COLOR, s=28
+        ax.scatter(
+            tail,
+            empirical_survival,
+            color=REAL_COLOR,
+            s=10,
+            alpha=0.48,
+            label="Empirical survival",
         )
-        axes[0].set_ylabel(r"$\xi$")
-        axes[0].set_title("Threshold stability")
-        axes[1].plot(u, modified_scale, linewidth=1.4, color=REAL_COLOR)
-        axes[1].set_ylabel(r"$\tilde{\sigma}$")
-        axes[2].plot(u, exceedance_rate, linewidth=1.4, color=GENERATED_COLOR)
-        axes[2].set_xlabel(r"Threshold $u$")
-        axes[2].set_ylabel(rf"$\Pr({risk_math}>u)$")
-        fig.tight_layout()
-        path = figure_dir / "peak_evt_threshold_stability.png"
-        fig.savefig(path, dpi=PAPER_FIGURE_DPI)
-        plt.close(fig)
-        paths["peak_threshold_stability"] = str(path)
-
-        mean_u, mean_excess = _mean_excess_rows(values, candidates)
-        fig, ax = plt.subplots(figsize=(8.0, 4.8), constrained_layout=True)
-        ax.plot(mean_u, mean_excess, linewidth=1.5)
+        ax.plot(
+            tail,
+            fitted_survival,
+            color=GENERATED_COLOR,
+            linewidth=1.8,
+            label="GPD fitted survival",
+        )
         ax.axvline(
-            float(model.u), color=REFERENCE_COLOR, linestyle="--", label=r"$u_e$"
+            u, color=REFERENCE_COLOR, linestyle="--", label=r"POT threshold $u_e$"
         )
-        ax.axvspan(
-            float(model.u), float(np.max(mean_u)), color=GENERATED_COLOR, alpha=0.08
-        )
+        ax.set_yscale("log")
+        ax.set_xlabel(rf"Original risk ${risk_math}$")
+        ax.set_ylabel(rf"$\Pr({risk_math}>y)$")
+        ax.set_title("Tail survival")
+        style_axes(ax)
+        ax.legend(frameon=False)
+        path = figure_dir / "tail_survival.png"
+        fig.savefig(path, dpi=PAPER_FIGURE_DPI)
+        plt.close(fig)
+        outputs["tail_survival"] = str(path)
+
+        fig, ax = plt.subplots(figsize=(7.2, 4.8), constrained_layout=True)
+        ax.plot(candidate_u, mean_excess, color=REAL_COLOR)
+        ax.axvline(u, color=REFERENCE_COLOR, linestyle="--", label=r"selected $u_e$")
+        ax.axvspan(u, float(np.max(candidate_u)), color=GENERATED_COLOR, alpha=0.08)
         ax.set_xlabel(r"Threshold $u$")
-        ax.set_ylabel(rf"$E[{risk_math}-u \mid {risk_math}>u]$")
+        ax.set_ylabel(rf"$E[{risk_math}-u\mid {risk_math}>u]$")
         ax.set_title("Mean residual life")
         style_axes(ax)
         ax.legend(frameon=False)
-        path = figure_dir / "peak_evt_mean_excess.png"
+        path = figure_dir / "mean_residual_life.png"
         fig.savefig(path, dpi=PAPER_FIGURE_DPI)
         plt.close(fig)
-        paths["peak_mean_excess"] = str(path)
+        outputs["mean_residual_life"] = str(path)
 
-    excess = np.sort(values[values > float(model.u)] - float(model.u))
-    if excess.size:
-        empirical_cdf = np.arange(1, excess.size + 1, dtype=np.float64)
-        empirical_cdf = empirical_cdf / (excess.size + 1.0)
-        gpd_cdf = genpareto.cdf(
-            excess,
-            c=float(model.xi),
-            loc=0.0,
-            scale=max(float(model.beta), 1.0e-12),
+        fig, ax = plt.subplots(figsize=(7.2, 4.8), constrained_layout=True)
+        scale_ax = ax.twinx()
+        band_u, xi_low, xi_high, scale_low, scale_high = stability_band
+        ax.fill_between(
+            band_u,
+            xi_low,
+            xi_high,
+            color=REAL_COLOR,
+            alpha=0.17,
+            linewidth=0.0,
         )
-        gpd_quantiles = genpareto.ppf(
-            empirical_cdf,
-            c=float(model.xi),
-            loc=0.0,
-            scale=max(float(model.beta), 1.0e-12),
+        scale_ax.fill_between(
+            band_u,
+            scale_low,
+            scale_high,
+            color=GENERATED_COLOR,
+            alpha=0.17,
+            linewidth=0.0,
         )
-        fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.6), constrained_layout=True)
+        shape_line = ax.plot(
+            candidate_u, candidate_xi, color=REAL_COLOR, label=r"$\xi$"
+        )
+        scale_line = scale_ax.plot(
+            candidate_u,
+            modified_scale,
+            color=GENERATED_COLOR,
+            label=r"$\tilde{\sigma}$",
+        )
+        threshold_line = ax.axvline(
+            u,
+            color=REFERENCE_COLOR,
+            linestyle="--",
+            label=r"selected $u_e$",
+        )
+        ax.set_xlabel(r"Threshold $u$")
+        ax.set_ylabel(r"Shape $\xi$", color=REAL_COLOR)
+        scale_ax.set_ylabel(r"Modified scale $\tilde{\sigma}$", color=GENERATED_COLOR)
+        ax.tick_params(axis="y", colors=REAL_COLOR)
+        scale_ax.tick_params(axis="y", colors=GENERATED_COLOR)
+        ax.set_title("Threshold stability")
+        style_axes(ax)
+        style_axes(scale_ax, grid=False)
+        scale_ax.spines["right"].set_visible(True)
+        scale_ax.spines["right"].set_color(GENERATED_COLOR)
+        handles = [shape_line[0], scale_line[0], threshold_line]
+        ax.legend(handles, [handle.get_label() for handle in handles], frameon=False)
+        path = figure_dir / "threshold_stability.png"
+        fig.savefig(path, dpi=PAPER_FIGURE_DPI)
+        plt.close(fig)
+        outputs["threshold_stability"] = str(path)
+
         max_q = float(max(np.max(excess), np.max(gpd_quantiles)))
-        axes[0].scatter(gpd_quantiles, excess, s=8, alpha=0.40)
-        axes[0].plot([0.0, max_q], [0.0, max_q], color=REFERENCE_COLOR, linestyle="--")
-        axes[0].set_xlabel("GPD quantile")
-        axes[0].set_ylabel("Empirical quantile")
-        axes[0].set_title("QQ plot")
-        style_axes(axes[0])
-        axes[1].scatter(empirical_cdf, gpd_cdf, s=8, alpha=0.40, color=GENERATED_COLOR)
-        axes[1].plot([0.0, 1.0], [0.0, 1.0], color=REFERENCE_COLOR, linestyle="--")
-        axes[1].set_xlabel("Empirical CDF")
-        axes[1].set_ylabel("GPD CDF")
-        axes[1].set_title("PP plot")
-        style_axes(axes[1])
-        path = figure_dir / "peak_evt_tail_fit_diagnostics.png"
+        fig, ax = plt.subplots(figsize=(6.2, 5.2), constrained_layout=True)
+        ax.scatter(gpd_quantiles, excess, color=REAL_COLOR, s=10, alpha=0.45)
+        ax.plot([0.0, max_q], [0.0, max_q], color=REFERENCE_COLOR, linestyle="--")
+        ax.set_xlim(0.0, max_q * 1.02)
+        ax.set_ylim(0.0, max_q * 1.02)
+        ax.set_xlabel("GPD quantile")
+        ax.set_ylabel("Empirical quantile")
+        ax.set_title("QQ plot")
+        style_axes(ax)
+        path = figure_dir / "gpd_qq.png"
         fig.savefig(path, dpi=PAPER_FIGURE_DPI)
         plt.close(fig)
-        paths["peak_tail_fit_diagnostics"] = str(path)
+        outputs["gpd_qq"] = str(path)
 
-    return paths
+        fig, ax = plt.subplots(figsize=(6.2, 5.2), constrained_layout=True)
+        ax.scatter(empirical_cdf, gpd_cdf, color=GENERATED_COLOR, s=10, alpha=0.45)
+        ax.plot([0.0, 1.0], [0.0, 1.0], color=REFERENCE_COLOR, linestyle="--")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+        ax.set_xlabel("Empirical CDF")
+        ax.set_ylabel("GPD CDF")
+        ax.set_title("PP plot")
+        style_axes(ax)
+        path = figure_dir / "gpd_pp.png"
+        fig.savefig(path, dpi=PAPER_FIGURE_DPI)
+        plt.close(fig)
+        outputs["gpd_pp"] = str(path)
+
+    return outputs

@@ -1,0 +1,136 @@
+{
+  "calibration_scope": "all",
+  "evaluation_scope": {
+    "excluded_risk_slots": [],
+    "training_population_modified": false
+  },
+  "source": {
+    "kind": "process_highD_preprocessed_segments",
+    "preprocessing_config": "/home/hp/FITWMAMS/process_highD/config.yaml",
+    "segment_csv": "/home/hp/FITWMAMS/results/evt/natural_segments.csv",
+    "all_segments": 96055,
+    "calibration_segments": 96055,
+    "calibration_recordings": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60
+    ]
+  },
+  "model_path": "/home/hp/FITWMAMS/results/evt/evt_model.json",
+  "risk_variable": "event_risk (R_SEI)",
+  "u": 0.5346742868423462,
+  "xi": -0.27692266911905483,
+  "beta": 0.2555120557043949,
+  "exceedance_rate": 0.03085732132632346,
+  "num_tail_segments": 2964,
+  "return_levels": {
+    "z20": 0.3938777923583986,
+    "z50": 0.6390807156794397,
+    "z100": 0.781993143913047,
+    "z500": 1.0248662839612777,
+    "z1000": 1.1004011266882396
+  },
+  "return_level_ci": {
+    "z20": {
+      "lower": 0.3848316071927549,
+      "upper": 0.40099231451749795
+    },
+    "z50": {
+      "lower": 0.6322484811731249,
+      "upper": 0.6464754222420398
+    },
+    "z100": {
+      "lower": 0.773704916462358,
+      "upper": 0.7919957464928753
+    },
+    "z500": {
+      "lower": 1.0138770949086553,
+      "upper": 1.0366584266617018
+    },
+    "z1000": {
+      "lower": 1.088577466465306,
+      "upper": 1.1143117159344575
+    }
+  },
+  "gpd_gof": {
+    "num_exceedances": 2964,
+    "ks": 0.009177945091755013,
+    "cramer_von_mises": 0.029464149043106694,
+    "anderson_darling": 0.23639085439344854
+  },
+  "threshold_selection": {
+    "candidate_count": 342.0,
+    "eligible_candidate_count": 326.0,
+    "min_threshold_exceedance_rate": 0.01,
+    "max_tail_fraction": 0.2,
+    "min_exceedances": 200.0,
+    "max_threshold_candidates": 400.0
+  },
+  "threshold_sensitivity_csv": "/home/hp/FITWMAMS/results/evt/threshold_sensitivity.csv",
+  "figures": {
+    "gpd_diagnostics": "/home/hp/FITWMAMS/results/evt/figures/gpd_diagnostics.png",
+    "risk_distribution": "/home/hp/FITWMAMS/results/evt/figures/risk_distribution.png",
+    "tail_survival": "/home/hp/FITWMAMS/results/evt/figures/tail_survival.png",
+    "mean_residual_life": "/home/hp/FITWMAMS/results/evt/figures/mean_residual_life.png",
+    "threshold_stability": "/home/hp/FITWMAMS/results/evt/figures/threshold_stability.png",
+    "gpd_qq": "/home/hp/FITWMAMS/results/evt/figures/gpd_qq.png",
+    "gpd_pp": "/home/hp/FITWMAMS/results/evt/figures/gpd_pp.png"
+  }
+}

@@ -49,6 +49,11 @@ def _take_evaluation(
         collision=evaluation.collision[indices].copy(),
         min_gap_m=evaluation.min_gap_m[indices].copy(),
         numerical_valid=evaluation.numerical_valid[indices].copy(),
+        interaction_descriptor=(
+            None
+            if evaluation.interaction_descriptor is None
+            else evaluation.interaction_descriptor[indices].copy()
+        ),
     )
 
 
@@ -80,6 +85,14 @@ def _replace_evaluation(
         min_gap_m=np.where(mask, proposal.min_gap_m, current.min_gap_m),
         numerical_valid=np.where(
             mask, proposal.numerical_valid, current.numerical_valid
+        ),
+        interaction_descriptor=(
+            None
+            if current.interaction_descriptor is None
+            else np.where(
+                mask[:, None], proposal.interaction_descriptor,
+                current.interaction_descriptor,
+            )
         ),
     )
 

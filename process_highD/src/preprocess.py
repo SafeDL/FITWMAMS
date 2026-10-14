@@ -118,12 +118,12 @@ def filter_abnormal_tracks(recording: HighDRecording, config: dict) -> HighDReco
     -------
     HighDRecording
     """
-    filters = config.get("filters", {})
-    max_accel = filters.get("max_abs_accel", 8.0)
-    max_jerk = filters.get("max_abs_jerk")
-    max_jump = filters.get("max_position_jump", 5.0)
-    min_speed = filters.get("min_vehicle_speed", 0.0)
-    fps = float(recording.recording_meta.get("frameRate", 25))
+    filters = config["filters"]
+    max_accel = float(filters["max_abs_accel"])
+    max_jerk = float(filters["max_abs_jerk"])
+    max_jump = float(filters["max_position_jump"])
+    min_speed = float(filters["min_vehicle_speed"])
+    fps = float(recording.recording_meta["frameRate"])
 
     tracks = recording.tracks
 
@@ -136,31 +136,22 @@ def filter_abnormal_tracks(recording: HighDRecording, config: dict) -> HighDReco
     n_accel = accel_mask.sum()
 
     # ── 规则 2b: jerk 过大 ──
-    n_jerk = 0
-    if max_jerk is not None:
-        jerk_x = tracks.groupby(level="id")["xAcceleration"].diff().abs() * fps
-        jerk_mask = jerk_x > float(max_jerk)
-        if "yAcceleration" in tracks.columns:
-            jerk_y = tracks.groupby(level="id")["yAcceleration"].diff().abs() * fps
-            jerk_mask |= jerk_y > float(max_jerk)
-        tracks.loc[jerk_mask.fillna(False), "_abnormal"] = True
-        n_jerk = int(jerk_mask.sum())
+    jerk_x = tracks.groupby(level="id")["xAcceleration"].diff().abs() * fps
+    jerk_y = tracks.groupby(level="id")["yAcceleration"].diff().abs() * fps
+    jerk_mask = (jerk_x > max_jerk) | (jerk_y > max_jerk)
+    tracks.loc[jerk_mask.fillna(False), "_abnormal"] = True
+    n_jerk = int(jerk_mask.sum())
 
     # ── 规则 2c: 速度过低 ──
-    n_speed = 0
-    if min_speed is not None and float(min_speed) > 0:
-        if "yVelocity" in tracks.columns:
-            speed = np.hypot(tracks["xVelocity"], tracks["yVelocity"])
-        else:
-            speed = tracks["xVelocity"].abs()
-        speed_mask = speed < float(min_speed)
-        tracks.loc[speed_mask, "_abnormal"] = True
-        n_speed = int(speed_mask.sum())
+    speed = np.hypot(tracks["xVelocity"], tracks["yVelocity"])
+    speed_mask = speed < min_speed
+    tracks.loc[speed_mask, "_abnormal"] = True
+    n_speed = int(speed_mask.sum())
 
-    # ── 规则 3: 位置跳变 ──
-    # 按车辆分组计算相邻帧 x 差值
-    x_diff = tracks.groupby(level="id")["x"].diff().abs()
-    jump_mask = x_diff > max_jump
+    # ── 规则 3: 二维位置跳变 ──
+    x_diff = tracks.groupby(level="id")["x"].diff()
+    y_diff = tracks.groupby(level="id")["y"].diff()
+    jump_mask = np.hypot(x_diff, y_diff) > max_jump
     tracks.loc[jump_mask, "_abnormal"] = True
     n_jump = jump_mask.sum()
 
@@ -179,12 +170,13 @@ def filter_abnormal_tracks(recording: HighDRecording, config: dict) -> HighDReco
     # ── 规则 1: 帧连续性标记 ──
     discontinuous_ids = set()
     for vid in meta.index:
-        try:
-            vtrack = recording.get_vehicle_track(vid)
-            if not check_frame_continuity(vtrack):
-                discontinuous_ids.add(vid)
-        except KeyError:
-            continue
+        if not check_frame_continuity(recording.get_vehicle_track(vid)):
+            discontinuous_ids.add(vid)
+    if discontinuous_ids:
+        discontinuous_mask = tracks.index.get_level_values("id").isin(
+            discontinuous_ids
+        )
+        tracks.loc[discontinuous_mask, "_abnormal"] = True
 
     n_total_abnormal = tracks["_abnormal"].sum()
     logger.info(
@@ -211,10 +203,10 @@ def filter_abnormal_tracks(recording: HighDRecording, config: dict) -> HighDReco
 
 
 def resample_recording(recording: HighDRecording, target_fps: int) -> HighDRecording:
-    """将 recording 从 source_fps 重采样到 target_fps。
+    """确认处理帧率与 highD 原生帧率相同。
 
-    使用每隔 step 帧取样的方式 (step = source_fps / target_fps)。
-    仅当 source_fps 是 target_fps 的整数倍时支持。
+    窗口连续性依赖原始 frame 编号。改变帧率需要同时重建时间轴、
+    frame 编号和运动量，当前预处理不做不完整的抽帧。
 
     Parameters
     ----------
@@ -225,7 +217,7 @@ def resample_recording(recording: HighDRecording, target_fps: int) -> HighDRecor
     -------
     HighDRecording
     """
-    source_fps = int(recording.recording_meta.get("frameRate", 25))
+    source_fps = int(recording.recording_meta["frameRate"])
 
     if source_fps == target_fps:
         logger.debug(
@@ -235,43 +227,10 @@ def resample_recording(recording: HighDRecording, target_fps: int) -> HighDRecor
         )
         return recording
 
-    step = source_fps / target_fps  # 允许浮点步长
-    logger.info(
-        "Recording %02d: 重采样 %d → %d fps (step=%.2f)",
-        recording.recording_id,
-        source_fps,
-        target_fps,
-        step,
+    raise ValueError(
+        "process_highD currently requires native highD frame rate: "
+        f"source_fps={source_fps}, target_fps={target_fps}"
     )
-
-    tracks = recording.tracks
-
-    # 按车辆分组，每 step 帧取一行
-    resampled_parts = []
-    for vid, vtrack in tracks.groupby(level="id"):
-        frames = vtrack.index.get_level_values("frame").values
-        n = len(frames)
-        # 使用浮点步长选取帧索引
-        keep_indices = np.round(np.arange(0, n, step)).astype(int)
-        keep_indices = keep_indices[keep_indices < n]
-        keep_frames = frames[keep_indices]
-        idx = pd.MultiIndex.from_arrays(
-            [[vid] * len(keep_frames), keep_frames],
-            names=["id", "frame"],
-        )
-        resampled_parts.append(vtrack.loc[idx])
-
-    recording.tracks = pd.concat(resampled_parts)
-    recording.tracks.sort_index(inplace=True)
-
-    # 更新元数据中的帧率
-    recording.recording_meta["frameRate"] = target_fps
-
-    # 清空缓存
-    recording._vehicle_cache.clear()
-    recording._frame_cache.clear()
-
-    return recording
 
 
 def prepare_recording(
@@ -283,5 +242,5 @@ def prepare_recording(
     recording = load_recording(str(raw_dir), int(recording_id))
     recording = normalize_driving_direction(recording)
     recording = filter_abnormal_tracks(recording, config)
-    target_fps = int(config.get("sampling", {}).get("target_fps", 25))
+    target_fps = int(config["sampling"]["target_fps"])
     return resample_recording(recording, target_fps)

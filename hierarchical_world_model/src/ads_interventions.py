@@ -8,6 +8,12 @@ from typing import Callable
 import numpy as np
 import torch
 
+from .scene_geometry import (
+    torch_adjacent_lane_index,
+    torch_map_lane_geometry,
+    torch_nearest_lane_geometry,
+)
+
 
 def _wrap_angle(value: torch.Tensor) -> torch.Tensor:
     return torch.atan2(torch.sin(value), torch.cos(value))
@@ -52,8 +58,16 @@ class OnlineSemanticLaneChangePolicy:
     ) -> None:
         if direction not in {"left", "right"}:
             raise ValueError("direction must be left or right")
-        if min(lane_width_m, lateral_gain_per_s, heading_gain_per_s,
-               maximum_lateral_speed_mps, maximum_yaw_rate_rps) <= 0:
+        if (
+            min(
+                lane_width_m,
+                lateral_gain_per_s,
+                heading_gain_per_s,
+                maximum_lateral_speed_mps,
+                maximum_yaw_rate_rps,
+            )
+            <= 0
+        ):
             raise ValueError("lane-change parameters must be positive")
         self.base_policy = base_policy
         self.direction = direction
@@ -81,26 +95,32 @@ class OnlineSemanticLaneChangePolicy:
             lanes = context.get("map_polylines")
             lane_valid = context.get("map_polyline_valid")
             if isinstance(lanes, torch.Tensor) and isinstance(lane_valid, torch.Tensor):
-                lane_y = lanes[..., 0, 1]
-                lane_present = lane_valid.any(dim=-1)
-                distance = torch.where(
-                    lane_present, (lane_y - ego[:, None, 1]).abs(),
-                    torch.full_like(lane_y, float("inf")),
+                lane_y, lane_present, lane_width = torch_map_lane_geometry(
+                    lanes, lane_valid
                 )
-                if not bool(lane_present.any(dim=1).all()):
+                source_index, _, _, source_available = torch_nearest_lane_geometry(
+                    ego[:, 1], lane_y, lane_present, lane_width
+                )
+                if not bool(source_available.all()):
                     raise ValueError("ADS world has no mapped source lane")
-                source_y = torch.gather(lane_y, 1, distance.argmin(dim=1, keepdim=True)).squeeze(1)
-                displacement = (lane_y - source_y[:, None]) * sign
-                adjacent = lane_present & displacement.gt(1.8) & displacement.lt(5.4)
-                available = adjacent.any(dim=1)
+                target_index, available = torch_adjacent_lane_index(
+                    source_index,
+                    lane_y,
+                    lane_present,
+                    lane_width,
+                    side=1 if sign > 0 else -1,
+                )
                 if not bool(available.all()):
                     self.target_y = None
-                    raise ValueError("requested ADS lane change has no mapped target lane")
-                target_index = torch.where(
-                    adjacent, displacement,
-                    torch.full_like(displacement, float("inf")),
-                ).argmin(dim=1, keepdim=True)
-                self.target_y = torch.gather(lane_y, 1, target_index).squeeze(1).detach().clone()
+                    raise ValueError(
+                        "requested ADS lane change has no mapped target lane"
+                    )
+                self.target_y = (
+                    torch.gather(lane_y, 1, target_index[:, None])
+                    .squeeze(1)
+                    .detach()
+                    .clone()
+                )
             else:
                 self.target_y = ego[:, 1].detach().clone() + sign * self.lane_width_m
         error_y = self.target_y.to(ego) - ego[:, 1]
@@ -134,8 +154,14 @@ class AbsoluteAccelerationPolicy:
             raise ValueError("baseline_actions must have shape [batch,time,2]")
         if not 0 <= self.start_frame < self.stop_frame <= values.shape[1]:
             raise ValueError("intervention window must lie inside baseline_actions")
-        if not self.minimum_acceleration_mps2 <= self.acceleration_mps2 <= self.maximum_acceleration_mps2:
-            raise ValueError("absolute acceleration setpoint is outside physical bounds")
+        if (
+            not self.minimum_acceleration_mps2
+            <= self.acceleration_mps2
+            <= self.maximum_acceleration_mps2
+        ):
+            raise ValueError(
+                "absolute acceleration setpoint is outside physical bounds"
+            )
         object.__setattr__(self, "baseline_actions", values.copy())
 
     def __call__(self, context: dict[str, torch.Tensor | int]) -> torch.Tensor:
@@ -212,29 +238,41 @@ class SemanticLaneChangePolicy:
         self.source_y = states[:, 0, 1].copy()
         self.target_y = self.source_y + sign * self.lane_width_m
         if (map_polylines is None) != (map_polyline_valid is None):
-            raise ValueError("map_polylines and map_polyline_valid must be supplied together")
+            raise ValueError(
+                "map_polylines and map_polyline_valid must be supplied together"
+            )
         if map_polylines is not None:
             lane_map = np.asarray(map_polylines, np.float32)
             lane_valid = np.asarray(map_polyline_valid, bool)
             if lane_map.ndim != 4 or lane_map.shape[0] != len(states):
-                raise ValueError("map_polylines must have shape [batch,lane,point,feature]")
+                raise ValueError(
+                    "map_polylines must have shape [batch,lane,point,feature]"
+                )
             if lane_valid.shape != lane_map.shape[:3]:
-                raise ValueError("map_polyline_valid shape does not match map_polylines")
-            lane_y = lane_map[..., 0, 1]
-            present = lane_valid.any(axis=-1)
-            source_distance = np.where(
-                present, np.abs(lane_y - self.source_y[:, None]), np.inf
+                raise ValueError(
+                    "map_polyline_valid shape does not match map_polylines"
+                )
+            lane_y, present, lane_width = torch_map_lane_geometry(
+                torch.from_numpy(lane_map), torch.from_numpy(lane_valid)
             )
-            if not present.any(axis=1).all():
+            source_index, source_y, _, source_available = torch_nearest_lane_geometry(
+                torch.from_numpy(states[:, 0, 1]), lane_y, present, lane_width
+            )
+            if not source_available.all().item():
                 raise ValueError("ADS world has no mapped source lane")
-            source_index = source_distance.argmin(axis=1)
-            self.source_y = lane_y[np.arange(len(states)), source_index].copy()
-            displacement = (lane_y - self.source_y[:, None]) * sign
-            adjacent = present & (displacement > 1.8) & (displacement < 5.4)
-            if not adjacent.any(axis=1).all():
+            target_index, target_available = torch_adjacent_lane_index(
+                source_index,
+                lane_y,
+                present,
+                lane_width,
+                side=1 if sign > 0 else -1,
+            )
+            if not target_available.all().item():
                 raise ValueError("requested ADS lane change has no mapped target lane")
-            target_index = np.where(adjacent, displacement, np.inf).argmin(axis=1)
-            self.target_y = lane_y[np.arange(len(states)), target_index].copy()
+            self.source_y = source_y.numpy().copy()
+            self.target_y = (
+                torch.gather(lane_y, 1, target_index[:, None]).squeeze(1).numpy().copy()
+            )
 
     def __call__(self, context: dict[str, torch.Tensor | int]) -> torch.Tensor:
         index = int(context["reference_index"])
@@ -255,13 +293,9 @@ class SemanticLaneChangePolicy:
         desired_vy = self.maximum_lateral_speed_mps * torch.tanh(
             self.lateral_gain_per_s * error_y / self.maximum_lateral_speed_mps
         )
-        desired_heading = torch.asin(
-            (desired_vy / speed).clamp(-0.95, 0.95)
-        )
+        desired_heading = torch.asin((desired_vy / speed).clamp(-0.95, 0.95))
         yaw_rate = self.heading_gain_per_s * _wrap_angle(desired_heading - heading)
-        yaw_rate = yaw_rate.clamp(
-            -self.maximum_yaw_rate_rps, self.maximum_yaw_rate_rps
-        )
+        yaw_rate = yaw_rate.clamp(-self.maximum_yaw_rate_rps, self.maximum_yaw_rate_rps)
         # Keep the feedback active after first entering the tolerance band.
         # Zeroing yaw rate at first entry leaves residual lateral velocity and
         # can drift the vehicle back outside the target-lane tolerance.
@@ -270,7 +304,11 @@ class SemanticLaneChangePolicy:
 
     def diagnostics(self, states: np.ndarray) -> dict[str, np.ndarray | float]:
         values = np.asarray(states, np.float32)
-        if values.ndim != 4 or values.shape[0] != len(self.target_y) or values.shape[2:] != (7, 6):
+        if (
+            values.ndim != 4
+            or values.shape[0] != len(self.target_y)
+            or values.shape[2:] != (7, 6)
+        ):
             raise ValueError("states must have shape [batch,time,7,6]")
         final = values[:, -1, 0]
         final_heading = np.arctan2(final[:, 3], final[:, 2])
@@ -279,9 +317,9 @@ class SemanticLaneChangePolicy:
             np.abs(final_heading) <= self.heading_tolerance_rad
         )
         direction = np.sign(self.target_y - self.source_y)
-        signed_progress = (
-            values[:, :, 0, 1] - self.source_y[:, None]
-        ) * direction[:, None]
+        signed_progress = (values[:, :, 0, 1] - self.source_y[:, None]) * direction[
+            :, None
+        ]
         lane_distance = np.abs(self.target_y - self.source_y)
         overshoot = np.maximum(signed_progress - lane_distance[:, None], 0.0)
         return {

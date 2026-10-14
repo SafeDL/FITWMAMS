@@ -1,0 +1,52 @@
+paths:
+  output_dir: /home/hp/FITWMAMS/results/diffusion
+  sequence_cache_dir: /home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache
+  source_schema: /home/hp/FITWMAMS/results/highd_shared_training_data/scenario_conditions/dataset_schema.json
+
+dataset:
+  target_representation: single_smoothed_pchip_position_residual
+  condition_mode: c0_position_knots
+  include_ego_future: false
+
+model:
+  hidden_dim: 96
+  num_layers: 3
+  num_heads: 4
+  dropout: 0.1
+
+diffusion:
+  steps: 100
+  min_snr_gamma: 5.0
+  x0_clip_abs: 2.5
+
+loss:
+  x0_weight: 0.1
+  smooth_weight: 0.05
+  long_horizon_weight: 0.05
+  trajectory_position_weight: 0.5
+  trajectory_velocity_weight: 0.2
+
+training:
+  seed: 20260812
+  device: auto
+  epochs: 30
+  batch_size: 64
+  val_batch_size: 64
+  num_workers: 4
+  learning_rate: 3.0e-4
+  minimum_learning_rate: 3.0e-5
+  weight_decay: 1.0e-4
+  grad_clip: 1.0
+  ema_decay: 0.999
+  fixed_validation_seed: 12345
+  early_stopping_patience: 6
+  early_stopping_minimum_delta: 1.0e-5
+
+evaluation:
+  seed: 20260812
+  device: auto
+  split: test
+  batch_size: 64
+  num_workers: 4
+  samples_per_condition: 16
+  ddim_steps: 50

@@ -12,13 +12,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from process_highD.src.natural_evt_pipeline import (
+from process_highD.src.preprocessing_pipeline import (
     build_natural_segments_dataset,
 )  # noqa: E402
 
-DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parents[1] / "configs" / "highd_natural_evt.yaml"
-)
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.yaml"
 
 
 def main() -> None:
@@ -31,11 +29,6 @@ def main() -> None:
         default=None,
         help='Optional override: "all" or comma-separated recording IDs.',
     )
-    parser.add_argument(
-        "--with-evt",
-        action="store_true",
-        help="Also fit EVT after segment extraction.",
-    )
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.INFO,
@@ -44,7 +37,6 @@ def main() -> None:
     build_natural_segments_dataset(
         config_path=Path(args.config).resolve(),
         recording_override=args.recordings,
-        fit_evt=bool(args.with_evt),
     )
 
 

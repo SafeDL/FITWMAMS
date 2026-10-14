@@ -68,4 +68,4 @@ after adding leader braking there is no observed paired human outcome. Absolute
 cross-model ranking is also limited because the retained posteriors were fitted
 under different calibration protocols.
 
-该四模型共同 probe 的机器可读汇总由 `python -m external_model_baselines.evaluation.driver_reproduction.scripts.build_scorecard` 生成；共同能力与可比较性契约见 [`doc/00_Common_Protocol.md`](../../../doc/00_Common_Protocol.md)。
+该四模型共同 probe 的机器可读汇总由 `python -m external_model_baselines.evaluation.driver_reproduction.scripts.build_scorecard` 生成；共同能力与可比较性边界见 [`driver_reproduction/README.md`](../driver_reproduction/README.md) 和 [`external_model_baselines/README.md`](../../README.md)。

@@ -11,14 +11,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from traffic_components.src.core.sequential_dataset import (  # noqa: E402
+from hierarchical_world_model.src.core.sequential_dataset import (  # noqa: E402
     CANONICAL_SEQUENCE_PROTOCOL,
     prepare_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from traffic_components.src.core.utils import load_yaml, setup_logging  # noqa: E402
+from hierarchical_world_model.src.core.utils import load_yaml, setup_logging  # noqa: E402
 
-CONFIG = ROOT / "process_highD/configs/highd_sequences.yaml"
+CONFIG = ROOT / "process_highD/config.yaml"
 
 
 def main() -> None:
@@ -31,7 +31,7 @@ def main() -> None:
     setup_logging(args.log_level)
     config_path = Path(args.config).resolve()
     config = load_yaml(config_path)
-    protocol = str(config.get("dataset", {}).get("sequence_protocol", ""))
+    protocol = str(config["dataset"]["sequence_protocol"])
     if protocol != CANONICAL_SEQUENCE_PROTOCOL:
         raise ValueError(
             f"dataset.sequence_protocol must be {CANONICAL_SEQUENCE_PROTOCOL!r}"

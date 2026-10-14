@@ -70,12 +70,7 @@ class HighDRecording:
     def get_vehicle_track(self, vehicle_id: int) -> pd.DataFrame:
         """返回指定车辆的完整轨迹 DataFrame。"""
         if vehicle_id not in self._vehicle_cache:
-            try:
-                self._vehicle_cache[vehicle_id] = self.tracks.loc[vehicle_id].copy()
-            except KeyError:
-                raise KeyError(
-                    f"Recording {self.recording_id}: 车辆 {vehicle_id} 不存在。"
-                )
+            self._vehicle_cache[vehicle_id] = self.tracks.loc[vehicle_id].copy()
         return self._vehicle_cache[vehicle_id]
 
     def get_frame(self, frame_id: int) -> pd.DataFrame:
@@ -126,10 +121,6 @@ def load_recording(raw_dir: str, recording_id: int) -> HighDRecording:
     meta_path = raw_dir / f"{prefix}_tracksMeta.csv"
     rec_meta_path = raw_dir / f"{prefix}_recordingMeta.csv"
 
-    for p in [tracks_path, meta_path, rec_meta_path]:
-        if not p.exists():
-            raise FileNotFoundError(f"找不到文件: {p}")
-
     logger.info("加载 recording %02d ...", recording_id)
 
     # ── 读取 tracks ──
@@ -137,8 +128,7 @@ def load_recording(raw_dir: str, recording_id: int) -> HighDRecording:
 
     # 统一无效 ID 字段为 -1（原始数据中用 0 表示无效）
     for col in _ID_COLUMNS:
-        if col in tracks_df.columns:
-            tracks_df[col] = tracks_df[col].replace(0, -1).astype(int)
+        tracks_df[col] = tracks_df[col].replace(0, -1).astype(int)
 
     # 建立 MultiIndex: (id, frame)
     tracks_df = tracks_df.set_index(["id", "frame"])
@@ -154,22 +144,11 @@ def load_recording(raw_dir: str, recording_id: int) -> HighDRecording:
 
     # 解析 lane markings
     rec_meta["upperLaneMarkings"] = np.fromstring(
-        str(rec_meta.get("upperLaneMarkings", "")), sep=";"
+        str(rec_meta["upperLaneMarkings"]), sep=";"
     )
     rec_meta["lowerLaneMarkings"] = np.fromstring(
-        str(rec_meta.get("lowerLaneMarkings", "")), sep=";"
+        str(rec_meta["lowerLaneMarkings"]), sep=";"
     )
-
-    # ── 验证 ──
-    n_meta = len(tracks_meta_df)
-    n_tracks = tracks_df.index.get_level_values(0).nunique()
-    if n_meta != n_tracks:
-        logger.warning(
-            "Recording %02d: tracksMeta 车辆数 (%d) != tracks 车辆数 (%d)",
-            recording_id,
-            n_meta,
-            n_tracks,
-        )
 
     recording = HighDRecording(
         recording_id=recording_id,

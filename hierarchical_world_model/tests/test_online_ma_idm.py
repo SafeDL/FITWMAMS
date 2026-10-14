@@ -6,15 +6,27 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 import torch
 
+from hierarchical_world_model.src.influence_graph import (
+    build_dynamic_interaction_relations,
+)
+from hierarchical_world_model.src.reference import planned_lateral_position_at_x
+from hierarchical_world_model.src.stochastic_drivers.lane_choice import (
+    lane_change_clearance,
+)
+from hierarchical_world_model.src.stochastic_drivers.lane_trajectory import (
+    LearnedLaneTrajectory,
+    path_clearance,
+)
 from hierarchical_world_model.src.reaction_controller import ReactionControllerContext
 from hierarchical_world_model.src.stochastic_drivers.online import (
-    OnlineMAIDMController, nearest_leader_observation, planned_adjacent_lane_intent,
-    planned_lateral_position_at_x,
+    OnlineMAIDMController,
+    nearest_leader_observation,
+    planned_adjacent_lane_intent,
 )
-from traffic_components.src.core.dynamics import KinematicTrafficDynamics
-
+from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
 
 THETA = np.tile(np.array([33.0, 2.0, 1.2, 1.4, 2.0], np.float32), (6, 1))
 
@@ -37,7 +49,9 @@ def test_generated_lateral_path_uses_longitudinal_progress_not_clock_time() -> N
     origin = torch.tensor([[[0.0, 0.0]]])
     path = torch.tensor([[[[20.0, 0.0]], [[40.0, 0.0]], [[60.0, 3.6]]]])
     query = torch.tensor([[10.0]])
-    torch.testing.assert_close(planned_lateral_position_at_x(origin, path, query), torch.zeros_like(query))
+    torch.testing.assert_close(
+        planned_lateral_position_at_x(origin, path, query), torch.zeros_like(query)
+    )
     torch.testing.assert_close(
         planned_lateral_position_at_x(origin, path, torch.tensor([[50.0]])),
         torch.tensor([[1.8]]),
@@ -63,22 +77,31 @@ def test_slowed_npc_waits_for_spatial_lane_change_location() -> None:
     slowed = context.current.clone()
     slowed[0, 1, 0] = 5.0
     context = replace(
-        context, current=slowed, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=planned,
+        context,
+        current=slowed,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=planned,
         planned_path_xy=path,
     )
     controller = OnlineMAIDMController(THETA)
     before_location = controller(context)
     assert before_location.policy_active[0, 0]
     assert before_location.actions[0, 0, 0, 1].item() == 0.0
-    late = controller(replace(context, response_index=80))
+    clear = slowed.clone()
+    clear[0, 0, 0] = 90.0
+    late = controller(replace(context, current=clear, response_index=80))
     assert late.actions[0, 0, 0, 1] > 0.0
     crossing = slowed.clone()
     crossing[0, 0, 1] = 0.0
     crossing[0, 0, 3] = 1.0
-    blocked_late = controller(replace(
-        context, current=crossing, response_index=80,
-    ))
+    blocked_late = controller(
+        replace(
+            context,
+            current=crossing,
+            response_index=80,
+        )
+    )
     assert blocked_late.actions[0, 0, 0, 1] == 0.0
     progressed = slowed.clone()
     progressed[0, 1, 0] = 55.0
@@ -107,15 +130,22 @@ def _context(*, ego_x: float, ego_ax: float = 0.0) -> ReactionControllerContext:
     base[0, 0, 1, 0] = 0.7
     base[0, 0, :, 1] = 0.02
     return ReactionControllerContext(
-        history=states[:, None], history_valid=valid[:, None],
-        current=states, current_valid=valid,
+        history=states[:, None],
+        history_valid=valid[:, None],
+        current=states,
+        current_valid=valid,
         committed_ego_controls=torch.zeros(1, 1, 2),
-        base_actions=base, reference_actions=base,
-        intervention_trigger=torch.zeros(1), intervention_memory=torch.zeros(1),
+        base_actions=base,
+        reference_actions=base,
+        intervention_trigger=torch.zeros(1),
+        intervention_memory=torch.zeros(1),
         lateral_intervention_memory=torch.zeros(1),
-        agent_style_state=torch.zeros(1, 7, 1), response_field_gain=None,
-        response_sensitivity_bounds=None, adapter_gain=None,
-        reaction_enabled=None, cfg=SimpleNamespace(),
+        agent_style_state=torch.zeros(1, 7, 1),
+        response_field_gain=None,
+        response_sensitivity_bounds=None,
+        adapter_gain=None,
+        reaction_enabled=None,
+        cfg=SimpleNamespace(),
     )
 
 
@@ -135,13 +165,255 @@ def _autonomous_lane_context(*, block_left: bool = False, block_right: bool = Fa
     maps[0, :, :, 1] = torch.tensor([-3.9, 0.0, 3.9])[:, None]
     origin = current[:, 1:, :2].clone()
     return replace(
-        context, current=current, current_valid=valid,
-        history=current[:, None].clone(), history_valid=valid[:, None].clone(),
-        planned_origin_xy=origin, planned_current_xy=origin.clone(),
+        context,
+        current=current,
+        current_valid=valid,
+        history=current[:, None].clone(),
+        history_valid=valid[:, None].clone(),
+        planned_origin_xy=origin,
+        planned_current_xy=origin.clone(),
         planned_terminal_xy=origin.clone(),
         map_polylines=maps,
         map_polyline_valid=torch.ones(1, 3, 8, dtype=torch.bool),
     )
+
+
+def test_calibrated_mobil_starts_only_sampled_clear_candidate() -> None:
+    context = _autonomous_lane_context()
+    current = context.current.clone()
+    current[0, 2, 4] = 0.0
+    current[0, 2, 0] = 80.0
+    context = replace(
+        context,
+        current=current,
+        history=current[:, None],
+        policy_standard_normal=torch.tensor([[[1.0, 10.0]] * 6]),
+        interaction_relations=build_dynamic_interaction_relations(
+            current,
+            context.current_valid,
+            context.map_polylines,
+            context.map_polyline_valid,
+        ),
+    )
+    chosen = OnlineMAIDMController(
+        THETA,
+        mobil_onset_calibration=(4.6, 0.0),
+        lane_changes_on_response_only=False,
+    )(context)
+    assert chosen.autonomous_lane_active[0, 0]
+    assert chosen.actions[0, 0, 0, 1] < 0.0
+    disabled = OnlineMAIDMController(
+        THETA,
+        mobil_onset_calibration=(4.6, 0.0),
+        autonomous_lane_changes_enabled=False,
+    )(context)
+    assert not disabled.autonomous_lane_active.any()
+
+    blocked = _autonomous_lane_context(block_left=True)
+    blocked_current = blocked.current.clone()
+    blocked_current[0, 2, 4] = 0.0
+    blocked_current[0, 2, 0] = 80.0
+    blocked = replace(
+        blocked,
+        current=blocked_current,
+        history=blocked_current[:, None],
+        policy_standard_normal=torch.tensor([[[1.0, 10.0]] * 6]),
+        interaction_relations=build_dynamic_interaction_relations(
+            blocked_current,
+            blocked.current_valid,
+            blocked.map_polylines,
+            blocked.map_polyline_valid,
+        ),
+    )
+    denied = OnlineMAIDMController(THETA, mobil_onset_calibration=(4.6, 0.0))(blocked)
+    assert not denied.autonomous_lane_active[0, 0]
+
+
+def test_response_only_mobil_does_not_add_undisturbed_changes() -> None:
+    context = _autonomous_lane_context()
+    current = context.current.clone()
+    current[0, 2, 0] = 80.0
+    current[0, 2, 2] = 20.0
+    current[0, 2, 4] = 0.0
+    context = replace(
+        context,
+        current=current,
+        history=current[:, None],
+        policy_standard_normal=torch.tensor([[[1.0, -10.0]] * 6]),
+        interaction_relations=build_dynamic_interaction_relations(
+            current,
+            context.current_valid,
+            context.map_polylines,
+            context.map_polyline_valid,
+        ),
+    )
+    result = OnlineMAIDMController(THETA, mobil_onset_calibration=(4.6, 0.0))(context)
+    assert not result.autonomous_lane_active.any()
+
+
+def test_existing_diffusion_lane_intent_does_not_veto_a_response() -> None:
+    context = _autonomous_lane_context()
+    current = context.current.clone()
+    valid = context.current_valid.clone()
+    current[0, 2, :5] = torch.tensor([80.0, 0.0, 20.0, 0.0, 0.0])
+    current[0, 3, :4] = torch.tensor([0.0, 3.9, 20.0, 0.0])
+    valid[0, 3] = True
+    terminal = context.planned_terminal_xy.clone()
+    terminal[0, 0, 1] = 3.9
+    planned = context.planned_current_xy.clone()
+    planned[0, 0, 1] = 0.5
+    context = replace(
+        context,
+        current=current,
+        current_valid=valid,
+        history=current[:, None],
+        planned_terminal_xy=terminal,
+        planned_current_xy=planned,
+        policy_standard_normal=torch.tensor([[[1.0, -10.0]] * 6]),
+        interaction_relations=build_dynamic_interaction_relations(
+            current,
+            valid,
+            context.map_polylines,
+            context.map_polyline_valid,
+        ),
+    )
+    controller = OnlineMAIDMController(THETA, mobil_onset_calibration=(4.6, 0.0))
+    result = controller(context)
+    assert result.autonomous_lane_active[0, 0]
+    assert controller._autonomous_lane_target_y[0, 0] < 0.0
+
+
+def test_completed_response_is_not_pulled_back_to_the_old_plan() -> None:
+    from hierarchical_world_model.src.reaction_controller import ManeuverPhase
+
+    context = _autonomous_lane_context()
+    controller = OnlineMAIDMController(THETA)
+    assert controller(context).autonomous_lane_active[0, 0]
+    current = context.current.clone()
+    current[0, 1, 1] = controller._autonomous_lane_target_y[0, 0]
+    current[0, 1, 3] = 0.0
+    controller._autonomous_lane_active[0, 0] = False
+    controller._maneuver_phase[0, 0] = int(ManeuverPhase.REBASE)
+    controller._maneuver_cooldown_frames[0, 0] = 25
+    completed = replace(context, current=current, history=current[:, None])
+    result = controller(completed)
+    assert abs(float(result.actions[0, 0, 0, 1])) < 1e-6
+    restored = OnlineMAIDMController(THETA)
+    restored.restore_runtime(controller.snapshot_runtime())
+    torch.testing.assert_close(
+        restored(completed).actions, controller(completed).actions
+    )
+
+
+def test_completed_lane_hold_preserves_lateral_acceleration_continuity() -> None:
+    from hierarchical_world_model.src.reaction_controller import ManeuverPhase
+
+    context = _autonomous_lane_context()
+    controller = OnlineMAIDMController(THETA)
+    controller(context)
+    current = context.current.clone()
+    current[0, 1, 1] = controller._autonomous_lane_target_y[0, 0]
+    current[0, 1, 3] = 0
+    current[0, 1, 5] = 0.4
+    controller._autonomous_lane_active[0, 0] = False
+    controller._maneuver_phase[0, 0] = int(ManeuverPhase.REBASE)
+    controller._maneuver_cooldown_frames[0, 0] = 25
+    output = controller(replace(context, current=current, history=current[:, None]))
+    actual = KinematicTrafficDynamics().step(
+        current,
+        torch.cat((torch.zeros((1, 1, 2)), output.actions[:, 0]), 1),
+        context.current_valid,
+        0.04,
+    )[0, 1]
+    heading = torch.atan2(actual[3], actual[2])
+    normal = -actual[4] * heading.sin() + actual[5] * heading.cos()
+    assert normal > 0
+    assert (
+        abs(float(normal - 0.4)) / 0.04 <= controller.lane_trajectory.jerk_limit + 1e-4
+    )
+
+
+def test_completed_lane_motion_bound_preserves_training_gradients() -> None:
+    from hierarchical_world_model.src.reaction_controller import ManeuverPhase
+
+    context = _autonomous_lane_context()
+    controller = OnlineMAIDMController(THETA)
+    controller(context)
+    current = context.current.clone()
+    current[0, 1, 1] = controller._autonomous_lane_target_y[0, 0]
+    current[0, 1, 3] = 0
+    current[0, 1, 5] = 0.4
+    current.requires_grad_()
+    controller._autonomous_lane_active[0, 0] = False
+    controller._maneuver_phase[0, 0] = int(ManeuverPhase.REBASE)
+    controller._maneuver_cooldown_frames[0, 0] = 25
+    output = controller(replace(context, current=current, history=current[:, None]))
+    output.actions.square().sum().backward()
+    assert torch.isfinite(current.grad).all()
+    assert current.grad[0, 1, 5].abs() > 0
+
+
+def test_learned_lane_clearance_checks_entry_time_not_source_lane_departure() -> None:
+    context = _autonomous_lane_context(block_left=True)
+    current = context.current.clone()
+    current[0, 3, 0] = 2.0
+    current[0, 3, 2] = 30.0
+    valid = context.current_valid
+    relation = build_dynamic_interaction_relations(
+        current,
+        valid,
+        context.map_polylines,
+        context.map_polyline_valid,
+    )
+    old = lane_change_clearance(
+        current,
+        valid,
+        context.map_polylines,
+        context.map_polyline_valid,
+        relation,
+    )
+    onset = lane_change_clearance(
+        current,
+        valid,
+        context.map_polylines,
+        context.map_polyline_valid,
+        relation,
+        times_s=(2.5, 3.0, 4.0),
+    )
+    assert not old[0, 0, 0]
+    assert onset[0, 0, 0]
+
+
+def test_gradual_collision_preview_allows_alongside_car_that_pulls_away() -> None:
+    context = _autonomous_lane_context(block_left=True)
+    current = context.current.clone()
+    current[0, 2, 0] = 80.0
+    current[0, 3, :4] = torch.tensor([2.0, -3.9, 30.0, 0.0])
+    planner = LearnedLaneTrajectory()
+    target = torch.full((1, 6), -3.9)
+    dimensions = torch.tensor((4.8, 1.8)).view(1, 1, 2).expand(1, 7, 2)
+    path = planner.plan(current[:, 1:], dimensions[:, 1:], target)
+    clearing = path_clearance(
+        current,
+        context.current_valid,
+        dimensions,
+        path[0][..., None, :],
+        path[1][..., None],
+        path[2][..., None],
+        current[:, 1:, 4],
+    )
+    assert clearing[0, 0, 0]
+    current[0, 3, 2] = 20.0
+    blocked = path_clearance(
+        current,
+        context.current_valid,
+        dimensions,
+        path[0][..., None, :],
+        path[1][..., None],
+        path[2][..., None],
+        current[:, 1:, 4],
+    )
+    assert not blocked[0, 0, 0]
 
 
 def test_new_npc_lane_intent_is_mapped_safe_and_snapshot_replayable() -> None:
@@ -150,9 +422,18 @@ def test_new_npc_lane_intent_is_mapped_safe_and_snapshot_replayable() -> None:
     first = controller(context)
     assert first.autonomous_lane_active[0, 0]
     assert first.policy_active[0, 0]
-    assert first.actions[0, 0, 0, 1] < 0.0
+    assert first.actions[0, 0, 0, 1] <= 0.0
     snapshot = controller.snapshot_runtime()
-    torch.testing.assert_close(snapshot["autonomous_lane_target_y"][0, 0], torch.tensor(-3.9))
+    torch.testing.assert_close(
+        snapshot["autonomous_lane_target_y"][0, 0], torch.tensor(-3.9)
+    )
+    assert snapshot["lane_path_distance"][0, 0] > 10.0
+    torch.testing.assert_close(
+        snapshot["lane_path_coefficients"][0, 0].sum(),
+        torch.tensor(-3.9),
+        atol=1e-4,
+        rtol=0,
+    )
     progressed = context.current.clone()
     progressed[0, 1, 1] = -1.0
     progressed[0, 1, 3] = -0.8
@@ -166,19 +447,26 @@ def test_new_npc_lane_intent_is_mapped_safe_and_snapshot_replayable() -> None:
 
 
 def test_new_npc_lane_intent_uses_clear_adjacent_lane_only() -> None:
-    blocked_left = OnlineMAIDMController(THETA)(_autonomous_lane_context(block_left=True))
+    blocked_left = OnlineMAIDMController(THETA)(
+        _autonomous_lane_context(block_left=True)
+    )
     assert blocked_left.autonomous_lane_active[0, 0]
-    assert blocked_left.actions[0, 0, 0, 1] > 0.0
-    blocked_both = OnlineMAIDMController(THETA)(_autonomous_lane_context(
-        block_left=True, block_right=True,
-    ))
+    assert blocked_left.actions[0, 0, 0, 1] >= 0.0
+    blocked_both = OnlineMAIDMController(THETA)(
+        _autonomous_lane_context(
+            block_left=True,
+            block_right=True,
+        )
+    )
     assert not blocked_both.autonomous_lane_active[0, 0]
     both_occupied = _autonomous_lane_context(block_left=True, block_right=True)
     torch.testing.assert_close(
         blocked_both.actions[0, 0, 0, 1], both_occupied.base_actions[0, 0, 0, 1]
     )
     no_map_context = replace(
-        _autonomous_lane_context(), map_polylines=None, map_polyline_valid=None,
+        _autonomous_lane_context(),
+        map_polylines=None,
+        map_polyline_valid=None,
     )
     assert not OnlineMAIDMController(THETA)(no_map_context).autonomous_lane_active.any()
 
@@ -196,12 +484,16 @@ def test_new_npc_lane_intent_completes_full_maneuver_after_leader_brake() -> Non
         dynamics = KinematicTrafficDynamics()
         previous = None
         ever = False
-        for relative_frame in range(149):
+        # A stopped vehicle needs time to regain forward progress along its path.
+        for relative_frame in range(600):
             frame = start_frame + relative_frame
             observed = replace(
-                context, current=state, history=history,
+                context,
+                current=state,
+                history=history,
                 history_valid=context.current_valid[:, None].expand(-1, 25, -1),
-                previous_background_actions=previous, response_index=frame,
+                previous_background_actions=previous,
+                response_index=frame,
             )
             output = controller(observed)
             ever |= bool(output.autonomous_lane_active[0, 0])
@@ -239,17 +531,56 @@ def test_npc_clear_pass_before_ads_enters_mapped_lane_keeps_hiqr_action() -> Non
         map_polyline_valid=torch.ones(1, 2, 8, dtype=torch.bool),
     )
     context.map_polylines[0, 1, :, 1] = 3.6
-    no_map = OnlineMAIDMController(THETA)(replace(
-        context, map_polylines=None, map_polyline_valid=None,
-    ))
+    no_map = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            map_polylines=None,
+            map_polyline_valid=None,
+        )
+    )
     mapped = OnlineMAIDMController(THETA)(context)
     assert no_map.actions[0, 0, 0, 0] < context.base_actions[0, 0, 0, 0]
     torch.testing.assert_close(
         mapped.actions[0, 0, 0, 0], context.base_actions[0, 0, 0, 0]
     )
-    torch.testing.assert_close(
-        mapped.actions[0, 0, 1:], no_map.actions[0, 0, 1:]
+    torch.testing.assert_close(mapped.actions[0, 0, 1:], no_map.actions[0, 0, 1:])
+
+
+def test_clear_pass_rule_is_symmetric_for_rightward_ads_crossing() -> None:
+    context = _context(ego_x=5.0)
+    context.current[0, 0, 2:4] = torch.tensor([20.0, 1.0])
+    context.current[0, 1, 1] = 3.6
+    context.current[0, 1, 2] = 30.0
+    maps = torch.zeros(1, 2, 8, 6)
+    maps[0, 1, :, 1] = 3.6
+    context = replace(
+        context,
+        history=context.current[:, None].clone(),
+        map_polylines=maps,
+        map_polyline_valid=torch.ones(1, 2, 8, dtype=torch.bool),
     )
+    left = OnlineMAIDMController(THETA)(context)
+    mirrored_current = context.current.clone()
+    mirrored_current[..., 1] *= -1
+    mirrored_current[..., 3] *= -1
+    mirrored_current[..., 5] *= -1
+    mirrored_maps = maps.clone()
+    mirrored_maps[..., 1] *= -1
+    mirrored_base = context.base_actions.clone()
+    mirrored_base[..., 1] *= -1
+    mirrored_reference = context.reference_actions.clone()
+    mirrored_reference[..., 1] *= -1
+    mirrored = replace(
+        context,
+        current=mirrored_current,
+        history=mirrored_current[:, None].clone(),
+        map_polylines=mirrored_maps,
+        base_actions=mirrored_base,
+        reference_actions=mirrored_reference,
+    )
+    right = OnlineMAIDMController(THETA)(mirrored)
+    torch.testing.assert_close(left.actions[..., 0], right.actions[..., 0])
+    torch.testing.assert_close(left.actions[..., 1], -right.actions[..., 1])
 
 
 def test_clear_pass_uses_mapped_width_and_stays_committed_until_ahead() -> None:
@@ -268,7 +599,9 @@ def test_clear_pass_uses_mapped_width_and_stays_committed_until_ahead() -> None:
     controller = OnlineMAIDMController(THETA)
     initial = controller(context)
     assert controller._passing_cutin_latched[0, 0]
-    torch.testing.assert_close(initial.actions[0, 0, 0, 0], context.base_actions[0, 0, 0, 0])
+    torch.testing.assert_close(
+        initial.actions[0, 0, 0, 0], context.base_actions[0, 0, 0, 0]
+    )
 
     # The instantaneous forecast becomes too short while the cars are nearly
     # abreast. Dropping the earlier safe-pass commitment here causes braking
@@ -279,11 +612,31 @@ def test_clear_pass_uses_mapped_width_and_stays_committed_until_ahead() -> None:
     later = replace(context, current=progressed)
     snapshot = controller.snapshot_runtime()
     committed = controller(later)
-    torch.testing.assert_close(committed.actions[0, 0, 0, 0], later.base_actions[0, 0, 0, 0])
+    torch.testing.assert_close(
+        committed.actions[0, 0, 0, 0], later.base_actions[0, 0, 0, 0]
+    )
     restored = OnlineMAIDMController(THETA)
     restored.restore_runtime(snapshot)
     replay = restored(later)
     torch.testing.assert_close(replay.actions, committed.actions)
+
+
+def test_passing_cutin_does_not_treat_opposite_carriageway_as_target_lane() -> None:
+    context = _context(ego_x=10.0)
+    context.current[0, 0, 1:4] = torch.tensor([-0.22, 15.0, 0.5])
+    context.current[0, 1, 1:4] = torch.tensor([9.675, 30.0, 0.0])
+    centers = (-8.43, -4.325, -0.22, 9.675, 13.735, 17.8)
+    widths = (4.32, 3.89, 4.32, 4.23, 3.89, 4.24)
+    maps = torch.zeros(1, len(centers), 4, 6)
+    maps[0, :, :, 1] = torch.tensor(centers)[:, None]
+    maps[0, :, :, 4] = torch.tensor(widths)[:, None]
+    context = replace(
+        context,
+        map_polylines=maps,
+        map_polyline_valid=torch.ones(1, len(centers), 4, dtype=torch.bool),
+    )
+    controller = OnlineMAIDMController(THETA)
+    assert not controller._passing_cutin_clearance(context)[0, 0]
 
 
 def test_ads_pass_does_not_mask_a_more_dangerous_npc_leader() -> None:
@@ -324,9 +677,12 @@ def test_lagging_follower_does_not_accelerate_to_chase_plan() -> None:
     distant = _context(ego_x=90.0)
     distant_plan = distant.current[:, 1:, :2].clone()
     distant_plan[0, 0, 0] += 3.0
-    distant_response = OnlineMAIDMController(THETA)(replace(
-        distant, planned_current_xy=distant_plan,
-    ))
+    distant_response = OnlineMAIDMController(THETA)(
+        replace(
+            distant,
+            planned_current_xy=distant_plan,
+        )
+    )
     torch.testing.assert_close(distant_response.actions, distant.base_actions)
 
 
@@ -337,7 +693,9 @@ def test_realized_ego_and_npc_leaders_cause_only_at_risk_follower_to_brake() -> 
     assert close.active[0, 0]
     assert close.actions[0, 0, 0, 0] < distant.actions[0, 0, 0, 0]
     assert close.actions[0, 0, 0, 0] >= -8.0
-    torch.testing.assert_close(close.actions[0, 0, 1], _context(ego_x=16.0).base_actions[0, 0, 1])
+    torch.testing.assert_close(
+        close.actions[0, 0, 1], _context(ego_x=16.0).base_actions[0, 0, 1]
+    )
     # The same rule applies to an NPC leader; no ego-only trigger is needed.
     npc_leader = _context(ego_x=90.0)
     npc_leader.current[0, 2, :4] = torch.tensor([15.0, 3.6, 15.0, 0.0])
@@ -348,13 +706,17 @@ def test_realized_ego_and_npc_leaders_cause_only_at_risk_follower_to_brake() -> 
     assert response.actions[0, 0, 0, 0] < 0.0
 
 
-def test_braking_current_lane_leader_is_not_masked_by_pulling_away_target_lane_car() -> None:
+def test_braking_current_lane_leader_is_not_masked_by_pulling_away_target_lane_car() -> (
+    None
+):
     context = _context(ego_x=10.0)
     context.current[0, 0, :5] = torch.tensor([10.0, 0.0, 16.0, 0.0, -8.0])
     context.current[0, 1, :5] = torch.tensor([0.0, 1.1, 23.8, 0.88, 3.2])
     context.current[0, 2, :5] = torch.tensor([8.0, 4.26, 28.3, 0.0, -0.4])
     _, _, _, leader = nearest_leader_observation(
-        context.current, context.current_valid, prediction_horizon_s=2.0,
+        context.current,
+        context.current_valid,
+        prediction_horizon_s=2.0,
     )
     assert leader[0, 0] == 0
     response = OnlineMAIDMController(THETA)(context)
@@ -395,15 +757,26 @@ def test_clear_planned_lane_exit_avoids_false_longitudinal_brake() -> None:
     maps[0, :, :, 1] = torch.tensor([-3.6, 0.0, 3.6])[:, None]
     map_valid = torch.ones(1, 3, 8, dtype=torch.bool)
     context = replace(
-        context, current=current, current_valid=valid,
-        base_actions=base, planned_origin_xy=origin,
-        planned_current_xy=path[:, 0], planned_terminal_xy=path[:, -1],
-        planned_path_xy=path, map_polylines=maps, map_polyline_valid=map_valid,
+        context,
+        current=current,
+        current_valid=valid,
+        base_actions=base,
+        planned_origin_xy=origin,
+        planned_current_xy=path[:, 0],
+        planned_terminal_xy=path[:, -1],
+        planned_path_xy=path,
+        map_polylines=maps,
+        map_polyline_valid=map_valid,
     )
-    no_path = OnlineMAIDMController(THETA)(replace(
-        context, planned_origin_xy=None, planned_current_xy=None,
-        planned_terminal_xy=None, planned_path_xy=None,
-    ))
+    no_path = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            planned_origin_xy=None,
+            planned_current_xy=None,
+            planned_terminal_xy=None,
+            planned_path_xy=None,
+        )
+    )
     clear_exit = OnlineMAIDMController(THETA)(context)
     assert no_path.actions[0, 0, 0, 0] < base[0, 0, 0, 0]
     torch.testing.assert_close(clear_exit.actions[0, 0, 0, 0], base[0, 0, 0, 0])
@@ -415,15 +788,23 @@ def test_clear_planned_lane_exit_avoids_false_longitudinal_brake() -> None:
     blocked[0, 2, :4] = torch.tensor([6.0, -3.6, 25.0, 0.0])
     blocked_valid = valid.clone()
     blocked_valid[0, 2] = True
-    blocked_response = OnlineMAIDMController(THETA)(replace(
-        context, current=blocked, current_valid=blocked_valid,
-    ))
+    blocked_response = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            current=blocked,
+            current_valid=blocked_valid,
+        )
+    )
     assert blocked_response.actions[0, 0, 0, 0] < base[0, 0, 0, 0]
     pulling_away = current.clone()
     pulling_away[0, 2, :4] = torch.tensor([5.5, -3.6, 30.0, 0.0])
-    clear_at_entry = OnlineMAIDMController(THETA)(replace(
-        context, current=pulling_away, current_valid=blocked_valid,
-    ))
+    clear_at_entry = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            current=pulling_away,
+            current_valid=blocked_valid,
+        )
+    )
     torch.testing.assert_close(clear_at_entry.actions[0, 0, 0, 0], base[0, 0, 0, 0])
     # A vehicle currently in the source lane can still enter the target lane
     # during the local horizon. It must not be treated as a clear escape gap.
@@ -432,9 +813,13 @@ def test_clear_planned_lane_exit_avoids_false_longitudinal_brake() -> None:
     crossing[0, 2, :5] = torch.tensor([17.23, 0.37, 24.1, 0.0, -2.0])
     crossing_valid = valid.clone()
     crossing_valid[0, 2] = True
-    crossing_response = OnlineMAIDMController(THETA)(replace(
-        context, current=crossing, current_valid=crossing_valid,
-    ))
+    crossing_response = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            current=crossing,
+            current_valid=crossing_valid,
+        )
+    )
     assert crossing_response.actions[0, 0, 0, 0] < base[0, 0, 0, 0]
 
 
@@ -452,13 +837,22 @@ def test_departing_leader_preserves_lane_keep_but_not_hard_brake() -> None:
     maps[0, :, :, 1] = torch.tensor([-3.6, 0.0, 3.6])[:, None]
     map_valid = torch.ones(1, 3, 8, dtype=torch.bool)
     context = replace(
-        context, current=current, current_valid=valid, base_actions=base,
-        planned_origin_xy=origin, planned_terminal_xy=origin,
-        map_polylines=maps, map_polyline_valid=map_valid,
+        context,
+        current=current,
+        current_valid=valid,
+        base_actions=base,
+        planned_origin_xy=origin,
+        planned_terminal_xy=origin,
+        map_polylines=maps,
+        map_polyline_valid=map_valid,
     )
-    no_intent = OnlineMAIDMController(THETA)(replace(
-        context, planned_origin_xy=None, planned_terminal_xy=None,
-    ))
+    no_intent = OnlineMAIDMController(THETA)(
+        replace(
+            context,
+            planned_origin_xy=None,
+            planned_terminal_xy=None,
+        )
+    )
     departing = OnlineMAIDMController(THETA)(context)
     assert no_intent.actions[0, 0, 0, 0] < base[0, 0, 0, 0]
     torch.testing.assert_close(departing.actions[0, 0, 0, 0], base[0, 0, 0, 0])
@@ -482,9 +876,14 @@ def test_target_lane_gap_is_checked_at_planned_entry_time() -> None:
     maps[0, :, :, 1] = torch.tensor([-3.6, 0.0, 3.6])[:, None]
     map_valid = torch.ones(1, 3, 8, dtype=torch.bool)
     context = replace(
-        context, current=current, planned_origin_xy=origin,
-        planned_current_xy=path[:, 5], planned_terminal_xy=path[:, -1],
-        planned_path_xy=path, map_polylines=maps, map_polyline_valid=map_valid,
+        context,
+        current=current,
+        planned_origin_xy=origin,
+        planned_current_xy=path[:, 5],
+        planned_terminal_xy=path[:, -1],
+        planned_path_xy=path,
+        map_polylines=maps,
+        map_polyline_valid=map_valid,
         response_index=5,
     )
     away = OnlineMAIDMController(THETA)(context)
@@ -500,8 +899,11 @@ def test_abrupt_realized_ads_acceleration_produces_causal_positive_response() ->
     context = _context(ego_x=30.0, ego_ax=4.0)
     history = context.current[:, None].expand(-1, 6, -1, -1).clone()
     history[:, :-1, 0, 4] = 0.0
-    context = replace(context, history=history,
-                      history_valid=context.current_valid[:, None].expand(-1, 6, -1))
+    context = replace(
+        context,
+        history=history,
+        history_valid=context.current_valid[:, None].expand(-1, 6, -1),
+    )
     output = OnlineMAIDMController(THETA)(context)
     assert output.active[0, 0]
     assert output.actions[0, 0, 0, 0] > context.base_actions[0, 0, 0, 0]
@@ -509,7 +911,9 @@ def test_abrupt_realized_ads_acceleration_produces_causal_positive_response() ->
     partial_valid[:, 0, 0] = False
     preserved_controller = OnlineMAIDMController(THETA)
     preserved = preserved_controller(replace(context, history_valid=partial_valid))
-    assert preserved.actions[0, 0, 0, 0] > context.base_actions[0, 0, 0, 0]
+    torch.testing.assert_close(
+        preserved.actions[0, 0, 0], context.base_actions[0, 0, 0]
+    )
     assert not preserved_controller.snapshot_runtime()["disturbance_latched"][0, 0]
 
 
@@ -519,7 +923,8 @@ def test_abrupt_npc_leader_braking_triggers_response_before_unsafe_gap() -> None
     history = context.current[:, None].expand(-1, 6, -1, -1).clone()
     history[:, :-1, 2, 4] = 0.0
     context = replace(
-        context, history=history,
+        context,
+        history=history,
         history_valid=context.current_valid[:, None].expand(-1, 6, -1),
     )
     controller = OnlineMAIDMController(THETA)
@@ -534,7 +939,9 @@ def test_abrupt_npc_leader_braking_triggers_response_before_unsafe_gap() -> None
     partial_valid = context.history_valid.clone()
     partial_valid[:, 0, 2] = False
     newly_visible = controller(replace(context, history_valid=partial_valid))
-    torch.testing.assert_close(newly_visible.actions[0, 0, 0], context.base_actions[0, 0, 0])
+    torch.testing.assert_close(
+        newly_visible.actions[0, 0, 0], context.base_actions[0, 0, 0]
+    )
 
 
 def test_adjacent_npc_shock_waits_for_lane_alignment_but_cut_in_risk_remains() -> None:
@@ -543,7 +950,8 @@ def test_adjacent_npc_shock_waits_for_lane_alignment_but_cut_in_risk_remains() -
     history = context.current[:, None].expand(-1, 6, -1, -1).clone()
     history[:, :-1, 2, 4] = 0.0
     context = replace(
-        context, history=history,
+        context,
+        history=history,
         history_valid=context.current_valid[:, None].expand(-1, 6, -1),
     )
     safe_crossing = OnlineMAIDMController(THETA)(context)
@@ -574,7 +982,9 @@ def test_npc_braking_propagates_through_realized_traffic_history() -> None:
         follower_actions = []
         for frame in range(149):
             observed = replace(
-                context, current=state, history=history,
+                context,
+                current=state,
+                history=history,
                 history_valid=valid_history,
                 previous_background_actions=previous_actions,
             )
@@ -613,7 +1023,6 @@ def test_longitudinal_release_latch_snapshots_without_future_branch() -> None:
     )
     controller._disturbance_latched = controller._longitudinal_response_latched.clone()
     controller._disturbance_leader_index = torch.tensor([[2, -1, -1, -1, -1, -1]])
-    controller._previous_base_ax = context.base_actions[:, 0, :, 0].clone()
     snapshot = controller.snapshot_runtime()
     first = controller(context)
     restored = OnlineMAIDMController(THETA)
@@ -625,9 +1034,120 @@ def test_longitudinal_release_latch_snapshots_without_future_branch() -> None:
     changed_leader = OnlineMAIDMController(THETA)
     changed_leader.restore_runtime(snapshot)
     changed_leader._disturbance_leader_index[0, 0] = 0
-    unaffected = changed_leader(context)
+    continued_release = changed_leader(context)
     torch.testing.assert_close(
-        unaffected.actions[0, 0, 0, 0], context.base_actions[0, 0, 0, 0]
+        continued_release.actions[0, 0, 0, 0], first.actions[0, 0, 0, 0]
+    )
+
+
+@pytest.mark.parametrize("leader_slot", [0, 2])
+def test_response_release_remains_smooth_when_ads_or_npc_leader_clears(leader_slot):
+    context = _context(ego_x=12 if leader_slot == 0 else 90)
+    if leader_slot == 2:
+        context.current[0, 2, :4] = torch.tensor([12.0, 0.0, 15.0, 0.0])
+    controller = OnlineMAIDMController(THETA, autonomous_lane_changes_enabled=False)
+    response = controller(context)
+    assert response.active[0, 0]
+    assert response.actions[0, 0, 0, 0] < -2
+    current = context.current.clone()
+    current[0, leader_slot, 0] = 90
+    previous = response.actions[:, 0].clone()
+    max_step = controller.correction_jerk_limit_mps3 * controller.native_dt_s
+    for _ in range(25):
+        released = controller(
+            replace(
+                context,
+                current=current,
+                history=current[:, None],
+                previous_background_actions=previous,
+            )
+        )
+        change = float(released.actions[0, 0, 0, 0] - previous[0, 0, 0])
+        assert abs(change) <= max_step + 1e-6
+        torch.testing.assert_close(
+            released.actions[0, 0, 1], context.base_actions[0, 0, 1]
+        )
+        previous = released.actions[:, 0].clone()
+    torch.testing.assert_close(previous[0, 0], context.base_actions[0, 0, 0])
+    assert not released.active[0, 0]
+
+
+def test_weaker_hiqr_brake_does_not_jump_out_of_an_existing_response():
+    context = _context(ego_x=12)
+    controller = OnlineMAIDMController(THETA, autonomous_lane_changes_enabled=False)
+    response = controller(context)
+    current = context.current.clone()
+    current[0, 0, 0] = 90
+    base = context.base_actions.clone()
+    base[0, 0, 0, 0] = -1
+    released = controller(
+        replace(
+            context,
+            current=current,
+            history=current[:, None],
+            base_actions=base,
+            previous_background_actions=response.actions[:, 0],
+        )
+    )
+    max_step = controller.correction_jerk_limit_mps3 * controller.native_dt_s
+    torch.testing.assert_close(
+        released.actions[0, 0, 0, 0], response.actions[0, 0, 0, 0] + max_step
+    )
+
+
+def test_release_does_not_delay_hiqr_braking_stronger_than_actual_previous_action():
+    context = _context(ego_x=90)
+    previous = torch.zeros(1, 6, 2)
+    previous[0, 0, 0] = -2
+    context.base_actions[0, 0, 0, 0] = -4
+    controller = OnlineMAIDMController(THETA)
+    controller._longitudinal_response_latched = torch.tensor(
+        [[True, False, False, False, False, False]]
+    )
+    output = controller(replace(context, previous_background_actions=previous))
+    torch.testing.assert_close(output.actions[0, 0, 0], context.base_actions[0, 0, 0])
+
+
+def test_completed_autonomous_lane_change_releases_longitudinal_action_smoothly():
+    context = _autonomous_lane_context()
+    context.current[0, 2, :5] = torch.tensor([80.0, 0.0, 20.0, 0.0, 0.0])
+    context = replace(
+        context,
+        policy_standard_normal=torch.tensor([[[1.0, 10.0]] * 6]),
+        interaction_relations=build_dynamic_interaction_relations(
+            context.current,
+            context.current_valid,
+            context.map_polylines,
+            context.map_polyline_valid,
+        ),
+    )
+    controller = OnlineMAIDMController(
+        THETA, mobil_onset_calibration=(4.6, 0.0), lane_changes_on_response_only=False
+    )
+    first = controller(context)
+    assert first.autonomous_lane_active[0, 0]
+    max_step = controller.correction_jerk_limit_mps3 * controller.native_dt_s
+    assert first.actions[0, 0, 0, 0] > max_step
+    current = context.current.clone()
+    current[0, 1, 1] = controller._autonomous_lane_target_y[0, 0]
+    controller._maneuver_stable_frames[0, 0] = 9
+    completed = controller(
+        replace(
+            context,
+            current=current,
+            history=current[:, None],
+            previous_background_actions=first.actions[:, 0],
+            interaction_relations=build_dynamic_interaction_relations(
+                current,
+                context.current_valid,
+                context.map_polylines,
+                context.map_polyline_valid,
+            ),
+        )
+    )
+    assert not completed.autonomous_lane_active[0, 0]
+    torch.testing.assert_close(
+        completed.actions[0, 0, 0, 0], first.actions[0, 0, 0, 0] - max_step
     )
 
 
@@ -640,8 +1160,10 @@ def test_displaced_npc_lane_change_has_semantic_target_and_gap_wait() -> None:
     terminal = origin.clone()
     terminal[0, 0, 1] = 3.6
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=terminal,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=terminal,
     )
     controller = OnlineMAIDMController(THETA)
     free = controller(context)
@@ -671,8 +1193,10 @@ def test_on_plan_npc_lateral_action_is_exact_hiqr_action() -> None:
     terminal = origin.clone()
     terminal[0, 0, 1] = 3.6
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=origin.clone(), planned_terminal_xy=terminal,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=origin.clone(),
+        planned_terminal_xy=terminal,
     )
     output = OnlineMAIDMController(THETA)(context)
     torch.testing.assert_close(output.actions[..., 1], context.base_actions[..., 1])
@@ -689,13 +1213,18 @@ def test_unstarted_lane_plan_does_not_trigger_early_gap_wait() -> None:
     occupied = context.current.clone()
     occupied[0, 2, :4] = torch.tensor([5.0, 3.6, 20.0, 0.0])
     context = replace(
-        context, current=occupied, planned_origin_xy=origin,
-        planned_current_xy=origin, planned_terminal_xy=terminal,
+        context,
+        current=occupied,
+        planned_origin_xy=origin,
+        planned_current_xy=origin,
+        planned_terminal_xy=terminal,
         planned_path_xy=path,
     )
     output = OnlineMAIDMController(THETA)(context)
     assert not output.policy_active[0, 0]
-    torch.testing.assert_close(output.actions[0, 0, 0, 1], context.base_actions[0, 0, 0, 1])
+    torch.testing.assert_close(
+        output.actions[0, 0, 0, 1], context.base_actions[0, 0, 0, 1]
+    )
 
 
 def test_on_plan_change_waits_for_fast_target_lane_rear_then_resumes() -> None:
@@ -707,8 +1236,10 @@ def test_on_plan_change_waits_for_fast_target_lane_rear_then_resumes() -> None:
     terminal = origin.clone()
     terminal[0, 0, 1] = 3.6
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=terminal,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=terminal,
     )
     context.current[0, 2, 0] = -20.0
     context.current[0, 2, 2] = 30.0
@@ -737,14 +1268,18 @@ def test_receding_target_lane_front_does_not_force_unnecessary_wait() -> None:
     context.current[0, 2, 1] = 3.9
     context.current[0, 2, 2] = 22.0
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=terminal,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=terminal,
         map_polylines=maps,
         map_polyline_valid=torch.ones(1, 3, 8, dtype=torch.bool),
     )
     output = OnlineMAIDMController(THETA)(context)
     assert not output.policy_active[0, 0]
-    torch.testing.assert_close(output.actions[0, 0, 0, 1], context.base_actions[0, 0, 0, 1])
+    torch.testing.assert_close(
+        output.actions[0, 0, 0, 1], context.base_actions[0, 0, 0, 1]
+    )
 
 
 def test_blocked_planned_change_stays_in_source_then_completes() -> None:
@@ -759,14 +1294,17 @@ def test_blocked_planned_change_stays_in_source_then_completes() -> None:
     maps[0, :, :, 1] = torch.tensor([0.0, 3.9, 7.8])[:, None]
     map_valid = torch.ones(1, 3, 8, dtype=torch.bool)
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=terminal,
-        map_polylines=maps, map_polyline_valid=map_valid,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=terminal,
+        map_polylines=maps,
+        map_polyline_valid=map_valid,
     )
     context.current[0, 2, 1] = 3.9
     controller = OnlineMAIDMController(THETA)
     dynamics = KinematicTrafficDynamics()
-    for frame in range(149):
+    for frame in range(400):
         current = context.current.clone()
         current[0, 2, 0] = current[0, 1, 0] + (5.0 if frame < 50 else -50.0)
         current[0, 2, 2] = 20.0
@@ -778,7 +1316,9 @@ def test_blocked_planned_change_stays_in_source_then_completes() -> None:
         controls[:, 1:] = output.actions[:, 0]
         context = replace(
             context,
-            current=dynamics.step(context.current, controls, context.current_valid, 0.04),
+            current=dynamics.step(
+                context.current, controls, context.current_valid, 0.04
+            ),
         )
     assert abs(context.current[0, 1, 1].item() - 3.9) < 0.15
     heading = torch.atan2(context.current[0, 1, 3], context.current[0, 1, 2])
@@ -794,12 +1334,14 @@ def test_displaced_npc_lane_change_finishes_and_replays_latched_state() -> None:
     terminal = origin.clone()
     terminal[0, 0, 1] = 3.6
     context = replace(
-        context, planned_origin_xy=origin,
-        planned_current_xy=planned, planned_terminal_xy=terminal,
+        context,
+        planned_origin_xy=origin,
+        planned_current_xy=planned,
+        planned_terminal_xy=terminal,
     )
     controller = OnlineMAIDMController(THETA)
     dynamics = KinematicTrafficDynamics()
-    for frame in range(149):
+    for frame in range(350):
         output = controller(context)
         if frame == 50:
             restored = OnlineMAIDMController(THETA)

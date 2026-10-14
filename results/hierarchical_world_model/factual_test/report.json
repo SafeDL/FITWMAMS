@@ -1,0 +1,261 @@
+{
+  "DDIM_steps": 20,
+  "actual_road_steps": 1512499,
+  "arms": [
+    "rules_recovery"
+  ],
+  "backend": "highway_env.road.road.Road.step",
+  "diffusion": {
+    "mtime_ns": 1791307976402222219,
+    "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+    "size_bytes": 3193029
+  },
+  "diffusion_checkpoint": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+  "driver_population": {
+    "log_cov": [
+      [
+        0.045054966469070624,
+        -0.001691459220747898,
+        -6.418404477861653e-05,
+        0.0026429211116614656,
+        -2.6084512968336637e-05
+      ],
+      [
+        -0.001691459220747898,
+        0.00597417279798596,
+        0.00011974889945781818,
+        0.0003718362556229957,
+        -0.00041201666962643803
+      ],
+      [
+        -6.418404477861653e-05,
+        0.00011974889945781818,
+        0.0008506905457524847,
+        8.524043402586701e-05,
+        -5.891885235874398e-05
+      ],
+      [
+        0.0026429211116614656,
+        0.0003718362556229957,
+        8.524043402586701e-05,
+        0.009610336809927069,
+        -0.00025281683243349415
+      ],
+      [
+        -2.6084512968336637e-05,
+        -0.00041201666962643803,
+        -5.891885235874398e-05,
+        -0.00025281683243349415,
+        0.004766081032194481
+      ]
+    ],
+    "log_mean": [
+      3.596921242547447,
+      1.5506195844076653,
+      -1.3708673524654051,
+      -1.2026603185154479,
+      1.7682426994839295
+    ]
+  },
+  "evaluation_role": "Complete Test conditional factual execution; independent publication regression",
+  "factual": {
+    "rules_recovery": {
+      "ADE_m": 0.05423238052393388,
+      "FDE_m": 0.03404918148711978,
+      "P95_m": 0.1364436201751232,
+      "actor_frames": 3630534,
+      "boundary_severity": {
+        "ego": {
+          "center_outside_road_sequences": 0,
+          "introduced_overhang_at_most_0_1m_sequences": 53,
+          "introduced_overhang_over_0_1m_sequences": 0,
+          "introduced_overhang_q50_q95_m": [
+            0.008348509669303894,
+            0.043417455255985254
+          ],
+          "maximum_overhang_m": 0.9579997996333987
+        },
+        "npc": {
+          "center_outside_road_sequences": 0,
+          "introduced_overhang_at_most_0_1m_sequences": 207,
+          "introduced_overhang_over_0_1m_sequences": 2,
+          "introduced_overhang_q50_q95_m": [
+            0.01304599642753601,
+            0.06100661754608153
+          ],
+          "maximum_overhang_m": 1.0570245683193207
+        },
+        "scene": {
+          "center_outside_road_sequences": 0,
+          "introduced_overhang_at_most_0_1m_sequences": 257,
+          "introduced_overhang_over_0_1m_sequences": 2,
+          "introduced_overhang_q50_q95_m": [
+            0.011637747287750244,
+            0.059030416607856746
+          ],
+          "maximum_overhang_m": 1.0570245683193207
+        }
+      },
+      "collision": 0,
+      "committed_target_changes": 0,
+      "corrected_actor_frames": 122,
+      "ego_introduced_offroad": 53,
+      "ego_logged_offroad": 108,
+      "ego_new_offroad": 35,
+      "ego_offroad": 108,
+      "finite": 10151,
+      "introduced_offroad": 259,
+      "logged_offroad": 556,
+      "new_offroad": 220,
+      "npc_introduced_offroad": 209,
+      "npc_logged_offroad": 462,
+      "npc_new_offroad": 187,
+      "npc_offroad": 461,
+      "offroad": 557,
+      "preimpact_longitudinal_jerk_P99_mps3": 4.764046797752392,
+      "retired_actor_frames": 864,
+      "retired_actors": 360,
+      "retired_before_last_second": 1,
+      "sequences": 10151
+    }
+  },
+  "fit_split": "train",
+  "inputs": "Observed history, physical C0, K_GT through frozen Diffusion, true dimensions and roads",
+  "lane_trajectory_model": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/lane_trajectory.json",
+  "lane_trajectory_model_mtime_ns": 1791714514669677080,
+  "measured_compute_seconds": 1377.889533495094,
+  "mobil_parameters": {
+    "bias": -4.969592892940209,
+    "correction": {
+      "lane": {
+        "coef": [
+          -0.4097592015764283,
+          0.3709205681429903,
+          0.1931307936020103,
+          -0.15000749204228286,
+          0.281018935703157,
+          0.059817115543092894,
+          0.3298909416189988,
+          -0.0455809259573735,
+          -0.11975638620742139
+        ],
+        "direction_bias": 0.0,
+        "feature_mean": [
+          27.36556053161621,
+          -0.006719471886754036,
+          62.55339050292969,
+          -0.0403253473341465,
+          69.70581817626953,
+          -0.07444027066230774,
+          72.78325653076172,
+          0.0736403837800026
+        ],
+        "feature_std": [
+          6.906842231750488,
+          0.3281574547290802,
+          37.95429611206055,
+          2.3037471771240234,
+          48.54379653930664,
+          4.720168590545654,
+          49.641090393066406,
+          4.3736162185668945
+        ],
+        "logit_bias": 0.0,
+        "strength": 1.0
+      },
+      "response_blend": 1.0,
+      "trajectory": {
+        "log_duration_scale": -0.075,
+        "shape_shift": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "politeness": 0.19021502807736396,
+    "slope": 0.055139950069021795
+  },
+  "mobil_source": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/mobil.json",
+  "npc_calibration": {
+    "raw_data_identity": {
+      "mtime_ns": 1791787451595096673,
+      "path": "/home/hp/FITWMAMS/results/highd_shared_training_data/driver_behavior/manifest.json",
+      "size_bytes": 2844
+    },
+    "selected_candidate": "joint_0_01",
+    "selection_report": "/home/hp/FITWMAMS/archive/hierarchical_world_model/npc_population_environment/previous_results/search/selection.json"
+  },
+  "recording_bootstrap_statistics": {
+    "rules_recovery": {
+      "ADE_m": {
+        "recording_bootstrap_95CI": [
+          0.05208007113096978,
+          0.05572418229418908
+        ],
+        "value": 0.05423238052393388
+      },
+      "FDE_m": {
+        "recording_bootstrap_95CI": [
+          0.032213031908754707,
+          0.03562315432468689
+        ],
+        "value": 0.03404918148711978
+      },
+      "collision": {
+        "rate": 0.0,
+        "recording_bootstrap_95CI": [
+          0.0,
+          0.0
+        ]
+      },
+      "ego_introduced_offroad": {
+        "rate": 0.005221160476800315,
+        "recording_bootstrap_95CI": [
+          0.002345529569547095,
+          0.008699982459971969
+        ]
+      },
+      "introduced_offroad": {
+        "rate": 0.02551472761304305,
+        "recording_bootstrap_95CI": [
+          0.014557051661380471,
+          0.036730410447761194
+        ]
+      },
+      "npc_introduced_offroad": {
+        "rate": 0.020589104521722,
+        "recording_bootstrap_95CI": [
+          0.011800539365423988,
+          0.029592021248723007
+        ]
+      }
+    }
+  },
+  "reference_plan_cache": "/home/hp/FITWMAMS/results/hierarchical_world_model/diffusion_plans/test/positions.npz",
+  "response_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt",
+  "response_checkpoint_mtime_ns": 1791538424942697061,
+  "selection_split": "val",
+  "sequences_completed": 10151,
+  "sequences_requested": 10151,
+  "source": "/home/hp/FITWMAMS/results/highd_shared_training_data/highd_sequence_cache",
+  "source_artifacts": [
+    {
+      "mtime_ns": 1791538424942697061,
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt",
+      "size_bytes": 8681956
+    },
+    {
+      "mtime_ns": 1791307976402222219,
+      "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+      "size_bytes": 3193029
+    },
+    {
+      "mtime_ns": 1791714514669677080,
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/lane_trajectory.json",
+      "size_bytes": 314046
+    }
+  ],
+  "split": "test",
+  "status": "frozen_test_factual_complete_not_world_acceptance",
+  "test_used_for_selection": false
+}

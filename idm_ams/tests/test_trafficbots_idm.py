@@ -3,7 +3,11 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from idm_ams.src.trafficbots_randomness import TrafficBotsExogenousState
+from idm_ams.src.trafficbots_randomness import (
+    TRAFFICBOTS_RANDOM_BLOCKS,
+    TRAFFICBOTS_RANDOM_STREAMS,
+    TrafficBotsExogenousState,
+)
 from idm_ams.src.trafficbots_world import (
     _categorical_from_uniform,
     _initial_states_from_c0,
@@ -11,6 +15,13 @@ from idm_ams.src.trafficbots_world import (
 from idm_ams.src.world_evaluator import WorldEvaluation
 from idm_ams.src.world_subset_simulation import run_world_subset_simulation
 from normalizing_flow.src.features import feature_index
+
+
+def test_trafficbots_random_stream_ids_are_explicit_and_unique() -> None:
+    assert set(TRAFFICBOTS_RANDOM_STREAMS) == set(TRAFFICBOTS_RANDOM_BLOCKS)
+    assert len(set(TRAFFICBOTS_RANDOM_STREAMS.values())) == len(
+        TRAFFICBOTS_RANDOM_BLOCKS
+    )
 
 
 def test_trafficbots_exogenous_state_exact_replay_and_prior_mutation(tmp_path) -> None:
@@ -39,17 +50,16 @@ def test_trafficbots_exogenous_state_exact_replay_and_prior_mutation(tmp_path) -
 
 
 def test_external_flow_c0_conversion_contains_no_future_k() -> None:
-    c0 = np.zeros((1, 40), np.float32)
+    c0 = np.zeros((1, 26), np.float32)
     slots = np.asarray([[True, False, False, False, False, False]])
     c0[0, feature_index(None, "ego_vx_mps")] = 25.0
     c0[0, feature_index("same_front", "rel_x_m")] = 18.0
     c0[0, feature_index("same_front", "rel_y_left_m")] = 0.2
     c0[0, feature_index("same_front", "rel_vx_mps")] = -2.0
-    c0[0, feature_index("same_front", "other_ax_mps2")] = -0.5
     states = _initial_states_from_c0(c0, slots)
     assert states.shape == (1, 7, 6)
     assert states[0, 0, 2] == 25.0
-    assert np.allclose(states[0, 1], [18.0, 0.2, 23.0, 0.0, -0.5, 0.0])
+    assert np.allclose(states[0, 1], [18.0, 0.2, 23.0, 0.0, 0.0, 0.0])
     assert not states[0, 2:].any()
 
 

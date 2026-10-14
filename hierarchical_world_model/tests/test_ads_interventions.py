@@ -10,9 +10,7 @@ from hierarchical_world_model.src.ads_interventions import (
     OnlineSemanticLaneChangePolicy,
     SemanticLaneChangePolicy,
 )
-from hierarchical_world_model.scripts.evaluate_online_ads import _screen
-from hierarchical_world_model.scripts.ads_test_policies import MaintainEntrySpeedADS
-from traffic_components.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
 
 
 def _initial(speed_mps: float = 25.0) -> np.ndarray:
@@ -40,21 +38,31 @@ def test_absolute_acceleration_policy_uses_physical_setpoint_not_delta() -> None
     assert policy(_context(states, 50))[0, 0].item() == pytest.approx(1.25)
 
 
+def test_online_lane_policy_keeps_batched_target_centers_one_dimensional() -> None:
+    states = torch.from_numpy(np.repeat(_initial(), 3, axis=0))
+    maps = torch.zeros(3, 3, 8, 6)
+    maps[..., 1] = torch.tensor([-3.6, 0.0, 3.6])[None, :, None]
+    maps[..., 4] = 3.6
+    context = {
+        "agent_states": states,
+        "reference_index": 25,
+        "map_polylines": maps,
+        "map_polyline_valid": torch.ones(3, 3, 8, dtype=torch.bool),
+    }
+    policy = OnlineSemanticLaneChangePolicy(
+        lambda context: torch.zeros(3, 2), direction="left"
+    )
+    action = policy(context)
+    assert action.shape == (3, 2)
+    assert policy.target_y.shape == (3,)
+    assert (action[:, 1] > 0.0).all()
+
+
 def test_absolute_acceleration_policy_rejects_out_of_range_setpoint() -> None:
     with pytest.raises(ValueError, match="outside physical bounds"):
         AbsoluteAccelerationPolicy(
             np.zeros((1, 149, 2), np.float32), acceleration_mps2=-8.01
         )
-
-
-def test_lane_change_ads_holds_speed_at_maneuver_entry() -> None:
-    policy = MaintainEntrySpeedADS(start_frame=25)
-    states = torch.from_numpy(_initial(10.0))
-    states[0, 0, 4] = -1.0
-    assert policy(_context(states, 24))[0, 0].item() == pytest.approx(-1.0)
-    assert policy(_context(states, 25))[0, 0].item() == pytest.approx(0.0)
-    states[0, 0, 2] = 9.0
-    assert policy(_context(states, 26))[0, 0].item() == pytest.approx(1.5)
 
 
 @pytest.mark.parametrize("speed_mps", [5.0, 10.0, 25.0, 40.0])
@@ -101,47 +109,32 @@ def test_semantic_lane_change_targets_actual_mapped_centre() -> None:
     lanes[:, 1, :, 1] = 5.0
     lane_valid = np.ones((1, 2, 8), bool)
     policy = SemanticLaneChangePolicy(
-        baseline, initial, map_polylines=lanes,
-        map_polyline_valid=lane_valid, direction="left",
+        baseline,
+        initial,
+        map_polylines=lanes,
+        map_polyline_valid=lane_valid,
+        direction="left",
     )
     assert policy.source_y[0] == pytest.approx(1.1)
     assert policy.target_y[0] == pytest.approx(5.0)
 
 
-def test_left_rear_screen_uses_mapped_target_lane() -> None:
-    states = np.zeros((1, 25, 7, 6), np.float32)
-    valid = np.zeros((1, 25, 7), bool)
-    valid[0, 24, :3] = True
-    states[0, 24, 1, :2] = (-8.0, 3.0)
-    states[0, 24, 2, :2] = (-15.0, 5.0)
-    lanes = np.zeros((1, 2, 8, 6), np.float32)
-    lanes[:, 1, :, 1] = 5.0
-    lane_valid = np.ones((1, 2, 8), bool)
-    selected, receiver = _screen(states, valid, "left", lanes, lane_valid)
-    assert selected.tolist() == [True]
-    assert receiver.tolist() == [1]
-
-
-def test_right_rear_screen_uses_mapped_target_lane() -> None:
-    states = np.zeros((1, 174, 7, 6), np.float32)
-    valid = np.ones((1, 174, 7), bool)
-    states[0, 24, 1, :2] = (-8.0, -3.8)
-    states[0, 24, 2, :2] = (-15.0, 3.9)
-    lanes = np.zeros((1, 3, 8, 6), np.float32)
-    lanes[:, 0, :, 1] = -3.8
-    lanes[:, 1, :, 1] = 0.0
-    lanes[:, 2, :, 1] = 3.9
-    lane_valid = np.ones((1, 3, 8), bool)
-    selected_right, receiver_right = _screen(
-        states, valid, "right", lanes, lane_valid
-    )
-    selected_left, receiver_left = _screen(
-        states, valid, "left", lanes, lane_valid
-    )
-    assert selected_right.tolist() == [True]
-    assert receiver_right.tolist() == [0]
-    assert selected_left.tolist() == [True]
-    assert receiver_left.tolist() == [1]
+def test_semantic_right_change_rejects_opposite_carriageway() -> None:
+    initial = _initial()
+    initial[0, 0, 1] = 9.675
+    centers = (-8.43, -4.325, -0.22, 9.675, 13.735, 17.8)
+    widths = (4.32, 3.89, 4.32, 4.23, 3.89, 4.24)
+    lanes = np.zeros((1, len(centers), 4, 6), np.float32)
+    lanes[0, :, :, 1] = np.asarray(centers)[:, None]
+    lanes[0, :, :, 4] = np.asarray(widths)[:, None]
+    with pytest.raises(ValueError, match="no mapped target lane"):
+        SemanticLaneChangePolicy(
+            np.zeros((1, 149, 2), np.float32),
+            initial,
+            map_polylines=lanes,
+            map_polyline_valid=np.ones(lanes.shape[:3], bool),
+            direction="right",
+        )
 
 
 def test_online_acceleration_window_uses_current_policy_without_trace() -> None:

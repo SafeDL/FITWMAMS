@@ -37,7 +37,7 @@ pytest -q external_model_baselines/models/active_inference_driver/tests
 
 评测以真实 highD 领车作为外部 plant（每一 25 Hz 帧只提供当下观测），模型预测只使用当前 belief 与内部采样的非反应式未来；评测器绝不把领车真实未来输入 planner。
 
-共同能力与证据边界见 [`doc/00_Common_Protocol.md`](../../../doc/00_Common_Protocol.md)。通过原生人因与官方wrapper的能力属于外部锁定源码；独立纵向适配桥接仍失败，不得替代官方模型。
+共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。通过原生人因与官方wrapper的能力属于外部锁定源码；独立纵向适配桥接仍失败，不得替代官方模型。
 
 主项目注册表默认只允许官方wrapper；运行时必须提供锁定源码和`Results_following`路径：
 `python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model active_inference_official --official-source-dir PATH --official-following-dir PATH`。

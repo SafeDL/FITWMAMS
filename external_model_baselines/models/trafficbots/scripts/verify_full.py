@@ -8,8 +8,8 @@ import numpy as np
 
 from external_model_baselines.models.trafficbots.config import load_config
 from external_model_baselines.models.trafficbots.data import TrafficBotsHighDDataset
-from traffic_components.src.core.utils import load_json, save_json
-from traffic_components.src.core.evaluation_scope import evaluation_scope_contract
+from hierarchical_world_model.src.core.utils import load_json, save_json
+from hierarchical_world_model.src.core.evaluation_scope import evaluation_scope_contract
 
 
 def main() -> None:

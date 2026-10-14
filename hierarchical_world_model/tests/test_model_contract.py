@@ -7,18 +7,47 @@ import torch
 
 from hierarchical_world_model.src.calibration import NaturalResponseCalibrator
 from hierarchical_world_model.src.config import WorldModelConfig
-from hierarchical_world_model.src.evaluation import _temporal_factual_metrics
-from traffic_components.src.core.highd_metrics import (
+from hierarchical_world_model.src.core.highd_metrics import temporal_factual_metrics
+from hierarchical_world_model.src.core.highd_metrics import (
     _collision_indicator,
     _histogram_summary,
     _nearest_object_distance,
     _windowed_jerk,
 )
-from hierarchical_world_model.src.environment import ClosedLoopWorld
+from hierarchical_world_model.src.highway import HighwayEnvClosedLoopWorld
+from hierarchical_world_model.src.randomness import WorldExogenousState
+from hierarchical_world_model.src.hiqr.encoder import UnifiedRelationalQueryEncoder
 from hierarchical_world_model.src.losses import training_losses
-from hierarchical_world_model.src.model import DiffusionGuidedHiQR
+from hierarchical_world_model.src.model import FactualDynamicsModel
 from hierarchical_world_model.src.reference import rebase_soft_preview
 from hierarchical_world_model.src.train import _apply_stage_trainable
+
+
+@pytest.mark.parametrize("valid_frames", ((0, 1, 2, 3, 4), (3, 4), (0, 2, 4)))
+def test_history_encoder_selects_latest_observed_frame(valid_frames):
+    class PassThrough(torch.nn.Module):
+        def forward(self, values, src_key_padding_mask):
+            return values
+
+    encoder = UnifiedRelationalQueryEncoder(WorldModelConfig())
+    encoder.temporal_layers = PassThrough()
+    encoder.state_mlp = torch.nn.Linear(10, 128, bias=False)
+    with torch.no_grad():
+        encoder.state_mlp.weight.zero_()
+        encoder.state_mlp.weight[0, 0] = 1.0
+        encoder.temporal_position.zero_()
+        encoder.mode_embedding.weight.zero_()
+    history = torch.zeros(1, 5, 7, 6)
+    history[0, :, :, 0] = torch.arange(1, 6)[:, None] * 100.0
+    valid = torch.zeros(1, 5, 7, dtype=torch.bool)
+    valid[:, valid_frames] = True
+    current_valid = torch.ones(1, 7, dtype=torch.bool)
+    current_valid[:, -1] = False
+    token = encoder._temporal_tokens(
+        history, valid, current_valid, torch.zeros_like(current_valid), "roll"
+    )
+    torch.testing.assert_close(token[0, :-1, 0], torch.full((6,), 5.0))
+    assert token[0, -1].eq(0).all()
 
 
 def inputs(batch: int = 2):
@@ -37,6 +66,89 @@ def inputs(batch: int = 2):
     maps[..., 4] = 3.6
     map_valid = torch.ones(batch, 8, 8, dtype=torch.bool)
     return history, valid, current, current_valid, reference, base, maps, map_valid
+
+
+def highway_world(model, seed):
+    initial = torch.zeros(7, 6)
+    initial[:, 0] = torch.tensor([0, 60, -60, 30, -30, 30, -30])
+    initial[:, 1] = torch.tensor([0, 0, 0, 3.6, 3.6, -3.6, -3.6])
+    initial[:, 2] = 25
+    time = torch.arange(1, 51) * 0.04
+    reference = initial[None, 1:, :2] + time[:, None, None] * initial[None, 1:, 2:4]
+    maps = torch.zeros(3, 8, 6)
+    maps[..., 0] = torch.linspace(-200, 200, 8)[None]
+    maps[..., 1] = torch.tensor([-3.6, 0, 3.6])[:, None]
+    maps[..., 2] = 1
+    maps[..., 4] = 3.6
+    world = HighwayEnvClosedLoopWorld(model)
+    world.reset(
+        initial[None],
+        torch.ones(1, 7, dtype=torch.bool),
+        reference[None],
+        maps[None],
+        torch.ones(1, 3, 8, dtype=torch.bool),
+        exogenous_state=WorldExogenousState.sample(1, seed=seed),
+        vehicle_dimensions=torch.tensor([4.8, 1.8]).expand(1, 7, 2),
+    )
+    return world
+
+
+def test_missing_previous_frame_does_not_create_a_state_change():
+    model = FactualDynamicsModel(WorldModelConfig())
+    model.eval()
+    values = list(inputs(batch=1))
+    values[1][:, :-1] = False
+    controls = torch.zeros(1, 1, 2)
+    with torch.no_grad():
+        first = model(*values, committed_ego_controls=controls, deterministic=True)
+        values[0][:, :-1] = 10000.0
+        second = model(*values, committed_ego_controls=controls, deterministic=True)
+    torch.testing.assert_close(first.mean, second.mean, atol=0, rtol=0)
+
+
+def test_invalid_control_padding_cannot_trigger_a_response():
+    model = FactualDynamicsModel(WorldModelConfig())
+    model.eval()
+    values = inputs(batch=1)
+    with torch.no_grad():
+        first = model(
+            *values,
+            committed_ego_controls=torch.zeros(1, 24, 2),
+            committed_ego_controls_valid=torch.zeros(1, 24, dtype=torch.bool),
+            deterministic=True,
+        )
+        second = model(
+            *values,
+            committed_ego_controls=torch.full((1, 24, 2), 1000.0),
+            committed_ego_controls_valid=torch.zeros(1, 24, dtype=torch.bool),
+            deterministic=True,
+        )
+    torch.testing.assert_close(first.mean, second.mean, atol=0, rtol=0)
+
+
+def test_current_time_embedding_is_independent_of_history_length():
+    class PassThrough(torch.nn.Module):
+        def forward(self, values, src_key_padding_mask):
+            return values
+
+    encoder = UnifiedRelationalQueryEncoder(WorldModelConfig())
+    encoder.temporal_layers = PassThrough()
+    encoder.state_mlp = torch.nn.Linear(10, 128, bias=False)
+    with torch.no_grad():
+        encoder.state_mlp.weight.zero_()
+    valid = torch.ones(1, 7, dtype=torch.bool)
+    tokens = []
+    for frames in (1, 5, 25):
+        history = torch.zeros(1, frames, 7, 6)
+        mask = torch.zeros(1, frames, 7, dtype=torch.bool)
+        mask[:, -1] = True
+        tokens.append(
+            encoder._temporal_tokens(
+                history, mask, valid, torch.zeros_like(valid), "roll"
+            )
+        )
+    torch.testing.assert_close(tokens[0], tokens[1], atol=0, rtol=0)
+    torch.testing.assert_close(tokens[0], tokens[2], atol=0, rtol=0)
 
 
 def test_rebase_keeps_the_soft_reference_as_a_long_horizon_anchor():
@@ -71,7 +183,9 @@ def test_reaction_reference_preserves_longitudinal_schedule_offset_only():
     current[:, 1:, 1] = 3.6
     current[:, 1:, 2] = 25.0
     rebased = rebase_soft_preview(
-        current[:, 1:], reference, base,
+        current[:, 1:],
+        reference,
+        base,
         longitudinal_endpoint_offset_weight=1.0,
         lateral_endpoint_offset_weight=0.0,
     )
@@ -80,7 +194,7 @@ def test_reaction_reference_preserves_longitudinal_schedule_offset_only():
 
 
 def test_fixed_motion_noise_is_exactly_reproducible():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     arguments = inputs()
     scene = torch.randn(2, 16, generator=torch.Generator().manual_seed(7))
     agent = torch.randn(2, 7, 16, generator=torch.Generator().manual_seed(8))
@@ -105,9 +219,34 @@ def test_fixed_motion_noise_is_exactly_reproducible():
     torch.testing.assert_close(first.mean, changed.mean)
 
 
+def test_interaction_tokens_exclude_the_soft_reference_and_random_intentions():
+    model = FactualDynamicsModel().eval()
+    values = list(inputs(batch=1))
+    first = model(*values, deterministic=True)
+    values[4] = values[4] + 50.0
+    changed_plan = model(*values, deterministic=True)
+    torch.testing.assert_close(
+        first.observation_tokens, changed_plan.observation_tokens
+    )
+    changed_intention = model(
+        *values,
+        scene_standard_normal=torch.ones(1, model.cfg.scene_latent_dim),
+        agent_standard_normal=torch.ones(1, 7, model.cfg.agent_latent_dim),
+        deterministic=False,
+    )
+    torch.testing.assert_close(
+        first.observation_tokens, changed_intention.observation_tokens
+    )
+    assert first.observation_tokens.shape == (1, 7, model.cfg.hidden_dim)
+    values[2] = values[2].clone()
+    values[2][:, 2, 2] += 8.0
+    changed_state = model(*values, deterministic=True)
+    assert not torch.equal(first.observation_tokens, changed_state.observation_tokens)
+
+
 def test_graph_coupled_latent_is_persistent_replayable_and_observed_state_conditioned():
     cfg = WorldModelConfig(graph_coupled_latent_enabled=True)
-    model = DiffusionGuidedHiQR(cfg).eval()
+    model = FactualDynamicsModel(cfg).eval()
     values = list(inputs(batch=1))
     scene = torch.randn(1, 16, generator=torch.Generator().manual_seed(17))
     agent = torch.randn(1, 7, 16, generator=torch.Generator().manual_seed(18))
@@ -157,8 +296,8 @@ def test_causal_response_field_is_inert_without_an_observed_intervention():
         causal_response_field_enabled=True,
         graph_coupled_latent_enabled=True,
     )
-    baseline = DiffusionGuidedHiQR(base_cfg).eval()
-    upgraded = DiffusionGuidedHiQR(field_cfg).eval()
+    baseline = FactualDynamicsModel(base_cfg).eval()
+    upgraded = FactualDynamicsModel(field_cfg).eval()
     upgraded.load_state_dict(baseline.state_dict(), strict=False)
     values = inputs(batch=1)
     committed = torch.zeros(1, 5, 2)
@@ -172,7 +311,7 @@ def test_behavior_mode_decoder_changes_only_stochastic_response_branches():
         graph_coupled_latent_enabled=True,
         behavior_mode_decoder_enabled=True,
     )
-    model = DiffusionGuidedHiQR(cfg).eval()
+    model = FactualDynamicsModel(cfg).eval()
     # Make the zero-initialized, trainable mode head observable without
     # changing its bounded contract.
     with torch.no_grad():
@@ -180,16 +319,14 @@ def test_behavior_mode_decoder_changes_only_stochastic_response_branches():
     values = inputs(batch=1)
     noise = torch.ones(1, 7, 16)
     stochastic = model(*values, agent_standard_normal=noise)
-    deterministic = model(
-        *values, agent_standard_normal=noise, deterministic=True
-    )
+    deterministic = model(*values, agent_standard_normal=noise, deterministic=True)
     assert not torch.equal(stochastic.actions, deterministic.actions)
     assert (stochastic.actions[..., 0] <= 4.0).all()
     assert (stochastic.actions[..., 0] >= -8.0).all()
 
 
 def test_observed_ego_action_drives_local_response_in_the_same_direction():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     values = list(inputs(batch=1))
     values[0][:, :, 1, 0] = -10.0
     values[2][:, 1, 0] = -10.0
@@ -211,8 +348,8 @@ def test_observed_ego_action_drives_local_response_in_the_same_direction():
 
 
 def test_intervention_adapter_is_exactly_inert_on_natural_history():
-    baseline = DiffusionGuidedHiQR().eval()
-    adapted = DiffusionGuidedHiQR(
+    baseline = FactualDynamicsModel().eval()
+    adapted = FactualDynamicsModel(
         WorldModelConfig(intervention_adapter_enabled=True)
     ).eval()
     adapted.load_state_dict(baseline.state_dict())
@@ -241,7 +378,7 @@ def test_intervention_adapter_is_exactly_inert_on_natural_history():
 
 
 def test_zero_residual_decoder_tracks_physical_soft_reference():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     values = inputs()
     result = model(*values, deterministic=True)
     torch.testing.assert_close(
@@ -253,7 +390,7 @@ def test_zero_residual_decoder_tracks_physical_soft_reference():
 
 
 def test_all_supported_history_lengths_and_invalid_slot_mask():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     values = inputs()
     for frames in (5, 10, 15, 25):
         arguments = (
@@ -270,7 +407,7 @@ def test_all_supported_history_lengths_and_invalid_slot_mask():
 
 
 def test_empty_background_scene_is_finite_and_stationary():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     values = list(inputs())
     values[1][..., 1:] = False
     values[3][..., 1:] = False
@@ -313,20 +450,17 @@ def test_dose_sensitivity_targets_are_split_global_and_mask_invalid_slots():
     state = torch.zeros(7, 6)
     present = torch.ones(7, dtype=torch.bool)
     values = calibrator.sensitivity_bounds_for(state.numpy(), present.numpy())
-    torch.testing.assert_close(torch.from_numpy(values[:, 0]), torch.from_numpy(sensitivity))
+    torch.testing.assert_close(
+        torch.from_numpy(values[:, 0]), torch.from_numpy(sensitivity)
+    )
     present[-1] = False
     invalid = calibrator.sensitivity_bounds_for(state.numpy(), present.numpy())
     assert not invalid[:, -1].any()
 
 
 def test_snapshot_restore_replays_identical_branch():
-    model = DiffusionGuidedHiQR().eval()
-    values = inputs(batch=1)
-    world = ClosedLoopWorld(model)
-    initial = values[2][0]
-    valid = values[3][0]
-    reference = torch.cat((values[4][0], values[4][0] + torch.tensor([25.0, 0.0])))
-    world.reset(initial, valid, reference, values[6][0], values[7][0], motion_seed=19)
+    model = FactualDynamicsModel().eval()
+    world = highway_world(model, 19)
     ego_actions = torch.zeros(1, 2)
     world.advance_response(ego_actions)
     snapshot = world.snapshot()
@@ -342,7 +476,7 @@ def test_snapshot_restore_replays_identical_branch():
 
 
 def test_soft_plan_never_bypasses_physical_action_bounds():
-    model = DiffusionGuidedHiQR().eval()
+    model = FactualDynamicsModel().eval()
     values = list(inputs())
     zero = values[4].clone().zero_()
     extreme = values[4].clone()
@@ -382,26 +516,15 @@ def test_temporal_factual_metrics_preserve_the_horizon_axis():
     generated = target.copy()
     generated[:, :, 1, 0] = torch.tensor((0.04, 0.08, 0.12)).numpy()
     active = torch.tensor(((True, False, False, False, False, False),)).numpy()
-    temporal = _temporal_factual_metrics(generated, target, active)
+    temporal = temporal_factual_metrics(generated, target, active)
     assert temporal["time_s"] == [0.04, 0.08, 0.12]
     assert temporal["ADE_m"] == pytest.approx([0.04, 0.08, 0.12])
 
 
 def test_future_ads_action_cannot_modify_already_committed_response():
-    model = DiffusionGuidedHiQR().eval()
-    values = inputs(batch=1)
-    reference = torch.cat((values[4][0], values[4][0] + torch.tensor([25.0, 0.0])))
-    baseline = ClosedLoopWorld(model)
-    intervened = ClosedLoopWorld(model)
-    for world in (baseline, intervened):
-        world.reset(
-            values[2][0],
-            values[3][0],
-            reference,
-            values[6][0],
-            values[7][0],
-            motion_seed=5,
-        )
+    model = FactualDynamicsModel().eval()
+    baseline = highway_world(model, 5)
+    intervened = highway_world(model, 5)
     baseline_step = baseline.advance_response(torch.zeros(1, 2))
     braking = torch.zeros(1, 2)
     braking[:, 0] = -4.0
@@ -423,18 +546,8 @@ def test_future_ads_action_cannot_modify_already_committed_response():
 
 
 def test_25hz_world_commits_exactly_one_frame_per_response():
-    model = DiffusionGuidedHiQR().eval()
-    values = inputs(batch=1)
-    reference = torch.cat((values[4][0], values[4][0] + torch.tensor([25.0, 0.0])))
-    world = ClosedLoopWorld(model)
-    world.reset(
-        values[2][0],
-        values[3][0],
-        reference,
-        values[6][0],
-        values[7][0],
-        motion_seed=17,
-    )
+    model = FactualDynamicsModel().eval()
+    world = highway_world(model, 17)
     first = world.advance_response(torch.zeros(1, 2))
     second = world.advance_response(torch.zeros(1, 2))
     assert first["agent_state_frames"].shape == (1, 1, 7, 6)
@@ -451,8 +564,16 @@ def test_windowed_jerk_averages_before_differentiating():
     assert float(jerk[0, 0, 0, 0]) == 10.0
 
 
-def test_closed_loop_intervention_loss_is_finite_and_differentiable():
-    model = DiffusionGuidedHiQR()
+@pytest.mark.parametrize("adapter_enabled", [False, True])
+def test_closed_loop_intervention_loss_is_finite_and_differentiable(adapter_enabled):
+    model = FactualDynamicsModel(
+        WorldModelConfig(
+            intervention_adapter_enabled=adapter_enabled,
+            lateral_response_adapter_enabled=adapter_enabled,
+            graph_coupled_latent_enabled=True,
+            behavior_mode_decoder_enabled=True,
+        )
+    )
     model.set_matched_response_bounds(torch.tensor(((0.0375, 0.4), (0.025, 0.325))))
     values = inputs(batch=2)
     target_states = values[2][:, None, 1:].expand(-1, 1, -1, -1).clone()
@@ -485,18 +606,32 @@ def test_closed_loop_intervention_loss_is_finite_and_differentiable():
 
 
 def test_base_loss_uses_a_real_deterministic_forward_and_disables_energy():
-    model = DiffusionGuidedHiQR(WorldModelConfig(graph_coupled_latent_enabled=True))
+    model = FactualDynamicsModel(WorldModelConfig(graph_coupled_latent_enabled=True))
     values = inputs(batch=2)
     target_states = values[2][:, None, 1:].expand(-1, 1, -1, -1).clone()
     batch = {
-        "history": values[0], "history_valid": values[1], "current": values[2],
-        "current_valid": values[3], "target_actions": torch.zeros(2, 1, 6, 2),
-        "target_states": target_states, "closed_target_states": target_states.expand(-1, 25, -1, -1).clone(),
-        "closed_target_actions": torch.zeros(2, 25, 6, 2), "closed_ego_actions": torch.zeros(2, 25, 2),
-        "previous_actions": torch.zeros(2, 6, 2), "soft_reference": values[4],
-        "reference_base": values[5], "map_polylines": values[6], "map_polyline_valid": values[7],
+        "history": values[0],
+        "history_valid": values[1],
+        "current": values[2],
+        "current_valid": values[3],
+        "target_actions": torch.zeros(2, 1, 6, 2),
+        "target_states": target_states,
+        "closed_target_states": target_states.expand(-1, 25, -1, -1).clone(),
+        "closed_target_actions": torch.zeros(2, 25, 6, 2),
+        "closed_ego_actions": torch.zeros(2, 25, 2),
+        "previous_actions": torch.zeros(2, 6, 2),
+        "soft_reference": values[4],
+        "reference_base": values[5],
+        "map_polylines": values[6],
+        "map_polyline_valid": values[7],
     }
-    terms = training_losses(model, batch, torch.randn(2, 16), torch.randn(2, 7, 16), deterministic_forward=True)
+    terms = training_losses(
+        model,
+        batch,
+        torch.randn(2, 16),
+        torch.randn(2, 7, 16),
+        deterministic_forward=True,
+    )
     assert float(terms["energy"]) == 0.0
     terms["loss"].backward()
     assert model.decoder.scene_innovation.weight.grad is None
@@ -508,13 +643,12 @@ def test_base_stage_trainable_freezes_stochastic_heads_only():
         graph_coupled_latent_enabled=True,
         behavior_mode_decoder_enabled=True,
     )
-    model = DiffusionGuidedHiQR(cfg)
+    model = FactualDynamicsModel(cfg)
     stage = "base"
     stage_mode = _apply_stage_trainable(
         model,
         stage=stage,
         stage_config={"trainable": "backbone"},
-        training_config={},
     )
     assert stage_mode == "backbone"
     frozen = [
@@ -535,7 +669,7 @@ def test_stochastic_heads_stage_trainable_only_updates_stochastic_heads():
         graph_coupled_latent_enabled=True,
         behavior_mode_decoder_enabled=True,
     )
-    model = DiffusionGuidedHiQR(cfg)
+    model = FactualDynamicsModel(cfg)
     stage = "stochastic_heads"
     stage_mode = _apply_stage_trainable(
         model,
@@ -548,9 +682,11 @@ def test_stochastic_heads_stage_trainable_only_updates_stochastic_heads():
                 "decoder.agent_innovation.",
             ]
         },
-        training_config={},
     )
-    assert stage_mode == "prefixes:latent_transition.,decoder.behavior_mode.,decoder.scene_innovation.,decoder.agent_innovation."
+    assert (
+        stage_mode
+        == "prefixes:latent_transition.,decoder.behavior_mode.,decoder.scene_innovation.,decoder.agent_innovation."
+    )
     frozen = [
         "latent_transition.",
         "decoder.behavior_mode.",

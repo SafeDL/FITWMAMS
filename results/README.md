@@ -1,35 +1,25 @@
-# 结果目录
+# 数据与实验结果
 
-本目录保存当前方法的运行资产和评测证据，以及紧凑的外部对照摘要。
-本目录及其每个一级子目录各有一个 `README.md`，说明结果的用途和来源；更深层目录按需说明，不逐层强制设置。
+主链：highD 数据处理 → EVT 长尾筛选 → Flow 场景条件采样 → Diffusion 软计划 → HiQR 与 NPC 响应 → highway-env 执行。
 
-| 目录 | 内容 | 状态 |
-| --- | --- | --- |
-| [highd_natural_driving_evt/](highd_natural_driving_evt/README.md) | 96,055 条清洗后自然驾驶序列与全槽位 SEI-EVT | 当前数据来源；风险指标须注明口径 |
-| [highd_natural_driving_flow/](highd_natural_driving_flow/README.md) | 全量场景条件 Flow：`p(M)p(C0\|M)p(K\|C0,M)` | 上游生成模型证据；未完成主方案端到端验收 |
-| [highd_shared_training_data/](highd_shared_training_data/README.md) | 150 状态点、149 转移的共享序列缓存及确定性 cohort | 当前共享数据 |
-| [background_diffusion/](background_diffusion/README.md) | 118 维条件长时程扩散模型 | 上游生成模型证据；未完成主方案端到端验收 |
-| [hierarchical_world_model/](hierarchical_world_model/README.md) | 冻结 HiQR 运行资产与单次在线 MA-IDM 闭环评测 | 当前唯一维护的世界模型结果；仅保留同物理条件消融和必要审计 |
-| [baselines/](baselines/README.md) | TrafficBots highD 外部基线的权重和验收记录 | 仍被基线评测引用 |
-| [driver_reproduction/](driver_reproduction/README.md) | 随机驾驶人共享 cohort 匹配评测和模型 scorecard | 支持 MA-IDM 参数选择 |
+## 目录
 
-全槽位 `highd_natural_driving_evt/` 是当前统一多车评测和 AMS 配置的数据来源。
-当前多车评估保留全部六个背景槽位，包括主车同车道后方车辆。
-`highd_natural_driving_evt/` 中的 GIF、Flow 采样 NPZ、共享序列数组及
-checkpoint 都可由对应脚本再生成；仓库只把必要的契约、指标、图表和 manifest 视为论文
-证据。任何结果引用都应先运行相应模块的 `verify_*` 入口，不应把旧数据协议的数字混入当前
-主模型结论。
+| 目录 | 保存内容 |
+| --- | --- |
+| [highd_shared_training_data/](highd_shared_training_data/README.md) | 共享场景条件、真实时序及 NPC 标定输入 |
+| [evt/](evt/README.md) | 风险统计、EVT 模型、尾部清单与原始轨迹回放 |
+| [flow/](flow/README.md) | 尾部场景条件分布的权重、样本与拟合评测 |
+| [diffusion/](diffusion/README.md) | 位置结点条件下的轨迹重建权重与 Test 评测 |
+| [hierarchical_world_model/](hierarchical_world_model/README.md) | HiQR、NPC 正式参数、完整 Test 执行与自主交通评测 |
+| [baselines/](baselines/README.md) | 外部对照模型的权重与评测 |
+| [driver_reproduction/](driver_reproduction/README.md) | 驾驶行为对照模型的复核结果 |
 
-目录容量主要来自 `highd_shared_training_data/` 中约 3.6 GB 的 highD 序列数组。
-当前 Flow、Diffusion 和 HiQR 评测按原路径读取这些数组；它们是运行输入，不能当作
-无用的历史结果删除。
+## 数据口径
 
-当前方法的评测以 [`hierarchical_world_model/evaluation/`](hierarchical_world_model/evaluation/README.md)
-中的原始报告为准；跨方法的协议边界见
-[`doc/HighD_Behavior_World_Model_Evaluation.md`](../doc/HighD_Behavior_World_Model_Evaluation.md)。
-条件事实重建、历史 prefix-only 多车模型、场景 Flow 和单车跟驰模型不得组成一个数值排行榜。
+- highD 按录像划分为 42 / 9 / 9 段 Train / Val / Test，对应 72,771 / 13,133 / 10,151 个共享片段。
+- EVT 在全部 96,055 个片段上拟合，Flow 使用筛出的全部 2,964 条尾部事件；Diffusion、HiQR 使用自然驾驶 Train 训练、Val 选择、Test 评估。
+- 当前 NPC 仍为 Train 拟合、Val 选择，60 段录像均参与分组评测。
 
-随机驾驶人 scorecard 位于
-`driver_reproduction/driver_model_scorecard.json`；根目录不再单独放置
-跨模型驾驶人比较工件。与当前方法无关的旧 prefix-only 聚合实验已移除；TrafficBots
-权重和诊断保存在 `baselines/trafficbots_highd/`。
+事实重建使用真实位置结点，NPC 自主交通评测不使用未来轨迹，ADS 场景生成则从 Flow 采样开始；三者分别查看对应报告。
+
+各目录的报告保存完整指标，`figures/` 保存 PNG。世界模型 NPC 原速 GIF 位于 `npc_response/animations/`。历史试验与清理备份放在 [archive/](../archive/)，不作为当前版本成绩。

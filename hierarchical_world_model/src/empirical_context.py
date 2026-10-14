@@ -9,7 +9,6 @@ and reactive response variables.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import hashlib
 import math
 from pathlib import Path
 from typing import Any
@@ -17,16 +16,21 @@ from typing import Any
 import numpy as np
 
 from normalizing_flow.src.scenario import ScenarioBatch
-from traffic_components.src.core.evaluation_scope import scoped_slot_mask
+from hierarchical_world_model.src.core.evaluation_scope import scoped_slot_mask
+from .randomness import named_generator
 
 EMPIRICAL_K_RNG_SCHEMA_NAME = "empirical_fixed_k_world"
-EMPIRICAL_K_RNG_SCHEMA_VERSION = 2
+EMPIRICAL_K_RNG_SCHEMA_VERSION = 4
+EMPIRICAL_K_RNG_NAMESPACE = 2
 EMPIRICAL_K_RANDOM_BLOCKS = (
     "test_row_uniform",
     "diffusion_noise",
+    "driver_latent",
+    "maneuver_latent",
     "scene_innovations",
     "agent_response_innovations",
     "policy_response_innovations",
+    "policy_calibration_innovations",
 )
 
 
@@ -36,9 +40,12 @@ class EmpiricalKWorldState:
 
     test_row_uniform: np.ndarray
     diffusion_noise: np.ndarray
+    driver_latent: np.ndarray
+    maneuver_latent: np.ndarray
     scene_innovations: np.ndarray
     agent_response_innovations: np.ndarray
     policy_response_innovations: np.ndarray
+    policy_calibration_innovations: np.ndarray
     scene_refresh_responses: int = 25
 
     @property
@@ -56,7 +63,6 @@ class EmpiricalKWorldState:
         scene_refresh_responses: int | None = None,
         scene_dim: int = 16,
         agent_dim: int = 16,
-        **_: Any,
     ) -> None:
         n = self.batch_size
         steps = self.response_steps if response_steps is None else int(response_steps)
@@ -70,6 +76,8 @@ class EmpiricalKWorldState:
         expected = {
             "test_row_uniform": (self.test_row_uniform, (n,)),
             "diffusion_noise": (self.diffusion_noise, (n, 149, 12)),
+            "driver_latent": (self.driver_latent, (n, 6, 5)),
+            "maneuver_latent": (self.maneuver_latent, (n, 6, 4)),
             "scene_innovations": (
                 self.scene_innovations,
                 (n, math.ceil(steps / refresh), int(scene_dim)),
@@ -80,6 +88,10 @@ class EmpiricalKWorldState:
             ),
             "policy_response_innovations": (
                 self.policy_response_innovations,
+                (n, steps, 6, 2),
+            ),
+            "policy_calibration_innovations": (
+                self.policy_calibration_innovations,
                 (n, steps, 6, 2),
             ),
         }
@@ -102,22 +114,30 @@ class EmpiricalKWorldState:
         scene_dim: int = 16,
         agent_dim: int = 16,
     ) -> "EmpiricalKWorldState":
-        if int(n) < 1:
-            raise ValueError("n must be positive")
+        if int(n) < 1 or int(response_steps) < 1 or int(scene_refresh_responses) < 1:
+            raise ValueError(
+                "n, response_steps and scene_refresh_responses must be positive"
+            )
 
         def rng(name: str) -> np.random.Generator:
-            material = (
-                f"{EMPIRICAL_K_RNG_SCHEMA_NAME}:{EMPIRICAL_K_RNG_SCHEMA_VERSION}:"
-                f"{int(seed)}:{name}"
-            ).encode()
-            child = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
-            return np.random.default_rng(child)
+            return named_generator(
+                seed,
+                namespace=EMPIRICAL_K_RNG_NAMESPACE,
+                stream=EMPIRICAL_K_RANDOM_BLOCKS.index(name) + 1,
+                version=2,
+            )
 
         scenes = math.ceil(int(response_steps) / int(scene_refresh_responses))
         result = cls(
             test_row_uniform=rng("test_row_uniform").random(int(n), dtype=np.float64),
             diffusion_noise=rng("diffusion_noise").standard_normal(
                 (int(n), 149, 12), dtype=np.float32
+            ),
+            driver_latent=rng("driver_latent").standard_normal(
+                (int(n), 6, 5), dtype=np.float32
+            ),
+            maneuver_latent=rng("maneuver_latent").standard_normal(
+                (int(n), 6, 4), dtype=np.float32
             ),
             scene_innovations=rng("scene_innovations").standard_normal(
                 (int(n), scenes, int(scene_dim)), dtype=np.float32
@@ -130,12 +150,10 @@ class EmpiricalKWorldState:
             policy_response_innovations=rng(
                 "policy_response_innovations"
             ).standard_normal((int(n), int(response_steps), 6, 2), dtype=np.float32),
+            policy_calibration_innovations=rng(
+                "policy_calibration_innovations"
+            ).standard_normal((int(n), int(response_steps), 6, 2), dtype=np.float32),
             scene_refresh_responses=int(scene_refresh_responses),
-        )
-        result.validate(
-            response_steps=response_steps,
-            scene_dim=scene_dim,
-            agent_dim=agent_dim,
         )
         return result
 
@@ -160,9 +178,10 @@ class EmpiricalKWorldState:
         refresh = states[0].scene_refresh_responses
         if any(item.scene_refresh_responses != refresh for item in states):
             raise ValueError("empirical-K states have incompatible scene refresh")
+        values = [item.as_dict() for item in states]
         return cls(
             **{
-                name: np.concatenate([item.as_dict()[name] for item in states], axis=0)
+                name: np.concatenate([item[name] for item in values], axis=0)
                 for name in EMPIRICAL_K_RANDOM_BLOCKS
             },
             scene_refresh_responses=refresh,
@@ -188,9 +207,12 @@ class EmpiricalKWorldState:
             values["test_row_uniform"] = rng.random(self.batch_size, dtype=np.float64)
         elif block in {
             "diffusion_noise",
+            "driver_latent",
+            "maneuver_latent",
             "scene_innovations",
             "agent_response_innovations",
             "policy_response_innovations",
+            "policy_calibration_innovations",
         }:
             current = values[block]
             innovation = rng.standard_normal(current.shape, dtype=np.float32)
@@ -262,12 +284,9 @@ class EmpiricalKContextSampler:
         self._k = np.asarray(bundle.flow_arrays["trajectory_constraint"])[
             np.asarray(bundle.flow_row_for_sequence)[self.rows]
         ].astype(np.float32)
-        self._sequence_ids = np.asarray(bundle.arrays["sequence_id"])[self.rows].astype(
-            str
-        )
-        self._row_hash = hashlib.sha256(
-            "\n".join(self._sequence_ids).encode()
-        ).hexdigest()
+        self._vehicle_dimensions = np.asarray(bundle.arrays["vehicle_dimensions"])[
+            self.rows
+        ].astype(np.float32)
 
     @property
     def context_contract(self) -> dict[str, Any]:
@@ -277,12 +296,14 @@ class EmpiricalKContextSampler:
             "fixed_variables": ["M", "C0", "K_GT"],
             "sampled_variables": [
                 "diffusion_noise",
+                "driver_latent",
+                "maneuver_latent",
                 "scene_innovations",
                 "agent_response_innovations",
                 "policy_response_innovations",
+                "policy_calibration_innovations",
             ],
             "test_sequences": int(len(self.rows)),
-            "test_sequence_id_sha256": self._row_hash,
         }
 
     def sample_world_exogenous(
@@ -298,11 +319,6 @@ class EmpiricalKContextSampler:
         )
 
     def _indices(self, world: EmpiricalKWorldState) -> np.ndarray:
-        world.validate(
-            response_steps=world.response_steps,
-            scene_dim=self.response.cfg.scene_latent_dim,
-            agent_dim=self.response.cfg.agent_latent_dim,
-        )
         return np.minimum(
             (np.asarray(world.test_row_uniform) * len(self.rows)).astype(np.int64),
             len(self.rows) - 1,
@@ -324,6 +340,7 @@ class EmpiricalKContextSampler:
             trajectory_constraint_valid=np.broadcast_to(
                 slots[..., None], self._k[index].shape
             ).copy(),
+            vehicle_dimensions=self._vehicle_dimensions[index].copy(),
             c0_normalized_reference=np.zeros_like(c0, dtype=np.float32),
         )
         return self.base_sampler._compose(
@@ -335,9 +352,3 @@ class EmpiricalKContextSampler:
 
     def create_world(self, *args: Any, **kwargs: Any) -> Any:
         return self.base_sampler.create_world(*args, **kwargs)
-
-    def source_hashes(self) -> dict[str, str]:
-        return {
-            "empirical_test_context_sequence_id_sha256": self._row_hash,
-            "empirical_test_context_count": str(len(self.rows)),
-        }

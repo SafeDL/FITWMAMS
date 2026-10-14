@@ -279,8 +279,12 @@ def threshold_stability(
             ).astype(np.int64)
         )
     rows: list[dict[str, float]] = []
+    seen_thresholds: set[float] = set()
     for k in k_values:
         u = float(sorted_values[n - k - 1])
+        if u in seen_thresholds:
+            continue
+        seen_thresholds.add(u)
         exceedances = sorted_values[sorted_values > u] - u
         if exceedances.size < min_k:
             continue

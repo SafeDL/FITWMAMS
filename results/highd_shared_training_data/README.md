@@ -1,20 +1,16 @@
-# Shared highD sequence data
+# highD 共享训练数据
 
-`highd_sequence_cache/sequence_cache/` 中保存 96,055 条 5.96 秒规范自然驾驶序列的
-manifest 与内存映射数组；`cohorts/cutin_crossing_4s/` 中的 `index.npz` 和
-`manifest.json` 保存用于扩散评测的完整语义 cut-in 队列。
-它是 HiQR 与扩散模型共享的数据表示，不属于某个模型，
-也不包含模型权重或评估结果。
+本目录保存训练与标定输入，不保存模型权重或评估结果。
 
-当前 manifest 直接绑定：
+| 目录 | 内容 |
+| --- | --- |
+| `scenario_conditions/` | 车辆存在标记 `M`、26 维初始状态 `C0`、36 维位置结点 `K`、尺寸 `D` 及片段索引 |
+| `highd_sequence_cache/sequence_cache/` | 对齐片段的 150 个真实状态点、149 个转移、地图、尺寸和动作 |
+| `driver_behavior/` | 全部 60 段录像提取的驾驶状态、完整换道、道路初态与固定统计协议 |
+| `response_gate_training/` | 可选门控的原始采样轨迹、监督样本和事件索引，不参与默认 NPC/HiQR 评测 |
 
-- `results/highd_natural_driving_evt/natural_segments.csv`；
-- `results/highd_natural_driving_flow/dataset.npz`；
-- `results/highd_natural_driving_flow/dataset_schema.json`。
+场景条件和时序缓存均包含 96,055 个片段，按 `segment_id` 对齐。42 / 9 / 9 段录像对应 72,771 / 13,133 / 10,151 个 Train / Val / Test 片段，其中 EVT 尾部共 2,964 条。
 
-split 与 Flow 完全一致：train/val/test 为 72,771 / 13,133 / 10,151；EVT 标签
-为当前阈值 `event_risk > u` 的 2,964 条。数据在自然驾驶清洗阶段已经满足横向事件
-完整性和 C0 有效背景槽位全窗稳定性，模型不得再实施第二次 stable-slot 筛选。
+有效车辆保留实际长宽；缺失槽位的尺寸在条件数据中为零，在时序缓存中为 4.8 m × 1.8 m 占位，均须结合车辆存在标记使用。
 
-该 cohort 的 manifest 绑定上述规范序列。旧模型样本缓存和旧扩散反应参考缓存已经删除；其他专题 cohort 应从
-当前规范序列重新生成。
+前两类来自 `results/evt/natural_segments.csv`，生成顺序见 [process_highD](../../process_highD/README.md)。`driver_behavior/` 直接从完整原始录像提取，由世界模型的 `calibrate_drivers.py` 准备，沿用相同录像划分，不只使用七车短片段。门控训练输入与权重分开保存，权重位于世界模型结果目录。

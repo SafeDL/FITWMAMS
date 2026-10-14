@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from types import SimpleNamespace
 
-from traffic_components.src.core.highd_metrics import distribution_metrics, ego_replay_gate, ego_replay_metrics, factual_metrics, intervention_metrics
+from hierarchical_world_model.src.core.highd_metrics import distribution_metrics, ego_replay_gate, ego_replay_metrics, factual_metrics, intervention_metrics
 
 
 def test_factual_metric_and_ego_gate():

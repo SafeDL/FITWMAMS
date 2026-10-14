@@ -1,4 +1,4 @@
-"""Batched IDM evaluation against the frozen factual HiQR traffic model."""
+"""Batched IDM evaluation in the generated responsive traffic world."""
 
 from __future__ import annotations
 
@@ -24,10 +24,11 @@ class WorldEvaluation:
     collision: np.ndarray
     min_gap_m: np.ndarray
     numerical_valid: np.ndarray
+    interaction_descriptor: np.ndarray | None = None
 
 
 class CurrentWorldEvaluator:
-    """Evaluate complete exogenous worlds in bounded vectorized batches."""
+    """Evaluate complete tail-world samples in bounded vectorized batches."""
 
     def __init__(
         self,
@@ -55,6 +56,7 @@ class CurrentWorldEvaluator:
         collisions: list[np.ndarray] = []
         gaps: list[np.ndarray] = []
         valid: list[np.ndarray] = []
+        descriptors: list[np.ndarray] = []
         for start in range(0, worlds.batch_size, self.batch_size):
             batch = worlds.select(slice(start, start + self.batch_size))
             rollout = rollout_world(
@@ -63,10 +65,9 @@ class CurrentWorldEvaluator:
                 self.policy,
                 steps=self.steps,
                 evt_model=self.evt_model,
-                reaction_controller=None,  # Historical factual-HiQR protocol.
             )
             collision, min_gap = collision_and_min_gap(
-                rollout.states, rollout.initial_valid
+                rollout.states, rollout.initial_valid, rollout.vehicle_dimensions
             )
             if rollout.evt_score is None or not np.isfinite(rollout.evt_score).all():
                 raise FloatingPointError(
@@ -79,10 +80,40 @@ class CurrentWorldEvaluator:
             collisions.append(collision)
             gaps.append(min_gap)
             valid.append(rollout.numerical_valid)
+            states = np.asarray(rollout.states)
+            ego = states[:, :, :1]
+            npc = states[:, :, 1:]
+            active = np.asarray(rollout.initial_valid[:, None, 1:], bool)
+            dx = npc[..., 0] - ego[..., 0]
+            dy = np.abs(npc[..., 1] - ego[..., 1])
+            clearance = np.where(active, np.hypot(dx, dy), np.inf)
+            flat = clearance.reshape(len(states), -1).argmin(axis=1)
+            frame = flat // 6
+            slot = flat % 6
+            row = np.arange(len(states))
+            closing = states[row, frame, 0, 2] - states[row, frame, slot + 1, 2]
+            first_risk = np.argmax((clearance < 12.0).any(axis=2), axis=1)
+            participants = (clearance < 15.0).any(axis=1).sum(axis=1)
+            descriptors.append(
+                np.stack(
+                    (
+                        slot.astype(np.float32),
+                        np.minimum(
+                            clearance.reshape(len(states), -1).min(axis=1), 100.0
+                        ),
+                        closing,
+                        first_risk / max(states.shape[1] - 1, 1),
+                        collision.astype(np.float32),
+                        participants.astype(np.float32),
+                    ),
+                    axis=1,
+                ).astype(np.float32)
+            )
         return WorldEvaluation(
             evt_score=np.concatenate(scores),
             event_risk=np.concatenate(risks),
             collision=np.concatenate(collisions),
             min_gap_m=np.concatenate(gaps),
             numerical_valid=np.concatenate(valid),
+            interaction_descriptor=np.concatenate(descriptors),
         )

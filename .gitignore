@@ -6,6 +6,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .venv/
 venv/
@@ -27,6 +29,8 @@ dist/
 *.swp
 *.swo
 *~
+*.tmp
+*.part
 
 # OS metadata
 .DS_Store
@@ -68,9 +72,7 @@ highD_dataset/**/*.csv
 *.onnx
 *.safetensors
 weights/
-*/weights/
 checkpoints/
-*/checkpoints/
 
 # Logs and transient experiment directories
 *.log
@@ -80,14 +82,20 @@ wandb/
 mlruns/
 tensorboard/
 
-# Reproducible experiment artifacts
+# Archives and shared training data; keep their documentation
+archive/**
+!archive/README.md
 results/highd_shared_training_data/**
 !results/highd_shared_training_data/**/
 !results/highd_shared_training_data/**/README.md
-results/legacy/
-results/highd_world_model/
-results/interactive_behavior_world_model/
-results/npc_behavior_benchmark/
+
+# Large per-event/per-run outputs; keep reports, protocols and summary tables
+results/evt/natural_segments.csv
+results/evt/event_bank/events.csv
+results/hierarchical_world_model/factual_test/scene_metrics.csv
+results/hierarchical_world_model/npc_response/autonomous_traffic/runs.csv
+results/hierarchical_world_model/npc_response/autonomous_traffic/*/events.csv
+results/hierarchical_world_model/npc_response/autonomous_traffic/*/runs.json
 results/idm_ams/
 
 # Large generated output media (usually recreated by scripts)

@@ -1,11 +1,11 @@
 # Bayesian MA-IDM
 
-这是方案01（`doc/01_Bayesian_MA_IDM.md`）的独立实现，仅包含两个论文模型：
+这是 Bayesian MA-IDM 的独立实现，仅包含两个论文模型：
 
 - `bayesian_idm`：层次 B-IDM，作为独立高斯残差基线；
 - `ma_idm`：层次 MA-IDM，使用联合 log-normal 驾驶人参数和零均值平方指数（SE）GP 残差。
 
-它不是 Dynamic-AR IDM（方案02）、multi-regime B-IDM（方案03）或 Active Inference（方案04）的实现。
+它不是 Dynamic-AR IDM、multi-regime B-IDM 或 Active Inference 的实现。
 
 ## 保留的部署模式
 
@@ -55,5 +55,5 @@ python -m external_model_baselines.models.bayesian_ma_idm.scripts.run_highway_en
 python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model ma_idm
 ```
 
-`src/driver.py::BayesianIDMDriver` 是在线仿真边界：每个episode固定一组联合参数，B-IDM递推IID残差，MA-IDM递推因果SE-GP历史，外部plant负责五帧动作保持和限幅。共同能力规则见 [`doc/00_Common_Protocol.md`](../../../doc/00_Common_Protocol.md)。
+`src/driver.py::BayesianIDMDriver` 是在线仿真边界：每个episode固定一组联合参数，B-IDM递推IID残差，MA-IDM递推因果SE-GP历史，外部plant负责五帧动作保持和限幅。共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
 交叉验证后验只用于评测；`evidence/deployment/` 中使用全部251个合格pair重拟合的后验才是主项目仿真默认资产。

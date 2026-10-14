@@ -57,14 +57,18 @@ class TrafficBotsIDMWorldEvaluator:
                 raise FloatingPointError(
                     "TrafficBots IDM rollout produced non-finite states"
                 )
-            risk = trajectory_event_risk(rollout.states, rollout.initial_valid)
+            risk = trajectory_event_risk(
+                rollout.states,
+                rollout.initial_valid,
+                vehicle_dimensions=rollout.vehicle_dimensions,
+            )
             score = np.asarray(self.evt_model.score(risk), np.float64)
             if not np.isfinite(score).all():
                 raise FloatingPointError(
                     "TrafficBots IDM rollout produced non-finite EVT scores"
                 )
             collision, minimum = collision_and_min_gap(
-                rollout.states, rollout.initial_valid
+                rollout.states, rollout.initial_valid, rollout.vehicle_dimensions
             )
             scores.append(score)
             risks.append(risk)

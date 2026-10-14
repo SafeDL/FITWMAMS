@@ -1,9 +1,8 @@
-"""Dataset preparation for full highD natural-driving C0 normalizing flows."""
+"""Shared highD data for the EVT-tail scenario Flow."""
 
 from __future__ import annotations
 
 import logging
-import hashlib
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,6 @@ import pandas as pd
 from process_highD.src.io_utils import load_config as load_highd_config
 from process_highD.src.io_utils import resolve_data_path
 from process_highD.src.natural_segments import (
-    options_from_config as natural_segment_options,
     validate_natural_segment_contract,
 )
 from process_highD.src.preprocess import prepare_recording
@@ -29,8 +27,10 @@ from .constraints import (
     KNOT_FEATURE_NAMES,
     KNOT_INDICES,
     KNOT_TIMES_S,
+    constraint_to_model_coordinates,
     extract_constraint_for_segment,
 )
+from .dimensions import fit_dimension_contract
 from .transforms import (
     feature_transform_kinds,
     transform_features_for_model,
@@ -42,14 +42,25 @@ logger = logging.getLogger(__name__)
 SPLIT_TO_INDEX = {"train": 0, "val": 1, "test": 2}
 INACTIVE_REFERENCE_NOISE_SEED = 20260811
 INACTIVE_REFERENCE_NOISE_DISTRIBUTION = "standard_normal"
-
-
-def expected_context_names() -> tuple[str, ...]:
-    return tuple(f"mask_{slot}" for slot in SLOT_NAMES)
+METADATA_ARRAY_NAMES = (
+    "segment_id",
+    "recording_id",
+    "ego_id",
+    "anchor_frame",
+    "event_risk",
+    "is_evt_tail",
+    "primary_slot_index",
+)
 
 
 def output_dir_from_config(config: dict[str, Any], config_dir: str | Path) -> Path:
+    """Return the directory that stores trained Flow artifacts."""
     return ensure_dir(resolve_path(config["paths"]["output_dir"], base=config_dir))
+
+
+def dataset_dir_from_config(config: dict[str, Any], config_dir: str | Path) -> Path:
+    """Return the shared full-natural-driving dataset directory."""
+    return ensure_dir(resolve_path(config["paths"]["dataset_dir"], base=config_dir))
 
 
 def dataset_npz_path(output_dir: str | Path) -> Path:
@@ -60,113 +71,46 @@ def schema_json_path(output_dir: str | Path) -> Path:
     return Path(output_dir) / "dataset_schema.json"
 
 
-def feature_mode_from_config(config: dict[str, Any]) -> str:
-    """Return the explicitly versioned Flow feature mode for this run."""
-    return str(
-        dict(config.get("dataset", {})).get("feature_mode", "initial_observation")
-    )
-
-
-def dataset_schema_is_current(
-    output_dir: str | Path,
-    *,
-    feature_mode: str = "initial_observation",
-) -> bool:
-    schema_path = schema_json_path(output_dir)
-    if not schema_path.exists():
-        return False
-    try:
-        schema = load_json(schema_path)
-    except Exception:  # noqa: BLE001 - corrupted schema should trigger rebuild.
-        return False
-    feature_schema = build_feature_schema(feature_mode)
-    expected_transforms = feature_transform_kinds(feature_schema.feature_names)
-    return (
-        list(schema.get("feature_names", [])) == list(feature_schema.feature_names)
-        and schema.get("feature_mode") == feature_schema.feature_mode
-        and schema.get("dataset_scope") == "full_clean_natural_driving"
-        and bool(schema.get("lateral_event_integrity_required", False))
-        and bool(schema.get("background_slot_stability_required", False))
-        and list(schema.get("context_names", [])) == list(expected_context_names())
-        and list(
-            dict(schema.get("long_horizon_constraint", {})).get(
-                "feature_names", []
-            )
-        )
-        == list(KNOT_FEATURE_NAMES)
-        and schema.get("probability_factorization")
-        == "p(mask) p(C0|mask) p(K|C0,mask)"
-        and list(schema.get("model_feature_transforms", []))
-        == list(expected_transforms)
-        and dict(schema.get("normalization", {}))
-        .get("inactive_reference_noise", {})
-        .get("distribution")
-        == INACTIVE_REFERENCE_NOISE_DISTRIBUTION
-    )
-
-
-def _resolve_highd_evt_config(config: dict[str, Any], config_dir: Path) -> Path:
-    return resolve_path(config["paths"]["highd_evt_config"], base=config_dir)
+def _resolve_highd_preprocessing_config(
+    config: dict[str, Any], config_dir: Path
+) -> Path:
+    return resolve_path(config["paths"]["highd_preprocessing_config"], base=config_dir)
 
 
 def _resolve_natural_segments_csv(config: dict[str, Any], config_dir: Path) -> Path:
-    raw = config["paths"].get("natural_segments_csv")
-    if raw:
-        return resolve_path(raw, base=config_dir)
-    highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
+    highd_cfg_path = _resolve_highd_preprocessing_config(config, config_dir)
     highd_cfg = load_highd_config(highd_cfg_path)
     out_dir = resolve_data_path(highd_cfg["paths"]["output_dir"], highd_cfg_path)
     return out_dir / "natural_segments.csv"
 
 
 def _resolve_raw_dir(config: dict[str, Any], config_dir: Path) -> Path:
-    raw = config["paths"].get("raw_dir")
-    if raw:
-        return resolve_path(raw, base=config_dir)
-    highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
+    highd_cfg_path = _resolve_highd_preprocessing_config(config, config_dir)
     highd_cfg = load_highd_config(highd_cfg_path)
     return resolve_data_path(highd_cfg["paths"]["raw_dir"], highd_cfg_path)
 
 
 def _load_evt_reference(config: dict[str, Any], config_dir: Path) -> tuple[Path, float]:
-    highd_cfg_path = _resolve_highd_evt_config(config, config_dir)
-    highd_cfg = load_highd_config(highd_cfg_path)
-    out_dir = resolve_data_path(highd_cfg["paths"]["output_dir"], highd_cfg_path)
-    summary_path = out_dir / "evt" / "natural_evt_summary.json"
+    evt_cfg_path = _resolve_highd_preprocessing_config(config, config_dir)
+    evt_cfg = load_highd_config(evt_cfg_path)
+    out_dir = resolve_data_path(evt_cfg["paths"]["output_dir"], evt_cfg_path)
+    summary_path = out_dir / "evt_summary.json"
     if not summary_path.exists():
         raise FileNotFoundError(f"Missing current EVT summary: {summary_path}")
     summary = load_json(summary_path)
     return summary_path, float(summary["u"])
 
 
-def _group_values(meta: list[dict[str, Any]], mode: str) -> np.ndarray:
-    mode = str(mode).lower()
-    out: list[str] = []
-    for item in meta:
-        if mode == "recording":
-            out.append(str(item["recording_id"]))
-        elif mode in {"recording_ego", "vehicle", "ego"}:
-            out.append(f"{item['recording_id']}:{item['ego_id']}")
-        elif mode in {"segment", "none"}:
-            out.append(str(item["segment_id"]))
-        else:
-            raise ValueError(f"Unsupported split group mode: {mode}")
-    return np.asarray(out, dtype="U64")
-
-
-def split_indices_by_group(
+def split_indices_by_recording(
     metadata: list[dict[str, Any]],
     split_cfg: dict[str, Any],
 ) -> np.ndarray:
-    groups = _group_values(metadata, str(split_cfg.get("group_by", "recording")))
+    groups = np.asarray([item["recording_id"] for item in metadata], np.int64)
     unique_groups = np.unique(groups)
-    rng = np.random.default_rng(int(split_cfg.get("seed", 42)))
+    rng = np.random.default_rng(int(split_cfg["seed"]))
     shuffled = unique_groups.copy()
     rng.shuffle(shuffled)
-    ratios = split_cfg.get("ratios", [0.70, 0.15, 0.15])
-    if len(ratios) != 3:
-        raise ValueError("split.ratios must contain train/val/test ratios")
-    ratios = np.asarray(ratios, dtype=np.float64)
+    ratios = np.asarray(split_cfg["ratios"], dtype=np.float64)
     ratios = ratios / np.maximum(np.sum(ratios), 1.0e-12)
     n = len(shuffled)
     if n < 3:
@@ -187,35 +131,25 @@ def split_indices_by_group(
     return split_index
 
 
-def build_contexts(
-    *,
-    slot_mask: np.ndarray,
-    metadata: list[dict[str, Any]],
-) -> tuple[np.ndarray, tuple[str, ...]]:
-    context_names = expected_context_names()
-    del metadata
-    return slot_mask.astype(np.float32), context_names
-
-
 def fit_feature_normalizer(
     raw_features: np.ndarray,
     feature_valid: np.ndarray,
-    split_index: np.ndarray,
+    fit_rows: np.ndarray,
     feature_names: tuple[str, ...],
 ) -> dict[str, Any]:
     transform_kinds = feature_transform_kinds(feature_names)
     model_features = transform_features_for_model(
         raw_features,
         feature_valid,
-        feature_names,
         transform_kinds,
     )
-    train = split_index == SPLIT_TO_INDEX["train"]
+    selected_rows = np.zeros(len(raw_features), dtype=bool)
+    selected_rows[np.asarray(fit_rows, dtype=np.int64)] = True
     mean = np.zeros(raw_features.shape[1], dtype=np.float64)
     std = np.ones(raw_features.shape[1], dtype=np.float64)
     count = np.zeros(raw_features.shape[1], dtype=np.int64)
     for j in range(raw_features.shape[1]):
-        valid = train & feature_valid[:, j] & np.isfinite(model_features[:, j])
+        valid = selected_rows & feature_valid[:, j] & np.isfinite(model_features[:, j])
         count[j] = int(np.sum(valid))
         if count[j] == 0:
             continue
@@ -242,7 +176,6 @@ def apply_feature_normalizer(
     model_features = transform_features_for_model(
         raw_features,
         feature_valid,
-        feature_names,
         transform_kinds,
     )
     out = np.zeros_like(raw_features, dtype=np.float32)
@@ -276,18 +209,19 @@ def add_inactive_reference_noise(
 def _normalize_masked_array(
     values: np.ndarray,
     valid: np.ndarray,
-    split_index: np.ndarray,
+    fit_rows: np.ndarray,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Normalize valid coordinates and regularize undefined coordinates."""
     raw = np.asarray(values, np.float32)
     present = np.asarray(valid, bool)
-    train = np.asarray(split_index) == SPLIT_TO_INDEX["train"]
+    selected_rows = np.zeros(len(raw), dtype=bool)
+    selected_rows[np.asarray(fit_rows, dtype=np.int64)] = True
     mean = np.zeros(raw.shape[1:], np.float32)
     std = np.ones(raw.shape[1:], np.float32)
     count = np.zeros(raw.shape[1:], np.int64)
     for agent in range(raw.shape[1]):
         for feature in range(raw.shape[2]):
-            selected = train & present[:, agent, feature]
+            selected = selected_rows & present[:, agent, feature]
             count[agent, feature] = int(selected.sum())
             if not selected.any():
                 continue
@@ -308,17 +242,9 @@ def _normalize_masked_array(
 
 
 def _metadata_arrays(metadata: list[dict[str, Any]]) -> dict[str, np.ndarray]:
-    keys = (
-        "segment_id",
-        "recording_id",
-        "ego_id",
-        "anchor_frame",
-        "event_risk",
-        "is_evt_tail",
-    )
     arrays: dict[str, np.ndarray] = {}
-    for key in keys:
-        values = [item.get(key, "") for item in metadata]
+    for key in METADATA_ARRAY_NAMES:
+        values = [item[key] for item in metadata]
         if key == "segment_id":
             arrays[key] = np.asarray(values, dtype="U64")
         elif key == "event_risk":
@@ -330,36 +256,35 @@ def _metadata_arrays(metadata: list[dict[str, Any]]) -> dict[str, np.ndarray]:
     return arrays
 
 
-def build_natural_flow_dataset(
+def build_scenario_dataset(
     config: dict[str, Any], *, config_dir: str | Path
 ) -> dict[str, Any]:
     config_dir = Path(config_dir).resolve()
-    output_dir = output_dir_from_config(config, config_dir)
+    output_dir = dataset_dir_from_config(config, config_dir)
     segment_path = _resolve_natural_segments_csv(config, config_dir)
     if not segment_path.exists():
         raise FileNotFoundError(f"Missing current natural segments: {segment_path}")
     raw_dir = _resolve_raw_dir(config, config_dir)
-    highd_cfg = load_highd_config(_resolve_highd_evt_config(config, config_dir))
+    highd_cfg = load_highd_config(
+        _resolve_highd_preprocessing_config(config, config_dir)
+    )
     evt_summary_path, evt_u = _load_evt_reference(config, config_dir)
 
     natural_segments = pd.read_csv(segment_path)
     if natural_segments.empty:
         raise RuntimeError(f"Natural segment CSV is empty: {segment_path}")
-    options = natural_segment_options(highd_cfg)
     validate_natural_segment_contract(
         natural_segments,
-        options=options,
         source=str(segment_path),
     )
-    schema = build_feature_schema(feature_mode_from_config(config))
+    schema = build_feature_schema()
     features: list[np.ndarray] = []
     valids: list[np.ndarray] = []
     slot_masks: list[np.ndarray] = []
     metadata: list[dict[str, Any]] = []
     trajectory_constraints: list[np.ndarray] = []
     trajectory_constraint_valids: list[np.ndarray] = []
-    reject: Counter[str] = Counter()
-
+    vehicle_dimensions: list[np.ndarray] = []
     logger.info(
         "Extracting C0 features from %d current natural segments", len(natural_segments)
     )
@@ -369,20 +294,11 @@ def build_natural_flow_dataset(
             "Recording %02d: %d natural segments", int(recording_id), len(frame)
         )
         for _, row in frame.iterrows():
-            try:
-                feat, valid, mask, meta = extract_c0_features_for_segment(
-                    rec,
-                    row,
-                    schema=schema,
-                )
-            except Exception as exc:  # noqa: BLE001 - keep per-segment audit.
-                reject[type(exc).__name__] += 1
-                logger.warning(
-                    "Skipping segment %s: %s",
-                    row.get("segment_id", "<unknown>"),
-                    exc,
-                )
-                continue
+            feat, valid, mask, meta = extract_c0_features_for_segment(
+                rec,
+                row,
+                schema=schema,
+            )
             meta["is_evt_tail"] = bool(float(row["event_risk"]) > evt_u)
             constraint, constraint_valid = extract_constraint_for_segment(rec, row)
             features.append(feat)
@@ -391,33 +307,44 @@ def build_natural_flow_dataset(
             metadata.append(meta)
             trajectory_constraints.append(constraint)
             trajectory_constraint_valids.append(constraint_valid)
-
-    if not features:
-        raise RuntimeError("No C0 features were extracted from natural segments")
+            ids = [int(row["ego_id"]), *[int(row[f"{name}_id"]) for name in SLOT_NAMES]]
+            dimensions = np.zeros((7, 2), np.float32)
+            for agent, vehicle_id in enumerate(ids):
+                if vehicle_id >= 0 and (agent == 0 or mask[agent - 1]):
+                    dimensions[agent] = rec.tracks_meta.loc[
+                        vehicle_id, ["width", "height"]
+                    ]
+            vehicle_dimensions.append(dimensions)
 
     raw_features = np.stack(features).astype(np.float32)
     feature_valid = np.stack(valids).astype(bool)
     slot_mask = np.stack(slot_masks).astype(bool)
-    split_index = split_indices_by_group(metadata, dict(config.get("split", {})))
-    trajectory_constraint_array = np.stack(trajectory_constraints).astype(
-        np.float32
+    split_index = split_indices_by_recording(
+        metadata, dict(config["dataset_split"])
     )
-    trajectory_constraint_valid_array = np.stack(
-        trajectory_constraint_valids
-    ).astype(bool)
+    dimensions_array = np.stack(vehicle_dimensions).astype(np.float32)
+    dimensions_contract = fit_dimension_contract(
+        dimensions_array, slot_mask, split_index
+    )
+    trajectory_constraint_array = np.stack(trajectory_constraints).astype(np.float32)
+    trajectory_constraint_valid_array = np.stack(trajectory_constraint_valids).astype(
+        bool
+    )
+    tail_rows = np.flatnonzero(
+        np.asarray([item["is_evt_tail"] for item in metadata], dtype=bool)
+    )
+    constraint_model_array = constraint_to_model_coordinates(
+        trajectory_constraint_array, raw_features
+    )
     constraint_normalized, constraint_normalization = _normalize_masked_array(
-        trajectory_constraint_array,
+        constraint_model_array,
         trajectory_constraint_valid_array,
-        split_index,
-    )
-    contexts, context_names = build_contexts(
-        slot_mask=slot_mask,
-        metadata=metadata,
+        tail_rows,
     )
     normalizer = fit_feature_normalizer(
         raw_features,
         feature_valid,
-        split_index,
+        tail_rows,
         schema.feature_names,
     )
     features_normalized = apply_feature_normalizer(
@@ -437,13 +364,13 @@ def build_natural_flow_dataset(
         "features": raw_features,
         "features_normalized": features_normalized,
         "feature_valid": feature_valid,
-        "contexts": contexts,
         "slot_mask": slot_mask,
         "mask_pattern": mask_pattern,
         "trajectory_constraint": trajectory_constraint_array,
         "trajectory_constraint_normalized": constraint_normalized,
         "trajectory_constraint_valid": trajectory_constraint_valid_array,
         "split_index": split_index,
+        "vehicle_dimensions": dimensions_array,
         **meta_arrays,
     }
     np.savez_compressed(dataset_npz_path(output_dir), **arrays)
@@ -459,7 +386,6 @@ def build_natural_flow_dataset(
         "dataset_npz": str(dataset_npz_path(output_dir)),
         "dataset_scope": "full_clean_natural_driving",
         "source_segments_csv": str(segment_path),
-        "source_segments_sha256": hashlib.sha256(segment_path.read_bytes()).hexdigest(),
         "evt_reference": {
             "summary_path": str(evt_summary_path),
             "pot_threshold_u": float(evt_u),
@@ -469,29 +395,27 @@ def build_natural_flow_dataset(
         },
         "raw_dir": str(raw_dir),
         "num_samples": int(raw_features.shape[0]),
-        "lateral_event_integrity_required": bool(
-            options.require_complete_lateral_events
-        ),
-        "background_slot_stability_required": bool(
-            options.require_stable_background_slots
-        ),
+        "metadata_arrays": list(METADATA_ARRAY_NAMES),
+        "lateral_event_integrity_required": True,
+        "background_slot_stability_required": True,
         "feature_names": list(schema.feature_names),
         "feature_mode": schema.feature_mode,
         "c0_initial_observation_only": True,
-        "future_condition_labels_included": True,
         "ego_features": list(schema.ego_features),
         "slot_features": list(schema.slot_features),
-        "trajectory_features": list(schema.trajectory_features),
         "model_feature_transforms": list(feature_transform_kinds(schema.feature_names)),
         "slot_names": list(SLOT_NAMES),
-        "context_names": list(context_names),
-        "probability_factorization": "p(mask) p(C0|mask) p(K|C0,mask)",
+        "probability_factorization": "p(M) p(C0|M) p(K|C0,M)",
+        "vehicle_dimensions": dimensions_contract,
         "long_horizon_constraint": {
             "shape_per_sequence": [6, len(KNOT_FEATURE_NAMES)],
             "feature_names": list(KNOT_FEATURE_NAMES),
             "knot_frames": list(KNOT_INDICES),
             "knot_times_s": list(KNOT_TIMES_S),
             "coordinate_frame": "ego_forward_positive_x_left_positive_y",
+            "model_coordinates": (
+                "longitudinal interval-mean-speed changes and lateral positions"
+            ),
             "normalization": constraint_normalization,
             "generation": "single_conditional_rq_spline_maf",
         },
@@ -505,7 +429,7 @@ def build_natural_flow_dataset(
                 normalizer["valid_train_count"],
                 dtype=int,
             ).tolist(),
-            "fit_split": "train",
+            "fit_population": "all_evt_tail",
             "inactive_slot_policy": (
                 "discrete_mask_with_independent_standard_normal_reference_noise"
             ),
@@ -515,12 +439,10 @@ def build_natural_flow_dataset(
                 "physical_output_policy": "zero_inactive_slot_features",
             },
             "coordinate_note": (
-                "Mean/std normalization is fitted in model coordinates after "
-                "the positive mean-minus-min-ax transform. Raw feature values "
-                "remain stored in dataset.npz."
+                "Mean/std normalization is fitted after the declared identity "
+                "or signed-log transform. Raw values remain in dataset.npz."
             ),
         },
-        "reject_counts": {key: int(value) for key, value in sorted(reject.items())},
     }
     save_json(schema_payload, schema_json_path(output_dir))
     logger.info("Wrote normalizing dataset: %s", dataset_npz_path(output_dir))
@@ -528,7 +450,7 @@ def build_natural_flow_dataset(
     return schema_payload
 
 
-def load_natural_dataset(
+def load_scenario_dataset(
     output_dir: str | Path,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     output_dir = Path(output_dir)
@@ -543,12 +465,6 @@ def load_natural_dataset(
     return arrays, load_json(schema_path)
 
 
-def split_indices(arrays: dict[str, np.ndarray], split: str) -> np.ndarray:
-    split_name = str(split).lower()
-    if split_name in {"all", "full", "dataset"}:
-        return np.arange(len(arrays["split_index"]), dtype=np.int64)
-    if split_name not in SPLIT_TO_INDEX:
-        raise KeyError(
-            f"Unknown split={split!r}; expected one of {sorted(SPLIT_TO_INDEX)} or 'all'"
-        )
-    return np.where(arrays["split_index"] == SPLIT_TO_INDEX[split_name])[0]
+def evt_tail_indices(arrays: dict[str, np.ndarray]) -> np.ndarray:
+    """Return every EVT-tail row used by the released Flow."""
+    return np.flatnonzero(np.asarray(arrays["is_evt_tail"], bool))

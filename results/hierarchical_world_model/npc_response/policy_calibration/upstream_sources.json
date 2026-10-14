@@ -1,0 +1,17 @@
+{
+  "diffusion_checkpoint": {
+    "mtime_ns": 1791307976402222219,
+    "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+    "size_bytes": 3193029
+  },
+  "evaluation_checkpoint": {
+    "mtime_ns": 1791538424942697061,
+    "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt",
+    "size_bytes": 8681956
+  },
+  "flow_checkpoint": {
+    "mtime_ns": 1791265097671690537,
+    "path": "/home/hp/FITWMAMS/results/flow/checkpoints/scenario_flow.pt",
+    "size_bytes": 10893785
+  }
+}

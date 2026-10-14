@@ -13,7 +13,8 @@ import torch.nn.functional as F
 
 @dataclass(frozen=True)
 class DiffusionModelConfig:
-    condition_dim: int = 118
+    condition_dim: int = 68
+    c0_dim: int = 26
     horizon_steps: int = 149
     target_dim: int = 12
     hidden_dim: int = 128
@@ -30,12 +31,9 @@ class DiffusionModelConfig:
     target_scale_y: float = 1.0
     dt_s: float = 0.04
     x0_clip_abs: float = 10.0
-    prediction_type: str = "epsilon"
-    condition_dropout_prob: float = 0.0
     min_snr_gamma: float = 0.0
     constraint_agents: int = 6
-    constraint_dim: int = 12
-    denoiser: str = "factorized_spatiotemporal"
+    constraint_dim: int = 6
 
     def __post_init__(self) -> None:
         if self.horizon_steps != 149 or self.target_dim != 12:
@@ -44,21 +42,17 @@ class DiffusionModelConfig:
             raise ValueError("hidden_dim must be divisible by num_heads")
         if self.diffusion_steps < 2:
             raise ValueError("diffusion_steps must be at least two")
-        if self.prediction_type not in {"epsilon", "v_prediction"}:
-            raise ValueError(f"unsupported prediction_type {self.prediction_type!r}")
-        if not 0.0 <= self.condition_dropout_prob < 1.0:
-            raise ValueError("condition_dropout_prob must be in [0, 1)")
         if self.min_snr_gamma < 0.0:
             raise ValueError("min_snr_gamma must be non-negative")
-        expected_condition_dim = 40 + 6 + self.constraint_agents * self.constraint_dim
+        expected_condition_dim = (
+            self.c0_dim + 6 + self.constraint_agents * self.constraint_dim
+        )
         if self.constraint_agents != 6 or self.condition_dim != expected_condition_dim:
+            raise ValueError("condition_dim must contain C0, mask and position knots")
+        if self.c0_dim != 26 or self.constraint_dim != 6:
             raise ValueError(
-                "condition_dim must contain 40-D C0, mask and three state knots"
+                "the maintained contract uses 26-D C0 and 6-D position knots"
             )
-        if self.constraint_dim != 12:
-            raise ValueError("each vehicle requires 12 state-knot values")
-        if self.denoiser != "factorized_spatiotemporal":
-            raise ValueError("only the factorized spatiotemporal denoiser is supported")
 
     def to_dict(self) -> dict[str, int | float | str]:
         return asdict(self)
@@ -85,7 +79,6 @@ class StructuredConditionEncoder(nn.Module):
     """
 
     NUM_BACKGROUND = 6
-    C0_DIM = 40
 
     def __init__(self, config: DiffusionModelConfig) -> None:
         super().__init__()
@@ -93,7 +86,7 @@ class StructuredConditionEncoder(nn.Module):
         hidden = config.hidden_dim
         self.constraint_agents = config.constraint_agents
         self.constraint_dim = config.constraint_dim
-        self.c0_projection = nn.Linear(self.C0_DIM, hidden)
+        self.c0_projection = nn.Linear(config.c0_dim, hidden)
         self.constraint_projection = nn.Linear(config.constraint_dim, hidden)
         self.agent_embedding = nn.Parameter(torch.zeros(1, self.NUM_BACKGROUND, hidden))
         self.agent_norm = nn.LayerNorm(hidden)
@@ -111,9 +104,11 @@ class StructuredConditionEncoder(nn.Module):
                 "structured condition has the wrong shape: " f"{tuple(condition.shape)}"
             )
         batch = condition.shape[0]
-        c0 = condition[:, :40]
-        background_valid = condition[:, 40:46] > 0.5
-        constraint = condition[:, 46:].reshape(batch, 6, self.constraint_dim)
+        c0_end = self.config.c0_dim
+        mask_end = c0_end + 6
+        c0 = condition[:, :c0_end]
+        background_valid = condition[:, c0_end:mask_end] > 0.5
+        constraint = condition[:, mask_end:].reshape(batch, 6, self.constraint_dim)
         c0_token = self.agent_norm(self.c0_projection(c0))[:, None]
         plan_tokens = self.agent_norm(
             self.constraint_projection(constraint) + self.agent_embedding
@@ -241,7 +236,8 @@ class FactorizedSpatiotemporalDenoiser(nn.Module):
         )
         condition_tokens = condition_tokens + time_condition[:, None]
         global_condition = global_condition + time_condition
-        background_padding = ~(condition[:, 40:46] > 0.5)
+        start = self.config.c0_dim
+        background_padding = ~(condition[:, start : start + 6] > 0.5)
         noisy = noisy_trajectory.reshape(
             batch, self.config.horizon_steps, self.NUM_BACKGROUND, 2
         )
@@ -313,9 +309,7 @@ class BackgroundTrajectoryDiffusion(nn.Module):
         model_output: torch.Tensor,
     ) -> torch.Tensor:
         alpha = _coefficient(self.alpha_bar, timesteps, noisy)
-        if self.config.prediction_type == "v_prediction":
-            return torch.sqrt(alpha) * noisy - torch.sqrt(1.0 - alpha) * model_output
-        return (noisy - torch.sqrt(1.0 - alpha) * model_output) / torch.sqrt(alpha)
+        return torch.sqrt(alpha) * noisy - torch.sqrt(1.0 - alpha) * model_output
 
     def predict_noise(
         self,
@@ -323,8 +317,6 @@ class BackgroundTrajectoryDiffusion(nn.Module):
         timesteps: torch.Tensor,
         model_output: torch.Tensor,
     ) -> torch.Tensor:
-        if self.config.prediction_type == "epsilon":
-            return model_output
         alpha = _coefficient(self.alpha_bar, timesteps, noisy)
         return torch.sqrt(1.0 - alpha) * noisy + torch.sqrt(alpha) * model_output
 
@@ -334,27 +326,8 @@ class BackgroundTrajectoryDiffusion(nn.Module):
         timesteps: torch.Tensor,
         noise: torch.Tensor,
     ) -> torch.Tensor:
-        if self.config.prediction_type == "epsilon":
-            return noise
         alpha = _coefficient(self.alpha_bar, timesteps, clean)
         return torch.sqrt(alpha) * noise - torch.sqrt(1.0 - alpha) * clean
-
-    def _denoise(
-        self,
-        noisy: torch.Tensor,
-        timesteps: torch.Tensor,
-        condition: torch.Tensor,
-        *,
-        guidance_scale: float = 1.0,
-    ) -> torch.Tensor:
-        scale = float(guidance_scale)
-        if scale == 1.0:
-            return self.denoiser(noisy, timesteps, condition)
-        unconditional = self.denoiser(noisy, timesteps, torch.zeros_like(condition))
-        if scale == 0.0:
-            return unconditional
-        conditional = self.denoiser(noisy, timesteps, condition)
-        return unconditional + scale * (conditional - unconditional)
 
     def loss(
         self,
@@ -375,15 +348,9 @@ class BackgroundTrajectoryDiffusion(nn.Module):
             noise = torch.randn_like(clean)
         noise = noise * mask
         noisy = self.q_sample(clean, timesteps, noise) * mask
-        denoiser_condition = condition
-        if self.training and self.config.condition_dropout_prob > 0.0:
-            dropped = (
-                torch.rand(batch, device=clean.device)
-                < self.config.condition_dropout_prob
-            )
-            denoiser_condition = condition.masked_fill(dropped[:, None], 0.0)
-        model_output = self.denoiser(noisy, timesteps, denoiser_condition) * mask
+        model_output = self.denoiser(noisy, timesteps, condition) * mask
         objective_target = self.training_target(clean, timesteps, noise) * mask
+        active_sample = mask.flatten(1).sum(dim=1) > 0
         per_sample_denominator = mask.flatten(1).sum(dim=1).clamp_min(1.0)
         per_sample_mse = ((model_output - objective_target).square() * mask).flatten(
             1
@@ -394,29 +361,27 @@ class BackgroundTrajectoryDiffusion(nn.Module):
             capped = torch.minimum(
                 snr, snr.new_full(snr.shape, self.config.min_snr_gamma)
             )
-            weight = (
-                capped / (snr + 1.0)
-                if self.config.prediction_type == "v_prediction"
-                else capped / snr.clamp_min(1.0e-8)
-            )
-            denoising_mse = (per_sample_mse * weight).mean()
+            weight = capped / (snr + 1.0)
+            weighted_mse = per_sample_mse * weight
         else:
-            denoising_mse = per_sample_mse.mean()
+            weighted_mse = per_sample_mse
+        denoising_mse = (
+            weighted_mse[active_sample].mean()
+            if active_sample.any()
+            else clean.new_zeros(())
+        )
         denominator = mask.sum().clamp_min(1.0)
         predicted_clean = self.predict_clean(noisy, timesteps, model_output) * mask
         x0_l1 = (torch.abs(predicted_clean - clean) * mask).sum() / denominator
-        if clean.shape[1] > 1:
-            pair_mask = mask[:, 1:] * mask[:, :-1]
-            pair_denominator = pair_mask.sum().clamp_min(1.0)
-            smooth = (
-                torch.abs(
-                    (predicted_clean[:, 1:] - predicted_clean[:, :-1])
-                    - (clean[:, 1:] - clean[:, :-1])
-                )
-                * pair_mask
-            ).sum() / pair_denominator
-        else:
-            smooth = clean.new_zeros(())
+        pair_mask = mask[:, 1:] * mask[:, :-1]
+        pair_denominator = pair_mask.sum().clamp_min(1.0)
+        smooth = (
+            torch.abs(
+                (predicted_clean[:, 1:] - predicted_clean[:, :-1])
+                - (clean[:, 1:] - clean[:, :-1])
+            )
+            * pair_mask
+        ).sum() / pair_denominator
         long_horizon = clean.new_zeros(())
         trajectory_position = clean.new_zeros(())
         trajectory_velocity = clean.new_zeros(())
@@ -491,8 +456,6 @@ class BackgroundTrajectoryDiffusion(nn.Module):
         inference_steps: int = 20,
         initial_noise: torch.Tensor | None = None,
         generator: torch.Generator | None = None,
-        x0_clip_abs: float | None = None,
-        guidance_scale: float = 1.0,
     ) -> torch.Tensor:
         batch = condition.shape[0]
         shape = (batch, self.config.horizon_steps, self.config.target_dim)
@@ -522,23 +485,12 @@ class BackgroundTrajectoryDiffusion(nn.Module):
             timesteps = torch.full(
                 (batch,), step, device=condition.device, dtype=torch.long
             )
-            model_output = (
-                self._denoise(
-                    trajectory,
-                    timesteps,
-                    condition,
-                    guidance_scale=guidance_scale,
-                )
-                * mask
-            )
+            model_output = self.denoiser(trajectory, timesteps, condition) * mask
             predicted_noise = (
                 self.predict_noise(trajectory, timesteps, model_output) * mask
             )
             clean = self.predict_clean(trajectory, timesteps, model_output)
-            clip = (
-                self.config.x0_clip_abs if x0_clip_abs is None else float(x0_clip_abs)
-            )
-            clean = clean.clamp(-clip, clip)
+            clean = clean.clamp(-self.config.x0_clip_abs, self.config.x0_clip_abs)
             clean = clean * mask
             if previous < 0:
                 trajectory = clean

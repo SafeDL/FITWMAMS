@@ -14,7 +14,6 @@ import numpy as np
 
 SEI_COMPONENT_NAMES = (
     "sei_instant",
-    "sei_raw_margin",
     "sei_ellipse_intrusion",
     "sei_longitudinal_deficit",
     "sei_lateral_deficit",
@@ -48,41 +47,30 @@ class SafetyEnvelopeRiskOptions:
     def from_config(
         cls,
         risk_config: dict[str, Any],
-        *,
-        fps: float,
     ) -> "SafetyEnvelopeRiskOptions":
-        cfg = dict(risk_config.get("safety_envelope", {}))
-        default_dt = max(1.0 / float(fps), 0.04)
+        cfg = risk_config["safety_envelope"]
         return cls(
-            prediction_horizon_seconds=float(
-                cfg.get("prediction_horizon_seconds", 1.5)
-            ),
-            prediction_dt_seconds=float(cfg.get("prediction_dt_seconds", default_dt)),
-            prediction_use_acceleration=bool(
-                cfg.get("prediction_use_acceleration", False)
-            ),
-            acceleration_clip_mps2=float(cfg.get("acceleration_clip_mps2", 3.0)),
-            longitudinal_mode=str(cfg.get("longitudinal_mode", "calibrated_headway"))
+            prediction_horizon_seconds=float(cfg["prediction_horizon_seconds"]),
+            prediction_dt_seconds=float(cfg["prediction_dt_seconds"]),
+            prediction_use_acceleration=bool(cfg["prediction_use_acceleration"]),
+            acceleration_clip_mps2=float(cfg["acceleration_clip_mps2"]),
+            longitudinal_mode=str(cfg["longitudinal_mode"])
             .strip()
             .lower(),
-            longitudinal_time_gap_seconds=float(
-                cfg.get("longitudinal_time_gap_seconds", 0.7)
-            ),
-            longitudinal_min_margin_m=float(cfg.get("longitudinal_min_margin_m", 1.0)),
-            longitudinal_brake_mps2=float(cfg.get("longitudinal_brake_mps2", 4.0)),
-            rss_response_time_seconds=float(cfg.get("rss_response_time_seconds", 0.75)),
-            rss_accel_max_mps2=float(cfg.get("rss_accel_max_mps2", 2.0)),
-            rss_brake_min_mps2=float(cfg.get("rss_brake_min_mps2", 4.0)),
-            rss_brake_max_mps2=float(cfg.get("rss_brake_max_mps2", 8.0)),
-            lateral_min_margin_m=float(cfg.get("lateral_min_margin_m", 0.20)),
-            lateral_response_time_seconds=float(
-                cfg.get("lateral_response_time_seconds", 1.0)
-            ),
-            lateral_brake_mps2=float(cfg.get("lateral_brake_mps2", 0.8)),
-            pair_smooth_beta=float(cfg.get("pair_smooth_beta", 8.0)),
-            horizon_smooth_beta=float(cfg.get("horizon_smooth_beta", 8.0)),
-            horizon_time_discount=float(cfg.get("horizon_time_discount", 0.10)),
-            exposure_weight=float(cfg.get("exposure_weight", 0.15)),
+            longitudinal_time_gap_seconds=float(cfg["longitudinal_time_gap_seconds"]),
+            longitudinal_min_margin_m=float(cfg["longitudinal_min_margin_m"]),
+            longitudinal_brake_mps2=float(cfg["longitudinal_brake_mps2"]),
+            rss_response_time_seconds=float(cfg["rss_response_time_seconds"]),
+            rss_accel_max_mps2=float(cfg["rss_accel_max_mps2"]),
+            rss_brake_min_mps2=float(cfg["rss_brake_min_mps2"]),
+            rss_brake_max_mps2=float(cfg["rss_brake_max_mps2"]),
+            lateral_min_margin_m=float(cfg["lateral_min_margin_m"]),
+            lateral_response_time_seconds=float(cfg["lateral_response_time_seconds"]),
+            lateral_brake_mps2=float(cfg["lateral_brake_mps2"]),
+            pair_smooth_beta=float(cfg["pair_smooth_beta"]),
+            horizon_smooth_beta=float(cfg["horizon_smooth_beta"]),
+            horizon_time_discount=float(cfg["horizon_time_discount"]),
+            exposure_weight=float(cfg["exposure_weight"]),
         )
 
 
@@ -216,10 +204,10 @@ def pairwise_safety_envelope_intrusion(
     other_vy: np.ndarray,
     other_ax: np.ndarray,
     other_ay: np.ndarray,
-    ego_length: float,
-    ego_width: float,
-    other_length: float,
-    other_width: float,
+    ego_length: float | np.ndarray,
+    ego_width: float | np.ndarray,
+    other_length: float | np.ndarray,
+    other_width: float | np.ndarray,
     valid: np.ndarray,
     options: SafetyEnvelopeRiskOptions,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -278,8 +266,23 @@ def pairwise_safety_envelope_intrusion(
         + other_ax_arr.reshape(-1, 1) * tau_2d
     )
 
-    half_length = 0.5 * (float(ego_length) + float(other_length))
-    half_width = 0.5 * (float(ego_width) + float(other_width))
+    half_length = 0.5 * (
+        np.broadcast_to(np.asarray(ego_length, np.float64), (n,))
+        + np.broadcast_to(np.asarray(other_length, np.float64), (n,))
+    )
+    half_width = 0.5 * (
+        np.broadcast_to(np.asarray(ego_width, np.float64), (n,))
+        + np.broadcast_to(np.asarray(other_width, np.float64), (n,))
+    )
+    if (
+        not np.isfinite(half_length).all()
+        or not np.isfinite(half_width).all()
+        or np.any(half_length <= 0.0)
+        or np.any(half_width <= 0.0)
+    ):
+        raise ValueError("vehicle dimensions must be finite and positive")
+    half_length = half_length[:, None]
+    half_width = half_width[:, None]
     long_safe = _longitudinal_safe_clearance(
         dx_pred=dx_pred,
         ego_vx_pred=ego_vx_pred,
@@ -321,20 +324,19 @@ def pairwise_safety_envelope_intrusion(
 
     components[:, 0] = pair_score
     components[:, 1] = np.maximum(raw_pair, 0.0).astype(np.float32)
-    components[:, 2] = np.maximum(raw_pair, 0.0).astype(np.float32)
-    components[:, 3] = smoothmax_axis(
+    components[:, 2] = smoothmax_axis(
         long_norm,
         float(options.horizon_smooth_beta),
         axis=1,
         empty_value=0.0,
     )
-    components[:, 4] = smoothmax_axis(
+    components[:, 3] = smoothmax_axis(
         lat_norm,
         float(options.horizon_smooth_beta),
         axis=1,
         empty_value=0.0,
     )
-    components[:, 5] = smoothmax_axis(
+    components[:, 4] = smoothmax_axis(
         overlap,
         float(options.horizon_smooth_beta),
         axis=1,

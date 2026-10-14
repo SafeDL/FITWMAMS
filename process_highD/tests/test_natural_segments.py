@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from process_highD.scripts.build_natural_evt import DEFAULT_CONFIG_PATH as EVT_CONFIG
+from process_highD.scripts.fit_evt import DEFAULT_CONFIG_PATH as EVT_CONFIG
 from process_highD.scripts.extract_highd_natural_segments import (
     DEFAULT_CONFIG_PATH as EXTRACT_CONFIG,
 )
@@ -24,30 +24,22 @@ from process_highD.src.natural_segments import (
 
 def test_config_layout_keeps_data_paths() -> None:
     root = Path(__file__).resolve().parents[2]
-    evt_path = root / "process_highD/configs/highd_natural_evt.yaml"
-    assert EXTRACT_CONFIG == EVT_CONFIG == PLAYBACK_CONFIG == evt_path
-    assert SEQUENCE_CONFIG == root / "process_highD/configs/highd_sequences.yaml"
+    config_path = root / "process_highD/config.yaml"
+    assert EXTRACT_CONFIG == PLAYBACK_CONFIG == config_path
+    assert EVT_CONFIG == SEQUENCE_CONFIG == config_path
 
-    evt = yaml.safe_load(evt_path.read_text(encoding="utf-8"))
-    sequence = yaml.safe_load(SEQUENCE_CONFIG.read_text(encoding="utf-8"))
-    assert (evt_path.parent / evt["paths"]["raw_dir"]).resolve() == (
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert (config_path.parent / config["paths"]["raw_dir"]).resolve() == (
         root / "highD_dataset/Matlab/data"
     )
-    assert (evt_path.parent / evt["paths"]["output_dir"]).resolve() == (
-        root / "results/highd_natural_driving_evt"
+    assert (config_path.parent / config["paths"]["output_dir"]).resolve() == (
+        root / "results/evt"
     )
-    for key, suffix in (
-        ("model_path", "evt/natural_evt_model.json"),
-        ("summary_path", "evt/natural_evt_summary.json"),
-        ("figure_dir", "evt/figures"),
-    ):
-        assert (evt_path.parent / evt["evt"][key]).resolve() == (
-            root / "results/highd_natural_driving_evt" / suffix
-        )
     assert (
-        SEQUENCE_CONFIG.parent / sequence["paths"]["highd_evt_config"]
-    ).resolve() == evt_path
-    cache_dir = SEQUENCE_CONFIG.parent / sequence["paths"]["sequence_cache_dir"]
+        SEQUENCE_CONFIG.parent
+        / config["paths"]["highd_preprocessing_config"]
+    ).resolve() == config_path
+    cache_dir = SEQUENCE_CONFIG.parent / config["paths"]["sequence_cache_dir"]
     assert cache_dir.resolve() == root / (
         "results/highd_shared_training_data/highd_sequence_cache"
     )
@@ -123,21 +115,9 @@ def test_downstream_contract_rejects_legacy_segments() -> None:
     with pytest.raises(RuntimeError, match="predates lateral-event"):
         validate_lateral_integrity(
             pd.DataFrame({"segment_id": ["old"]}),
-            required=True,
             source="legacy.csv",
         )
     validate_lateral_integrity(
         pd.DataFrame({"lateral_event_complete": [1, 1]}),
-        required=True,
         source="current.csv",
     )
-
-
-def test_lateral_event_integrity_cannot_be_disabled() -> None:
-    with pytest.raises(ValueError, match="cannot be disabled"):
-        NaturalSegmentOptions(require_complete_lateral_events=False)
-
-
-def test_unknown_excluded_risk_slot_is_rejected() -> None:
-    with pytest.raises(ValueError, match="unknown excluded risk slots"):
-        NaturalSegmentOptions(excluded_risk_slots=("not_a_slot",))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from itertools import combinations
 
 import numpy as np
 
@@ -12,10 +13,12 @@ from .features import SLOT_NAMES, feature_index
 def physical_validity_flags(
     features: np.ndarray,
     slot_mask: np.ndarray,
+    vehicle_dimensions: np.ndarray,
 ) -> tuple[np.ndarray, dict[str, int], dict[str, np.ndarray]]:
     """Flag non-finite, kinematically implausible and slot-invalid C0 rows."""
     values = np.asarray(features, np.float32)
     slots = np.asarray(slot_mask, bool)
+    dimensions = np.asarray(vehicle_dimensions, np.float32)
     invalid = ~np.isfinite(values).all(axis=1)
     overlap = np.zeros(len(values), bool)
     negative_gap = np.zeros(len(values), bool)
@@ -23,15 +26,7 @@ def physical_validity_flags(
     reasons: Counter[str] = Counter()
     ego_vx = values[:, feature_index(None, "ego_vx_mps")]
     ego_vy = values[:, feature_index(None, "ego_vy_left_mps")]
-    ego_ax = values[:, feature_index(None, "ego_ax_mps2")]
-    ego_ay = values[:, feature_index(None, "ego_ay_left_mps2")]
-    bad_ego = (
-        (ego_vx < -5)
-        | (ego_vx > 70)
-        | (np.abs(ego_vy) > 10)
-        | (np.abs(ego_ax) > 10)
-        | (np.abs(ego_ay) > 5)
-    )
+    bad_ego = (ego_vx < -5) | (ego_vx > 70) | (np.abs(ego_vy) > 10)
     invalid |= bad_ego
     reasons["ego_kinematics_out_of_range"] = int(bad_ego.sum())
     for index, name in enumerate(SLOT_NAMES):
@@ -39,13 +34,9 @@ def physical_validity_flags(
         dx = values[:, feature_index(name, "rel_x_m")]
         dy = values[:, feature_index(name, "rel_y_left_m")]
         dvx = values[:, feature_index(name, "rel_vx_mps")]
-        ax = values[:, feature_index(name, "other_ax_mps2")]
-        ay = values[:, feature_index(name, "other_ay_left_mps2")]
+        dvy = values[:, feature_index(name, "rel_vy_left_mps")]
         bad_motion = active & (
-            (ego_vx + dvx < -10)
-            | (ego_vx + dvx > 75)
-            | (np.abs(ax) > 10)
-            | (np.abs(ay) > 5)
+            (ego_vx + dvx < -10) | (ego_vx + dvx > 75) | (np.abs(ego_vy + dvy) > 10)
         )
         bad_semantic = active & (
             (("front" in name) & (dx <= 0))
@@ -53,8 +44,10 @@ def physical_validity_flags(
             | (name.startswith("left") & (dy <= 0))
             | (name.startswith("right") & (dy >= 0))
         )
-        gap = active & (np.abs(dx) <= 4.8)
-        box_overlap = gap & (np.abs(dy) <= 1.9)
+        length = 0.5 * (dimensions[:, 0, 0] + dimensions[:, index + 1, 0])
+        width = 0.5 * (dimensions[:, 0, 1] + dimensions[:, index + 1, 1])
+        gap = active & (np.abs(dx) <= length)
+        box_overlap = gap & (np.abs(dy) <= width)
         invalid |= bad_motion | bad_semantic | box_overlap
         semantic |= bad_semantic
         negative_gap |= gap
@@ -62,8 +55,34 @@ def physical_validity_flags(
         reasons["slot_kinematics_out_of_range"] += int(bad_motion.sum())
         reasons["slot_semantic_invalid"] += int(bad_semantic.sum())
         reasons["vehicle_box_overlap"] += int(box_overlap.sum())
-    return invalid, dict(reasons), {
-        "overlap": overlap,
-        "negative_longitudinal_gap": negative_gap,
-        "slot_semantic_invalid": semantic,
-    }
+    positions = np.stack(
+        [
+            values[
+                :, [feature_index(name, "rel_x_m"), feature_index(name, "rel_y_left_m")]
+            ]
+            for name in SLOT_NAMES
+        ],
+        axis=1,
+    )
+    for left, right in combinations(range(len(SLOT_NAMES)), 2):
+        pair_overlap = (
+            slots[:, left]
+            & slots[:, right]
+            & (
+                np.abs(positions[:, left] - positions[:, right])
+                <= 0.5 * (dimensions[:, left + 1] + dimensions[:, right + 1])
+            ).all(axis=-1)
+        )
+        invalid |= pair_overlap
+        overlap |= pair_overlap
+        reasons["vehicle_box_overlap"] += int(pair_overlap.sum())
+        reasons["npc_pair_box_overlap"] += int(pair_overlap.sum())
+    return (
+        invalid,
+        dict(reasons),
+        {
+            "overlap": overlap,
+            "negative_longitudinal_gap": negative_gap,
+            "slot_semantic_invalid": semantic,
+        },
+    )

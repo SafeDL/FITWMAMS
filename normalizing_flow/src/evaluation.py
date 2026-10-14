@@ -1,4 +1,4 @@
-"""Evaluation and paper diagnostics for the direct scenario-condition Flow."""
+"""Evaluation and paper figures for the all-tail scenario Flow."""
 
 from __future__ import annotations
 
@@ -6,497 +6,529 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, wasserstein_distance
 
-from tools.plot_style import GENERATED_COLOR, REAL_COLOR, get_pyplot, style_axes
+from tools.plot_style import (
+    GENERATED_COLOR,
+    PAPER_FIGURE_DPI,
+    REAL_COLOR,
+    REFERENCE_COLOR,
+    SAMPLED_COLOR,
+    get_pyplot,
+    style_axes,
+)
 
-from .constraints import KNOT_FEATURE_NAMES, derived_modes
-from .data import output_dir_from_config, split_indices
+from .constraints import KNOT_FEATURE_NAMES, KNOT_TIMES_S
+from .data import dataset_dir_from_config, evt_tail_indices, output_dir_from_config
+from .dimensions import dimensions_valid
 from .features import SLOT_NAMES, feature_index, feature_valid_from_slot_mask
 from .metrics import physical_validity_flags
-from .sampling import load_checkpoint_and_dataset
-from .scenario import ScenarioBatch, inverse_constraint
-from .utils import ensure_dir, repo_root_from_file, save_json, select_device
+from .scenario import (
+    ScenarioBatch,
+    inverse_constraint,
+    project_constraint,
+    project_physical_c0,
+)
+from .sampling import inverse_normalize_features, load_checkpoint_and_dataset
+from .utils import ensure_dir, load_json, save_json, select_device
 
 
-def _terms(
-    model, arrays: dict[str, np.ndarray], rows: np.ndarray, device
-) -> dict[str, float]:
+def _terms(model, arrays, rows, device) -> dict[str, float]:
     import torch
 
-    total: dict[str, float] = {}
+    totals = {name: 0.0 for name in ("mask", "c0", "k", "joint")}
     for start in range(0, len(rows), 512):
         selected = rows[start : start + 512]
         with torch.no_grad():
             terms = model.log_prob_tensors(
-                c0_normalized=torch.from_numpy(
-                    arrays["features_normalized"][selected]
-                ).float().to(device),
+                c0_normalized=torch.from_numpy(arrays["features_normalized"][selected])
+                .float()
+                .to(device),
                 slot_mask=torch.from_numpy(arrays["slot_mask"][selected])
                 .bool()
                 .to(device),
                 constraint_normalized=torch.from_numpy(
                     arrays["trajectory_constraint_normalized"][selected]
-                ).float().to(device),
+                )
+                .float()
+                .to(device),
             )
-        for name, value in terms.items():
-            total[name] = total.get(name, 0.0) + float((-value).sum().cpu())
-    return {
-        name.replace("log_prob", "nll"): value / max(len(rows), 1)
-        for name, value in total.items()
-    }
+        for name in totals:
+            totals[name] += float((-terms[f"{name}_log_prob"]).sum().cpu())
+    return {f"{name}_nll": value / len(rows) for name, value in totals.items()}
 
 
-def _marginal_metrics(
-    real: np.ndarray,
-    generated: np.ndarray,
-    real_valid: np.ndarray,
-    generated_valid: np.ndarray,
-) -> dict[str, Any]:
+def _marginals(real, generated, real_valid, generated_valid, names):
     rows = []
-    for agent, slot in enumerate(SLOT_NAMES):
-        for feature, name in enumerate(KNOT_FEATURE_NAMES):
-            left = real[real_valid[:, agent, feature], agent, feature]
-            right = generated[generated_valid[:, agent, feature], agent, feature]
-            if len(left) < 5 or len(right) < 5:
-                continue
-            rows.append(
-                {
-                    "slot": slot,
-                    "feature": name,
-                    "ks": float(ks_2samp(left, right).statistic),
-                    "real_mean": float(left.mean()),
-                    "generated_mean": float(right.mean()),
-                }
-            )
+    for index, name in enumerate(names):
+        left = real[:, index][real_valid[:, index]]
+        right = generated[:, index][generated_valid[:, index]]
+        if len(left) < 5 or len(right) < 5:
+            continue
+        rows.append(
+            {
+                "feature": name,
+                "ks": float(ks_2samp(left, right).statistic),
+                "wasserstein": float(wasserstein_distance(left, right)),
+            }
+        )
     return {
-        "mean_ks": float(np.mean([row["ks"] for row in rows])),
+        "mean_ks": float(np.mean([item["ks"] for item in rows])),
+        "mean_wasserstein": float(np.mean([item["wasserstein"] for item in rows])),
         "per_feature": rows,
     }
 
 
-def _derived_mode_tv(real_k, generated_k, real_mask, generated_mask) -> dict[str, Any]:
-    real = derived_modes(real_k, real_mask)
-    generated = derived_modes(generated_k, generated_mask)
-    rows = []
-    for agent, slot in enumerate(SLOT_NAMES):
-        for axis, name in enumerate(("longitudinal", "lateral")):
-            p = np.bincount(
-                real[real_mask[:, agent], agent, axis], minlength=3
-            ).astype(np.float64) + 1.0e-9
-            q = np.bincount(
-                generated[generated_mask[:, agent], agent, axis], minlength=3
-            ).astype(np.float64) + 1.0e-9
-            p /= p.sum()
-            q /= q.sum()
-            rows.append(
+def _c0_metrics(arrays, rows, sample, schema):
+    real_valid = np.asarray(arrays["feature_valid"])[rows]
+    generated_valid = feature_valid_from_slot_mask(schema, sample.slot_mask)
+    return _marginals(
+        np.asarray(arrays["features"])[rows],
+        sample.c0,
+        real_valid,
+        generated_valid,
+        list(schema["feature_names"]),
+    )
+
+
+def _k_metrics(arrays, rows, sample):
+    real = np.asarray(arrays["trajectory_constraint"])[rows].reshape(len(rows), -1)
+    generated = sample.trajectory_constraint.reshape(len(rows), -1)
+    real_valid = np.asarray(arrays["trajectory_constraint_valid"])[rows].reshape(
+        len(rows), -1
+    )
+    generated_valid = sample.trajectory_constraint_valid.reshape(len(rows), -1)
+    names = [
+        f"{slot}_{feature}" for slot in SLOT_NAMES for feature in KNOT_FEATURE_NAMES
+    ]
+    return _marginals(real, generated, real_valid, generated_valid, names)
+
+
+def _dimension_metrics(arrays, rows, sample):
+    real = np.asarray(arrays["vehicle_dimensions"])[rows]
+    real_valid = dimensions_valid(np.asarray(arrays["slot_mask"])[rows])[..., 0]
+    generated_valid = dimensions_valid(sample.slot_mask)[..., 0]
+    metrics = []
+    for agent, name in enumerate(("ego", *SLOT_NAMES)):
+        for feature, label in enumerate(("length_m", "width_m")):
+            left = real[real_valid[:, agent], agent, feature]
+            right = sample.vehicle_dimensions[generated_valid[:, agent], agent, feature]
+            metrics.append(
                 {
-                    "slot": slot,
-                    "axis": name,
-                    "total_variation": float(0.5 * np.abs(p - q).sum()),
+                    "agent": name,
+                    "feature": label,
+                    "ks": float(ks_2samp(left, right).statistic),
+                    "wasserstein": float(wasserstein_distance(left, right)),
                 }
             )
     return {
-        "mean_total_variation": float(
-            np.mean([row["total_variation"] for row in rows])
-        ),
-        "per_slot_axis": rows,
+        "sampling": "empirical_dimensions_conditioned_on_mask_pattern",
+        "mean_ks": float(np.mean([item["ks"] for item in metrics])),
+        "mean_wasserstein": float(np.mean([item["wasserstein"] for item in metrics])),
+        "per_feature": metrics,
     }
 
 
-def _correlation_error(real: np.ndarray, generated: np.ndarray) -> float:
-    left = np.nan_to_num(np.corrcoef(real.reshape(len(real), -1).T), nan=0.0)
-    right = np.nan_to_num(np.corrcoef(generated.reshape(len(generated), -1).T), nan=0.0)
-    return float(np.mean(np.abs(left - right)))
+def _mask_l1(real_mask, generated_mask) -> float:
+    powers = 2 ** np.arange(6)
+    real = np.bincount((real_mask * powers).sum(1), minlength=64) / len(real_mask)
+    generated = np.bincount((generated_mask * powers).sum(1), minlength=64) / len(
+        generated_mask
+    )
+    return float(np.abs(real - generated).sum())
 
 
-def _mask_metrics(arrays, rows, generated_mask) -> dict[str, float]:
-    real = np.bincount(arrays["mask_pattern"][rows], minlength=64) / len(rows)
-    pattern = np.sum(generated_mask * (2 ** np.arange(6)), axis=1).astype(int)
-    generated = np.bincount(pattern, minlength=64) / len(pattern)
-    return {"generated_vs_test_l1": float(np.abs(real - generated).sum())}
+def _joint_vector(c0, mask, k, schema):
+    c0_valid = feature_valid_from_slot_mask(schema, mask)
+    c0_values = np.asarray(c0, np.float32).copy()
+    c0_values[~c0_valid] = 0.0
+    k_values = np.asarray(k, np.float32).copy()
+    k_values[~np.broadcast_to(mask[..., None], k_values.shape)] = 0.0
+    return np.concatenate(
+        (mask.astype(np.float32), c0_values, k_values.reshape(len(k), -1)), axis=1
+    )
 
 
-def _baselines(arrays, train, test) -> dict[str, Any]:
+def _multivariate_metrics(real, generated, *, seed: int) -> dict[str, float]:
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import roc_auc_score
+    from sklearn.model_selection import StratifiedKFold, cross_val_predict
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    combined = np.concatenate((real, generated), axis=0)
+    labels = np.concatenate((np.zeros(len(real)), np.ones(len(generated))))
+    classifier = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=1000, random_state=seed),
+    )
+    prediction = cross_val_predict(
+        classifier,
+        combined,
+        labels,
+        cv=StratifiedKFold(5, shuffle=True, random_state=seed),
+        method="predict_proba",
+    )[:, 1]
+    auc = float(roc_auc_score(labels, prediction))
+    rng = np.random.default_rng(seed)
+    real_standard = (real - real.mean(0)) / np.maximum(real.std(0), 1.0e-6)
+    generated_standard = (generated - real.mean(0)) / np.maximum(real.std(0), 1.0e-6)
+    directions = rng.standard_normal((256, real.shape[1]))
+    directions /= np.linalg.norm(directions, axis=1, keepdims=True)
+    left = np.sort(real_standard @ directions.T, axis=0)
+    right = np.sort(generated_standard @ directions.T, axis=0)
+    return {
+        "classifier_two_sample_auc": auc,
+        "classifier_auc_distance_from_0p5": abs(auc - 0.5),
+        "sliced_wasserstein_256": float(np.mean(np.abs(left - right))),
+    }
+
+
+def _physical(sample, schema):
+    invalid, reasons, flags = physical_validity_flags(
+        sample.c0, sample.slot_mask, sample.vehicle_dimensions
+    )
+    raw_c0 = inverse_normalize_features(sample.c0_normalized_reference, schema)
+    raw_c0[~feature_valid_from_slot_mask(schema, sample.slot_mask)] = 0.0
+    raw_invalid, _, _ = physical_validity_flags(
+        raw_c0, sample.slot_mask, sample.vehicle_dimensions
+    )
+    c0_scene_delta = np.abs(raw_c0 - sample.c0).max(axis=1)
+    raw_k, _ = inverse_constraint(
+        sample.constraint_normalized_reference, sample.slot_mask, schema, raw_c0
+    )
+    durations = np.diff((0.0, *KNOT_TIMES_S))
+    raw_dx = np.diff(
+        np.concatenate(
+            (np.zeros((*raw_k.shape[:2], 1)), raw_k[..., (0, 2, 4)]), axis=-1
+        ),
+        axis=-1,
+    )
+    projected_dx = np.diff(
+        np.concatenate(
+            (
+                np.zeros((*raw_k.shape[:2], 1)),
+                sample.trajectory_constraint[..., (0, 2, 4)],
+            ),
+            axis=-1,
+        ),
+        axis=-1,
+    )
+    raw_speed = raw_dx / durations
+    projected_speed = projected_dx / durations
+    difference = np.abs(raw_k - sample.trajectory_constraint)
+    scene_delta = difference.max(axis=(1, 2))
+    return {
+        "raw_c0_legal_fraction": float((~raw_invalid).mean()),
+        "projected_c0_legal_fraction": float((~invalid).mean()),
+        "c0_projection_scene_fraction": float((c0_scene_delta > 1.0e-3).mean()),
+        "initial_overlap_scenes": int(flags["overlap"].sum()),
+        "initial_npc_pair_overlap_instances": int(reasons["npc_pair_box_overlap"]),
+        "raw_interval_speed_legal_fraction": float(
+            ((raw_speed >= 0.0) & (raw_speed <= 70.0))[sample.slot_mask].mean()
+        ),
+        "projected_interval_speed_legal_fraction": float(
+            ((projected_speed >= 0.0) & (projected_speed <= 70.0))[
+                sample.slot_mask
+            ].mean()
+        ),
+        "k_projection_scene_fraction": float((scene_delta > 1.0e-3).mean()),
+        "k_projection_p95_m": float(np.quantile(scene_delta, 0.95)),
+        "k_projection_max_m": float(scene_delta.max()),
+    }
+
+
+def _baseline_samples(arrays, rows, schema, *, seed: int):
     from sklearn.mixture import GaussianMixture
 
-    rng = np.random.default_rng(42)
-    fit = train if len(train) <= 20_000 else rng.choice(train, 20_000, replace=False)
-    report: dict[str, Any] = {"fit_rows": int(len(fit))}
-    for name, key in (
-        ("c0", "features_normalized"),
-        ("k", "trajectory_constraint_normalized"),
-    ):
-        x = np.asarray(arrays[key][fit], np.float64).reshape(len(fit), -1)
-        y = np.asarray(arrays[key][test], np.float64).reshape(len(test), -1)
-        mean = x.mean(0)
-        variance = np.maximum(x.var(0), 1.0e-5)
-        gaussian = 0.5 * np.sum(
-            np.log(2 * np.pi * variance) + (y - mean) ** 2 / variance, axis=1
-        )
-        gmm = GaussianMixture(
-            n_components=8,
-            covariance_type="diag",
-            reg_covar=1.0e-5,
-            max_iter=100,
-            random_state=42,
-        ).fit(x)
-        report[name] = {
-            "unconditional_diagonal_gaussian_nll": float(gaussian.mean()),
-            "unconditional_diagonal_gmm8_nll": float(-gmm.score(y)),
-        }
-    return report
-
-
-def _physical(sample: ScenarioBatch, schema: dict[str, Any]) -> dict[str, Any]:
-    invalid, _, _ = physical_validity_flags(sample.c0, sample.slot_mask)
-    raw, _ = inverse_constraint(
-        sample.constraint_normalized_reference,
-        sample.slot_mask,
-        schema,
-    )
-    initial_vx = np.stack(
-        [
-            sample.c0[:, feature_index(None, "ego_vx_mps")]
-            + sample.c0[:, feature_index(name, "rel_vx_mps")]
-            for name in SLOT_NAMES
-        ],
+    rng = np.random.default_rng(seed)
+    n = len(rows)
+    row_draw = rng.choice(rows, size=n, replace=True)
+    masks = np.asarray(arrays["slot_mask"])[row_draw]
+    dimensions = np.asarray(arrays["vehicle_dimensions"])[row_draw]
+    c0_dim = len(schema["feature_names"])
+    k_shape = (6, len(KNOT_FEATURE_NAMES))
+    train = np.concatenate(
+        (
+            np.asarray(arrays["features_normalized"])[rows],
+            np.asarray(arrays["trajectory_constraint_normalized"])[rows].reshape(n, -1),
+        ),
         axis=1,
     )
-    active = sample.slot_mask
-    raw_speed = initial_vx[..., None] + raw[..., (2, 6, 10)]
-    projected_speed = (
-        initial_vx[..., None] + sample.trajectory_constraint[..., (2, 6, 10)]
+
+    def make(values):
+        c0_norm = values[:, :c0_dim].astype(np.float32)
+        k_norm = values[:, c0_dim:].reshape(n, *k_shape).astype(np.float32)
+        c0 = inverse_normalize_features(c0_norm, schema)
+        c0[~feature_valid_from_slot_mask(schema, masks)] = 0.0
+        c0 = project_physical_c0(c0, masks, dimensions)
+        k, valid = inverse_constraint(k_norm, masks, schema, c0)
+        k = project_constraint(k, masks, c0)
+        return ScenarioBatch(c0, masks, k, valid, dimensions, c0_norm, k_norm)
+
+    mean = train.mean(0)
+    std = np.maximum(train.std(0), 1.0e-4)
+    gaussian = make(rng.normal(mean, std, size=(n, train.shape[1])))
+    gmm = GaussianMixture(
+        n_components=8,
+        covariance_type="diag",
+        reg_covar=1.0e-5,
+        max_iter=200,
+        random_state=seed,
+    ).fit(train)
+    mixture = make(gmm.sample(n)[0])
+    bootstrap = ScenarioBatch(
+        np.asarray(arrays["features"])[row_draw],
+        masks,
+        np.asarray(arrays["trajectory_constraint"])[row_draw],
+        np.asarray(arrays["trajectory_constraint_valid"])[row_draw],
+        dimensions,
     )
-    monotone = np.diff(sample.trajectory_constraint[..., (0, 4, 8)], axis=-1)
-    return {
-        "c0_legal_fraction": float((~invalid).mean()),
-        "constraint_finite": bool(np.isfinite(sample.trajectory_constraint).all()),
-        "raw_knot_speed_legal_fraction": float(
-            ((raw_speed >= 0.0) & (raw_speed <= 70.0))[active].mean()
-        ),
-        "projected_knot_speed_legal_fraction": float(
-            ((projected_speed >= 0.0) & (projected_speed <= 70.0))[active].mean()
-        ),
-        "projected_longitudinal_monotone_fraction": float(
-            (monotone[active] >= 0.0).all(axis=-1).mean()
-        ),
-    }
+    return {"empirical_bootstrap": bootstrap, "gaussian": gaussian, "gmm8": mixture}
 
 
-def _plots(report, arrays, test, generated, generated_valid, output):
+def _quality(arrays, rows, sample, schema, seed):
+    real_mask = np.asarray(arrays["slot_mask"])[rows]
+    c0 = _c0_metrics(arrays, rows, sample, schema)
+    k = _k_metrics(arrays, rows, sample)
+    real_joint = _joint_vector(
+        np.asarray(arrays["features"])[rows],
+        real_mask,
+        np.asarray(arrays["trajectory_constraint"])[rows],
+        schema,
+    )
+    generated_joint = _joint_vector(
+        sample.c0, sample.slot_mask, sample.trajectory_constraint, schema
+    )
+    return (
+        {
+            "mask_l1": _mask_l1(real_mask, sample.slot_mask),
+            "c0_mean_ks": c0["mean_ks"],
+            "k_mean_ks": k["mean_ks"],
+            **_multivariate_metrics(real_joint, generated_joint, seed=seed),
+        },
+        c0,
+        k,
+    )
+
+
+def _figures(output, arrays, rows, sample, report):
     plt = get_pyplot()
     figures = ensure_dir(output / "figures")
-    paths = {}
-    real_valid = arrays["trajectory_constraint_valid"][test]
-    generated_c0_valid = feature_valid_from_slot_mask(
-        {"feature_names": report["feature_names"]}, generated.slot_mask
+    history = np.genfromtxt(output / "training_history.csv", delimiter=",", names=True)
+    figure, axis = plt.subplots(figsize=(7.0, 4.2))
+    axis.plot(history["epoch"], history["joint_nll"], color=GENERATED_COLOR)
+    axis.set(xlabel="Epoch", ylabel="Training NLL", title="All-tail Flow convergence")
+    style_axes(axis)
+    figure.tight_layout()
+    figure.savefig(figures / "training_diagnostics.png", dpi=PAPER_FIGURE_DPI)
+    plt.close(figure)
+
+    cv = report["cross_validation"]
+    names = ["Flow", "Gaussian", "GMM-8"]
+    values = [
+        cv["mean"]["c0_nll"] + cv["mean"]["k_nll"],
+        cv["mean"]["diagonal_gaussian_continuous_nll"],
+        cv["mean"]["diagonal_gmm8_continuous_nll"],
+    ]
+    figure, axis = plt.subplots(figsize=(7.0, 4.2))
+    axis.bar(names, values, color=[GENERATED_COLOR, REFERENCE_COLOR, SAMPLED_COLOR])
+    axis.set(ylabel="5-fold held-out continuous NLL", title="Density comparison")
+    style_axes(axis, grid=False)
+    figure.tight_layout()
+    figure.savefig(figures / "cross_validation_nll.png", dpi=PAPER_FIGURE_DPI)
+    plt.close(figure)
+
+    comparison = report["method_comparison"]
+    methods = list(comparison)
+    display_names = {
+        "flow": "Flow",
+        "empirical_bootstrap": "Bootstrap",
+        "gaussian": "Gaussian",
+        "gmm8": "GMM-8",
+    }
+    x = np.arange(len(methods))
+    figure, axes = plt.subplots(1, 3, figsize=(12.8, 4.0))
+    metrics = (
+        ("c0_mean_ks", "Mean C0 KS"),
+        ("k_mean_ks", "Mean K KS"),
+        ("classifier_auc_distance_from_0p5", "|C2ST AUC − 0.5|"),
     )
-    real_c0_valid = arrays["feature_valid"][test]
-
-    figure, axes = plt.subplots(5, 8, figsize=(18.0, 11.0), constrained_layout=True)
-    for feature, axis in enumerate(axes.flat):
-        left = arrays["features"][test, feature][real_c0_valid[:, feature]]
-        right = generated.c0[:, feature][generated_c0_valid[:, feature]]
-        axis.hist(left, bins=50, density=True, alpha=0.45, color=REAL_COLOR)
-        axis.hist(right, bins=50, density=True, alpha=0.45, color=GENERATED_COLOR)
-        axis.set_title(report["feature_names"][feature], fontsize=8)
-        style_axes(axis)
-    path = figures / "c0_marginal_distributions.png"
-    figure.savefig(path, dpi=300)
+    colors = [
+        GENERATED_COLOR,
+        REAL_COLOR,
+        REFERENCE_COLOR,
+        SAMPLED_COLOR,
+    ]
+    for axis, (metric, label) in zip(axes, metrics):
+        axis.bar(x, [comparison[name][metric] for name in methods], color=colors)
+        axis.set_xticks(x, [display_names[name] for name in methods], rotation=18)
+        axis.set_ylabel(label)
+        style_axes(axis, grid=False)
+    figure.suptitle("Tail-distribution reconstruction")
+    figure.tight_layout()
+    figure.savefig(figures / "method_comparison.png", dpi=PAPER_FIGURE_DPI)
     plt.close(figure)
-    paths["c0_marginals"] = str(path)
 
-    figure, axes = plt.subplots(1, 2, figsize=(10.5, 4.3), constrained_layout=True)
-    for axis, values, title in (
-        (axes[0], arrays["features_normalized"][test], "Held-out C0 correlation"),
-        (axes[1], generated.c0_normalized_reference, "Generated C0 correlation"),
-    ):
-        image = axis.imshow(
-            np.nan_to_num(np.corrcoef(values.T)), vmin=-1, vmax=1, cmap="coolwarm"
-        )
-        axis.set(title=title, xlabel="C0 coordinate", ylabel="C0 coordinate")
-    figure.colorbar(image, ax=axes, shrink=0.8)
-    path = figures / "c0_correlation_comparison.png"
-    figure.savefig(path, dpi=300)
+    real_mask = np.asarray(arrays["slot_mask"])[rows].mean(0)
+    generated_mask = sample.slot_mask.mean(0)
+    x = np.arange(6)
+    figure, axis = plt.subplots(figsize=(8.2, 4.2))
+    axis.bar(x - 0.18, real_mask, 0.36, color=REAL_COLOR, label="EVT tail")
+    axis.bar(x + 0.18, generated_mask, 0.36, color=GENERATED_COLOR, label="Flow")
+    axis.set_xticks(x, [name.replace("_", "\n") for name in SLOT_NAMES])
+    axis.set(ylabel="Occupancy probability", title="Scene occupancy")
+    axis.legend(frameon=False)
+    style_axes(axis, grid=False)
+    figure.tight_layout()
+    figure.savefig(figures / "mask_occupancy.png", dpi=PAPER_FIGURE_DPI)
     plt.close(figure)
-    paths["c0_correlation"] = str(path)
 
-    figure, axes = plt.subplots(3, 4, figsize=(13.0, 8.0), constrained_layout=True)
-    for feature, axis in enumerate(axes.flat):
-        left = arrays["trajectory_constraint"][test, :, feature][
-            real_valid[:, :, feature]
-        ]
-        right = generated.trajectory_constraint[:, :, feature][
-            generated_valid[:, :, feature]
-        ]
-        axis.hist(
-            left, bins=60, density=True, alpha=0.45, color=REAL_COLOR, label="test"
-        )
-        axis.hist(
-            right,
-            bins=60,
-            density=True,
-            alpha=0.45,
-            color=GENERATED_COLOR,
-            label="Flow",
-        )
-        axis.set_title(KNOT_FEATURE_NAMES[feature])
+    same_front = SLOT_NAMES.index("same_front")
+    real_mask = np.asarray(arrays["slot_mask"])[rows]
+    diagnostics = (
+        (
+            np.asarray(arrays["features"])[rows, feature_index(None, "ego_vx_mps")],
+            sample.c0[:, feature_index(None, "ego_vx_mps")],
+            "Ego $v_x$ (m/s)",
+        ),
+        (
+            np.asarray(arrays["features"])[
+                rows, feature_index("same_front", "rel_x_m")
+            ][real_mask[:, same_front]],
+            sample.c0[:, feature_index("same_front", "rel_x_m")][
+                sample.slot_mask[:, same_front]
+            ],
+            r"Front gap $\Delta x$ (m)",
+        ),
+        (
+            np.asarray(arrays["features"])[
+                rows, feature_index("same_front", "rel_vx_mps")
+            ][real_mask[:, same_front]],
+            sample.c0[:, feature_index("same_front", "rel_vx_mps")][
+                sample.slot_mask[:, same_front]
+            ],
+            r"Front $\Delta v_x$ (m/s)",
+        ),
+        (
+            np.asarray(arrays["trajectory_constraint"])[rows, same_front, 0][
+                real_mask[:, same_front]
+            ],
+            sample.trajectory_constraint[:, same_front, 0][
+                sample.slot_mask[:, same_front]
+            ],
+            "$x$ at 2 s (m)",
+        ),
+        (
+            np.asarray(arrays["trajectory_constraint"])[rows, same_front, 4][
+                real_mask[:, same_front]
+            ],
+            sample.trajectory_constraint[:, same_front, 4][
+                sample.slot_mask[:, same_front]
+            ],
+            "$x$ at 5.96 s (m)",
+        ),
+        (
+            np.asarray(arrays["trajectory_constraint"])[rows, same_front, 5][
+                real_mask[:, same_front]
+            ],
+            sample.trajectory_constraint[:, same_front, 5][
+                sample.slot_mask[:, same_front]
+            ],
+            "$y$ at 5.96 s (m)",
+        ),
+    )
+    figure, axes = plt.subplots(2, 3, figsize=(12.0, 6.8))
+    for axis, (real, generated, label) in zip(axes.flat, diagnostics):
+        for values, color, name in (
+            (real, REAL_COLOR, "EVT tail"),
+            (generated, GENERATED_COLOR, "Flow"),
+        ):
+            ordered = np.sort(values)
+            axis.plot(
+                ordered,
+                np.arange(1, len(ordered) + 1) / len(ordered),
+                color=color,
+                linewidth=1.6,
+                label=name,
+            )
+        axis.set(xlabel=label, ylabel="Empirical CDF")
         style_axes(axis)
     axes[0, 0].legend(frameon=False)
-    path = figures / "k_marginal_distributions.png"
-    figure.savefig(path, dpi=300)
+    figure.suptitle("Representative tail marginals")
+    figure.tight_layout()
+    figure.savefig(figures / "marginal_diagnostics.png", dpi=PAPER_FIGURE_DPI)
     plt.close(figure)
-    paths["k_marginals"] = str(path)
-
-    figure, axes = plt.subplots(1, 2, figsize=(10.5, 4.3), constrained_layout=True)
-    real = arrays["trajectory_constraint_normalized"][test].reshape(len(test), -1)
-    generated_norm = generated.constraint_normalized_reference.reshape(len(test), -1)
-    image = None
-    for axis, values, title in (
-        (axes[0], real, "Held-out K correlation"),
-        (axes[1], generated_norm, "Generated K correlation"),
-    ):
-        image = axis.imshow(
-            np.nan_to_num(np.corrcoef(values.T)), vmin=-1, vmax=1, cmap="coolwarm"
-        )
-        axis.set(title=title, xlabel="K coordinate", ylabel="K coordinate")
-    figure.colorbar(image, ax=axes, shrink=0.8)
-    path = figures / "k_correlation_comparison.png"
-    figure.savefig(path, dpi=300)
-    plt.close(figure)
-    paths["k_correlation"] = str(path)
-
-    figure, axis = plt.subplots(figsize=(7.0, 4.2), constrained_layout=True)
-    names = ("Direct Flow", "Gaussian", "GMM8")
-    values = (
-        report["held_out_nll"]["k_nll"],
-        report["baselines"]["k"]["unconditional_diagonal_gaussian_nll"],
-        report["baselines"]["k"]["unconditional_diagonal_gmm8_nll"],
-    )
-    axis.bar(names, values, color=(GENERATED_COLOR, "#BDBDBD", REAL_COLOR))
-    axis.set(title="Held-out K density", ylabel="NLL (lower is better)")
-    style_axes(axis)
-    path = figures / "k_nll_baselines.png"
-    figure.savefig(path, dpi=300)
-    plt.close(figure)
-    paths["k_nll"] = str(path)
-
-    real_pattern = np.bincount(arrays["mask_pattern"][test], minlength=64)
-    sampled_pattern = np.sum(
-        generated.slot_mask * (2 ** np.arange(6)), axis=1
-    ).astype(int)
-    sampled_pattern = np.bincount(sampled_pattern, minlength=64)
-    order = np.argsort(-(real_pattern + sampled_pattern))[:12]
-    real_mode = derived_modes(
-        arrays["trajectory_constraint"][test], arrays["slot_mask"][test]
-    )
-    sampled_mode = derived_modes(
-        generated.trajectory_constraint, generated.slot_mask
-    )
-    figure, axes = plt.subplots(1, 2, figsize=(11.5, 4.2), constrained_layout=True)
-    location = np.arange(len(order))
-    axes[0].bar(location - 0.2, real_pattern[order] / len(test), 0.4, color=REAL_COLOR)
-    axes[0].bar(
-        location + 0.2,
-        sampled_pattern[order] / len(generated.slot_mask),
-        0.4,
-        color=GENERATED_COLOR,
-    )
-    axes[0].set(
-        title="Most frequent slot masks",
-        ylabel="Probability",
-        xticks=location,
-        xticklabels=[str(value) for value in order],
-    )
-    labels = ("brake", "steady", "accelerate", "keep", "left", "right")
-    real_count = np.concatenate(
-        [
-            np.bincount(real_mode[..., axis][arrays["slot_mask"][test]], minlength=3)
-            for axis in range(2)
-        ]
-    ).astype(float)
-    sampled_count = np.concatenate(
-        [
-            np.bincount(sampled_mode[..., axis][generated.slot_mask], minlength=3)
-            for axis in range(2)
-        ]
-    ).astype(float)
-    real_count /= real_count.sum()
-    sampled_count /= sampled_count.sum()
-    location = np.arange(6)
-    axes[1].bar(location - 0.2, real_count, 0.4, color=REAL_COLOR, label="test")
-    axes[1].bar(
-        location + 0.2,
-        sampled_count,
-        0.4,
-        color=GENERATED_COLOR,
-        label="Flow",
-    )
-    axes[1].set(
-        title="Modes derived after K sampling",
-        ylabel="Share",
-        xticks=location,
-        xticklabels=labels,
-    )
-    axes[1].legend(frameon=False)
-    for axis in axes:
-        style_axes(axis)
-    path = figures / "mask_and_derived_mode_occupancy.png"
-    figure.savefig(path, dpi=300)
-    plt.close(figure)
-    paths["occupancy"] = str(path)
-
-    history = np.genfromtxt(
-        output / "training_history.csv", delimiter=",", names=True
-    )
-    figure, axes = plt.subplots(1, 2, figsize=(10.5, 4.0), constrained_layout=True)
-    axes[0].plot(history["epoch"], history["train_joint_nll"], label="train")
-    axes[0].plot(history["epoch"], history["val_joint_nll"], label="validation")
-    axes[0].set(title="Joint density", xlabel="Epoch", ylabel="NLL")
-    axes[0].legend(frameon=False)
-    axes[1].plot(history["epoch"], history["val_c0_nll"], label="C0")
-    axes[1].plot(history["epoch"], history["val_k_nll"], label="K")
-    axes[1].set(title="Held-out factors", xlabel="Epoch", ylabel="NLL")
-    axes[1].legend(frameon=False)
-    for axis in axes:
-        style_axes(axis)
-    path = figures / "training_diagnostics.png"
-    figure.savefig(path, dpi=300)
-    plt.close(figure)
-    paths["training"] = str(path)
-    return paths
 
 
-def evaluate_natural_flow(
+def evaluate_tail_flow(
     config: dict[str, Any],
     *,
     config_dir: str | Path,
-    repo_root: str | Path | None = None,
+    repo_root: str | Path,
 ) -> dict[str, Any]:
     config_dir = Path(config_dir).resolve()
-    root = Path(repo_root).resolve() if repo_root else repo_root_from_file(config_dir)
+    repo_root = Path(repo_root).resolve()
     output = output_dir_from_config(config, config_dir)
-    checkpoint = output / "checkpoints/best_scenario_condition_flow.pt"
-    device = select_device(str(config.get("device", "auto")))
-    model, arrays, schema, _ = load_checkpoint_and_dataset(
-        checkpoint, output, repo_root=root, device=device
+    dataset_dir = dataset_dir_from_config(config, config_dir)
+    device = select_device(str(config["device"]))
+    checkpoint = output / "checkpoints/scenario_flow.pt"
+    model, arrays, schema, payload = load_checkpoint_and_dataset(
+        checkpoint, dataset_dir, repo_root=repo_root, device=device
     )
-    train = split_indices(arrays, "train")
-    test = split_indices(arrays, "test")
-    generated = model.sample_scenarios(len(test), int(config.get("seed", 42)) + 1000)
-    sample_dir = ensure_dir(output / "samples")
-    sample_path = sample_dir / "generated_samples.npz"
-    np.savez_compressed(sample_path, **generated.__dict__)
-    generated_valid = np.broadcast_to(
-        generated.slot_mask[..., None], generated.trajectory_constraint.shape
+    rows = evt_tail_indices(arrays)
+    seed = int(config["evaluation"]["sample_seed"])
+    sample = model.sample_scenarios(len(rows), seed)
+    samples_dir = ensure_dir(output / "samples")
+    sample_path = samples_dir / "generated_samples.npz"
+    np.savez_compressed(
+        sample_path,
+        c0=sample.c0,
+        slot_mask=sample.slot_mask,
+        trajectory_constraint=sample.trajectory_constraint,
+        trajectory_constraint_valid=sample.trajectory_constraint_valid,
+        vehicle_dimensions=sample.vehicle_dimensions,
+        c0_normalized_reference=sample.c0_normalized_reference,
+        constraint_normalized_reference=sample.constraint_normalized_reference,
     )
-    real_feature_valid = arrays["feature_valid"][test]
-    generated_feature_valid = feature_valid_from_slot_mask(schema, generated.slot_mask)
-    c0_ks = []
-    for feature in range(40):
-        left = arrays["features"][test, feature][real_feature_valid[:, feature]]
-        right = generated.c0[:, feature][generated_feature_valid[:, feature]]
-        if len(left) >= 5 and len(right) >= 5:
-            c0_ks.append(float(ks_2samp(left, right).statistic))
-    baselines = _baselines(arrays, train, test)
-    held_out = _terms(model, arrays, test, device)
-    k_metrics = _marginal_metrics(
-        arrays["trajectory_constraint"][test],
-        generated.trajectory_constraint,
-        arrays["trajectory_constraint_valid"][test],
-        generated_valid,
-    )
+    flow_quality, c0, k = _quality(arrays, rows, sample, schema, seed)
+    comparisons = {"flow": flow_quality}
+    for index, (name, candidate) in enumerate(
+        _baseline_samples(arrays, rows, schema, seed=seed + 1).items(), start=1
+    ):
+        comparisons[name] = _quality(arrays, rows, candidate, schema, seed + index)[0]
+    cross_validation = load_json(output / "cross_validation.json")
+    cross_validation_summary = {
+        "protocol": cross_validation["protocol"],
+        "folds": len(cross_validation["folds"]),
+        "mean": cross_validation["mean"],
+        "std": cross_validation["std"],
+        "report": "results/flow/cross_validation.json",
+    }
     report = {
-        "experiment_scope": "full_clean_natural_driving_flow",
-        "probability_factorization": "p(M) p(C0|M) p(K|C0,M)",
-        "checkpoint": str(checkpoint),
-        "num_train": int(len(train)),
-        "num_validation": int(len(split_indices(arrays, "val"))),
-        "num_test": int(len(test)),
-        "future_leakage_in_c0_context": False,
-        "feature_names": list(schema["feature_names"]),
-        "held_out_nll": held_out,
-        "baselines": baselines,
-        "distribution": {
-            "c0_mean_ks": float(np.mean(c0_ks)),
-            "k": k_metrics,
-            "k_correlation_mae": _correlation_error(
-                arrays["trajectory_constraint_normalized"][test],
-                generated.constraint_normalized_reference,
-            ),
-            "derived_mode": _derived_mode_tv(
-                arrays["trajectory_constraint"][test],
-                generated.trajectory_constraint,
-                arrays["slot_mask"][test],
-                generated.slot_mask,
-            ),
-            "mask_occupancy": _mask_metrics(arrays, test, generated.slot_mask),
-        },
-        "physical_validity": _physical(generated, schema),
-        "sampling": {
-            "scenario_seed": int(config.get("seed", 42)) + 1000,
-            "empirical_continuous_sampling": False,
-            "pre_projection_coordinates_saved": True,
-        },
-        "generated_samples": str(sample_path),
-    }
-    report["quality_gates"] = {
-        "c0_mean_ks_le_0p10": report["distribution"]["c0_mean_ks"] <= 0.10,
-        "k_mean_ks_le_0p13": k_metrics["mean_ks"] <= 0.13,
-        "k_nll_beats_gaussian": held_out["k_nll"]
-        < baselines["k"]["unconditional_diagonal_gaussian_nll"],
-        "k_nll_beats_gmm8": held_out["k_nll"]
-        < baselines["k"]["unconditional_diagonal_gmm8_nll"],
-        "projected_physical_valid": (
-            report["physical_validity"]["c0_legal_fraction"] == 1.0
-            and report["physical_validity"][
-                "projected_knot_speed_legal_fraction"
-            ]
-            == 1.0
-            and report["physical_validity"][
-                "projected_longitudinal_monotone_fraction"
-            ]
-            == 1.0
+        "population": "evt_tail",
+        "target_events": int(len(rows)),
+        "final_fit_events": int(payload["metrics"]["num_fit_events"]),
+        "evaluation_role": (
+            "goodness_of_fit_to_the_target_tail_distribution; generalization is "
+            "reported separately by recording-level cross-validation"
         ),
-    }
-    report["all_quality_gates_passed"] = all(report["quality_gates"].values())
-    report["figures"] = _plots(
-        report, arrays, test, generated, generated_valid, output
-    )
-    save_json(report, output / "evaluation_summary.json")
-    save_json(
-        {
-            "experiment_scope": report["experiment_scope"],
-            "model": "direct_scenario_condition_flow",
-            "probability_factorization": report["probability_factorization"],
-            "samples": int(len(arrays["split_index"])),
-            "train_validation_test": [
-                report["num_train"],
-                report["num_validation"],
-                report["num_test"],
-            ],
-            "sampling_sources": {
-                "slot_mask": "training_empirical_categorical_pmf",
-                "c0": "conditional_rq_spline_maf",
-                "k": "conditional_rq_spline_maf",
-            },
-            "architecture": {
-                "c0_flow": dict(config["model"]["c0_flow"]),
-                "k_flow": dict(config["model"]["constraint_flow"]),
-            },
-            "diffusion_condition": {
-                "dimension": 118,
-                "groups": {"C0": 40, "M": 6, "K": 72},
-                "knot_times_s": [2.0, 4.0, 5.96],
-                "contract_changed": False,
-            },
-            "all_quality_gates_passed": report["all_quality_gates_passed"],
-            "figures": [
-                str(Path(path).relative_to(output))
-                for path in report["figures"].values()
-            ],
+        "probability_factorization": schema["probability_factorization"],
+        "condition_dimensions": {"C0": 26, "M": 6, "K": 36, "D": 14},
+        "dimension_handling": "empirical conditional sampler; excluded from Flow loss",
+        "in_sample_nll": _terms(model, arrays, rows, device),
+        "cross_validation": cross_validation_summary,
+        "method_comparison": comparisons,
+        "distribution": {
+            "c0": c0,
+            "k": k,
+            "dimensions": _dimension_metrics(arrays, rows, sample),
         },
-        output / "manifest.json",
-    )
+        "physical": _physical(sample, schema),
+        "generated_samples": str(sample_path.relative_to(repo_root)),
+        "sample_seed": seed,
+        "sampling_device": str(device),
+    }
+    save_json(report, output / "evaluation_summary.json")
+    _figures(output, arrays, rows, sample, report)
     return report

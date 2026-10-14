@@ -3,31 +3,31 @@
 from __future__ import annotations
 
 import csv
-import hashlib
-import json
 from pathlib import Path
 import subprocess
 from typing import Any
 
 import numpy as np
 
-from hierarchical_world_model.src.composition import HierarchicalWorldSampler
+from hierarchical_world_model.src.composition import (
+    DEFAULT_WORLD_SELECTION,
+    HierarchicalWorldSampler,
+    load_selected_components,
+)
 from hierarchical_world_model.src.empirical_context import EmpiricalKContextSampler
 from hierarchical_world_model.src.highway import (
     HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT,
 )
-from hierarchical_world_model.src.protocol import release_provenance
 from tools.evt import GPDTailModel, load_evt_model
 from tools.idm_ego import load_idm_ego_config
 from diffusion.src.data import load_data_bundle, split_rows
-from traffic_components.src.core.utils import (
-    file_sha256,
+from hierarchical_world_model.src.core.utils import (
     load_json,
     load_yaml,
     save_json,
     select_device,
 )
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
     require_scoped_evt_model,
@@ -67,16 +67,9 @@ def _run_provenance(config: dict[str, Any]) -> dict[str, Any]:
             text=True,
         ).strip()
     )
-    encoded = json.dumps(
-        config,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
     return {
         "repository_commit": commit,
         "worktree_dirty": dirty,
-        "run_config_sha256": hashlib.sha256(encoded).hexdigest(),
     }
 
 
@@ -87,63 +80,46 @@ def _world_config(
     return load_yaml(path), path
 
 
+def _require_tail_flow_quality(
+    world_config: dict[str, Any], repo_root: Path
+) -> dict[str, Any]:
+    flow_checkpoint = _resolve_path(world_config["paths"]["flow_checkpoint"], repo_root)
+    manifest_path = flow_checkpoint.parent.parent / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"formal tail-Flow quality manifest is missing: {manifest_path}"
+        )
+    manifest = load_json(manifest_path)
+    if manifest.get("population") != "evt_tail":
+        raise RuntimeError(
+            "formal generated-world evaluation requires an EVT-tail Flow"
+        )
+    return {
+        "tail_flow_quality_manifest": str(manifest_path),
+        "tail_flow_quality_gates_passed": bool(manifest["all_quality_gates_passed"]),
+        "tail_flow_quality_scope": "distribution checks are reported, not a safety certification or an all-metrics admission gate",
+    }
+
+
 def _require_formal_provenance(
     config: dict[str, Any], config_dir: Path
 ) -> dict[str, Any]:
-    """Verify that this run uses the frozen artifact for the current release."""
+    """Require the selected component chain, not a clean Git release."""
     run_provenance = _run_provenance(config)
-    if run_provenance["worktree_dirty"]:
-        raise RuntimeError("formal IDM evaluation requires a clean worktree")
-
     world_config, _ = _world_config(config, config_dir)
+    root = Path(__file__).resolve().parents[2]
     checkpoint_path = _resolve_path(
         world_config["paths"]["evaluation_checkpoint"],
-        Path(__file__).resolve().parents[2],
+        root,
     )
-    manifest_path = checkpoint_path.with_name("final_model_manifest.json")
-    if not checkpoint_path.is_file():
-        raise FileNotFoundError(
-            f"formal world-model artifact is missing: {checkpoint_path}"
-        )
-    if not manifest_path.is_file():
-        raise FileNotFoundError(
-            f"formal world-model manifest is missing: {manifest_path}"
-        )
-
-    manifest = load_json(manifest_path)
-    checkpoint_sha256 = file_sha256(checkpoint_path)
-    if manifest.get("checkpoint_sha256") != checkpoint_sha256:
-        raise RuntimeError(
-            "final_model_manifest.json does not match the formal world-model artifact"
-        )
-    release_tag = manifest.get("release_tag")
-    if not isinstance(release_tag, str) or not release_tag:
-        raise RuntimeError("final_model_manifest.json is missing release provenance")
-    if not manifest.get("worktree_clean_at_start"):
-        raise RuntimeError(
-            "final_model_manifest.json does not certify a clean release worktree"
-        )
-    if manifest.get("code_commit") != run_provenance["repository_commit"]:
-        raise RuntimeError(
-            "final_model_manifest.json code_commit does not match the current repository"
-        )
-    release = release_provenance(release_tag=release_tag, require_clean=True)
-    if (
-        release["code_commit"] != manifest.get("code_commit")
-        or release["release_tag"] != release_tag
-        or not release["worktree_clean_at_start"]
-    ):
-        raise RuntimeError(
-            "final_model_manifest.json release provenance does not match the current formal artifact"
-        )
+    selection, _ = load_selected_components(checkpoint_path)
     return {
         **run_provenance,
-        "formal_artifact_checkpoint_sha256": checkpoint_sha256,
-        "formal_manifest_code_commit": manifest["code_commit"],
-        "formal_manifest_release_tag": release_tag,
-        "formal_manifest_worktree_clean_at_start": bool(
-            manifest["worktree_clean_at_start"]
-        ),
+        **_require_tail_flow_quality(world_config, root),
+        "world_selection": str(DEFAULT_WORLD_SELECTION),
+        "selected_arm": selection["selected_arm"],
+        "reference_recovery_enabled": selection["reference_recovery_enabled"],
+        "source": selection["source"],
     }
 
 
@@ -162,7 +138,6 @@ def _build_evaluator(
     device = select_device(str(config.get("runtime", {}).get("device", "auto")))
     base_sampler = HierarchicalWorldSampler(
         flow_checkpoint=world_paths["flow_checkpoint"],
-        flow_output_dir=world_paths["flow_output_dir"],
         diffusion_checkpoint=world_paths["diffusion_checkpoint"],
         diffusion_contract=world_paths["diffusion_contract"],
         response_checkpoint=world_paths["evaluation_checkpoint"],
@@ -204,27 +179,31 @@ def _build_evaluator(
         steps=int(config["simulation"].get("steps", 149)),
         batch_size=int(config["runtime"].get("batch_size", 32)),
     )
-    manifest_path = Path(world_paths["evaluation_checkpoint"]).with_name(
-        "final_model_manifest.json"
-    )
     return evaluator, {
         "device": str(device),
         "execution_backend": backend,
         "hiqr_vehicle_dynamics_contract": HIGHWAY_ENV_HIQR_DYNAMICS_CONTRACT,
         "world_model_config": str(world_config_path),
-        "world_model_config_sha256": file_sha256(world_config_path),
+        "world_model_config_mtime_ns": world_config_path.stat().st_mtime_ns,
         "flow_checkpoint": str(world_paths["flow_checkpoint"]),
-        "flow_checkpoint_sha256": file_sha256(world_paths["flow_checkpoint"]),
+        "flow_checkpoint_mtime_ns": Path(world_paths["flow_checkpoint"])
+        .stat()
+        .st_mtime_ns,
         "diffusion_checkpoint": str(world_paths["diffusion_checkpoint"]),
-        "diffusion_checkpoint_sha256": file_sha256(world_paths["diffusion_checkpoint"]),
+        "diffusion_checkpoint_mtime_ns": Path(world_paths["diffusion_checkpoint"])
+        .stat()
+        .st_mtime_ns,
         "response_checkpoint": str(world_paths["evaluation_checkpoint"]),
-        "response_checkpoint_sha256": file_sha256(world_paths["evaluation_checkpoint"]),
-        "final_model_manifest": str(manifest_path),
-        "final_model_manifest_sha256": file_sha256(manifest_path),
+        "response_checkpoint_mtime_ns": Path(world_paths["evaluation_checkpoint"])
+        .stat()
+        .st_mtime_ns,
+        "world_selection": str(DEFAULT_WORLD_SELECTION),
+        "world_selection_mtime_ns": DEFAULT_WORLD_SELECTION.stat().st_mtime_ns,
+        "selected_components": base_sampler.selection,
         "evt_model": str(evt_path),
-        "evt_model_sha256": file_sha256(evt_path),
+        "evt_model_mtime_ns": evt_path.stat().st_mtime_ns,
         "idm_ego_config": str(idm_path),
-        "idm_ego_config_sha256": file_sha256(idm_path),
+        "idm_ego_config_mtime_ns": idm_path.stat().st_mtime_ns,
         "evaluation_scope": evaluation_scope_contract(),
         "test_space": (
             sampler.context_contract
@@ -376,8 +355,8 @@ def run_subset_from_config(
 ) -> Path:
     """Run pCN subset simulation under the complete current world prior.
 
-    Development runs retain the exact simulation protocol but record the dirty
-    provenance and can never be promoted to a formal result.
+    Runs record their configuration and selected components. A dirty worktree
+    alone does not invalidate the selected model or its evaluation.
     """
     formal_provenance = (
         _require_formal_provenance(config, config_dir)
@@ -422,10 +401,14 @@ def run_subset_from_config(
     summary = {
         "schema": "highway_env_idm_subset_simulation",
         "world_model_id": "factual_hiqr",
-        "world_model": "Hierarchical Flow–Diffusion–HiQR",
+        "world_model": "EVT-tail Flow–Diffusion–responsive HiQR world",
         "estimator": "adaptive_multilevel_splitting_pcn_subset_simulation",
         "formal": bool(formal),
         "probability": result.probability,
+        "probability_scope": "conditional_on_evt_tail_world_prior",
+        "probability_definition": (
+            "P(closed-loop R_SEI reaches the EVT return level | EVT-tail world)"
+        ),
         "final_failure_fraction": result.final_failure_fraction,
         "failure_event": target,
         "stop_reason": result.stop_reason,
@@ -445,7 +428,7 @@ def run_subset_from_config(
             "empirical_test(C0,M,K_GT) * p(z_diff) * p(z_response)"
             if getattr(evaluator.sampler, "test_space", "full_prior")
             == "empirical_test_fixed_k_gt"
-            else "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)"
+            else ("p_tail(M,C0,K) * p(z_diff) * p(z_response)")
         ),
         "evaluation_contract": {
             "population_scope": evaluation_scope_contract(),
@@ -455,7 +438,7 @@ def run_subset_from_config(
                 "execution_backend", "local_highway_env"
             ),
             "ego_controller": "native HighwayEnv IDMVehicle",
-            "background_world_model": "factual_hiqr",
+            "background_world_model": "responsive_hiqr_with_online_ma_idm",
             "metric_scope": "IDM ego trajectory risk under generated background response",
             "test_space": provenance["test_space"],
         },
@@ -556,10 +539,14 @@ def run_monte_carlo_from_config(
     summary = {
         "schema": "highway_env_idm_monte_carlo",
         "world_model_id": "factual_hiqr",
-        "world_model": "Hierarchical Flow–Diffusion–HiQR",
+        "world_model": "EVT-tail Flow–Diffusion–responsive HiQR world",
         "estimator": "independent_monte_carlo",
         "formal": bool(formal),
         "probability": probability,
+        "probability_scope": "conditional_on_evt_tail_world_prior",
+        "probability_definition": (
+            "P(closed-loop R_SEI reaches the EVT return level | EVT-tail world)"
+        ),
         "failure_count": int(failure.sum()),
         "failure_event": target,
         "simulation_counts": {"world_evaluations": total},
@@ -567,7 +554,7 @@ def run_monte_carlo_from_config(
             "empirical_test(C0,M,K_GT) * p(z_diff) * p(z_response)"
             if getattr(evaluator.sampler, "test_space", "full_prior")
             == "empirical_test_fixed_k_gt"
-            else "p(M)p(C0|M)p(K|C0,M) * p(z_diff) * p(z_response)"
+            else ("p_tail(M,C0,K) * p(z_diff) * p(z_response)")
         ),
         "evaluation_contract": {
             "population_scope": evaluation_scope_contract(),
@@ -577,7 +564,7 @@ def run_monte_carlo_from_config(
                 "execution_backend", "local_highway_env"
             ),
             "ego_controller": "native HighwayEnv IDMVehicle",
-            "background_world_model": "factual_hiqr",
+            "background_world_model": "responsive_hiqr_with_online_ma_idm",
             "metric_scope": "IDM ego trajectory risk under generated background response",
             "test_space": provenance["test_space"],
         },

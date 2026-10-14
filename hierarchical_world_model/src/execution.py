@@ -18,7 +18,7 @@ from tools.evt import GPDTailModel
 
 from .composition import HierarchicalWorldSampler, SampledWorldBatch
 from .randomness import WorldExogenousState
-from traffic_components.src.core.evaluation_scope import scoped_agent_valid
+from hierarchical_world_model.src.core.evaluation_scope import scoped_agent_valid
 
 ADSActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
 
@@ -37,6 +37,7 @@ class WorldRollout:
     collision_pairs: np.ndarray
     crashed: np.ndarray
     offroad: np.ndarray
+    vehicle_dimensions: np.ndarray | None = None
 
 
 def hold_current_ego_action(observation: dict[str, torch.Tensor | int]) -> torch.Tensor:
@@ -60,6 +61,7 @@ def trajectory_event_risk(
     states: np.ndarray,
     valid: np.ndarray,
     *,
+    vehicle_dimensions: np.ndarray | None = None,
     options: SafetyEnvelopeRiskOptions | None = None,
     dt_s: float = 0.04,
     excluded_slots: Iterable[str] = (),
@@ -71,6 +73,16 @@ def trajectory_event_risk(
         raise ValueError("states must have shape [batch,frames,7,6]")
     if present.shape != (values.shape[0], 7):
         raise ValueError("valid must have shape [batch,7]")
+    dimensions = (
+        np.broadcast_to(
+            np.asarray((4.8, 1.8), np.float32),
+            (values.shape[0], 7, 2),
+        )
+        if vehicle_dimensions is None
+        else np.asarray(vehicle_dimensions, np.float32)
+    )
+    if dimensions.shape != (values.shape[0], 7, 2):
+        raise ValueError("vehicle_dimensions must have shape [batch,7,2]")
     options = options or SafetyEnvelopeRiskOptions()
     n, frames = values.shape[:2]
     instantaneous = np.zeros((n, frames), np.float32)
@@ -91,10 +103,18 @@ def trajectory_event_risk(
             other_vy=other[..., 3].reshape(-1),
             other_ax=other[..., 4].reshape(-1),
             other_ay=other[..., 5].reshape(-1),
-            ego_length=4.8,
-            ego_width=1.8,
-            other_length=4.8,
-            other_width=1.8,
+            ego_length=np.broadcast_to(dimensions[:, None, 0, 0], (n, frames)).reshape(
+                -1
+            ),
+            ego_width=np.broadcast_to(dimensions[:, None, 0, 1], (n, frames)).reshape(
+                -1
+            ),
+            other_length=np.broadcast_to(
+                dimensions[:, None, slot + 1, 0], (n, frames)
+            ).reshape(-1),
+            other_width=np.broadcast_to(
+                dimensions[:, None, slot + 1, 1], (n, frames)
+            ).reshape(-1),
             valid=np.broadcast_to(present[:, None, slot + 1], (n, frames)).reshape(-1),
             options=options,
         )
@@ -201,6 +221,7 @@ def _rollout_sample(
     event_risk = trajectory_event_risk(
         states,
         sample.initial_valid,
+        vehicle_dimensions=sample.vehicle_dimensions,
         options=risk_options,
         excluded_slots=excluded_risk_slots,
     )
@@ -220,4 +241,5 @@ def _rollout_sample(
         collision_pairs=np.stack(collision_pairs, axis=1).astype(bool),
         crashed=np.stack(crashed, axis=1).astype(bool),
         offroad=np.stack(offroad, axis=1).astype(bool),
+        vehicle_dimensions=sample.vehicle_dimensions,
     )

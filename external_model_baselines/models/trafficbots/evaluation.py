@@ -11,14 +11,14 @@ import torch
 from torch.utils.data import Subset
 
 from hierarchical_world_model.src.calibration import evaluation_response_calibration
-from traffic_components.src.core.dynamics import KinematicTrafficDynamics
-from traffic_components.src.core.highd_metrics import (
+from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.highd_metrics import (
     distribution_metrics, ego_replay_gate, ego_replay_metrics, factual_metrics,
     intervention_dose_response, intervention_metrics, semantic_cutin_agents,
     temporal_factual_metrics,
 )
-from traffic_components.src.core.utils import file_sha256, save_json
-from traffic_components.src.core.evaluation_scope import (
+from hierarchical_world_model.src.core.utils import file_sha256, save_json
+from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
 )

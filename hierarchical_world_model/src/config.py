@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
-from traffic_components.src.hiqr.config import HiQRConfig
+from .core.utils import load_yaml
 
 
 @dataclass(frozen=True)
@@ -98,15 +100,20 @@ class WorldModelConfig:
         if self.hidden_dim % self.num_heads:
             raise ValueError("hidden_dim must be divisible by num_heads")
         if self.execute_frames != 1 or self.history_frames != 25:
-            raise ValueError("the response contract is one 25 Hz frame with 25-frame history")
+            raise ValueError(
+                "the response contract is one 25 Hz frame with 25-frame history"
+            )
         if self.preview_frames != 25:
-            raise ValueError("the factual dynamics layer uses a one-second soft preview")
+            raise ValueError(
+                "the factual dynamics layer uses a one-second soft preview"
+            )
         if set(self.history_choices) - {5, 10, 15, 25}:
             raise ValueError("history choices must be 5, 10, 15 or 25")
         if self.scene_refresh_responses != 25:
             raise ValueError("the 16-D scene latent updates once per second")
         if not (
-            0.0 <= self.causal_response_min_gain
+            0.0
+            <= self.causal_response_min_gain
             < self.causal_response_initial_gain
             < self.causal_response_max_gain
         ):
@@ -118,29 +125,50 @@ class WorldModelConfig:
         if not 0.25 <= self.intervention_trigger_threshold_mps2 <= 2.0:
             raise ValueError("intervention trigger threshold must lie inside [0.25, 2]")
         if not -4.0 <= self.intervention_adapter_initial_logit <= 4.0:
-            raise ValueError("intervention adapter initial logit must lie inside [-4, 4]")
+            raise ValueError(
+                "intervention adapter initial logit must lie inside [-4, 4]"
+            )
         if not 0.0 < self.intervention_adapter_max_gain <= 2.0:
             raise ValueError("intervention adapter maximum gain must lie inside (0, 2]")
         for name, value in (
-            ("intervention_brake_adapter_max_gain", self.intervention_brake_adapter_max_gain),
-            ("intervention_accelerate_adapter_max_gain", self.intervention_accelerate_adapter_max_gain),
+            (
+                "intervention_brake_adapter_max_gain",
+                self.intervention_brake_adapter_max_gain,
+            ),
+            (
+                "intervention_accelerate_adapter_max_gain",
+                self.intervention_accelerate_adapter_max_gain,
+            ),
         ):
             if value is not None and not 0.0 < value <= 2.0:
                 raise ValueError(f"{name} must be None or lie inside (0, 2]")
         if not 0.5 <= self.intervention_memory_decay < 1.0:
             raise ValueError("intervention memory decay must lie inside [0.5, 1)")
         if not 0.005 <= self.lateral_intervention_trigger_threshold_rps <= 0.2:
-            raise ValueError("lateral intervention trigger threshold must lie inside [0.005, 0.2]")
+            raise ValueError(
+                "lateral intervention trigger threshold must lie inside [0.005, 0.2]"
+            )
         if not 0.0 < self.lateral_response_adapter_max_yaw_rate_rps <= 0.2:
-            raise ValueError("lateral response adapter yaw-rate bound must lie inside (0, 0.2]")
+            raise ValueError(
+                "lateral response adapter yaw-rate bound must lie inside (0, 0.2]"
+            )
         if not 0.5 <= self.lateral_intervention_memory_decay < 1.0:
-            raise ValueError("lateral intervention memory decay must lie inside [0.5, 1)")
+            raise ValueError(
+                "lateral intervention memory decay must lie inside [0.5, 1)"
+            )
         if not 0.005 <= self.lateral_response_trigger_scale_rps <= 0.2:
-            raise ValueError("lateral response trigger scale must lie inside [0.005, 0.2]")
+            raise ValueError(
+                "lateral response trigger scale must lie inside [0.005, 0.2]"
+            )
         if not 0.25 <= self.natural_response_kernel_max_gain <= 2.0:
-            raise ValueError("natural response kernel maximum gain must lie inside [0.25, 2]")
+            raise ValueError(
+                "natural response kernel maximum gain must lie inside [0.25, 2]"
+            )
         for name, value in (
-            ("natural_response_kernel_brake_max_gain", self.natural_response_kernel_brake_max_gain),
+            (
+                "natural_response_kernel_brake_max_gain",
+                self.natural_response_kernel_brake_max_gain,
+            ),
             (
                 "natural_response_kernel_accelerate_max_gain",
                 self.natural_response_kernel_accelerate_max_gain,
@@ -155,34 +183,25 @@ class WorldModelConfig:
         if not 0.0 <= self.latent_flow_persistence < 1.0:
             raise ValueError("latent flow persistence must lie inside [0, 1)")
         if self.graph_coupled_latent_enabled and self.agent_latent_dim % 2:
-            raise ValueError("graph-coupled latent flow requires an even latent dimension")
+            raise ValueError(
+                "graph-coupled latent flow requires an even latent dimension"
+            )
         if not 0.0 < self.behavior_mode_max_acceleration_mps2 <= 0.5:
-            raise ValueError("behavior-mode acceleration bound must lie inside (0, 0.5]")
+            raise ValueError(
+                "behavior-mode acceleration bound must lie inside (0, 0.5]"
+            )
         if not 0.0 < self.behavior_mode_max_yaw_rate_rps <= 0.05:
             raise ValueError("behavior-mode yaw-rate bound must lie inside (0, 0.05]")
-
-    def relational_dynamics_config(self) -> HiQRConfig:
-        """Configure the retained relational encoder and belief filter."""
-        return HiQRConfig(
-            hidden_dim=self.hidden_dim,
-            scene_latent_dim=self.scene_latent_dim,
-            agent_residual_dim=self.agent_latent_dim,
-            temporal_layers=self.temporal_layers,
-            attention_layers=self.relation_layers,
-            decoder_layers=self.decoder_layers,
-            num_heads=self.num_heads,
-            dropout=self.dropout,
-            jerk_knots=self.jerk_knots,
-            max_longitudinal_jerk=self.max_residual_jerk_mps3,
-            max_yaw_jerk=self.max_residual_yaw_acceleration_rps2,
-            scene_noise_scale=self.scene_noise_scale,
-            residual_noise_scale=self.agent_noise_scale,
-        )
-
-    def hiqr_config(self) -> HiQRConfig:
-        """Compatibility alias for checkpoints and older callers."""
-        return self.relational_dynamics_config()
 
     def to_dict(self) -> dict[str, object]:
         """Return the serializable model contract used in checkpoints."""
         return asdict(self)
+
+
+def load_protocol_config(path: str | Path) -> dict[str, Any]:
+    config = load_yaml(path)
+    root = Path(__file__).resolve().parents[2]
+    config["paths"] = {
+        name: str((root / value).resolve()) for name, value in config["paths"].items()
+    }
+    return config

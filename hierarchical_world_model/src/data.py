@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -14,10 +15,17 @@ from diffusion.src.data import (
     ANCHOR_INDEX,
     DataBundle,
     load_data_bundle,
-    pilot_rows,
     split_rows,
 )
-from traffic_components.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.utils import load_json
+
+
+def event_metadata(cache, arrays):
+    """Align physical event metadata by canonical sequence identity, not row number."""
+    manifest = load_json(Path(cache) / "manifest.json")
+    segments = pd.read_csv(manifest["source_dataset"]).set_index("segment_id")
+    return segments.loc[np.asarray(arrays["sequence_id"]).astype(str)].reset_index()
 
 
 def ego_controls(source: np.ndarray, target: np.ndarray, dt_s: float) -> np.ndarray:
@@ -111,7 +119,7 @@ class ResponseDataset(Dataset):
         arrays = self.bundle.arrays
         states = np.asarray(arrays["agent_states"][row], np.float32)
         valid = np.asarray(arrays["agent_valid"][row], bool)
-        history_start = max(0, current_index - history_count + 1)
+        history_start = max(ANCHOR_INDEX, current_index - history_count + 1)
         history = states[history_start : current_index + 1].copy()
         history_valid = valid[history_start : current_index + 1].copy()
         committed_ego_controls = ego_controls(
@@ -123,6 +131,8 @@ class ResponseDataset(Dataset):
             history[:-5] = 0.0
             history_valid[:-5] = False
             committed_ego_controls[:-4] = 0.0
+        controls_valid = history_valid[:-1, 0] & history_valid[1:, 0]
+        committed_ego_controls[~controls_valid] = 0.0
         current = states[current_index].copy()
         current_valid = valid[current_index].copy()
         target_states = states[
@@ -132,9 +142,7 @@ class ResponseDataset(Dataset):
             current_index : current_index + self.execute_frames, 1:
         ].copy()
         target_highd = np.asarray(
-            arrays["actions_highd"][
-                row, start : start + self.execute_frames
-            ],
+            arrays["actions_highd"][row, start : start + self.execute_frames],
             np.float32,
         ).copy()
         target_actions = KinematicTrafficDynamics.controls_from_highd_actions(
@@ -162,12 +170,13 @@ class ResponseDataset(Dataset):
         if self.soft_plans is None:
             raise RuntimeError("training requires frozen diffusion soft previews")
         reference = self.soft_plans[int(item)]
-        preview = reference[start : start + self.preview_frames]
-        if len(preview) < self.preview_frames:
+        preview_length = self.preview_frames + self.closed_loop_frames - 1
+        preview = reference[start : start + preview_length]
+        if len(preview) < preview_length:
             preview = np.concatenate(
                 (
                     preview,
-                    np.repeat(preview[-1:], self.preview_frames - len(preview), axis=0),
+                    np.repeat(preview[-1:], preview_length - len(preview), axis=0),
                 ),
                 axis=0,
             )
@@ -182,14 +191,13 @@ class ResponseDataset(Dataset):
         response_sensitivity_bounds = (
             np.zeros((2, 6, 2), np.float32)
             if self.response_calibrator is None
-            else self.response_calibrator.sensitivity_bounds_for(
-                current, current_valid
-            )
+            else self.response_calibrator.sensitivity_bounds_for(current, current_valid)
         )
         return {
             "history": torch.from_numpy(history),
             "history_valid": torch.from_numpy(history_valid),
             "committed_ego_controls": torch.from_numpy(committed_ego_controls),
+            "committed_ego_controls_valid": torch.from_numpy(controls_valid),
             "current": torch.from_numpy(current),
             "current_valid": torch.from_numpy(current_valid),
             "target_actions": torch.from_numpy(target_actions),
@@ -232,16 +240,28 @@ def response_collate(rows: list[dict[str, torch.Tensor]]) -> dict[str, torch.Ten
     output = {
         name: torch.stack([row[name] for row in rows])
         for name in rows[0]
-        if name not in {"history", "history_valid", "committed_ego_controls"}
+        if name
+        not in {
+            "history",
+            "history_valid",
+            "committed_ego_controls",
+            "committed_ego_controls_valid",
+        }
     }
     output["history"] = torch.stack(histories)
     output["history_valid"] = torch.stack(validity)
     control_frames = max(frames - 1, 1)
     controls: list[torch.Tensor] = []
+    control_validity: list[torch.Tensor] = []
     for row in rows:
         value = row["committed_ego_controls"]
         controls.append(torch.cat((torch.zeros(control_frames - len(value), 2), value)))
+        mask = row["committed_ego_controls_valid"]
+        control_validity.append(
+            torch.cat((torch.zeros(control_frames - len(mask), dtype=torch.bool), mask))
+        )
     output["committed_ego_controls"] = torch.stack(controls)
+    output["committed_ego_controls_valid"] = torch.stack(control_validity)
     return output
 
 
@@ -268,32 +288,37 @@ def response_loader(
 
 
 def prepare_experiment_data(config: dict[str, Any], config_dir: Path) -> ExperimentData:
-    """Load data and choose either the full or explicitly bounded pilot split."""
+    """Load all natural scenes in the fixed recording-level splits."""
     bundle = load_data_bundle(config, config_dir)
-    training = config["training"]
-    seed = int(training["seed"])
     split_names = {"train": "train", "validation": "val", "test": "test"}
-    scope = str(training.get("experiment_scope", "full"))
-    if scope == "full":
-        rows = {
-            split: split_rows(bundle.arrays, source, seed=seed)
-            for split, source in split_names.items()
-        }
-    elif scope == "pilot":
-        limits = {
-            "train": int(training.get("pilot_train_sequences", 4_096)),
-            "validation": int(training.get("pilot_validation_sequences", 1_024)),
-            "test": int(training.get("pilot_test_sequences", 1_024)),
-        }
-        rows = {
-            split: pilot_rows(bundle, source, maximum=limits[split], seed=seed)
-            for split, source in split_names.items()
-        }
-    else:
-        raise ValueError("experiment_scope must be 'full' or 'pilot'")
+    rows = {
+        split: split_rows(bundle.arrays, source)
+        for split, source in split_names.items()
+    }
     return ExperimentData(
         bundle=bundle,
         train_rows=rows["train"],
         validation_rows=rows["validation"],
         test_rows=rows["test"],
     )
+
+
+def training_sequence_ids(experiment: ExperimentData) -> dict[str, list[str]]:
+    """Bind training provenance to scenes, not mutable cache row numbers."""
+    identifiers = np.asarray(experiment.bundle.arrays["sequence_id"]).astype(str)
+    return {
+        "train_sequence_ids": sorted(identifiers[experiment.train_rows].tolist()),
+        "validation_sequence_ids": sorted(
+            identifiers[experiment.validation_rows].tolist()
+        ),
+    }
+
+
+def artifact_identity(path: str | Path) -> dict[str, Any]:
+    target = Path(path).resolve()
+    stat = target.stat()
+    return {
+        "path": str(target),
+        "size_bytes": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }

@@ -1,0 +1,7 @@
+{
+  "fit_split": "train",
+  "model": "joint_0_01",
+  "selection_evidence": "/home/hp/FITWMAMS/archive/hierarchical_world_model/npc_population_environment/previous_results/search/selection.json",
+  "status": "current_model_verified",
+  "verification": "/home/hp/FITWMAMS/results/hierarchical_world_model/npc_response/verification.json"
+}

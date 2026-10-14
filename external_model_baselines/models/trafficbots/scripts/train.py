@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from external_model_baselines.models.trafficbots.config import load_config
 from external_model_baselines.models.trafficbots.data import TrafficBotsCausalDataset, TrafficBotsHighDDataset, make_loader
 from external_model_baselines.models.trafficbots.module import HighDTrafficBotsModule
-from traffic_components.src.core.utils import set_seed
+from hierarchical_world_model.src.core.utils import set_seed
 
 def main() -> None:
     parser = argparse.ArgumentParser()

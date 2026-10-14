@@ -29,8 +29,8 @@ python -m external_model_baselines.models.trafficbots.scripts.verify_full
 | `evaluation/driver_reproduction/` | 同 cohort 匹配评测、证据总表和跨模型契约 |
 | `evaluation/counterfactual_response/` | 随机驾驶人的配对响应探针，不是第五个驾驶人模型 |
 
-`hierarchical_world_model/`、`npc_behavior_benchmark/`、`diffusion/` 和
-`normalizing_flow/` 属于项目原创方法，不放进外部基线集合。`ref_code/` 只是上游源码快照；
+`hierarchical_world_model/`（含旧 NPC 候选基准）、`diffusion/` 和
+`normalizing_flow/` 属于项目原创方法，不放进外部基线集合。`external_resources/upstream_code/` 保存上游源码快照；
 其中 VBD、CATK 等在没有项目适配、训练和验证之前，不能记为“已复现模型”。
 
 ## 防止目录再次失控

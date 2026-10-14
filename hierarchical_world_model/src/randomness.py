@@ -9,26 +9,49 @@ without treating an integer seed as a latent variable.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import hashlib
 import math
 from pathlib import Path
 
 import numpy as np
 
-
 DIFFUSION_HORIZON_STEPS = 149
 RNG_SCHEMA_NAME = "world_rng"
-RNG_SCHEMA_VERSION = 4
+RNG_SCHEMA_VERSION = 8
+WORLD_RNG_NAMESPACE = 1
 WORLD_RANDOM_BLOCKS = (
     "scenario_uniform",
     "c0_base_latent",
     "k_base_latent",
     "diffusion_noise",
+    "driver_latent",
+    "maneuver_latent",
     "scene_innovations",
     "agent_response_innovations",
     "policy_response_innovations",
     "policy_calibration_innovations",
 )
+WORLD_RANDOM_STREAMS = {
+    "scenario_uniform": 1,
+    "c0_base_latent": 2,
+    "k_base_latent": 3,
+    "diffusion_noise": 4,
+    "driver_latent": 5,
+    "maneuver_latent": 6,
+    "scene_innovations": 7,
+    "agent_response_innovations": 8,
+    "policy_response_innovations": 9,
+    "policy_calibration_innovations": 10,
+}
+
+
+def named_generator(
+    seed: int, *, namespace: int, stream: int, version: int = 1
+) -> np.random.Generator:
+    """Create a stable independent named stream from integer identifiers."""
+    sequence = np.random.SeedSequence(
+        (int(seed), int(namespace), int(version), int(stream))
+    )
+    return np.random.default_rng(sequence)
 
 
 @dataclass(frozen=True)
@@ -39,15 +62,15 @@ class WorldExogenousState:
     c0_base_latent: np.ndarray
     k_base_latent: np.ndarray
     diffusion_noise: np.ndarray
+    # Per-NPC persistent style draws, separate from frame noise.
+    driver_latent: np.ndarray
+    maneuver_latent: np.ndarray
     scene_innovations: np.ndarray
     agent_response_innovations: np.ndarray
     policy_response_innovations: np.ndarray
-    # This block belongs exclusively to the response-calibration test fixture.
-    # It is deliberately independent from frozen factual innovations.
+    # Independent response-calibration and residual-initialization randomness.
     policy_calibration_innovations: np.ndarray
-    # Contract metadata only; runtime consumption still has one mutable
-    # response index.  It is retained so custom archives can be validated
-    # without making scene length a second horizon source of truth.
+    # Archive metadata; the runtime keeps a single response index.
     scene_refresh_responses: int = 25
 
     @property
@@ -59,15 +82,11 @@ class WorldExogenousState:
         """The response horizon is owned by the per-response agent process."""
         return int(np.asarray(self.agent_response_innovations).shape[1])
 
-    @property
-    def scene_innovation_count(self) -> int:
-        return int(np.asarray(self.scene_innovations).shape[1])
-
     def validate(
         self,
         *,
-        c0_dim: int = 40,
-        k_dim: int = 72,
+        c0_dim: int = 26,
+        k_dim: int = 36,
         horizon_frames: int | None = None,
         response_steps: int | None = None,
         scene_refresh_responses: int | None = None,
@@ -80,10 +99,18 @@ class WorldExogenousState:
         if horizon_frames is None:
             horizon_frames = DIFFUSION_HORIZON_STEPS
         expected_diffusion_steps = int(horizon_frames)
-        expected_response_steps = self.response_steps if response_steps is None else int(response_steps)
-        refresh = self.scene_refresh_responses if scene_refresh_responses is None else int(scene_refresh_responses)
+        expected_response_steps = (
+            self.response_steps if response_steps is None else int(response_steps)
+        )
+        refresh = (
+            self.scene_refresh_responses
+            if scene_refresh_responses is None
+            else int(scene_refresh_responses)
+        )
         if expected_diffusion_steps < 1 or expected_response_steps < 1 or refresh < 1:
-            raise ValueError("response_steps and scene_refresh_responses must be positive")
+            raise ValueError(
+                "response_steps and scene_refresh_responses must be positive"
+            )
         if expected_response_steps != self.response_steps:
             raise ValueError(
                 "response_steps must equal agent_response_innovations.shape[1]"
@@ -93,7 +120,12 @@ class WorldExogenousState:
             "scenario_uniform": (self.scenario_uniform, (n,)),
             "c0_base_latent": (self.c0_base_latent, (n, c0_dim)),
             "k_base_latent": (self.k_base_latent, (n, k_dim)),
-            "diffusion_noise": (self.diffusion_noise, (n, expected_diffusion_steps, 12)),
+            "diffusion_noise": (
+                self.diffusion_noise,
+                (n, expected_diffusion_steps, 12),
+            ),
+            "driver_latent": (self.driver_latent, (n, 6, 5)),
+            "maneuver_latent": (self.maneuver_latent, (n, 6, 4)),
             "scene_innovations": (
                 self.scene_innovations,
                 (n, expected_scene_steps, scene_dim),
@@ -136,45 +168,50 @@ class WorldExogenousState:
             raise ValueError("n and response_steps must both be positive")
         if int(scene_refresh_responses) < 1:
             raise ValueError("scene_refresh_responses must be positive")
-        # These streams define the probability space.  They must stay
-        # independent when another block changes shape or a new block is added.
+
+        # Keep named streams independent as the schema grows.
         def rng(block: str) -> np.random.Generator:
-            # Preserve every legacy stream bitwise so the frozen factual model remains
-            # valid common-random-number baseline.  Only calibration owns the
-            # new namespace.
             version = 4 if block == "policy_calibration_innovations" else 2
-            material = f"{RNG_SCHEMA_NAME}:{version}:{int(seed)}:{block}".encode("utf-8")
-            child_seed = int.from_bytes(hashlib.sha256(material).digest()[:8], "little")
-            return np.random.default_rng(child_seed)
+            return named_generator(
+                seed,
+                namespace=WORLD_RNG_NAMESPACE,
+                stream=WORLD_RANDOM_STREAMS[block],
+                version=version,
+            )
 
         scene_steps = math.ceil(int(response_steps) / int(scene_refresh_responses))
         state = cls(
             scenario_uniform=rng("scenario_uniform").random(int(n), dtype=np.float64),
-            c0_base_latent=rng("c0_base_latent").standard_normal((int(n), 40), dtype=np.float32),
-            k_base_latent=rng("k_base_latent").standard_normal((int(n), 72), dtype=np.float32),
+            c0_base_latent=rng("c0_base_latent").standard_normal(
+                (int(n), 26), dtype=np.float32
+            ),
+            k_base_latent=rng("k_base_latent").standard_normal(
+                (int(n), 36), dtype=np.float32
+            ),
             diffusion_noise=rng("diffusion_noise").standard_normal(
                 (int(n), DIFFUSION_HORIZON_STEPS, 12), dtype=np.float32
+            ),
+            driver_latent=rng("driver_latent").standard_normal(
+                (int(n), 6, 5), dtype=np.float32
+            ),
+            maneuver_latent=rng("maneuver_latent").standard_normal(
+                (int(n), 6, 4), dtype=np.float32
             ),
             scene_innovations=rng("scene_innovations").standard_normal(
                 (int(n), scene_steps, int(scene_dim)), dtype=np.float32
             ),
-            agent_response_innovations=rng("agent_response_innovations").standard_normal(
+            agent_response_innovations=rng(
+                "agent_response_innovations"
+            ).standard_normal(
                 (int(n), int(response_steps), 7, int(agent_dim)), dtype=np.float32
             ),
-            policy_response_innovations=rng("policy_response_innovations").standard_normal(
-                (int(n), int(response_steps), 6, 2), dtype=np.float32
-            ),
-            # Adding this block must not change any draw consumed by the factual model.
-            policy_calibration_innovations=rng("policy_calibration_innovations").standard_normal(
-                (int(n), int(response_steps), 6, 2), dtype=np.float32
-            ),
+            policy_response_innovations=rng(
+                "policy_response_innovations"
+            ).standard_normal((int(n), int(response_steps), 6, 2), dtype=np.float32),
+            policy_calibration_innovations=rng(
+                "policy_calibration_innovations"
+            ).standard_normal((int(n), int(response_steps), 6, 2), dtype=np.float32),
             scene_refresh_responses=int(scene_refresh_responses),
-        )
-        state.validate(
-            response_steps=response_steps,
-            scene_refresh_responses=scene_refresh_responses,
-            scene_dim=scene_dim,
-            agent_dim=agent_dim,
         )
         return state
 
@@ -190,7 +227,9 @@ class WorldExogenousState:
             path,
             **self.as_dict(),
             response_steps=np.asarray(self.response_steps, dtype=np.int64),
-            scene_refresh_responses=np.asarray(self.scene_refresh_responses, dtype=np.int64),
+            scene_refresh_responses=np.asarray(
+                self.scene_refresh_responses, dtype=np.int64
+            ),
             schema_name=np.asarray(RNG_SCHEMA_NAME),
             schema_version=np.asarray(RNG_SCHEMA_VERSION, dtype=np.int64),
         )
@@ -206,20 +245,37 @@ class WorldExogenousState:
                 or int(values["schema_version"]) != RNG_SCHEMA_VERSION
             ):
                 raise ValueError("unsupported world RNG schema")
+            refresh = (
+                int(values["scene_refresh_responses"])
+                if "scene_refresh_responses" in values
+                else 25
+            )
             state = cls(
                 scenario_uniform=np.asarray(values["scenario_uniform"]),
                 c0_base_latent=np.asarray(values["c0_base_latent"]),
                 k_base_latent=np.asarray(values["k_base_latent"]),
                 diffusion_noise=np.asarray(values["diffusion_noise"]),
+                driver_latent=np.asarray(values["driver_latent"]),
+                maneuver_latent=np.asarray(values["maneuver_latent"]),
                 scene_innovations=np.asarray(values["scene_innovations"]),
-                agent_response_innovations=np.asarray(values["agent_response_innovations"]),
-                policy_response_innovations=np.asarray(values["policy_response_innovations"]),
-                policy_calibration_innovations=np.asarray(values["policy_calibration_innovations"]),
+                agent_response_innovations=np.asarray(
+                    values["agent_response_innovations"]
+                ),
+                policy_response_innovations=np.asarray(
+                    values["policy_response_innovations"]
+                ),
+                policy_calibration_innovations=np.asarray(
+                    values["policy_calibration_innovations"]
+                ),
+                scene_refresh_responses=refresh,
             )
-            refresh = int(values["scene_refresh_responses"]) if "scene_refresh_responses" in values else 25
-            state = cls(**{**state.as_dict(), "scene_refresh_responses": refresh})
-            if "response_steps" in values and int(values["response_steps"]) != state.response_steps:
-                raise ValueError("response_steps metadata disagrees with agent innovations")
+            if (
+                "response_steps" in values
+                and int(values["response_steps"]) != state.response_steps
+            ):
+                raise ValueError(
+                    "response_steps metadata disagrees with agent innovations"
+                )
         state.validate(
             response_steps=state.response_steps,
             scene_refresh_responses=state.scene_refresh_responses,
@@ -230,8 +286,7 @@ class WorldExogenousState:
 
     def as_dict(self) -> dict[str, np.ndarray]:
         return {
-            name: np.asarray(getattr(self, name)).copy()
-            for name in WORLD_RANDOM_BLOCKS
+            name: np.asarray(getattr(self, name)).copy() for name in WORLD_RANDOM_BLOCKS
         }
 
     def replace_arrays(self, values: dict[str, np.ndarray]) -> "WorldExogenousState":
@@ -256,22 +311,26 @@ class WorldExogenousState:
         """Combine compatible batches for vectorized world evaluation."""
         if not states:
             raise ValueError("states must not be empty")
+        refresh = states[0].scene_refresh_responses
+        if any(state.scene_refresh_responses != refresh for state in states[1:]):
+            raise ValueError("states use different scene refresh intervals")
         values = [state.as_dict() for state in states]
         keys = values[0].keys()
         combined = {
             name: np.concatenate([item[name] for item in values], axis=0)
             for name in keys
         }
-        result = cls(**combined)
-        result.validate(
-            response_steps=result.response_steps,
-            scene_refresh_responses=result.scene_refresh_responses,
-            scene_dim=combined["scene_innovations"].shape[-1],
-            agent_dim=combined["agent_response_innovations"].shape[-1],
-        )
-        return result
+        return cls(**combined, scene_refresh_responses=refresh)
 
-    def pcn_mutate(self, block: str, *, beta: float, seed: int) -> "WorldExogenousState":
+    def mutate(
+        self,
+        block: str,
+        *,
+        beta: float,
+        seed: int,
+        actor_mask: np.ndarray | None = None,
+        time_range: tuple[int, int] | None = None,
+    ) -> "WorldExogenousState":
         """Return a prior-preserving pCN proposal for one Gaussian block.
 
         The categorical scenario uniform is deliberately not treated as
@@ -282,13 +341,26 @@ class WorldExogenousState:
             raise ValueError("beta must lie in (0, 1]")
         values = self.as_dict()
         if block == "scenario":
+            if actor_mask is not None or time_range is not None:
+                raise ValueError("scenario refresh cannot be actor/time masked")
             values["scenario_uniform"] = np.random.default_rng(int(seed)).random(
                 self.batch_size, dtype=np.float64
             )
-        elif block in {
+            block = "scenario_uniform"
+        else:
+            aliases = {
+                "driver": "driver_latent",
+                "maneuver": "maneuver_latent",
+                "response": "agent_response_innovations",
+                "policy": "policy_response_innovations",
+            }
+            block = aliases.get(block, block)
+        if block != "scenario_uniform" and block in {
             "c0_base_latent",
             "k_base_latent",
             "diffusion_noise",
+            "driver_latent",
+            "maneuver_latent",
             "scene_innovations",
             "agent_response_innovations",
             "policy_response_innovations",
@@ -298,11 +370,58 @@ class WorldExogenousState:
             innovation = np.random.default_rng(int(seed)).standard_normal(
                 current.shape, dtype=np.float32
             )
-            values[block] = (
+            proposal = (
                 np.sqrt(1.0 - float(beta) ** 2) * current + float(beta) * innovation
             ).astype(np.float32)
-        else:
+            selection = np.ones(current.shape, dtype=bool)
+            if time_range is not None:
+                if block not in {
+                    "diffusion_noise",
+                    "scene_innovations",
+                    "agent_response_innovations",
+                    "policy_response_innovations",
+                    "policy_calibration_innovations",
+                }:
+                    raise ValueError(f"block {block!r} has no time axis")
+                start, stop = (int(value) for value in time_range)
+                if not 0 <= start <= stop <= current.shape[1]:
+                    raise ValueError("time_range lies outside the selected block")
+                selection[:] = False
+                selection[:, start:stop] = True
+            if actor_mask is not None:
+                actors = np.asarray(actor_mask, dtype=bool)
+                if actors.ndim == 1:
+                    actors = np.broadcast_to(actors, (self.batch_size, 6))
+                if actors.shape != (self.batch_size, 6):
+                    raise ValueError("actor_mask must have shape [6] or [batch,6]")
+                actor_selection = np.zeros(current.shape, dtype=bool)
+                if block in {"driver_latent", "maneuver_latent"}:
+                    actor_selection |= actors[..., None]
+                elif block in {
+                    "policy_response_innovations",
+                    "policy_calibration_innovations",
+                }:
+                    actor_selection |= actors[:, None, :, None]
+                elif block == "agent_response_innovations":
+                    expanded = np.zeros(
+                        (self.batch_size, current.shape[1], 7, current.shape[3]), bool
+                    )
+                    expanded[:, :, 1:, :] = actors[:, None, :, None]
+                    actor_selection |= expanded
+                elif block == "diffusion_noise":
+                    actor_selection |= np.repeat(actors[:, None, :], 2, axis=-1)
+                else:
+                    raise ValueError(f"block {block!r} cannot be mutated per actor")
+                selection &= actor_selection
+            values[block] = np.where(selection, proposal, current)
+        elif block != "scenario_uniform":
             raise ValueError(f"unknown exogenous block {block!r}")
         return WorldExogenousState(
             **values, scene_refresh_responses=self.scene_refresh_responses
         )
+
+    def pcn_mutate(
+        self, block: str, *, beta: float, seed: int
+    ) -> "WorldExogenousState":
+        """Backward-compatible whole-block pCN proposal."""
+        return self.mutate(block, beta=beta, seed=seed)

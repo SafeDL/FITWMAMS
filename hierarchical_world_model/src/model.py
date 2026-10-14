@@ -1,10 +1,7 @@
-"""Observation-filtered factual dynamics used by the hierarchical world model.
+"""HiQR: encode realized traffic, filter hierarchical state and decode plan-guided actions.
 
-The released checkpoint was historically called Diffusion-Guided HiQR.  The
-implementation is kept checkpoint-compatible while exposing the components
-that matter to the maintained method: relational observation encoding,
-hierarchical state filtering, diffusion-plan conditioning, coordinated jerk
-decoding, and kinematic integration.
+This layer supplies nominal NPC acceleration and yaw rate. The online response
+controller and reference coordinator act before HighwayEnv integrates them.
 """
 
 from __future__ import annotations
@@ -15,11 +12,15 @@ import torch
 import torch.nn.functional as functional
 from torch import nn
 
-from traffic_components.src.core.dynamics import DynamicsConfig, KinematicTrafficDynamics
-from traffic_components.src.hiqr.encoder import (
+from hierarchical_world_model.src.core.dynamics import (
+    DynamicsConfig,
+    HIGHD_INTEGRATION_SPEED_MAX_MPS,
+    KinematicTrafficDynamics,
+)
+from hierarchical_world_model.src.hiqr.encoder import (
     UnifiedRelationalQueryEncoder as RelationalObservationEncoder,
 )
-from traffic_components.src.hiqr.filter import (
+from hierarchical_world_model.src.hiqr.filter import (
     FilterState,
     ObservedHierarchicalInteractionFilter as HierarchicalBeliefFilter,
 )
@@ -33,11 +34,6 @@ from .reference import (
 )
 from .reaction_controller import ReactionControllerContext, apply_handcrafted_response
 from .stochastic import CausalInteractionResponseField, GraphCoupledLatentTransition
-
-
-# highD test reaches 63.98 m/s; six seconds of +4 m/s² ADS control remains
-# below 90 m/s. This is an integration ceiling, not a road speed limit.
-HIGHD_INTEGRATION_SPEED_MAX_MPS = 100.0
 
 
 @dataclass(frozen=True)
@@ -61,6 +57,7 @@ class ResponseDistribution:
     intervention_memory: torch.Tensor
     lateral_intervention_memory: torch.Tensor
     scene_refreshed: bool
+    observation_tokens: torch.Tensor
 
 
 class CoordinatedJerkDecoder(nn.Module):
@@ -90,9 +87,7 @@ class CoordinatedJerkDecoder(nn.Module):
             activation="gelu",
             norm_first=True,
         )
-        self.coordination = nn.TransformerEncoder(
-            layer, num_layers=cfg.decoder_layers
-        )
+        self.coordination = nn.TransformerEncoder(layer, num_layers=cfg.decoder_layers)
         self.residual_jerk = nn.Linear(hidden, 2)
         self.response_gain = nn.Linear(3 * hidden, 1)
         self.scene_innovation = nn.Linear(
@@ -120,9 +115,8 @@ class CoordinatedJerkDecoder(nn.Module):
         nn.init.zeros_(self.residual_jerk.bias)
         nn.init.zeros_(self.response_gain.weight)
         initial_fraction = (
-            (cfg.causal_response_initial_gain - cfg.causal_response_min_gain)
-            / (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
-        )
+            cfg.causal_response_initial_gain - cfg.causal_response_min_gain
+        ) / (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
         nn.init.constant_(
             self.response_gain.bias,
             float(torch.logit(torch.tensor(initial_fraction))),
@@ -172,9 +166,7 @@ class CoordinatedJerkDecoder(nn.Module):
             )
         )
         scene = self.scene(
-            torch.cat(
-                (filter_state.global_hidden, preview_scene, scene_latent), dim=-1
-            )
+            torch.cat((filter_state.global_hidden, preview_scene, scene_latent), dim=-1)
         )
         token = base[:, None] + scene[:, None, None] + self.knot[None, :, None]
         valid = current_valid[:, None, 1:].expand(-1, cfg.jerk_knots, -1)
@@ -193,11 +185,9 @@ class CoordinatedJerkDecoder(nn.Module):
         gain_features = torch.cat(
             (agents[:, 1:], filter_state.agent_hidden[:, 1:], preview_agents), dim=-1
         )
-        response_gain = (
-            cfg.causal_response_min_gain
-            + torch.sigmoid(self.response_gain(gain_features)).squeeze(-1)
-            * (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
-        )
+        response_gain = cfg.causal_response_min_gain + torch.sigmoid(
+            self.response_gain(gain_features)
+        ).squeeze(-1) * (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
         # The released decoder historically contains this explicit
         # ego-acceleration actuator in addition to its learned nominal action
         # head.  Controller-mode rollouts request the latter as their base
@@ -217,9 +207,11 @@ class CoordinatedJerkDecoder(nn.Module):
         scene_innovation = self.scene_innovation(scene_standard_normal).reshape(
             batch, cfg.jerk_knots, 1, 2
         )
-        agent_innovation = self.agent_innovation(
-            agent_standard_normal[:, 1:]
-        ).reshape(batch, backgrounds, cfg.jerk_knots, 2).permute(0, 2, 1, 3)
+        agent_innovation = (
+            self.agent_innovation(agent_standard_normal[:, 1:])
+            .reshape(batch, backgrounds, cfg.jerk_knots, 2)
+            .permute(0, 2, 1, 3)
+        )
         innovation_scale = residual_knots.new_tensor(
             (
                 cfg.stochastic_longitudinal_jerk_mps3,
@@ -227,43 +219,53 @@ class CoordinatedJerkDecoder(nn.Module):
             )
         )
         stochastic_knots = (
-            torch.tanh((scene_innovation + agent_innovation) / 2.0)
-            * innovation_scale
+            torch.tanh((scene_innovation + agent_innovation) / 2.0) * innovation_scale
             if stochastic
             else torch.zeros_like(residual_knots)
         )
         deterministic_knots = residual_knots + causal_knots
-        residual = functional.interpolate(
-            deterministic_knots.permute(0, 2, 3, 1).reshape(
-                batch * backgrounds, 2, cfg.jerk_knots
-            ),
-            size=cfg.preview_frames,
-            mode="linear",
-            align_corners=True,
-        ).reshape(batch, backgrounds, 2, cfg.preview_frames).permute(0, 3, 1, 2)
-        stochastic_residual = functional.interpolate(
-            stochastic_knots.permute(0, 2, 3, 1).reshape(
-                batch * backgrounds, 2, cfg.jerk_knots
-            ),
-            size=cfg.preview_frames,
-            mode="linear",
-            align_corners=True,
-        ).reshape(batch, backgrounds, 2, cfg.preview_frames).permute(0, 3, 1, 2)
+        residual = (
+            functional.interpolate(
+                deterministic_knots.permute(0, 2, 3, 1).reshape(
+                    batch * backgrounds, 2, cfg.jerk_knots
+                ),
+                size=cfg.preview_frames,
+                mode="linear",
+                align_corners=True,
+            )
+            .reshape(batch, backgrounds, 2, cfg.preview_frames)
+            .permute(0, 3, 1, 2)
+        )
+        stochastic_residual = (
+            functional.interpolate(
+                stochastic_knots.permute(0, 2, 3, 1).reshape(
+                    batch * backgrounds, 2, cfg.jerk_knots
+                ),
+                size=cfg.preview_frames,
+                mode="linear",
+                align_corners=True,
+            )
+            .reshape(batch, backgrounds, 2, cfg.preview_frames)
+            .permute(0, 3, 1, 2)
+        )
         initial = KinematicTrafficDynamics.controls_from_highd_actions(
             current[:, 1:, 4:6], current[:, 1:]
         )
-        soft_jerk = torch.diff(
-            soft_actions,
-            dim=1,
-            prepend=initial[:, None],
-        ) / cfg.dt_s
+        soft_jerk = (
+            torch.diff(
+                soft_actions,
+                dim=1,
+                prepend=initial[:, None],
+            )
+            / cfg.dt_s
+        )
         deterministic_total = soft_jerk + residual
         deterministic_actions = (
             initial[:, None] + deterministic_total.cumsum(dim=1) * cfg.dt_s
         )
-        sampled_actions = deterministic_actions + stochastic_residual.cumsum(
-            dim=1
-        ) * cfg.dt_s
+        sampled_actions = (
+            deterministic_actions + stochastic_residual.cumsum(dim=1) * cfg.dt_s
+        )
         if cfg.behavior_mode_decoder_enabled and stochastic:
             # A behavior-state effect is constant over this one-second soft
             # preview.  Unlike jitter, it therefore remains identifiable as
@@ -279,21 +281,29 @@ class CoordinatedJerkDecoder(nn.Module):
 
         if cfg.intervention_adapter_enabled and apply_intervention_adapter:
             adapter_context = ReactionControllerContext(
-                history=current[:, None], history_valid=current_valid[:, None],
-                current=current, current_valid=current_valid,
+                history=current[:, None],
+                history_valid=current_valid[:, None],
+                current=current,
+                current_valid=current_valid,
                 committed_ego_controls=ego_acceleration[:, None, None].expand(-1, 1, 2),
-                base_actions=deterministic_actions, reference_actions=soft_actions,
+                base_actions=deterministic_actions,
+                reference_actions=soft_actions,
                 intervention_trigger=intervention_trigger,
                 intervention_memory=intervention_trigger,
                 lateral_intervention_memory=lateral_intervention_trigger,
                 agent_style_state=agent_style_state,
                 response_field_gain=response_field_gain,
                 response_sensitivity_bounds=response_sensitivity_bounds,
-                adapter_gain=torch.sigmoid(self.intervention_logit), cfg=cfg,
+                adapter_gain=torch.sigmoid(self.intervention_logit),
+                cfg=cfg,
                 reaction_enabled=None,
             )
-            deterministic_actions = apply_handcrafted_response(deterministic_actions, adapter_context)
-            sampled_actions = apply_handcrafted_response(sampled_actions, adapter_context)
+            deterministic_actions = apply_handcrafted_response(
+                deterministic_actions, adapter_context
+            )
+            sampled_actions = apply_handcrafted_response(
+                sampled_actions, adapter_context
+            )
 
         def bound(actions: torch.Tensor) -> torch.Tensor:
             return torch.stack(
@@ -301,12 +311,11 @@ class CoordinatedJerkDecoder(nn.Module):
                     actions[..., 0].clamp(
                         cfg.min_acceleration_mps2, cfg.max_acceleration_mps2
                     ),
-                    actions[..., 1].clamp(
-                        -cfg.max_yaw_rate_rps, cfg.max_yaw_rate_rps
-                    ),
+                    actions[..., 1].clamp(-cfg.max_yaw_rate_rps, cfg.max_yaw_rate_rps),
                 ),
                 dim=-1,
             )
+
         mask = current_valid[:, None, 1:, None].float()
         return (
             bound(sampled_actions) * mask,
@@ -323,9 +332,8 @@ class FactualDynamicsModel(nn.Module):
     def __init__(self, cfg: WorldModelConfig | None = None) -> None:
         super().__init__()
         self.cfg = cfg or WorldModelConfig()
-        relational_cfg = self.cfg.relational_dynamics_config()
-        self.encoder = RelationalObservationEncoder(relational_cfg)
-        self.filter = HierarchicalBeliefFilter(relational_cfg)
+        self.encoder = RelationalObservationEncoder(self.cfg)
+        self.filter = HierarchicalBeliefFilter(self.cfg)
         self.preview_agent = nn.Sequential(
             nn.Linear(12, self.cfg.hidden_dim),
             nn.SiLU(),
@@ -363,17 +371,6 @@ class FactualDynamicsModel(nn.Module):
             )
         )
 
-    def component_contract(self) -> dict[str, str]:
-        """Name the checkpoint-compatible factual dynamics components."""
-        return {
-            "observation_encoder": "relational agents, history and map encoding",
-            "belief_filter": "observation-filtered scene and per-agent state",
-            "motion_prior": "frozen diffusion trajectory conditioning",
-            "coordination_decoder": "joint residual longitudinal/lateral jerk",
-            "stochastic_state": "persistent scene and graph-coupled agent latents",
-            "dynamics": "25 Hz kinematic state integration",
-        }
-
     def set_matched_response_bounds(self, values: torch.Tensor) -> None:
         """Install highD-derived P10/P90 acceleration-response bounds."""
         bounds = torch.as_tensor(values, dtype=self.matched_response_bounds.dtype)
@@ -405,9 +402,7 @@ class FactualDynamicsModel(nn.Module):
             (100.0, 12.0, 100.0, 12.0, 100.0, 12.0, 20.0, 5.0)
         )
         summary = summary / summary_scale
-        first_velocity = (
-            rebased[:, 0] - current[:, 1:, :2]
-        ) / self.cfg.dt_s
+        first_velocity = (rebased[:, 0] - current[:, 1:, :2]) / self.cfg.dt_s
         deviation = torch.cat(
             (
                 current[:, 1:, :2] - reference_base,
@@ -455,6 +450,7 @@ class FactualDynamicsModel(nn.Module):
         agent_noise_state: torch.Tensor | None = None,
         agent_style_state: torch.Tensor | None = None,
         committed_ego_controls: torch.Tensor | None = None,
+        committed_ego_controls_valid: torch.Tensor | None = None,
         intervention_memory: torch.Tensor | None = None,
         lateral_intervention_memory: torch.Tensor | None = None,
         response_index: int = 0,
@@ -486,16 +482,24 @@ class FactualDynamicsModel(nn.Module):
                 history[:, 0, 1:],
                 history_valid[:, 0, 1:],
             )
+        if previous_current is None and history.shape[1] > 1:
+            observed_previous = history_valid[:, -2] & current_valid
+            previous_current = torch.where(
+                observed_previous[..., None], history[:, -2], current
+            )
         observed = self.filter.observe(
             filter_state,
             agents,
             scene,
             current,
-            history[:, -2] if previous_current is None and history.shape[1] > 1
-            else previous_current,
+            previous_current,
             current_valid,
         )
-        rebase_weights = (None, None) if reference_rebase_weights is None else reference_rebase_weights
+        rebase_weights = (
+            (None, None)
+            if reference_rebase_weights is None
+            else reference_rebase_weights
+        )
         rebased = rebase_soft_preview(
             current[:, 1:],
             soft_reference[:, : self.cfg.preview_frames],
@@ -530,9 +534,7 @@ class FactualDynamicsModel(nn.Module):
         assert slow_scene is not None
         if slow_scene_noise is None:
             slow_scene_noise = torch.zeros_like(scene_noise)
-        agent_mean = self.filter.prior_agents(
-            observed, conditioned_agents, slow_scene
-        )
+        agent_mean = self.filter.prior_agents(observed, conditioned_agents, slow_scene)
         raw_agent_noise = (
             torch.randn_like(agent_mean)
             if agent_standard_normal is None
@@ -580,9 +582,7 @@ class FactualDynamicsModel(nn.Module):
             initial = self.dynamics.controls_from_highd_actions(
                 current[:, 1:, 4:6], current[:, 1:]
             )
-            soft_actions = initial[:, None].expand(
-                -1, self.cfg.preview_frames, -1, -1
-            )
+            soft_actions = initial[:, None].expand(-1, self.cfg.preview_frames, -1, -1)
         ego_control = self.dynamics.controls_from_highd_actions(
             current[:, 0, 4:6], current[:, 0]
         )
@@ -597,13 +597,25 @@ class FactualDynamicsModel(nn.Module):
                 )
             history_count = min(
                 self.cfg.intervention_trigger_history_frames,
-                committed_ego_controls.shape[1] - 1,
+                max(committed_ego_controls.shape[1] - 1, 0),
             )
             if history_count:
                 recent_controls = committed_ego_controls[:, -history_count - 1 :]
-                deviation = recent_controls[:, -1, 0] - recent_controls[
-                    :, :-1, 0
-                ].mean(dim=1)
+                control_valid = (
+                    torch.ones_like(recent_controls[..., 0], dtype=torch.bool)
+                    if committed_ego_controls_valid is None
+                    else committed_ego_controls_valid[:, -history_count - 1 :]
+                )
+                preceding_valid = control_valid[:, :-1]
+                has_preceding = preceding_valid.any(1) & control_valid[:, -1]
+                preceding_acceleration = (
+                    recent_controls[:, :-1, 0] * preceding_valid
+                ).sum(1) / preceding_valid.sum(1).clamp_min(1)
+                deviation = torch.where(
+                    has_preceding,
+                    recent_controls[:, -1, 0] - preceding_acceleration,
+                    0.0,
+                )
                 # Preserve evidence for a newly committed lateral command
                 # until the next response boundary.  A mean would dilute a
                 # 0.08 rad/s command to 0.016 after four committed frames;
@@ -614,10 +626,16 @@ class FactualDynamicsModel(nn.Module):
                 preceding_yaw = recent_yaw[:, :-1]
                 reference_yaw = torch.where(
                     latest_yaw >= 0.0,
-                    preceding_yaw.min(dim=1).values,
-                    preceding_yaw.max(dim=1).values,
+                    preceding_yaw.masked_fill(~preceding_valid, float("inf"))
+                    .min(dim=1)
+                    .values,
+                    preceding_yaw.masked_fill(~preceding_valid, float("-inf"))
+                    .max(dim=1)
+                    .values,
                 )
-                lateral_deviation = latest_yaw - reference_yaw
+                lateral_deviation = torch.where(
+                    has_preceding, latest_yaw - reference_yaw, 0.0
+                )
             else:
                 deviation = torch.zeros_like(ego_control[:, 0])
                 lateral_deviation = torch.zeros_like(ego_control[:, 1])
@@ -635,8 +653,8 @@ class FactualDynamicsModel(nn.Module):
                     recent_ego[..., 4:6], recent_ego
                 )
                 deviation = ego_control[:, 0] - recent_controls[..., 0].mean(dim=1)
-                lateral_deviation = (
-                    ego_control[:, 1] - recent_controls[..., 1].mean(dim=1)
+                lateral_deviation = ego_control[:, 1] - recent_controls[..., 1].mean(
+                    dim=1
                 )
             else:
                 deviation = torch.zeros_like(ego_control[:, 0])
@@ -709,8 +727,16 @@ class FactualDynamicsModel(nn.Module):
             stochastic,
             response_field_gain,
             self.response_sensitivity_bounds,
-            self.cfg.intervention_adapter_enabled if apply_intervention_adapter is None else bool(apply_intervention_adapter),
-            True if apply_explicit_ego_response is None else bool(apply_explicit_ego_response),
+            (
+                self.cfg.intervention_adapter_enabled
+                if apply_intervention_adapter is None
+                else bool(apply_intervention_adapter)
+            ),
+            (
+                True
+                if apply_explicit_ego_response is None
+                else bool(apply_explicit_ego_response)
+            ),
         )
         mean = mean[:, : self.cfg.execute_frames]
         actions = actions[:, : self.cfg.execute_frames]
@@ -739,6 +765,7 @@ class FactualDynamicsModel(nn.Module):
             intervention_memory=intervention_memory,
             lateral_intervention_memory=lateral_intervention_memory,
             scene_refreshed=refresh,
+            observation_tokens=agents,
         )
 
     def checkpoint_payload(self) -> dict[str, object]:
@@ -747,9 +774,3 @@ class FactualDynamicsModel(nn.Module):
             "model_config": self.cfg.to_dict(),
             "state_dict": self.state_dict(),
         }
-
-
-# Compatibility names for released checkpoints and downstream callers. Public
-# code uses the functional names above; parameter keys stay checkpoint-compatible.
-DiffusionGuidedJerkDecoder = CoordinatedJerkDecoder
-DiffusionGuidedHiQR = FactualDynamicsModel

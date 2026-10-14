@@ -1,8 +1,7 @@
-"""Structured stochastic state and causal interaction components.
+"""Persistent scene/driver randomness and observed-graph latent transitions.
 
-The modules in this file are intentionally opt-in.  They turn the previous
-highly-correlated Gaussian innovation into a persistent, graph-coupled latent
-process, while keeping the random stream supplied by the caller explicit.
+The published HiQR uses graph-coupled driver state and explicit caller-supplied
+innovations. Its learned latent state is distinct from fixed IDM driver parameters.
 """
 
 from __future__ import annotations
@@ -35,7 +34,9 @@ class GraphCoupledLatentTransition(nn.Module):
     def __init__(self, latent_dim: int, hidden_dim: int, persistence: float) -> None:
         super().__init__()
         if latent_dim % 2:
-            raise ValueError("conditional latent flow requires an even latent dimension")
+            raise ValueError(
+                "conditional latent flow requires an even latent dimension"
+            )
         self.latent_dim = latent_dim
         self.persistence = float(persistence)
         self.node = nn.Linear(hidden_dim, latent_dim, bias=False)
@@ -47,10 +48,14 @@ class GraphCoupledLatentTransition(nn.Module):
         context_dim = 4 * latent_dim
         half = latent_dim // 2
         self.first = nn.Sequential(
-            nn.Linear(context_dim + half, latent_dim), nn.SiLU(), nn.Linear(latent_dim, 2 * half)
+            nn.Linear(context_dim + half, latent_dim),
+            nn.SiLU(),
+            nn.Linear(latent_dim, 2 * half),
         )
         self.second = nn.Sequential(
-            nn.Linear(context_dim + half, latent_dim), nn.SiLU(), nn.Linear(latent_dim, 2 * half)
+            nn.Linear(context_dim + half, latent_dim),
+            nn.SiLU(),
+            nn.Linear(latent_dim, 2 * half),
         )
 
     def _graph_message(
@@ -112,19 +117,23 @@ class GraphCoupledLatentTransition(nn.Module):
         scene = scene_latent[:, None].expand_as(node)
         context = torch.cat((state, message, node, scene), dim=-1)
         first, second = innovation.chunk(2, dim=-1)
-        shift, log_scale = self.first(torch.cat((context, second), dim=-1)).chunk(2, dim=-1)
+        shift, log_scale = self.first(torch.cat((context, second), dim=-1)).chunk(
+            2, dim=-1
+        )
         log_scale = 0.25 * torch.tanh(log_scale)
         first = first * log_scale.exp() + 0.35 * torch.tanh(shift)
-        shift, second_log_scale = self.second(torch.cat((context, first), dim=-1)).chunk(2, dim=-1)
+        shift, second_log_scale = self.second(
+            torch.cat((context, first), dim=-1)
+        ).chunk(2, dim=-1)
         second_log_scale = 0.25 * torch.tanh(second_log_scale)
         second = second * second_log_scale.exp() + 0.35 * torch.tanh(shift)
         flowed = torch.cat((first, second), dim=-1)
         if previous is None:
             next_state = flowed
         else:
-            next_state = self.persistence * state + math.sqrt(
-                1.0 - self.persistence**2
-            ) * flowed
+            next_state = (
+                self.persistence * state + math.sqrt(1.0 - self.persistence**2) * flowed
+            )
         log_base = -0.5 * (innovation.square() + math.log(2.0 * math.pi)).sum(-1)
         log_det = (log_scale + second_log_scale).sum(-1)
         mask = valid.to(next_state.dtype)
@@ -165,9 +174,10 @@ class CausalInteractionResponseField(nn.Module):
         graph_message: torch.Tensor,
         intervention_memory: torch.Tensor,
     ) -> torch.Tensor:
-        signed_memory = intervention_memory[:, None, None].expand(
-            -1, agent_features.shape[1], 1
-        ) / 4.0
+        signed_memory = (
+            intervention_memory[:, None, None].expand(-1, agent_features.shape[1], 1)
+            / 4.0
+        )
         feature = torch.cat(
             (
                 agent_features,

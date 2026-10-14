@@ -1,0 +1,21 @@
+{
+  "model": "tail_scenario_flow",
+  "checkpoint": "results/flow/checkpoints/scenario_flow.pt",
+  "dataset": "results/highd_shared_training_data/scenario_conditions/dataset.npz",
+  "evt_tail_events": 2964,
+  "fit_events": 2964,
+  "fit_recordings": 60,
+  "final_epoch_nll": {
+    "epoch": 20,
+    "joint_nll": 75.81498028424427,
+    "mask_nll": 1.8996810192360407,
+    "c0_nll": 32.842286638885376,
+    "k_nll": 41.07301287322875
+  },
+  "parameter_count": 1350788,
+  "population": "evt_tail",
+  "fit_scope": "all_evt_tail_events",
+  "num_fit_events": 2964,
+  "epochs": 20,
+  "cross_validation": "results/flow/cross_validation.json"
+}

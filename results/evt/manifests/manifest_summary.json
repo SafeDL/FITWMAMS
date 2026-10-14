@@ -1,0 +1,79 @@
+{
+  "seed": 20260926,
+  "interaction_group_deduplicated": true,
+  "evt_tail_all": 2964,
+  "evt_tail_all_split_for_use": false,
+  "validation_size_per_cohort": 90,
+  "test_size_per_cohort": 90,
+  "train_size_per_cohort": 500,
+  "mixed_train_events": 991,
+  "split_source_leakage": {
+    "train_val": 0,
+    "train_test": 0,
+    "val_test": 0
+  },
+  "selected_cohort_overlap": {
+    "val:normal:empirical": 0,
+    "val:normal:evt": 0,
+    "val:empirical:evt": 20,
+    "test:normal:empirical": 1,
+    "test:normal:evt": 2,
+    "test:empirical:evt": 24
+  },
+  "manifests": {
+    "normal_val_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.0557726263999939,
+      "risk_median": 0.0
+    },
+    "normal_test_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.07946473646960739,
+      "risk_median": 0.0
+    },
+    "normal_train_500": {
+      "events": 500,
+      "recordings": 42,
+      "risk_mean": 0.048613058485207146,
+      "risk_median": 0.0
+    },
+    "empirical_val_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.7553265776899126,
+      "risk_median": 0.7155472040176392
+    },
+    "empirical_test_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.7519811246130201,
+      "risk_median": 0.7227979302406311
+    },
+    "empirical_train_500": {
+      "events": 500,
+      "recordings": 41,
+      "risk_mean": 0.7264706103801727,
+      "risk_median": 0.6903885006904602
+    },
+    "evt_val_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.7710086127122243,
+      "risk_median": 0.7519005239009857
+    },
+    "evt_test_90": {
+      "events": 90,
+      "recordings": 9,
+      "risk_mean": 0.7685848686430189,
+      "risk_median": 0.7495947480201721
+    },
+    "evt_train_500": {
+      "events": 500,
+      "recordings": 41,
+      "risk_mean": 0.7584613844156265,
+      "risk_median": 0.7264774739742279
+    }
+  }
+}
