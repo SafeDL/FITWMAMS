@@ -100,10 +100,23 @@ def test_population_shift_preserves_correlation_and_candidate_roundtrip(tmp_path
 
 def test_refinement_contains_inactive_longitudinal_anchor():
     bounds = np.tile([-1.0, 1.0], (16, 1))
-    points = refinement_points(np.zeros(16), bounds, 0)
+    points = refinement_points(np.zeros(16), bounds, 0, 8)
     assert points.shape == (8, 16)
     assert (points >= -1).all() and (points <= 1).all()
     assert (points[0, 8:10] == 0).all()
+
+
+def test_refinement_count_preserves_the_default_sobol_sequence():
+    from scipy.stats import qmc
+
+    from hierarchical_world_model.src.npc_experiments.search import SEED
+
+    center = np.zeros(8)
+    bounds = np.tile([-1.0, 1.0], (8, 1))
+    expected = qmc.Sobol(8, scramble=True, seed=SEED + 10).random_base2(3) - 0.5
+    expected[0] = center
+    np.testing.assert_array_equal(refinement_points(center, bounds, 0, 8), expected)
+    assert refinement_points(center, bounds, 0, 4).shape == (4, 8)
 
 
 def test_temporal_learning_subset_keeps_contiguous_physical_histories():

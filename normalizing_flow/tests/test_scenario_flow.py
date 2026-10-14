@@ -108,6 +108,26 @@ def test_empirical_dimensions_follow_sampled_mask() -> None:
     np.testing.assert_allclose(dimensions[..., 1], 1.8)
 
 
+def test_dimension_metrics_ignore_empty_slots() -> None:
+    from types import SimpleNamespace
+
+    from normalizing_flow.src.evaluation import _dimension_metrics
+
+    slots = np.ones((4, 6), bool)
+    slots[0] = False
+    dimensions = np.broadcast_to([4.8, 1.8], (4, 7, 2)).copy()
+    generated = dimensions.copy()
+    dimensions[0, 1:] = 0.0
+    generated[0, 1:] = 100.0
+    metrics = _dimension_metrics(
+        {"vehicle_dimensions": dimensions, "slot_mask": slots},
+        np.arange(4),
+        SimpleNamespace(vehicle_dimensions=generated, slot_mask=slots),
+    )
+    assert len(metrics["per_feature"]) == 14
+    assert metrics["mean_ks"] == metrics["mean_wasserstein"] == 0.0
+
+
 def test_empirical_dimensions_use_the_matching_mask_bank() -> None:
     dimensions = np.zeros((2, 7, 2), np.float32)
     dimensions[0] = (4.0, 1.7)

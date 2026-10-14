@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 import torch
 
-from hierarchical_world_model.src.npc_experiments import lane_execution as execution
 from hierarchical_world_model.src.stochastic_drivers import lane_fit as fitting
 from hierarchical_world_model.src.stochastic_drivers.lane_trajectory import (
     MODEL_PATH,

@@ -1,6 +1,10 @@
 # FITWMAMS
 
-本工程以 highD 自然驾驶数据构建交通行为仿真世界，用于自动驾驶系统（ADS）的事件测试。只维护一条主方法链：共享自然驾驶数据 → EVT 尾部事件 → Flow 采样 M、C0、K、D → PCHIP 参考轨迹 + 条件残差 Diffusion → HiQR + MA-IDM + 校准 MOBIL 换道决策 + 学习型换道轨迹规划与 Frenet 跟踪 → HighwayEnv 闭环测试。GT 评估固定观察到的 K_GT、D_GT，进入同一套轨迹重建和世界模型，保留精度与响应检查。学习型 ADS 与固定 IDM 都是被测控制器；策略特异失效区域搜索不属于当前主线。研究目标见 [`doc/00_总索引与实施顺序.md`](doc/00_总索引与实施顺序.md)，实际指标以 [`results/`](results/README.md) 中的报告为准。
+以 highD 自然驾驶数据构建用于自动驾驶系统（ADS）测试的交通环境。
+
+主链：自然驾驶数据 → EVT 尾部事件 → Flow 场景条件 → PCHIP + 条件残差 Diffusion 软计划 → HiQR 动作、NPC 响应及计划进度协调 → highway-env 执行。Flow 建模占位、初始条件和位置结点；车辆尺寸单独经验采样。
+
+世界模型分别验证完整 Test 的事实重建，以及 NPC 自主运行的交通分布。ADS 接入使用同一执行链，不能用事实重建成绩代替 ADS 测试结果。当前报告见 [results](results/README.md)。
 
 ## 一级目录
 
@@ -16,9 +20,9 @@
 | [`idm_ams/`](idm_ams/README.md) | 固定 IDM ADS 的长尾风险评测工具；不是主世界模型。 |
 | [`external_model_baselines/`](external_model_baselines/README.md) | 外部论文模型的项目适配实现、评测和模型登记。 |
 | [`tools/`](tools/README.md) | EVT、固定 IDM ADS 和绘图样式等跨模块共享工具。 |
-| [`doc/`](doc/README.md) | 论文研究方案、T01–T12 工程目标与编码约定。 |
-| [`external_resources/`](external_resources/README.md) | 外部论文 PDF 与上游源码快照；只有本地 nflows 源码被 Flow 实际调用。 |
+| [`doc/style.md`](doc/style.md) | 代码、文件组织与清理规范。 |
+| [`external_resources/`](external_resources/README.md) | 参考论文与外部模型的上游源码。 |
 | [`results/`](results/README.md) | 当前主线的数据、权重、报告与论文对照；EVT、Flow、Diffusion 分别放在简短的同名目录。 |
 | [`archive/`](archive/README.md) | 已退出主线的代码、候选和历史结果，保留以便恢复，不是另一套运行入口。 |
 
-运行 GPU 实验使用系统 Conda 环境 `tread`。各模块的具体入口、数据契约和结果边界以其目录 README 为准。隐藏的 `.git/`、`.idea/`、`.vscode/` 与 `.pytest_cache/` 是版本控制、编辑器或测试缓存目录，不属于工程模块。
+运行环境为 `conda activate tread`；入口和数据口径见各模块 README。根目录运行 `python -m pytest` 检查项目测试；`pytest.ini` 限定收集范围，不包含上游源码及归档测试。

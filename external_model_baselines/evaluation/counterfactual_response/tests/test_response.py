@@ -42,7 +42,14 @@ def test_frozen_baseline_uses_same_braking_leader_and_preserves_actions():
     assert np.allclose(frozen["closing"], expected_closing)
 
 
-def test_highd_anchor_matches_frozen_reaction_event():
+def test_highd_anchor_matches_frozen_reaction_event(monkeypatch):
+    original_load = np.load
+
+    def load_frozen_only(path, *args, **kwargs):
+        assert "highd_sequence_cache" not in str(path)
+        return original_load(path, *args, **kwargs)
+
+    monkeypatch.setattr(np, "load", load_frozen_only)
     evidence = (
         ROOT
         / "external_model_baselines/evaluation/counterfactual_response/evidence/"

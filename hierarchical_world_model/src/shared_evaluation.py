@@ -68,6 +68,18 @@ def load_shared_components(config, experiment, device):
     return model, training, population, fit
 
 
+def recording_interval(records, metric):
+    """Bootstrap whole recordings; frames and repeated styles are not new events."""
+    _, index = np.unique([row["recording_id"] for row in records], return_inverse=True)
+    values = np.asarray([row[metric] for row in records], float)
+    totals, counts = np.bincount(index, weights=values), np.bincount(index)
+    draws = np.random.default_rng(20261002).integers(
+        len(counts), size=(2000, len(counts))
+    )
+    means = totals[draws].sum(1) / counts[draws].sum(1)
+    return np.quantile(means, [0.025, 0.975]).tolist()
+
+
 def recording_ratio_interval(records, numerator, denominator):
     """Bootstrap recording totals, preserving actor-frame weighting of errors."""
     _, index = np.unique([row["recording_id"] for row in records], return_inverse=True)

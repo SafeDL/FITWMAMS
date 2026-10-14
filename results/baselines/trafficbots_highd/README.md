@@ -7,3 +7,5 @@
 `posterior_resimulation.json` 是单独的场景条件 posterior 诊断，不能当作 prior-only
 生成测试。方法和重跑方式见
 [`external_model_baselines/models/trafficbots/README.md`](../../../external_model_baselines/models/trafficbots/README.md)。
+
+当前共享缓存的 Test 排序已改变，旧 `audit.json` 的有序身份与之不匹配；保存的配对场景仍属于当前 Test。这里保留原协议对照，后续使用当前数据作方法比较时需重新评测并更新审计。

@@ -29,11 +29,8 @@ Multi-regime优于同推断预算的pooled基线，却仍严重欠覆盖。测�
 python -m external_model_baselines.evaluation.driver_reproduction.scripts.run_matched_evaluation
 python -m external_model_baselines.evaluation.driver_reproduction.scripts.build_scorecard
 
-# 查看主项目允许接入的driver及证据状态
-python -m hierarchical_world_model.scripts.stochastic_drivers inventory
-
 # 回归测试
-pytest -q external_model_baselines/evaluation/driver_reproduction/tests hierarchical_world_model/tests/test_stochastic_drivers.py \
+pytest -q external_model_baselines/evaluation/driver_reproduction/tests \
   external_model_baselines/models/active_inference_driver/tests external_model_baselines/models/bayesian_ma_idm/tests external_model_baselines/models/dynamic_ar_idm/tests \
   external_model_baselines/models/multi_regime_bidm/tests external_model_baselines/evaluation/counterfactual_response/tests
 ```

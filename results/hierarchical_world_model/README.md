@@ -23,6 +23,8 @@
 
 `short_horizon/` 为 5.96 秒，`continuous_runs/` 为 120 秒。各自的 `statistics.npz`、`runs.json`、`events.csv` 和 `protocol.json` 保存可复算统计及执行记录，不再保留逐路段分片。
 
+长时序共 1,920 次运行，累计 64 小时仿真；真实参照为每段录像第 60～180 秒的两个方向，合计 4 个道路方向小时，对应 2 小时不重复的录像观测。每个真实道路片段重复模拟 16 次。
+
 事实评测的 `scene_metrics.csv`、`error_samples.npz` 保存逐场景指标与误差样本，`execution.json` 保存分批执行记录。完整指标与核验状态以报告为准，不在 README 重复抄写。
 
 训练与标定输入见[共享数据](../highd_shared_training_data/README.md)，入口见[代码说明](../../hierarchical_world_model/README.md)。历史试验和清理备份位于 [archive/hierarchical_world_model/](../../archive/hierarchical_world_model/)。

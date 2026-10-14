@@ -30,7 +30,6 @@ from .constraints import (
     constraint_to_model_coordinates,
     extract_constraint_for_segment,
 )
-from .dimensions import fit_dimension_contract
 from .transforms import (
     feature_transform_kinds,
     transform_features_for_model,
@@ -323,9 +322,10 @@ def build_scenario_dataset(
         metadata, dict(config["dataset_split"])
     )
     dimensions_array = np.stack(vehicle_dimensions).astype(np.float32)
-    dimensions_contract = fit_dimension_contract(
-        dimensions_array, slot_mask, split_index
-    )
+    present = np.column_stack((np.ones(len(slot_mask), bool), slot_mask))
+    recorded_dimensions = dimensions_array[present]
+    if not np.isfinite(recorded_dimensions).all() or (recorded_dimensions <= 0).any():
+        raise ValueError("recorded vehicle dimensions must be finite and positive")
     trajectory_constraint_array = np.stack(trajectory_constraints).astype(np.float32)
     trajectory_constraint_valid_array = np.stack(trajectory_constraint_valids).astype(
         bool
@@ -406,7 +406,11 @@ def build_scenario_dataset(
         "model_feature_transforms": list(feature_transform_kinds(schema.feature_names)),
         "slot_names": list(SLOT_NAMES),
         "probability_factorization": "p(M) p(C0|M) p(K|C0,M)",
-        "vehicle_dimensions": dimensions_contract,
+        "vehicle_dimensions": {
+            "shape_per_sequence": [7, 2],
+            "feature_names": ["length_m", "width_m"],
+            "units": "m",
+        },
         "long_horizon_constraint": {
             "shape_per_sequence": [6, len(KNOT_FEATURE_NAMES)],
             "feature_names": list(KNOT_FEATURE_NAMES),

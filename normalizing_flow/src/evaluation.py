@@ -20,7 +20,6 @@ from tools.plot_style import (
 
 from .constraints import KNOT_FEATURE_NAMES, KNOT_TIMES_S
 from .data import dataset_dir_from_config, evt_tail_indices, output_dir_from_config
-from .dimensions import dimensions_valid
 from .features import SLOT_NAMES, feature_index, feature_valid_from_slot_mask
 from .metrics import physical_validity_flags
 from .scenario import (
@@ -106,8 +105,12 @@ def _k_metrics(arrays, rows, sample):
 
 def _dimension_metrics(arrays, rows, sample):
     real = np.asarray(arrays["vehicle_dimensions"])[rows]
-    real_valid = dimensions_valid(np.asarray(arrays["slot_mask"])[rows])[..., 0]
-    generated_valid = dimensions_valid(sample.slot_mask)[..., 0]
+    real_valid = np.column_stack(
+        (np.ones(len(rows), bool), np.asarray(arrays["slot_mask"])[rows])
+    )
+    generated_valid = np.column_stack(
+        (np.ones(len(sample.slot_mask), bool), sample.slot_mask)
+    )
     metrics = []
     for agent, name in enumerate(("ego", *SLOT_NAMES)):
         for feature, label in enumerate(("length_m", "width_m")):

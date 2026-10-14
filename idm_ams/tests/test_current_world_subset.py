@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from hierarchical_world_model.src.randomness import WorldExogenousState
@@ -9,6 +11,7 @@ from idm_ams.src.metrics import collision_and_min_gap
 from idm_ams.src.world_evaluator import WorldEvaluation
 from idm_ams.src.world_subset_simulation import run_world_subset_simulation
 from idm_ams.src.world_subset_simulation import _mutated_world
+from tools.idm_ego import IDM_PARAMETER_KEYS, load_idm_ego_config
 
 
 def test_actual_length_changes_collision_and_clearance() -> None:
@@ -33,6 +36,15 @@ def test_idm_policy_is_a_highway_env_marker() -> None:
         "target_speed": 30.0,
         "COMFORT_ACC_MAX": 3.0,
     }
+
+
+def test_shared_idm_config_contains_only_executed_parameters() -> None:
+    path = Path(__file__).resolve().parents[2] / "tools/idm_ego.yaml"
+    values = load_idm_ego_config(path)
+    assert set(values) == {"target_speed", "enable_lane_change", *IDM_PARAMETER_KEYS}
+    assert HighwayEnvIDMPolicy.from_dict(values).highway_env_idm_config == values
+    assert values["target_speed"] == 40.0
+    assert values["enable_lane_change"] is False
 
 
 def test_current_world_subset_uses_explicit_world_blocks() -> None:

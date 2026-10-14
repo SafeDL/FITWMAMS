@@ -11,6 +11,8 @@ shared speed/gap calibration support; future response outcomes are not used.
 The initial leader/follower speeds are 15.69/16.84 m/s and the bumper gap is
 22.64 m.
 
+这是外部驾驶模型的历史协议，不是当前世界模型的 NPC 验证。`55398` 仅标识当时的缓存行，不能用于索引当前共享数据。复算直接读取 `response_ensembles.npz` 中原样保存的 `highd_logged_*` 输入轨迹，结果口径保持不变。
+
 For every posterior draw, the model first produces a no-intervention follower
 action plan against the logged leader controls. At each brake dose, both
 displayed branches then receive the identical logged-control-plus-brake leader:

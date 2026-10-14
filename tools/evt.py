@@ -181,54 +181,6 @@ def return_level_from_params(
     return float(u + excess)
 
 
-def gpd_conditional_survival(
-    y: float,
-    *,
-    u: float,
-    xi: float,
-    beta: float,
-) -> float:
-    """Return P(X > y | X > u) under a fitted GPD POT tail."""
-    y_value = float(y)
-    u_value = float(u)
-    if y_value <= u_value:
-        return 1.0
-    excess = y_value - u_value
-    beta_value = max(float(beta), 1.0e-12)
-    xi_value = float(xi)
-    if abs(xi_value) < 1.0e-8:
-        return float(math.exp(-excess / beta_value))
-    support = 1.0 + xi_value * excess / beta_value
-    if support <= 0.0:
-        return 0.0
-    return float(support ** (-1.0 / xi_value))
-
-
-def return_level_for_tail_exposure(
-    *,
-    expected_tail_exceedances: float,
-    u: float,
-    xi: float,
-    beta: float,
-) -> float:
-    """Return level for a distance with expected POT exceedance count."""
-    expected = float(expected_tail_exceedances)
-    if expected <= 1.0:
-        return float(u)
-    conditional_survival = 1.0 / expected
-    beta_value = max(float(beta), 1.0e-12)
-    xi_value = float(xi)
-    if abs(xi_value) < 1.0e-8:
-        excess = -beta_value * math.log(conditional_survival)
-    else:
-        excess = (
-            beta_value
-            / xi_value
-            * (conditional_survival ** (-xi_value) - 1.0)
-        )
-    return float(float(u) + max(excess, 0.0))
-
-
 def event_return_level(
     values: np.ndarray,
     *,

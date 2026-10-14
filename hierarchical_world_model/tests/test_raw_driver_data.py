@@ -9,7 +9,6 @@ from hierarchical_world_model.src.stochastic_drivers.raw_data import (
     canonical_lateral,
     extract_complete_events,
     lane_labels,
-    lane_side_data,
     nearest_neighbors,
     recording_splits,
 )
@@ -212,29 +211,3 @@ def test_direction_two_mirroring_matches_world_lateral_actions():
     assert events.iloc[0].direction == -1
     assert events.iloc[0].target_y_m < events.iloc[0].source_y_m
     assert states[len(states) // 2, 2] < 0
-
-
-def test_mobil_compact_neighbors_include_old_and_new_follower_benefits():
-    data = {
-        "recording": np.array([1]),
-        "vehicle": np.array([3]),
-        "frame": np.array([50]),
-        "own_speed": np.array([20.0]),
-        "own_length": np.array([4.0]),
-        "current_front_gap": np.array([20.0]),
-        "current_front_speed": np.array([18.0]),
-        "current_rear_gap": np.array([10.0]),
-        "current_rear_speed": np.array([22.0]),
-        "target_front_gap": np.array([[50.0, 1e6]]),
-        "target_front_speed": np.array([[22.0, 20.0]]),
-        "target_rear_gap": np.array([[25.0, 1e6]]),
-        "target_rear_speed": np.array([[21.0, 20.0]]),
-        "available": np.array([[True, False]]),
-        "side_label": np.array([[True, False]]),
-        "features": np.zeros((1, 2, 8)),
-    }
-    values = lane_side_data(data, np.array([33, 2, 1.3, 1.2, 2]))
-    assert len(values["frame"]) == 1
-    assert values["side"][0] == -1
-    assert values["label"][0]
-    assert values["mobil_social"][0] != values["mobil_own"][0]

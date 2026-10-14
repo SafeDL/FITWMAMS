@@ -3,9 +3,18 @@ import numpy as np
 from hierarchical_world_model.src.randomness import WORLD_RANDOM_BLOCKS
 from hierarchical_world_model.src.shared_evaluation import (
     factual_records,
+    recording_interval,
     scene_randomness,
     summarize_records,
 )
+
+
+def test_recording_bootstrap_keeps_constant_scene_error():
+    rows = [
+        {"recording_id": index // 2, "error": 0.25}
+        for index in range(4)
+    ]
+    np.testing.assert_allclose(recording_interval(rows, "error"), [0.25, 0.25])
 
 
 def test_world_randomness_is_stable_across_batches_and_order():

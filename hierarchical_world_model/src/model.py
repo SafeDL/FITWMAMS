@@ -56,7 +56,6 @@ class ResponseDistribution:
     intervention_trigger: torch.Tensor
     intervention_memory: torch.Tensor
     lateral_intervention_memory: torch.Tensor
-    scene_refreshed: bool
     observation_tokens: torch.Tensor
 
 
@@ -188,11 +187,9 @@ class CoordinatedJerkDecoder(nn.Module):
         response_gain = cfg.causal_response_min_gain + torch.sigmoid(
             self.response_gain(gain_features)
         ).squeeze(-1) * (cfg.causal_response_max_gain - cfg.causal_response_min_gain)
-        # The released decoder historically contains this explicit
-        # ego-acceleration actuator in addition to its learned nominal action
-        # head.  Controller-mode rollouts request the latter as their base
-        # action and apply exactly one post-HIQR controller afterwards.  Keep
-        # the default intact for checkpoint-compatible direct model calls.
+        # This learned response to realized ego acceleration is part of HiQR.
+        # The online controller adjusts the resulting action when interaction
+        # requires it; it does not disable this trained response head.
         causal_longitudinal = (
             cfg.causal_response_scale
             * response_gain
@@ -764,7 +761,6 @@ class FactualDynamicsModel(nn.Module):
             intervention_trigger=intervention_trigger,
             intervention_memory=intervention_memory,
             lateral_intervention_memory=lateral_intervention_memory,
-            scene_refreshed=refresh,
             observation_tokens=agents,
         )
 

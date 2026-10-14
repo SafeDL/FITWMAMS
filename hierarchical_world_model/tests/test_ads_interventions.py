@@ -5,10 +5,8 @@ import pytest
 import torch
 
 from hierarchical_world_model.src.ads_interventions import (
-    AbsoluteAccelerationPolicy,
     OnlineAccelerationWindowPolicy,
     OnlineSemanticLaneChangePolicy,
-    SemanticLaneChangePolicy,
 )
 from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
 
@@ -25,17 +23,6 @@ def _context(states: torch.Tensor, frame: int) -> dict[str, torch.Tensor | int]:
         "agent_valid": torch.ones(1, 7, dtype=torch.bool),
         "reference_index": frame,
     }
-
-
-def test_absolute_acceleration_policy_uses_physical_setpoint_not_delta() -> None:
-    baseline = np.zeros((1, 149, 2), np.float32)
-    baseline[..., 0] = 1.25
-    policy = AbsoluteAccelerationPolicy(baseline, acceleration_mps2=-8.0)
-    states = torch.from_numpy(_initial())
-    assert policy(_context(states, 24))[0, 0].item() == pytest.approx(1.25)
-    assert policy(_context(states, 25))[0, 0].item() == pytest.approx(-8.0)
-    assert policy(_context(states, 49))[0, 0].item() == pytest.approx(-8.0)
-    assert policy(_context(states, 50))[0, 0].item() == pytest.approx(1.25)
 
 
 def test_online_lane_policy_keeps_batched_target_centers_one_dimensional() -> None:
@@ -56,85 +43,6 @@ def test_online_lane_policy_keeps_batched_target_centers_one_dimensional() -> No
     assert action.shape == (3, 2)
     assert policy.target_y.shape == (3,)
     assert (action[:, 1] > 0.0).all()
-
-
-def test_absolute_acceleration_policy_rejects_out_of_range_setpoint() -> None:
-    with pytest.raises(ValueError, match="outside physical bounds"):
-        AbsoluteAccelerationPolicy(
-            np.zeros((1, 149, 2), np.float32), acceleration_mps2=-8.01
-        )
-
-
-@pytest.mark.parametrize("speed_mps", [5.0, 10.0, 25.0, 40.0])
-def test_semantic_lane_change_reaches_target_and_settles(speed_mps: float) -> None:
-    baseline = np.zeros((1, 149, 2), np.float32)
-    initial = _initial(speed_mps)
-    policy = SemanticLaneChangePolicy(baseline, initial, direction="left")
-    states = torch.from_numpy(initial)
-    valid = torch.zeros(1, 7, dtype=torch.bool)
-    valid[:, 0] = True
-    dynamics = KinematicTrafficDynamics()
-    generated = []
-    actions = []
-    for frame in range(149):
-        action = policy(_context(states, frame))
-        controls = torch.zeros(1, 7, 2)
-        controls[:, 0] = action
-        states = dynamics.step(states, controls, valid, 0.04)
-        generated.append(states.numpy())
-        actions.append(action.numpy())
-    rollout = np.stack(generated, axis=1)
-    controls = np.stack(actions, axis=1)
-    diagnostics = policy.diagnostics(rollout)
-    assert diagnostics["completed"][0]
-    assert abs(diagnostics["final_lateral_error_m"][0]) <= 0.15
-    assert abs(diagnostics["final_heading_error_rad"][0]) <= 0.02
-    assert diagnostics["maximum_target_overshoot_m"][0] < 0.15
-    assert np.abs(controls[..., 1]).max() <= 0.35 + 1.0e-6
-
-
-def test_semantic_lane_change_has_no_lateral_command_before_start() -> None:
-    baseline = np.zeros((1, 149, 2), np.float32)
-    policy = SemanticLaneChangePolicy(baseline, _initial(), start_frame=25)
-    action = policy(_context(torch.from_numpy(_initial()), 24))
-    assert action[0, 1].item() == 0.0
-
-
-def test_semantic_lane_change_targets_actual_mapped_centre() -> None:
-    baseline = np.zeros((1, 149, 2), np.float32)
-    initial = _initial()
-    initial[0, 0, 1] = 0.2
-    lanes = np.zeros((1, 2, 8, 6), np.float32)
-    lanes[:, 0, :, 1] = 1.1
-    lanes[:, 1, :, 1] = 5.0
-    lane_valid = np.ones((1, 2, 8), bool)
-    policy = SemanticLaneChangePolicy(
-        baseline,
-        initial,
-        map_polylines=lanes,
-        map_polyline_valid=lane_valid,
-        direction="left",
-    )
-    assert policy.source_y[0] == pytest.approx(1.1)
-    assert policy.target_y[0] == pytest.approx(5.0)
-
-
-def test_semantic_right_change_rejects_opposite_carriageway() -> None:
-    initial = _initial()
-    initial[0, 0, 1] = 9.675
-    centers = (-8.43, -4.325, -0.22, 9.675, 13.735, 17.8)
-    widths = (4.32, 3.89, 4.32, 4.23, 3.89, 4.24)
-    lanes = np.zeros((1, len(centers), 4, 6), np.float32)
-    lanes[0, :, :, 1] = np.asarray(centers)[:, None]
-    lanes[0, :, :, 4] = np.asarray(widths)[:, None]
-    with pytest.raises(ValueError, match="no mapped target lane"):
-        SemanticLaneChangePolicy(
-            np.zeros((1, 149, 2), np.float32),
-            initial,
-            map_polylines=lanes,
-            map_polyline_valid=np.ones(lanes.shape[:3], bool),
-            direction="right",
-        )
 
 
 def test_online_acceleration_window_uses_current_policy_without_trace() -> None:

@@ -40,7 +40,7 @@ class Scenario:
     # among supported ego-led events, row 55398 is nearest the shared calibrated
     # speed/gap support of the four retained driver models.  No future response
     # outcome is used in this selection.
-    anchor_row: int = 55398
+    anchor_row: int = 55398  # Historical evidence identity, not a current-cache index.
     anchor_index: int = 24
     leader_slot: int = 0
     follower_slot: int = 2
@@ -95,51 +95,31 @@ def select_common_support_anchor_row(
 
 
 def load_highd_anchor(scenario: Scenario) -> HighDAnchor:
-    """Load the immutable highD validation event for this counterfactual probe."""
-    cache = ROOT / "results/highd_shared_training_data/highd_sequence_cache/sequence_cache"
-    states = np.load(cache / "agent_states.npy", mmap_mode="r", allow_pickle=False)
-    valid = np.load(cache / "agent_valid.npy", mmap_mode="r", allow_pickle=False)
-    stop = scenario.anchor_index + scenario.frames
-    if stop > states.shape[1]:
-        raise ValueError("requested response horizon exceeds the canonical highD row")
-    pair_valid = np.asarray(
-        valid[scenario.anchor_row, scenario.anchor_index:stop, [scenario.leader_slot, scenario.follower_slot]],
-        bool,
-    )
-    if not pair_valid.all():
-        raise ValueError("highD anchor leader/follower is not valid for the complete horizon")
-    window = np.asarray(states[scenario.anchor_row, scenario.anchor_index:stop], float)
-    leader = window[:, scenario.leader_slot]
-    follower = window[:, scenario.follower_slot]
-    evidence = (
-        ROOT
-        / "external_model_baselines/evaluation/counterfactual_response/evidence/"
-        "reaction_events/validation/reaction_events.npz"
-    )
-    with np.load(evidence, allow_pickle=False) as events:
-        match = np.flatnonzero(events["row_index"] == scenario.anchor_row)
-        if len(match) != 1:
-            raise ValueError("anchor row must identify exactly one frozen reaction event")
-        event = int(match[0])
-        if int(events["leader_slot"][event]) != scenario.leader_slot or int(events["follower_slot"][event]) != scenario.follower_slot:
-            raise ValueError("configured leader/follower slots disagree with reaction evidence")
-        recording_id = int(events["recording_id"][event])
-        leader_id = int(events["leader_id"][event])
-        follower_id = int(events["follower_id"][event])
-    leader_x = leader[:, 0] - follower[0, 0]
-    follower_x = follower[:, 0] - follower[0, 0]
-    gap = leader_x - follower_x - scenario.vehicle_length_m
+    """Load this historical probe's frozen input, independent of current row order."""
+    artifacts = Path(__file__).resolve().parent / "artifacts"
+    report = json.loads((artifacts / "response_metrics.json").read_text())
+    for name in ("anchor_row", "anchor_index", "leader_slot", "follower_slot", "dt_s"):
+        if getattr(scenario, name) != report["scenario"][name]:
+            raise ValueError(f"{name} differs from the frozen external-model probe")
+    identity = report["highd_anchor"]
+    with np.load(artifacts / "response_ensembles.npz", allow_pickle=False) as saved:
+        fields = {
+            name: saved["highd_logged_" + name.removeprefix("logged_")][
+                : scenario.frames
+            ].copy()
+            for name in (
+                "leader_x", "leader_v", "follower_x",
+                "follower_v", "follower_a", "logged_gap",
+            )
+        }
+    if any(values.shape != (scenario.frames,) for values in fields.values()):
+        raise ValueError("requested horizon exceeds the frozen highD probe")
     return HighDAnchor(
-        row=scenario.anchor_row,
-        recording_id=recording_id,
-        leader_id=leader_id,
-        follower_id=follower_id,
-        leader_x=leader_x,
-        leader_v=leader[:, 2].copy(),
-        follower_x=follower_x,
-        follower_v=follower[:, 2].copy(),
-        follower_a=follower[:, 4].copy(),
-        logged_gap=gap,
+        row=identity["row"],
+        recording_id=identity["recording_id"],
+        leader_id=identity["leader_id"],
+        follower_id=identity["follower_id"],
+        **fields,
     )
 
 
@@ -472,7 +452,7 @@ def run_experiment(output_dir: str | Path, *, scenario: Scenario = Scenario(), f
             "initial_leader_speed_mps": float(anchor.leader_v[0]),
             "initial_follower_speed_mps": float(anchor.follower_v[0]),
             "initial_gap_m": float(anchor.logged_gap[0]),
-            "source": "canonical highD row and frozen CIH-WM reaction-event evidence",
+            "source": "frozen highD input traces in the external-model probe artifacts; historical validation split",
             "selection": (
                 "supported ego-led validation event nearest shared model speed/gap support using "
                 "pre-intervention state only; future response outcomes were not used"

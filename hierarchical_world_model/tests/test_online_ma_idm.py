@@ -13,9 +13,6 @@ from hierarchical_world_model.src.influence_graph import (
     build_dynamic_interaction_relations,
 )
 from hierarchical_world_model.src.reference import planned_lateral_position_at_x
-from hierarchical_world_model.src.stochastic_drivers.lane_choice import (
-    lane_change_clearance,
-)
 from hierarchical_world_model.src.stochastic_drivers.lane_trajectory import (
     LearnedLaneTrajectory,
     path_clearance,
@@ -351,37 +348,6 @@ def test_completed_lane_motion_bound_preserves_training_gradients() -> None:
     output.actions.square().sum().backward()
     assert torch.isfinite(current.grad).all()
     assert current.grad[0, 1, 5].abs() > 0
-
-
-def test_learned_lane_clearance_checks_entry_time_not_source_lane_departure() -> None:
-    context = _autonomous_lane_context(block_left=True)
-    current = context.current.clone()
-    current[0, 3, 0] = 2.0
-    current[0, 3, 2] = 30.0
-    valid = context.current_valid
-    relation = build_dynamic_interaction_relations(
-        current,
-        valid,
-        context.map_polylines,
-        context.map_polyline_valid,
-    )
-    old = lane_change_clearance(
-        current,
-        valid,
-        context.map_polylines,
-        context.map_polyline_valid,
-        relation,
-    )
-    onset = lane_change_clearance(
-        current,
-        valid,
-        context.map_polylines,
-        context.map_polyline_valid,
-        relation,
-        times_s=(2.5, 3.0, 4.0),
-    )
-    assert not old[0, 0, 0]
-    assert onset[0, 0, 0]
 
 
 def test_gradual_collision_preview_allows_alongside_car_that_pulls_away() -> None:

@@ -879,14 +879,14 @@ def paired_objective_se(first, second, weights):
     return float(difference.std(ddof=1))
 
 
-def refinement_points(center, bounds, round_index):
+def refinement_points(center, bounds, round_index, count):
     half_width = np.diff(bounds, axis=1)[:, 0] / (4 * 2**round_index)
     lower, upper = np.maximum(bounds[:, 0], center - half_width), np.minimum(
         bounds[:, 1], center + half_width
     )
     points = qmc.Sobol(
         len(center), scramble=True, seed=SEED + 10 + round_index
-    ).random_base2(3)
+    ).random(count)
     points = lower + points * (upper - lower)
     points[0] = center
     if len(center) == 16:
@@ -924,6 +924,11 @@ def run_search(output, population, mobil, settings):
         "lateral_protocol": load_json(DRIVER_DATA_DIR / "lateral_protocol.json"),
     }
     budget, weights = settings["search"], settings["search"]["objective_weights"]
+    round_sizes = (budget["initial_candidates"],) + (
+        budget["local_candidates_per_round"],
+    ) * budget["refinement_rounds"]
+    if sum(round_sizes) != budget["candidates_per_arm"]:
+        raise ValueError("candidate round sizes must sum to candidates_per_arm")
     fit_splits = ("train",)
     recordings = sorted(
         rec for split in fit_splits for rec in raw["split_recordings"][split]
@@ -1039,7 +1044,9 @@ def run_search(output, population, mobil, settings):
                 fit,
                 settings,
                 budget["val_repeats"] if long_validation else budget["train_repeats"],
-                120,
+                budget["val_duration_s"]
+                if long_validation
+                else budget["train_duration_s"],
                 executor=executor,
             )
             record = {
@@ -1091,19 +1098,19 @@ def run_search(output, population, mobil, settings):
                     key=lambda name: records[name]["score"],
                 )
                 center = np.asarray(records[best]["coordinates"])
-            points = qmc.Sobol(dimension, scramble=True, seed=SEED).random_base2(4)
+            points = qmc.Sobol(dimension, scramble=True, seed=SEED).random(round_sizes[0])
             points = (
                 bounds[:dimension, 0]
                 + points * np.diff(bounds[:dimension], axis=1).ravel()
             )
             points[0] = center[:dimension]
             names = []
-            for round_index in range(3):
+            for round_index, count in enumerate(round_sizes):
                 if round_index:
                     best = min(names, key=lambda name: records[name]["score"])
                     center = np.asarray(records[best]["coordinates"])
                     points = refinement_points(
-                        center[:dimension], bounds[:dimension], round_index - 1
+                        center[:dimension], bounds[:dimension], round_index - 1, count
                     )
                 for index, point in enumerate(points):
                     vector = origin.copy()
@@ -1122,7 +1129,7 @@ def run_search(output, population, mobil, settings):
         shortlist = [
             "local",
             *[name for group in arms.values() for name in group["shortlist"]],
-        ]
+        ][: budget["finalists"]]
         validations, arrays = {}, {}
         for name in ["reference", *shortlist]:
             record = records[name]

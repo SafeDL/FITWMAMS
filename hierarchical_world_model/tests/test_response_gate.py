@@ -15,7 +15,6 @@ from hierarchical_world_model.src.response_gate import (
     ResponseGateDecision,
     RESPONSE_GATE_FEATURE_DIM,
     ATTENTION_RESPONSE_FEATURE_DIM,
-    apply_response_gate,
     response_gate_features,
 )
 
@@ -36,25 +35,6 @@ def test_response_gate_shapes_and_bounds() -> None:
     assert result.logits.shape == (2, 6, 3)
     assert result.mode.shape == (2, 6)
     assert bool(((result.gate >= 0.0) & (result.gate <= 1.0)).all())
-
-
-def test_track_mode_preserves_hiqr_exactly() -> None:
-    base = torch.randn(1, 3, 2)
-    rule = torch.randn(1, 3, 2)
-    actions, active = apply_response_gate(base, rule, _decision(MODE_TRACK, 1.0))
-    torch.testing.assert_close(actions, base)
-    assert not active.any()
-
-
-def test_longitudinal_gate_blends_acceleration_but_not_yaw() -> None:
-    base = torch.zeros(1, 3, 2)
-    rule = torch.tensor(((-4.0, 0.3), (-2.0, -0.2), (2.0, 0.1)))[None]
-    actions, active = apply_response_gate(
-        base, rule, _decision(MODE_LONGITUDINAL, 0.25)
-    )
-    torch.testing.assert_close(actions[..., 0], 0.25 * rule[..., 0])
-    torch.testing.assert_close(actions[..., 1], base[..., 1])
-    assert active.all()
 
 
 @pytest.mark.parametrize("mode", [MODE_LONGITUDINAL, MODE_MANEUVER])
@@ -87,37 +67,6 @@ def test_online_authority_blends_bounded_idm_as_in_training(mode):
     output = OnlineMAIDMController(theta, response_gate=gate)(context)
     torch.testing.assert_close(output.actions[0, 0, 0, 0], torch.tensor(-0.4))
     torch.testing.assert_close(output.actions[..., 1], context.base_actions[..., 1])
-
-
-def test_maneuver_mode_keeps_discrete_lateral_candidate() -> None:
-    base = torch.zeros(1, 3, 2)
-    rule = torch.tensor(((-4.0, 0.3), (-2.0, -0.2), (2.0, 0.1)))[None]
-    actions, _ = apply_response_gate(base, rule, _decision(MODE_MANEUVER, 0.5))
-    torch.testing.assert_close(actions[..., 0], 0.5 * rule[..., 0])
-    torch.testing.assert_close(actions[..., 1], rule[..., 1])
-
-
-@pytest.mark.parametrize("mode", [MODE_TRACK, MODE_LONGITUDINAL, MODE_MANEUVER])
-def test_rollout_gradient_trains_mode_without_softening_executed_actions(mode):
-    logits = torch.tensor([[0.2, 0.3, 0.4]], requires_grad=True)
-    gate = torch.tensor([0.5], requires_grad=True)
-    decision = ResponseGateDecision(logits, torch.tensor([mode]), gate)
-    base = torch.tensor([[1.0, 0.1]])
-    rule = torch.tensor([[-3.0, -0.2]])
-    actions, _ = apply_response_gate(base, rule, decision)
-    expected = base.clone()
-    if mode != MODE_TRACK:
-        expected[:, 0] = -1
-    if mode == MODE_MANEUVER:
-        expected[:, 1] = rule[:, 1]
-    assert torch.equal(actions, expected)
-    with torch.no_grad():
-        executed, _ = apply_response_gate(base, rule, decision)
-    assert torch.equal(executed, actions)
-    actions[:, 0].sum().backward()
-    assert logits.grad.norm() > 0
-    assert torch.isfinite(logits.grad).all()
-    assert gate.grad.item() == (0 if mode == MODE_TRACK else -4)
 
 
 def test_longitudinal_gradient_does_not_identify_lateral_permission():

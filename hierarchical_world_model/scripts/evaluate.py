@@ -20,9 +20,6 @@ from hierarchical_world_model.src.data import (
     artifact_identity,
     event_metadata,
 )
-from hierarchical_world_model.src.npc_experiments.lane_execution import (
-    recording_interval,
-)
 from hierarchical_world_model.src.planner import frozen_diffusion_plans
 from hierarchical_world_model.src.config import load_protocol_config
 from hierarchical_world_model.src.composition import load_selected_components
@@ -31,6 +28,7 @@ from hierarchical_world_model.src.shared_evaluation import (
     factual_records,
     highway_rollout,
     load_shared_components,
+    recording_interval,
     recording_ratio_interval,
     scene_randomness,
     save_error_samples,

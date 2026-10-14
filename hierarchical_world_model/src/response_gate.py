@@ -274,33 +274,3 @@ class ResponseGate(nn.Module):
         )
         model.load_state_dict(payload["state_dict"])
         return model.to(device).eval()
-
-
-def apply_response_gate(
-    base_actions: torch.Tensor,
-    rule_actions: torch.Tensor,
-    decision: ResponseGateDecision,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Apply continuous longitudinal authority and discrete lateral modes."""
-    if base_actions.shape != rule_actions.shape or base_actions.shape[-1] != 2:
-        raise ValueError("base and rule actions must have matching [...,2] shapes")
-    mode = decision.mode
-    longitudinal_candidate = base_actions.clone()
-    longitudinal_candidate[..., 0] = rule_actions[..., 0]
-    selected = torch.where(
-        mode[..., None].eq(MODE_MANEUVER),
-        rule_actions,
-        torch.where(
-            mode[..., None].eq(MODE_LONGITUDINAL),
-            longitudinal_candidate,
-            base_actions,
-        ),
-    )
-    # Lateral alternatives are categorical and are never averaged.  The
-    # continuous gate controls only the magnitude of longitudinal departure.
-    result = selected.clone()
-    result[..., 0] = base_actions[..., 0] + decision.longitudinal_authority() * (
-        rule_actions[..., 0] - base_actions[..., 0]
-    )
-    active = mode.ne(MODE_TRACK) & ((result - base_actions).abs().amax(dim=-1) > 1.0e-5)
-    return result, active

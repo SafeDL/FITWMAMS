@@ -15,7 +15,6 @@ from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.lane_utils import parse_lane_markings
 from process_highD.src.preprocess import prepare_recording
 
-from .idm_population import idm_acceleration
 from .driver_policy import physical_leader_observation
 from ..npc_experiments.lateral import (
     EVENT_FIELDS,
@@ -796,63 +795,6 @@ def load_following(output=DRIVER_DATA_DIR, splits=SPLITS, *, group="follow"):
 
 def load_lane_opportunities(output=DRIVER_DATA_DIR, splits=SPLITS):
     return load_group(output, "lane", splits)
-
-
-def lane_side_data(data, theta, safe_braking_mps2=4):
-    """Recompute exact physical-neighbor MOBIL incentives after each IDM refit."""
-    speed = data["own_speed"]
-    length = data["own_length"]
-    current = idm_acceleration(
-        data["current_front_gap"], speed, data["current_front_speed"], theta
-    )
-    own_after = idm_acceleration(
-        data["target_front_gap"], speed[:, None], data["target_front_speed"], theta
-    )
-    rear_after = idm_acceleration(
-        data["target_rear_gap"], data["target_rear_speed"], speed[:, None], theta
-    )
-    rear_before = idm_acceleration(
-        data["target_rear_gap"] + length[:, None] + data["target_front_gap"],
-        data["target_rear_speed"],
-        data["target_front_speed"],
-        theta,
-    )
-    target_rear_exists = data["target_rear_gap"] < 1e6
-    old_before = idm_acceleration(
-        data["current_rear_gap"], data["current_rear_speed"], speed, theta
-    )
-    old_after = idm_acceleration(
-        data["current_rear_gap"] + length + data["current_front_gap"],
-        data["current_rear_speed"],
-        data["current_front_speed"],
-        theta,
-    )
-    old_delta = np.where(data["current_rear_gap"] < 1e6, old_after - old_before, 0)
-    own = own_after - current[:, None]
-    social = (
-        own
-        + np.where(target_rear_exists, rear_after - rear_before, 0)
-        + old_delta[:, None]
-    )
-    safe = data["available"] & (
-        ~target_rear_exists | (rear_after >= -safe_braking_mps2)
-    )
-    keep = data["available"]
-    result = {
-        key: np.broadcast_to(data[key][:, None], keep.shape)[keep]
-        for key in ("recording", "vehicle", "frame")
-    }
-    result.update(
-        {
-            "features": data["features"][keep],
-            "label": data["side_label"][keep],
-            "mobil_own": own[keep].astype(np.float32),
-            "mobil_social": social[keep].astype(np.float32),
-            "mobil_safe": safe[keep],
-            "side": np.broadcast_to(np.array([-1, 1]), keep.shape)[keep],
-        }
-    )
-    return result
 
 
 def load_lane_events(output=DRIVER_DATA_DIR, splits=SPLITS):

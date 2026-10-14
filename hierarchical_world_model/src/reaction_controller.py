@@ -50,7 +50,6 @@ class ReactionControllerContext:
     # is causal actuator state, never a preview of the action about to run.
     previous_background_actions: torch.Tensor | None = None
     reaction_phase: torch.Tensor | None = None
-    reaction_age_frames: torch.Tensor | None = None
     reaction_max_frames: int = 1
     reaction_safety_ttc_s: float = 2.0
     # A release threshold, not an action-window duration.  While the
@@ -58,7 +57,6 @@ class ReactionControllerContext:
     # controller retains authority irrespective of how long the ADS command
     # itself lasted.
     reaction_release_ttc_s: float = 4.0
-    reaction_recovery_remaining: torch.Tensor | None = None
     reaction_recovery_frames: int = 1
     influence_authority: torch.Tensor | None = None
     influence_role: torch.Tensor | None = None
@@ -94,14 +92,10 @@ class ReactionControllerOutput:
     active: torch.Tensor
     rule_action_ax: torch.Tensor | None = None
     desired_action_ax: torch.Tensor | None = None
-    causal_delta_ax: torch.Tensor | None = None
     policy_active: torch.Tensor | None = None
     spatial_path_active: torch.Tensor | None = None
     autonomous_lane_active: torch.Tensor | None = None
     autonomous_lane_initial_active: torch.Tensor | None = None
-    data_driver_active: torch.Tensor | None = None
-    execution_active: torch.Tensor | None = None
-    release_active: torch.Tensor | None = None
     mobil_incentive_mps2: torch.Tensor | None = None
     mobil_selected_side: torch.Tensor | None = None
     response_mode: torch.Tensor | None = None

@@ -2053,26 +2053,14 @@ class OnlineMAIDMController(ReactionController):
             active=overall_active,
             rule_action_ax=idm,
             desired_action_ax=actions[:, 0, :, 0],
-            causal_delta_ax=delta,
             policy_active=lane_repair | autonomous_lane,
             spatial_path_active=path_mode,
             autonomous_lane_active=autonomous_lane,
             autonomous_lane_initial_active=self._autonomous_lane_initial_active,
-            execution_active=(
-                None
-                if self._maneuver_phase is None
-                else self._maneuver_phase.eq(int(ManeuverPhase.EXECUTE))
-            ),
-            release_active=(
-                None
-                if self._maneuver_phase is None
-                else self._maneuver_phase.eq(int(ManeuverPhase.REBASE))
-            ),
             mobil_incentive_mps2=(None if mobil is None else mobil.incentive_mps2),
             mobil_selected_side=(None if mobil is None else mobil.best_side),
             response_mode=(None if gate_decision is None else gate_decision.mode),
             response_gate=(None if gate_decision is None else gate_decision.gate),
             response_gate_features=learned_gate_features,
-            data_driver_active=learned_driver_active,
             realized_leader_index=leader_index,
         )

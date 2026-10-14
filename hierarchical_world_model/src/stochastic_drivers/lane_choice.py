@@ -5,7 +5,6 @@ from __future__ import annotations
 import torch
 
 from ..influence_graph import DynamicInteractionRelations
-from ..scene_geometry import torch_map_lane_geometry
 
 LANE_CHOICE_FEATURE_NAMES = (
     "own_speed_mps",
@@ -69,44 +68,3 @@ def lane_choice_features(
         ),
         dim=-1,
     )
-
-
-def lane_change_clearance(
-    states: torch.Tensor,
-    valid: torch.Tensor,
-    map_polylines: torch.Tensor,
-    map_valid: torch.Tensor,
-    relation: DynamicInteractionRelations,
-    *,
-    times_s: tuple[float, ...] = (0.0, 1.5, 3.0),
-) -> torch.Tensor:
-    """Target-lane occupancy at specified future maneuver times."""
-    lane_y, lane_present, lane_width = torch_map_lane_geometry(map_polylines, map_valid)
-    target_index = relation.adjacent_lane_index[:, 1:]
-    safe_index = target_index.clamp_min(0)
-    target_y = torch.gather(lane_y[:, None].expand(-1, 6, -1), 2, safe_index)
-    target_width = torch.gather(lane_width[:, None].expand(-1, 6, -1), 2, safe_index)
-    npc = states[:, 1:]
-    other = states[:, None]
-    dx = other[..., 0] - npc[:, :, None, 0]
-    own = torch.arange(7, device=states.device)[None, None] == (
-        torch.arange(6, device=states.device)[None, :, None] + 1
-    )
-    clear = target_index.ge(0) & torch.gather(
-        lane_present[:, None].expand(-1, 6, -1), 2, safe_index
-    )
-    for time in times_s:
-        future_y = other[..., 1] + other[..., 3] * time
-        future_dx = dx + (other[..., 2] - npc[:, :, None, 2]) * time
-        occupied = (
-            valid[:, None, :, None]
-            & ~own[..., None]
-            & (
-                (future_y[..., None] - target_y[..., None, :]).abs()
-                < 0.5 * target_width[..., None, :]
-            )
-            & future_dx[..., None].gt(-18.0)
-            & future_dx[..., None].lt(12.0)
-        ).any(dim=2)
-        clear &= ~occupied
-    return clear
