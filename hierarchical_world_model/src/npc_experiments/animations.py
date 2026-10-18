@@ -381,7 +381,6 @@ def render_autonomous_examples(output):
         "controller": "Published persistent-driver IDM, conditional MOBIL and learned lane trajectory",
         "flow_used": False,
         "diffusion_used": False,
-        "HiQR_used": False,
         "ADS_intervention_used": False,
         "future_log_state_control_used": False,
         "movies": movies,

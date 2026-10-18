@@ -4,30 +4,28 @@ import numpy as np
 import torch
 
 from hierarchical_world_model.src.highway import HighwayEnvTraffic
-from hierarchical_world_model.src.model import (
-    FactualDynamicsModel,
-    HIGHD_INTEGRATION_SPEED_MAX_MPS,
-)
 from hierarchical_world_model.src.core.dynamics import (
+    HIGHD_INTEGRATION_SPEED_MAX_MPS,
     DynamicsConfig,
     KinematicTrafficDynamics,
 )
 
 
-def test_hiqr_plant_preserves_highd_speed_above_50_mps() -> None:
-    model = FactualDynamicsModel()
-    assert model.dynamics.cfg.speed_max_mps == HIGHD_INTEGRATION_SPEED_MAX_MPS
+def test_unicycle_plant_preserves_highd_speed_above_50_mps() -> None:
+    dynamics = KinematicTrafficDynamics(
+        DynamicsConfig(speed_max_mps=HIGHD_INTEGRATION_SPEED_MAX_MPS)
+    )
     state = torch.zeros((1, 7, 6), dtype=torch.float32)
     state[0, 1, 2] = 56.0
     control = torch.zeros((1, 7, 2), dtype=torch.float32)
     control[0, 1, 0] = 1.0
     valid = torch.zeros((1, 7), dtype=torch.bool)
     valid[0, 1] = True
-    advanced = model.dynamics.step(state, control, valid, 0.04)
+    advanced = dynamics.step(state, control, valid, 0.04)
     assert torch.isclose(advanced[0, 1, 2], torch.tensor(56.04), atol=1.0e-4)
 
 
-def test_highway_plant_matches_high_speed_hiqr_step() -> None:
+def test_highway_plant_matches_high_speed_unicycle_step() -> None:
     states = np.zeros((7, 6), np.float32)
     states[0, :3] = [0.0, 0.0, 56.0]
     states[1, :3] = [50.0, 3.6, 56.0]

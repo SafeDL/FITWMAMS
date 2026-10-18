@@ -92,7 +92,6 @@ results/highd_shared_training_data/**
 # Large per-event/per-run outputs; keep reports, protocols and summary tables
 results/evt/natural_segments.csv
 results/evt/event_bank/events.csv
-results/hierarchical_world_model/factual_test/scene_metrics.csv
 results/hierarchical_world_model/npc_response/autonomous_traffic/runs.csv
 results/hierarchical_world_model/npc_response/autonomous_traffic/*/events.csv
 results/hierarchical_world_model/npc_response/autonomous_traffic/*/runs.json
@@ -105,3 +104,7 @@ results/**/*.jpg
 results/**/*.jpeg
 results/**/*.mp4
 results/**/*.webm
+
+# Current bridge: regenerable execution caches and compact runtime bank.
+results/hierarchical_world_model/bridge/.cache/
+!results/hierarchical_world_model/model_assets/interaction_errors.npz

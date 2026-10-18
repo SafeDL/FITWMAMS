@@ -1,4 +1,4 @@
-"""Public sampling boundary for the hierarchical highD scenario density."""
+"""Feature normalization and joint loading for scenario Flow evaluation."""
 
 from __future__ import annotations
 
@@ -52,43 +52,3 @@ def load_checkpoint_and_dataset(
     model, payload = load_checkpoint(checkpoint, repo_root=repo_root, device=device)
     arrays, schema = load_scenario_dataset(output_dir)
     return model, arrays, schema, payload
-
-
-def sample_scenarios(
-    model,
-    n: int,
-    scenario_seed: int,
-):
-    """Sample the complete scenario condition used by trajectory diffusion."""
-    return model.sample_scenarios(int(n), int(scenario_seed))
-
-
-def sample_constraints(
-    model,
-    c0: np.ndarray,
-    slot_mask: np.ndarray,
-    vehicle_dimensions: np.ndarray,
-    n: int,
-    scenario_seed: int,
-):
-    """Sample multiple state constraints while holding an initial state fixed."""
-    return model.sample_constraints(
-        c0,
-        slot_mask,
-        vehicle_dimensions,
-        int(n),
-        int(scenario_seed),
-    )
-
-
-def sample_constraints_from_base_randomness(
-    model,
-    c0: np.ndarray,
-    slot_mask: np.ndarray,
-    k_base_latent: np.ndarray,
-    vehicle_dimensions: np.ndarray,
-):
-    """Sample conditional position knots from caller-owned Gaussian variables."""
-    return model.sample_constraints_from_base_randomness(
-        c0, slot_mask, k_base_latent, vehicle_dimensions
-    )

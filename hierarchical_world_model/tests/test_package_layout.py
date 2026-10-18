@@ -11,7 +11,6 @@ from hierarchical_world_model.src.core.utils import save_json
 from hierarchical_world_model.src.data import event_metadata
 from hierarchical_world_model.src.npc_experiments import (
     calibration,
-    factual_regression,
     road,
     search,
 )
@@ -30,13 +29,12 @@ def test_public_exports_are_unique_and_resolve_to_the_maintained_components():
         assert len(package.__all__) == len(set(package.__all__))
         for name in package.__all__:
             assert getattr(package, name) is not None
-    assert world.FactualDynamicsModel is src.FactualDynamicsModel
     assert world.WorldModelConfig is src.WorldModelConfig
 
 
 def test_npc_package_keeps_repository_and_model_paths():
     root = Path(__file__).resolve().parents[2]
-    assert calibration.ROOT == factual_regression.ROOT == search.ROOT == root
+    assert calibration.ROOT == search.ROOT == root
     assert (
         calibration.MOBIL_PATH
         == root / "results/hierarchical_world_model/model_assets/mobil.json"
@@ -60,7 +58,6 @@ def test_runtime_artifacts_have_descriptive_names_without_single_file_folders():
             "lane_trajectory.json",
             "lane_fit.json",
             "selection.json",
-            "response_gate.pt",
         )
     )
 
@@ -80,10 +77,6 @@ def test_driver_and_gate_training_inputs_are_owned_by_the_shared_data_directory(
     assert DRIVER_DATA_DIR == shared / "driver_behavior"
     assert (DRIVER_DATA_DIR / "manifest.json").is_file()
     assert (DRIVER_DATA_DIR / "road_cohorts.npz").is_file()
-    assert all(
-        (shared / "response_gate_training" / name).is_file()
-        for name in ("simulation_traces.npz", "training_samples.npz", "events.csv")
-    )
 
 
 def test_autonomous_experiments_and_world_response_share_the_driving_kernel():

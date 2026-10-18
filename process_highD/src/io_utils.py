@@ -6,10 +6,13 @@ YAML 配置加载、路径管理等通用 I/O 辅助函数。
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import yaml
+
 
 def load_config(config_path: str | Path) -> dict[str, Any]:
     """加载 YAML 配置文件并返回字典。
@@ -25,6 +28,29 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
         解析后的配置字典。
     """
     return yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
+
+
+def json_ready(value: Any) -> Any:
+    """将 NumPy 数值与非有限浮点数转换为 JSON 可保存的值。"""
+    if isinstance(value, dict):
+        return {str(key): json_ready(inner) for key, inner in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_ready(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return [json_ready(item) for item in value.tolist()]
+    if isinstance(value, (np.integer, np.bool_)):
+        return value.item()
+    if isinstance(value, (float, np.floating)):
+        return float(value) if np.isfinite(value) else None
+    return value
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(json_ready(payload), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def resolve_data_path(raw_dir: str, config_path: str | Path) -> Path:

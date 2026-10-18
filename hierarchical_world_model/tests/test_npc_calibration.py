@@ -79,6 +79,17 @@ def _following():
     gap = np.array([-1, 0, 1, 5, 20, 1e6], np.float32)
     data = {
         "gap": gap,
+        "entry_features": np.array(
+            [
+                [0, 0, 0, 0],
+                [1, 0.3, -2, 3],
+                [1, 0.5, 4, 2],
+                [0, 0, 0, 0],
+                [1, 1.0, 8, -1],
+                [1, 0.7, 6, 1],
+            ],
+            np.float32,
+        ),
         "speed": np.array([15, 15, 15, 15, 25, 35], np.float32),
         "leader_speed": np.array([20, 20, 20, 20, 28, 35], np.float32),
         "free": gap >= 1e5,
@@ -122,6 +133,7 @@ def test_longitudinal_normalization_matches_runtime_physical_features():
                 ]
             )
         ),
+        entry_features=torch.from_numpy(data["entry_features"]),
         maneuver_features=torch.from_numpy(
             np.column_stack(
                 [data[key] for key in ("changing", "progress", "lateral_speed")]
@@ -155,8 +167,8 @@ def test_publication_removes_inactive_residuals_without_changing_actions():
             "longitudinal": {
                 "feature_mean": mean.tolist(),
                 "feature_std": std.tolist(),
-                "mean_coef": [0.0] * 10,
-                "variance_coef": [0.0] * 10,
+                "mean_coef": [0.0] * 14,
+                "variance_coef": [0.0] * 14,
                 "mean_strength": 0.0,
                 "noise_strength": 0.0,
             },
@@ -202,8 +214,23 @@ def test_conditional_acceleration_distribution_matches_stationary_runtime_correc
         "longitudinal": {
             "feature_mean": mean.tolist(),
             "feature_std": std.tolist(),
-            "mean_coef": [0.2, 0.05, -0.1, 0.03, 0.02, -0.02, 0, 0, 0, 0],
-            "variance_coef": [-2, 0.02, -0.1, 0.03, 0.05, 0, 0, 0, 0, 0],
+            "mean_coef": [
+                0.2,
+                0.05,
+                -0.1,
+                0.03,
+                0.02,
+                -0.02,
+                0,
+                0,
+                0,
+                0,
+                0.1,
+                0.05,
+                -0.03,
+                0.02,
+            ],
+            "variance_coef": [-2, 0.02, -0.1, 0.03, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "autoregression": autoregression_parameters([1.8, -0.85]),
             "mean_strength": 0.5,
             "noise_strength": 0.5,
@@ -227,6 +254,9 @@ def test_conditional_acceleration_distribution_matches_stationary_runtime_correc
             samples, len(data["gap"]), -1
         ),
         correction=correction,
+        entry_features=torch.from_numpy(data["entry_features"])[None].expand(
+            samples, -1, -1
+        ),
         innovation=torch.from_numpy(innovations),
         history_features=torch.from_numpy(
             np.column_stack(

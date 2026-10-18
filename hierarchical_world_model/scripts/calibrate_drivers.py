@@ -1,69 +1,138 @@
 #!/usr/bin/env python3
-"""Learn Train behavior and freeze Val-selected population refinement."""
+"""Refit the existing longitudinal correction with causal entry observations."""
 
+from copy import deepcopy
 from pathlib import Path
 import sys
-import shutil
+
 import numpy as np
-import torch
+from threadpoolctl import threadpool_limits
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from hierarchical_world_model.src.config import load_protocol_config
-from hierarchical_world_model.src.core.utils import load_json, save_json
+
+from hierarchical_world_model.src.core.utils import load_json, save_json, file_sha256
 from hierarchical_world_model.src.data import artifact_identity
+from hierarchical_world_model.src.stochastic_drivers.response_data import (
+    RESPONSE_DATA_DIR,
+    PROTOCOL,
+    prepare_response_data,
+    load_response,
+    observation_signature,
+)
 from hierarchical_world_model.src.npc_experiments.calibration import (
-    fit_stage,
-    freeze_stage_model,
+    fit_longitudinal_correction,
+    conditional_nll,
+    longitudinal_design,
 )
-from hierarchical_world_model.src.npc_experiments.search import run_search
-from hierarchical_world_model.src.stochastic_drivers.raw_data import (
-    DRIVER_DATA_DIR,
-    prepare_raw_data,
+from hierarchical_world_model.src.stochastic_drivers.idm_population import (
+    idm_acceleration,
 )
+
+OUTPUT = ROOT / "results/hierarchical_world_model/bridge"
+ASSETS = ROOT / "results/hierarchical_world_model/model_assets"
 
 
 def main():
-    torch.set_num_threads(1)
-    config = load_protocol_config(ROOT / "hierarchical_world_model/config.yaml")
-    settings = config["npc_response"]
-    output = ROOT / settings["output_dir"]
-    (output / "policy_calibration").mkdir(parents=True, exist_ok=True)
-    if not (DRIVER_DATA_DIR / "manifest.json").exists():
-        prepare_raw_data(DRIVER_DATA_DIR, workers=4)
-    for source, name in (
-        ("idm_population.npz", "reference.npz"),
-        ("mobil.json", "reference_mobil.json"),
-        ("lane_trajectory.json", "lane_model.json"),
-    ):
-        target = output / "policy_calibration" / name
-        if not target.exists():
-            shutil.copy2(
-                ROOT / "results/hierarchical_world_model/model_assets" / source, target
-            )
-    sources = output / "policy_calibration/upstream_sources.json"
-    if not sources.exists():
-        save_json(
-            {
-                name: artifact_identity(config["paths"][name])
-                for name in (
-                    "flow_checkpoint",
-                    "diffusion_checkpoint",
-                    "evaluation_checkpoint",
-                )
-            },
-            sources,
+    threadpool_limits(4)
+    prepare_response_data(workers=8)
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    population = dict(np.load(ASSETS / "idm_population.npz"))
+    original = load_json(ASSETS / "mobil.json")
+    data = load_response(splits=("train", "val"))
+    candidates = []
+    for ridge in (0.001, 0.01, 0.1, 1.0):
+        path = OUTPUT / ".cache" / "longitudinal" / f"ridge_{ridge}.json"
+        if path.exists():
+            parameters = load_json(path)
+        else:
+            parameters = fit_longitudinal_correction(data["train"], population, ridge)
+            save_json(parameters, path)
+        mobil = deepcopy(original["mobil"])
+        mobil["correction"]["longitudinal"] = parameters
+        nll = conditional_nll(data["val"], population, mobil, samples=16)
+        candidates.append(dict(ridge=ridge, Val_NLL=nll, parameters=parameters))
+        print("Entry correction", ridge, nll, flush=True)
+    chosen = min(candidates, key=lambda c: c["Val_NLL"])
+    fit = deepcopy(original)
+    fit["mobil"]["correction"]["longitudinal"] = chosen["parameters"]
+    fit["response_protocol"] = PROTOCOL
+    fit["behavior_protocol"] = PROTOCOL
+    fit["correction_protocol"] = (
+        "current_leader_and_causal_entry_single_residual_process"
+    )
+    fit["response_data_identity"] = artifact_identity(
+        RESPONSE_DATA_DIR / "manifest.json"
+    )
+    report = dict(
+        complete=True,
+        fit_split="train",
+        selection_split="val",
+        test_used=False,
+        frozen_assets={
+            name: file_sha256(ASSETS / name)
+            for name in ("idm_population.npz", "lane_trajectory.json")
+        },
+        frozen_MOBIL_and_lane_correction=True,
+        source=fit["response_data_identity"],
+        candidates=[
+            {k: v for k, v in c.items() if k != "parameters"} for c in candidates
+        ],
+        selected_ridge=chosen["ridge"],
+        baseline_equation="Published population-mean IDM; within-physical-driver centering for residual dispersion.",
+        validation_score="Gaussian-mixture NLL proxy before action clipping and the unchanged internal IDM braking guard.",
+        observation_definition_sha256=observation_signature(),
+        counts={},
+        conditional_groups={},
+    )
+    for split, values in data.items():
+        report["counts"][split] = dict(
+            states=len(values["gap"]),
+            short_gaps=int(((values["gap"] > 0) & (values["gap"] <= 2)).sum()),
+            anticipated_entries=int(values["entry_features"][:, 0].sum()),
         )
-    selected_path = output / "policy_calibration/selected_model.json"
-    if selected_path.exists():
-        selected = load_json(selected_path)
-        population = dict(np.load(selected["driver_parameter_source"]))
-        mobil = selected["mobil"]
-    else:
-        population, mobil = fit_stage(output, settings)
-    population, mobil, selection = run_search(output, population, mobil, settings)
-    freeze_stage_model(output, population, mobil, selection)
-    print("Frozen validation model", selection["selected"], flush=True)
+        x, _, _ = longitudinal_design(
+            values,
+            chosen["parameters"]["feature_mean"],
+            chosen["parameters"]["feature_std"],
+        )
+        baseline = idm_acceleration(
+            values["gap"],
+            values["speed"],
+            values["leader_speed"],
+            np.exp(population["log_mean"]),
+        ).clip(-8, 4)
+        prediction = (baseline + x @ np.array(chosen["parameters"]["mean_coef"])).clip(
+            -8, 4
+        )
+        report["conditional_groups"][split] = {}
+        for name, mask in {
+            "all": np.ones(len(x), bool),
+            "entry": values["entry_features"][:, 0] > 0,
+            "short_gap": (values["gap"] > 0) & (values["gap"] <= 2),
+            "lane_change": values["changing"] > 0,
+        }.items():
+            residual = prediction[mask] - values["acceleration"][mask]
+            report["conditional_groups"][split][name] = dict(
+                states=int(mask.sum()),
+                RMSE_mps2=float(np.sqrt(np.mean(residual**2))) if mask.any() else None,
+                bias_mps2=float(np.mean(residual)) if mask.any() else None,
+            )
+    save_json(report, OUTPUT / "npc_calibration.json")
+    save_json(fit, ASSETS / "mobil.json")
+    selection = load_json(ASSETS / "selection.json")
+    selection["mobil"] = fit["mobil"]
+    selection["response_protocol"] = PROTOCOL
+    selection["response_selection"] = "observed interaction plan applicability"
+    selection["evidence"]["longitudinal_calibration"] = str(
+        OUTPUT / "npc_calibration.json"
+    )
+    selection["bridge_validation"] = str(OUTPUT / "test_report.json")
+    save_json(selection, ASSETS / "selection.json")
+    print(
+        "Published longitudinal correction; frozen IDM/MOBIL/lane parameters retained.",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

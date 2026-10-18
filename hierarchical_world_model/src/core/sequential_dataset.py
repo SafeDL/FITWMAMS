@@ -309,7 +309,7 @@ def prepare_sequential_dataset(
         if not rebuild:
             raise RuntimeError(
                 f"Outdated or partial sequence cache at {root}; rebuild it explicitly "
-                "before HiQR training/evaluation."
+                "before tracking/NPC training/evaluation."
             )
         import shutil
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import Counter
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -13,9 +12,11 @@ import pandas as pd
 from tqdm import tqdm
 
 from process_highD.src.io_utils import (
+    json_ready,
     load_config,
     resolve_data_path,
     resolve_recording_ids,
+    write_json,
 )
 from process_highD.src.natural_segments import (
     RISK_COMPONENT_NAMES,
@@ -24,6 +25,7 @@ from process_highD.src.natural_segments import (
     options_from_config,
 )
 from process_highD.src.preprocess import prepare_recording
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,30 +46,6 @@ def parse_recording_override(value: str | None) -> dict[str, Any] | None:
 def validate_raw_dir(raw_dir: Path) -> None:
     if not raw_dir.is_dir():
         raise FileNotFoundError(f"highD raw directory does not exist: {raw_dir}")
-
-
-def json_ready(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): json_ready(inner) for key, inner in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [json_ready(item) for item in value]
-    if isinstance(value, np.ndarray):
-        return [json_ready(item) for item in value.tolist()]
-    if isinstance(value, float):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, np.integer):
-        return int(value)
-    if isinstance(value, np.floating):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, np.bool_):
-        return bool(value)
-    return value
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(json_ready(payload), f, indent=2, ensure_ascii=False)
 
 
 def risk_quantiles(values: np.ndarray) -> dict[str, float]:

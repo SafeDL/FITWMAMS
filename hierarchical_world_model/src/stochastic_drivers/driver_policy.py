@@ -3,41 +3,42 @@
 import torch
 
 from .idm_population import torch_idm
+from ..motion import observed_acceleration, advance_motion
+from ..scene_geometry import paired_rectangle_separation
 
 
-def physical_leader_observation(
-    states, valid, dimensions, *, horizon_s=1.5, target_y=None
-):
-    """Nearest or imminently unsafe leader in the actors' swept body corridors."""
-    speed = torch.linalg.vector_norm(states[..., 2:4], dim=-1)
+def body_relations(states, dimensions):
+    """Signed body intervals in each observer's actual driving direction."""
     heading = torch.atan2(states[..., 3], states[..., 2])
-    extent = 0.5 * (
-        dimensions[..., 1] * heading.cos().abs()
-        + dimensions[..., 0] * heading.sin().abs()
-    )
+    c, sn = heading.cos(), heading.sin()
     dx = states[..., None, :, 0] - states[..., :, None, 0]
     dy = states[..., None, :, 1] - states[..., :, None, 1]
-    future_y = states[..., 1] + states[..., 3] * horizon_s
-    if target_y is not None:
-        future_y = torch.where(torch.isfinite(target_y), target_y, future_y)
-    future_dy = future_y[..., None, :] - future_y[..., :, None]
-    overlap = (
-        torch.minimum(dy.abs(), future_dy.abs())
-        < extent[..., :, None] + extent[..., None, :]
+    relative = heading[..., None, :] - heading[..., :, None]
+    length, width = (dimensions * 0.5).unbind(-1)
+    along = dx * c[..., :, None] + dy * sn[..., :, None]
+    across = -dx * sn[..., :, None] + dy * c[..., :, None]
+    longitudinal_radius = (
+        length[..., :, None]
+        + length[..., None, :] * relative.cos().abs()
+        + width[..., None, :] * relative.sin().abs()
     )
-    overlap |= dy * future_dy <= 0
-    candidate = overlap & valid[..., :, None] & valid[..., None, :] & (dx > 0)
-    gap = dx - 0.5 * (dimensions[..., :, None, 0] + dimensions[..., None, :, 0])
-    projected = gap + (speed[..., None, :] - speed[..., :, None]) * horizon_s
-    unsafe = candidate & (
-        projected
-        < torch.maximum(
-            torch.full_like(speed[..., :, None], 2.0), 0.1 * speed[..., :, None]
-        )
+    lateral_radius = (
+        width[..., :, None]
+        + length[..., None, :] * relative.sin().abs()
+        + width[..., None, :] * relative.cos().abs()
+    )
+    return along, along - longitudinal_radius, across.abs() - lateral_radius
+
+
+def physical_leader_observation(states, valid, dimensions):
+    """Only a forward vehicle with positive body gap can stimulate IDM."""
+    speed = torch.linalg.vector_norm(states[..., 2:4], dim=-1)
+    _, gap, lateral_gap = body_relations(states, dimensions)
+    candidate = (
+        lateral_gap.lt(0) & gap.gt(0) & valid[..., :, None] & valid[..., None, :]
     )
     nearest = gap.masked_fill(~candidate, torch.inf)
-    risky = projected.masked_fill(~unsafe, torch.inf)
-    leader = torch.where(unsafe.any(-1), risky.argmin(-1), nearest.argmin(-1))
+    leader = nearest.argmin(-1)
     present = candidate.any(-1)
     selected_gap = torch.gather(gap, -1, leader[..., None]).squeeze(-1)
     selected_speed = torch.gather(speed, -1, leader)
@@ -47,6 +48,115 @@ def physical_leader_observation(
         torch.where(present, selected_speed, speed),
         torch.where(present, leader, -1),
     )
+
+
+def anticipated_entry_features(
+    states,
+    valid,
+    dimensions,
+    previous=None,
+    previous_valid=None,
+    *,
+    horizon_s=1.5,
+    dt=0.04,
+    history=None,
+    history_valid=None,
+    acceleration=None,
+):
+    """Observed entry/ongoing side interaction, with signed same-time position."""
+    if acceleration is None:
+        acceleration = observed_acceleration(
+            states,
+            previous,
+            previous_valid,
+            history=history,
+            history_valid=history_valid,
+            dt=dt,
+        )
+    steps = int(horizon_s / dt)
+    times = torch.arange(steps + 1, device=states.device, dtype=states.dtype) * dt
+    position, velocity = advance_motion(
+        states[:, None], acceleration[:, None], times[None, :, None]
+    )
+    predicted = torch.cat((position, velocity), -1)
+    along, gap, lateral_gap = body_relations(predicted, dimensions[:, None])
+    pair = valid[..., :, None] & valid[..., None, :]
+    pair &= ~torch.eye(states.shape[1], dtype=torch.bool, device=states.device)[None]
+    # Rotated, disjoint bodies can have interleaved world projections. Such
+    # ongoing side interactions remain signed features, never tiny IDM gaps.
+    angle = torch.atan2(states[..., 3], states[..., 2])
+    extent = 0.5 * (
+        dimensions[..., 1] * angle.cos().abs() + dimensions[..., 0] * angle.sin().abs()
+    )
+    world_lateral_overlap = (
+        states[..., None, :, 1] - states[..., :, None, 1]
+    ).abs() < extent[..., :, None] + extent[..., None, :]
+    separation = paired_rectangle_separation(
+        states[..., :, None, :2],
+        angle[..., :, None],
+        dimensions[..., :, None, :],
+        states[..., None, :, :2],
+        angle[..., None, :],
+        dimensions[..., None, :, :],
+    )
+    along_radius = along[:, 0] - gap[:, 0]
+    ongoing = (
+        (along[:, 0].abs() <= along_radius)
+        & world_lateral_overlap
+        & separation.gt(0)
+        & pair
+    )
+    overlap = lateral_gap.le(0)
+    candidate = ((lateral_gap[:, 0] > 0) & overlap.any(1) | ongoing) & pair
+    first = overlap.long().argmax(1)
+    first = torch.where(ongoing, 0, first)
+    time = times[first]
+    own_position, own_velocity = advance_motion(
+        states[..., :, None, :], acceleration[..., :, None, :], time
+    )
+    other_position, other_velocity = advance_motion(
+        states[..., None, :, :], acceleration[..., None, :, :], time
+    )
+    # Express the signed relative position along the observer's predicted direction.
+    own_heading = torch.atan2(own_velocity[..., 1], own_velocity[..., 0])
+    delta = other_position - own_position
+    distance = delta[..., 0] * own_heading.cos() + delta[..., 1] * own_heading.sin()
+    closest = distance.abs().masked_fill(~candidate, torch.inf).amin(-1, keepdim=True)
+    tied = candidate & distance.abs().eq(closest)
+    earliest = time.masked_fill(~tied, torch.inf).amin(-1, keepdim=True)
+    index = (tied & time.eq(earliest)).long().argmax(-1)
+    present = candidate.any(-1)
+    chosen = lambda value: value.gather(-1, index[..., None]).squeeze(-1)
+    features = torch.stack(
+        (
+            present.to(states.dtype),
+            chosen(time),
+            chosen(distance),
+            chosen(
+                (own_velocity[..., 0] - other_velocity[..., 0]) * own_heading.cos()
+                + (own_velocity[..., 1] - other_velocity[..., 1]) * own_heading.sin()
+            ),
+        ),
+        -1,
+    )
+    return torch.where(present[..., None], features, 0)
+
+
+LONGITUDINAL_FEATURE_NAMES = (
+    "speed",
+    "log_gap",
+    "closing_speed",
+    "free",
+    "leader_acceleration",
+    "leader_history_available",
+    "changing",
+    "progress",
+    "lateral_speed",
+    "entry_present",
+    "entry_time_s",
+    "entry_relative_x_m",
+    "entry_closing_speed_mps",
+)
 
 
 def causal_maneuver_features(current, source_y, nearest_center, lane_width):
@@ -69,7 +179,12 @@ def causal_maneuver_features(current, source_y, nearest_center, lane_width):
 
 
 def longitudinal_features(
-    gap, speed, leader_speed, history_features=None, maneuver_features=None
+    gap,
+    speed,
+    leader_speed,
+    history_features=None,
+    maneuver_features=None,
+    entry_features=None,
 ):
     current = torch.stack(
         (
@@ -88,7 +203,9 @@ def longitudinal_features(
         maneuver_features = torch.zeros(
             (*speed.shape, 3), device=speed.device, dtype=speed.dtype
         )
-    return torch.cat((current, history_features, maneuver_features), -1)
+    if entry_features is None:
+        entry_features = speed.new_zeros((*speed.shape, 4))
+    return torch.cat((current, history_features, maneuver_features, entry_features), -1)
 
 
 def response_history_features(
@@ -142,8 +259,9 @@ def corrected_acceleration(
     initial_innovation=None,
     history_features=None,
     maneuver_features=None,
+    entry_features=None,
     initialize=None,
-    dt=0.04
+    dt=0.04,
 ):
     """Execute one persistent driver's IDM action and optional fitted residual."""
     acceleration = torch_idm(gap, speed, leader_speed, theta).clamp(-8, 4)
@@ -152,7 +270,12 @@ def corrected_acceleration(
         return acceleration, residual_state
     design = _design(
         longitudinal_features(
-            gap, speed, leader_speed, history_features, maneuver_features
+            gap,
+            speed,
+            leader_speed,
+            history_features,
+            maneuver_features,
+            entry_features,
         ),
         parameters,
     )

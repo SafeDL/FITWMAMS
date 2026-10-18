@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -13,36 +12,12 @@ from scipy.stats import genpareto
 from process_highD.src.evt_diagnostics import (
     write_gpd_diagnostic_panel,
 )
-from process_highD.src.io_utils import load_config, resolve_data_path
+from process_highD.src.io_utils import load_config, resolve_data_path, write_json
 from process_highD.src.natural_segments import (
     validate_natural_segment_contract,
 )
 from process_highD.src.preprocessing_pipeline import natural_output_paths
 from tools.evt import fit_evt_model
-
-
-def _json_ready(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_ready(inner) for key, inner in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_ready(item) for item in value]
-    if isinstance(value, np.ndarray):
-        return [_json_ready(item) for item in value.tolist()]
-    if isinstance(value, (np.integer, np.bool_)):
-        return value.item()
-    if isinstance(value, np.floating):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, float):
-        return value if np.isfinite(value) else None
-    return value
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(_json_ready(payload), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
 
 
 def load_evt_context(config_path: Path) -> dict[str, Any]:
@@ -199,5 +174,5 @@ def fit_evt(config_path: Path) -> dict[str, Any]:
         "threshold_sensitivity_csv": str(paths["threshold_sensitivity"]),
         "figures": figures,
     }
-    _write_json(paths["summary"], summary)
+    write_json(paths["summary"], summary)
     return summary

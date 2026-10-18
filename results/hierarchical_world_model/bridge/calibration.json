@@ -1,0 +1,1666 @@
+{
+  "complete": true,
+  "dt_s": 0.04,
+  "fit_split": "train",
+  "groups": {
+    "cold": 23458912,
+    "cold_lateral": 3228771,
+    "history": 21420322,
+    "history_braking": 2038590,
+    "history_braking_lateral": 335321,
+    "history_lateral": 2893450,
+    "tracking": 23010780,
+    "tracking_lane_change": 260101
+  },
+  "horizon_s": 1.5,
+  "pair_combinations": 16,
+  "recordings": [
+    {
+      "counts": {
+        "cold": 289986,
+        "cold_lateral": 45838,
+        "history": 272735,
+        "history_braking": 17251,
+        "history_braking_lateral": 2728,
+        "history_lateral": 43110
+      },
+      "recording": 2,
+      "unique_physical_windows": 335824,
+      "vehicles": 1112
+    },
+    {
+      "counts": {
+        "cold": 285376,
+        "cold_lateral": 70961,
+        "history": 268074,
+        "history_braking": 17302,
+        "history_braking_lateral": 6656,
+        "history_lateral": 64305
+      },
+      "recording": 5,
+      "unique_physical_windows": 356337,
+      "vehicles": 1214
+    },
+    {
+      "counts": {
+        "cold": 319407,
+        "cold_lateral": 84437,
+        "history": 305012,
+        "history_braking": 14395,
+        "history_braking_lateral": 5575,
+        "history_lateral": 78862
+      },
+      "recording": 6,
+      "unique_physical_windows": 403844,
+      "vehicles": 1366
+    },
+    {
+      "counts": {
+        "cold": 183163,
+        "cold_lateral": 41383,
+        "history": 174439,
+        "history_braking": 8724,
+        "history_braking_lateral": 1838,
+        "history_lateral": 39545
+      },
+      "recording": 7,
+      "unique_physical_windows": 224546,
+      "vehicles": 854
+    },
+    {
+      "counts": {
+        "cold": 290298,
+        "cold_lateral": 92376,
+        "history": 277983,
+        "history_braking": 12315,
+        "history_braking_lateral": 4610,
+        "history_lateral": 87766
+      },
+      "recording": 9,
+      "unique_physical_windows": 382674,
+      "vehicles": 1420
+    },
+    {
+      "counts": {
+        "cold": 945055,
+        "cold_lateral": 84167,
+        "history": 873193,
+        "history_braking": 71862,
+        "history_braking_lateral": 6584,
+        "history_lateral": 77583
+      },
+      "recording": 12,
+      "unique_physical_windows": 1029222,
+      "vehicles": 2726
+    },
+    {
+      "counts": {
+        "cold": 841626,
+        "cold_lateral": 91312,
+        "history": 781447,
+        "history_braking": 60179,
+        "history_braking_lateral": 7542,
+        "history_lateral": 83770
+      },
+      "recording": 13,
+      "unique_physical_windows": 932938,
+      "vehicles": 2946
+    },
+    {
+      "counts": {
+        "cold": 792876,
+        "cold_lateral": 80669,
+        "history": 734074,
+        "history_braking": 58802,
+        "history_braking_lateral": 6918,
+        "history_lateral": 73751
+      },
+      "recording": 14,
+      "unique_physical_windows": 873545,
+      "vehicles": 2842
+    },
+    {
+      "counts": {
+        "cold": 241210,
+        "cold_lateral": 34897,
+        "history": 219591,
+        "history_braking": 21619,
+        "history_braking_lateral": 3778,
+        "history_lateral": 31119
+      },
+      "recording": 15,
+      "unique_physical_windows": 276107,
+      "vehicles": 922
+    },
+    {
+      "counts": {
+        "cold": 257350,
+        "cold_lateral": 42778,
+        "history": 234975,
+        "history_braking": 22375,
+        "history_braking_lateral": 4845,
+        "history_lateral": 37933
+      },
+      "recording": 16,
+      "unique_physical_windows": 300128,
+      "vehicles": 998
+    },
+    {
+      "counts": {
+        "cold": 144767,
+        "cold_lateral": 23062,
+        "history": 131891,
+        "history_braking": 12876,
+        "history_braking_lateral": 2742,
+        "history_lateral": 20320
+      },
+      "recording": 18,
+      "unique_physical_windows": 167829,
+      "vehicles": 607
+    },
+    {
+      "counts": {
+        "cold": 245837,
+        "cold_lateral": 44495,
+        "history": 227750,
+        "history_braking": 18087,
+        "history_braking_lateral": 4964,
+        "history_lateral": 39531
+      },
+      "recording": 19,
+      "unique_physical_windows": 290332,
+      "vehicles": 999
+    },
+    {
+      "counts": {
+        "cold": 370326,
+        "cold_lateral": 46821,
+        "history": 333891,
+        "history_braking": 36435,
+        "history_braking_lateral": 4760,
+        "history_lateral": 42061
+      },
+      "recording": 23,
+      "unique_physical_windows": 417147,
+      "vehicles": 1312
+    },
+    {
+      "counts": {
+        "cold": 343832,
+        "cold_lateral": 47900,
+        "history": 311273,
+        "history_braking": 32559,
+        "history_braking_lateral": 5166,
+        "history_lateral": 42734
+      },
+      "recording": 24,
+      "unique_physical_windows": 391732,
+      "vehicles": 1294
+    },
+    {
+      "counts": {
+        "cold": 1860601,
+        "cold_lateral": 50893,
+        "history": 1669145,
+        "history_braking": 191456,
+        "history_braking_lateral": 3853,
+        "history_lateral": 47040
+      },
+      "recording": 25,
+      "unique_physical_windows": 1911494,
+      "vehicles": 2845
+    },
+    {
+      "counts": {
+        "cold": 1408675,
+        "cold_lateral": 74460,
+        "history": 1208925,
+        "history_braking": 199750,
+        "history_braking_lateral": 13435,
+        "history_lateral": 61025
+      },
+      "recording": 26,
+      "unique_physical_windows": 1483135,
+      "vehicles": 2706
+    },
+    {
+      "counts": {
+        "cold": 634387,
+        "cold_lateral": 94128,
+        "history": 602905,
+        "history_braking": 31482,
+        "history_braking_lateral": 4426,
+        "history_lateral": 89702
+      },
+      "recording": 28,
+      "unique_physical_windows": 728515,
+      "vehicles": 2372
+    },
+    {
+      "counts": {
+        "cold": 596804,
+        "cold_lateral": 78250,
+        "history": 565297,
+        "history_braking": 31507,
+        "history_braking_lateral": 5395,
+        "history_lateral": 72855
+      },
+      "recording": 29,
+      "unique_physical_windows": 675054,
+      "vehicles": 2151
+    },
+    {
+      "counts": {
+        "cold": 687799,
+        "cold_lateral": 101034,
+        "history": 651710,
+        "history_braking": 36089,
+        "history_braking_lateral": 6291,
+        "history_lateral": 94743
+      },
+      "recording": 30,
+      "unique_physical_windows": 788833,
+      "vehicles": 2477
+    },
+    {
+      "counts": {
+        "cold": 632876,
+        "cold_lateral": 90363,
+        "history": 594163,
+        "history_braking": 38713,
+        "history_braking_lateral": 6555,
+        "history_lateral": 83808
+      },
+      "recording": 31,
+      "unique_physical_windows": 723239,
+      "vehicles": 2254
+    },
+    {
+      "counts": {
+        "cold": 377791,
+        "cold_lateral": 59169,
+        "history": 358659,
+        "history_braking": 19132,
+        "history_braking_lateral": 2803,
+        "history_lateral": 56366
+      },
+      "recording": 32,
+      "unique_physical_windows": 436960,
+      "vehicles": 1409
+    },
+    {
+      "counts": {
+        "cold": 628344,
+        "cold_lateral": 88514,
+        "history": 596498,
+        "history_braking": 31846,
+        "history_braking_lateral": 5797,
+        "history_lateral": 82717
+      },
+      "recording": 33,
+      "unique_physical_windows": 716858,
+      "vehicles": 2252
+    },
+    {
+      "counts": {
+        "cold": 502452,
+        "cold_lateral": 66335,
+        "history": 463479,
+        "history_braking": 38973,
+        "history_braking_lateral": 5394,
+        "history_lateral": 60941
+      },
+      "recording": 34,
+      "unique_physical_windows": 568787,
+      "vehicles": 1773
+    },
+    {
+      "counts": {
+        "cold": 535840,
+        "cold_lateral": 79958,
+        "history": 508355,
+        "history_braking": 27485,
+        "history_braking_lateral": 4470,
+        "history_lateral": 75488
+      },
+      "recording": 35,
+      "unique_physical_windows": 615798,
+      "vehicles": 1988
+    },
+    {
+      "counts": {
+        "cold": 734393,
+        "cold_lateral": 121112,
+        "history": 627235,
+        "history_braking": 107158,
+        "history_braking_lateral": 15759,
+        "history_lateral": 105353
+      },
+      "recording": 36,
+      "unique_physical_windows": 855505,
+      "vehicles": 2542
+    },
+    {
+      "counts": {
+        "cold": 539843,
+        "cold_lateral": 76907,
+        "history": 514551,
+        "history_braking": 25292,
+        "history_braking_lateral": 5237,
+        "history_lateral": 71670
+      },
+      "recording": 37,
+      "unique_physical_windows": 616750,
+      "vehicles": 1982
+    },
+    {
+      "counts": {
+        "cold": 651339,
+        "cold_lateral": 89667,
+        "history": 618129,
+        "history_braking": 33210,
+        "history_braking_lateral": 6168,
+        "history_lateral": 83499
+      },
+      "recording": 38,
+      "unique_physical_windows": 741006,
+      "vehicles": 2380
+    },
+    {
+      "counts": {
+        "cold": 528701,
+        "cold_lateral": 115596,
+        "history": 444659,
+        "history_braking": 84042,
+        "history_braking_lateral": 28838,
+        "history_lateral": 86758
+      },
+      "recording": 39,
+      "unique_physical_windows": 644297,
+      "vehicles": 2191
+    },
+    {
+      "counts": {
+        "cold": 607461,
+        "cold_lateral": 97536,
+        "history": 487608,
+        "history_braking": 119853,
+        "history_braking_lateral": 24934,
+        "history_lateral": 72602
+      },
+      "recording": 40,
+      "unique_physical_windows": 704997,
+      "vehicles": 2399
+    },
+    {
+      "counts": {
+        "cold": 570547,
+        "cold_lateral": 98786,
+        "history": 496240,
+        "history_braking": 74307,
+        "history_braking_lateral": 16430,
+        "history_lateral": 82356
+      },
+      "recording": 43,
+      "unique_physical_windows": 669333,
+      "vehicles": 2270
+    },
+    {
+      "counts": {
+        "cold": 650453,
+        "cold_lateral": 104641,
+        "history": 563827,
+        "history_braking": 86626,
+        "history_braking_lateral": 15838,
+        "history_lateral": 88803
+      },
+      "recording": 44,
+      "unique_physical_windows": 755094,
+      "vehicles": 2547
+    },
+    {
+      "counts": {
+        "cold": 618455,
+        "cold_lateral": 104182,
+        "history": 516076,
+        "history_braking": 102379,
+        "history_braking_lateral": 20759,
+        "history_lateral": 83423
+      },
+      "recording": 45,
+      "unique_physical_windows": 722637,
+      "vehicles": 2448
+    },
+    {
+      "counts": {
+        "cold": 887516,
+        "cold_lateral": 96263,
+        "history": 826283,
+        "history_braking": 61233,
+        "history_braking_lateral": 9300,
+        "history_lateral": 86963
+      },
+      "recording": 46,
+      "unique_physical_windows": 983779,
+      "vehicles": 2819
+    },
+    {
+      "counts": {
+        "cold": 677700,
+        "cold_lateral": 95634,
+        "history": 632301,
+        "history_braking": 45399,
+        "history_braking_lateral": 8295,
+        "history_lateral": 87339
+      },
+      "recording": 48,
+      "unique_physical_windows": 773334,
+      "vehicles": 2543
+    },
+    {
+      "counts": {
+        "cold": 588157,
+        "cold_lateral": 94461,
+        "history": 550427,
+        "history_braking": 37730,
+        "history_braking_lateral": 7356,
+        "history_lateral": 87105
+      },
+      "recording": 51,
+      "unique_physical_windows": 682618,
+      "vehicles": 2282
+    },
+    {
+      "counts": {
+        "cold": 657347,
+        "cold_lateral": 88888,
+        "history": 612302,
+        "history_braking": 45045,
+        "history_braking_lateral": 7330,
+        "history_lateral": 81558
+      },
+      "recording": 53,
+      "unique_physical_windows": 746235,
+      "vehicles": 2442
+    },
+    {
+      "counts": {
+        "cold": 596911,
+        "cold_lateral": 88530,
+        "history": 555291,
+        "history_braking": 41620,
+        "history_braking_lateral": 9490,
+        "history_lateral": 79040
+      },
+      "recording": 54,
+      "unique_physical_windows": 685441,
+      "vehicles": 2342
+    },
+    {
+      "counts": {
+        "cold": 578761,
+        "cold_lateral": 75368,
+        "history": 536430,
+        "history_braking": 42331,
+        "history_braking_lateral": 7646,
+        "history_lateral": 67722
+      },
+      "recording": 55,
+      "unique_physical_windows": 654129,
+      "vehicles": 2189
+    },
+    {
+      "counts": {
+        "cold": 487406,
+        "cold_lateral": 79642,
+        "history": 459279,
+        "history_braking": 28127,
+        "history_braking_lateral": 6616,
+        "history_lateral": 73026
+      },
+      "recording": 57,
+      "unique_physical_windows": 567048,
+      "vehicles": 1919
+    },
+    {
+      "counts": {
+        "cold": 160461,
+        "cold_lateral": 45596,
+        "history": 148132,
+        "history_braking": 12329,
+        "history_braking_lateral": 5237,
+        "history_lateral": 40359
+      },
+      "recording": 58,
+      "unique_physical_windows": 206057,
+      "vehicles": 712
+    },
+    {
+      "counts": {
+        "cold": 160949,
+        "cold_lateral": 42839,
+        "history": 149837,
+        "history_braking": 11112,
+        "history_braking_lateral": 3633,
+        "history_lateral": 39206
+      },
+      "recording": 59,
+      "unique_physical_windows": 203788,
+      "vehicles": 721
+    },
+    {
+      "counts": {
+        "cold": 345834,
+        "cold_lateral": 98923,
+        "history": 316251,
+        "history_braking": 29583,
+        "history_braking_lateral": 9330,
+        "history_lateral": 89593
+      },
+      "recording": 60,
+      "unique_physical_windows": 444757,
+      "vehicles": 1465
+    }
+  ],
+  "representatives_per_group": 32,
+  "source_sha256": "9677a2a579538b2ce301793c6a576578fc4991ef0a44639a3208aa2d424b15de",
+  "split_recordings": [
+    2,
+    5,
+    6,
+    7,
+    9,
+    12,
+    13,
+    14,
+    15,
+    16,
+    18,
+    19,
+    23,
+    24,
+    25,
+    26,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    43,
+    44,
+    45,
+    46,
+    48,
+    51,
+    53,
+    54,
+    55,
+    57,
+    58,
+    59,
+    60
+  ],
+  "temporal_sampling": "whole x/y/heading error; lateral and heading signs normalized by observed or own-plan lateral direction",
+  "test_used": false,
+  "tracking": {
+    "actor_windows": 205937,
+    "all_valid_anchor_prefixes": true,
+    "counts": [
+      23010780,
+      260101
+    ],
+    "definition": "future pose error minus current observed error",
+    "scenes": 72771
+  },
+  "unique_physical_forecast_windows": 26687683,
+  "representative_sources": {
+    "cold": [
+      [
+        "28/cold.npy",
+        264955
+      ],
+      [
+        "25/cold.npy",
+        59463
+      ],
+      [
+        "43/cold.npy",
+        476097
+      ],
+      [
+        "54/cold.npy",
+        344965
+      ],
+      [
+        "13/cold.npy",
+        534952
+      ],
+      [
+        "46/cold.npy",
+        6367
+      ],
+      [
+        "28/cold.npy",
+        467184
+      ],
+      [
+        "30/cold.npy",
+        565485
+      ],
+      [
+        "57/cold.npy",
+        269295
+      ],
+      [
+        "16/cold.npy",
+        29129
+      ],
+      [
+        "40/cold.npy",
+        130545
+      ],
+      [
+        "02/cold.npy",
+        143607
+      ],
+      [
+        "48/cold.npy",
+        267734
+      ],
+      [
+        "30/cold.npy",
+        246322
+      ],
+      [
+        "15/cold.npy",
+        55441
+      ],
+      [
+        "13/cold.npy",
+        828376
+      ],
+      [
+        "45/cold.npy",
+        191797
+      ],
+      [
+        "60/cold.npy",
+        75197
+      ],
+      [
+        "39/cold.npy",
+        335653
+      ],
+      [
+        "12/cold.npy",
+        81957
+      ],
+      [
+        "26/cold.npy",
+        135260
+      ],
+      [
+        "28/cold.npy",
+        316333
+      ],
+      [
+        "36/cold.npy",
+        683523
+      ],
+      [
+        "09/cold.npy",
+        54971
+      ],
+      [
+        "57/cold.npy",
+        345907
+      ],
+      [
+        "26/cold.npy",
+        798914
+      ],
+      [
+        "48/cold.npy",
+        306567
+      ],
+      [
+        "54/cold.npy",
+        489698
+      ],
+      [
+        "45/cold.npy",
+        344499
+      ],
+      [
+        "28/cold.npy",
+        238480
+      ],
+      [
+        "12/cold.npy",
+        831068
+      ],
+      [
+        "13/cold.npy",
+        209389
+      ]
+    ],
+    "cold_lateral": [
+      [
+        "07/cold_lateral.npy",
+        13455
+      ],
+      [
+        "54/cold_lateral.npy",
+        56097
+      ],
+      [
+        "33/cold_lateral.npy",
+        15230
+      ],
+      [
+        "40/cold_lateral.npy",
+        22552
+      ],
+      [
+        "02/cold_lateral.npy",
+        31028
+      ],
+      [
+        "19/cold_lateral.npy",
+        15551
+      ],
+      [
+        "44/cold_lateral.npy",
+        66209
+      ],
+      [
+        "29/cold_lateral.npy",
+        42956
+      ],
+      [
+        "48/cold_lateral.npy",
+        57317
+      ],
+      [
+        "44/cold_lateral.npy",
+        36099
+      ],
+      [
+        "15/cold_lateral.npy",
+        12743
+      ],
+      [
+        "30/cold_lateral.npy",
+        83345
+      ],
+      [
+        "31/cold_lateral.npy",
+        80307
+      ],
+      [
+        "28/cold_lateral.npy",
+        70784
+      ],
+      [
+        "36/cold_lateral.npy",
+        78839
+      ],
+      [
+        "60/cold_lateral.npy",
+        22690
+      ],
+      [
+        "02/cold_lateral.npy",
+        10587
+      ],
+      [
+        "32/cold_lateral.npy",
+        57706
+      ],
+      [
+        "37/cold_lateral.npy",
+        54157
+      ],
+      [
+        "15/cold_lateral.npy",
+        30309
+      ],
+      [
+        "06/cold_lateral.npy",
+        66669
+      ],
+      [
+        "36/cold_lateral.npy",
+        12273
+      ],
+      [
+        "39/cold_lateral.npy",
+        103985
+      ],
+      [
+        "45/cold_lateral.npy",
+        21217
+      ],
+      [
+        "39/cold_lateral.npy",
+        44276
+      ],
+      [
+        "45/cold_lateral.npy",
+        35568
+      ],
+      [
+        "25/cold_lateral.npy",
+        34140
+      ],
+      [
+        "55/cold_lateral.npy",
+        14010
+      ],
+      [
+        "32/cold_lateral.npy",
+        4474
+      ],
+      [
+        "57/cold_lateral.npy",
+        17368
+      ],
+      [
+        "38/cold_lateral.npy",
+        30726
+      ],
+      [
+        "45/cold_lateral.npy",
+        94596
+      ]
+    ],
+    "history": [
+      [
+        "53/history.npy",
+        124079
+      ],
+      [
+        "25/history.npy",
+        752536
+      ],
+      [
+        "36/history.npy",
+        376223
+      ],
+      [
+        "45/history.npy",
+        28815
+      ],
+      [
+        "55/history.npy",
+        223180
+      ],
+      [
+        "26/history.npy",
+        416047
+      ],
+      [
+        "31/history.npy",
+        430587
+      ],
+      [
+        "46/history.npy",
+        272753
+      ],
+      [
+        "13/history.npy",
+        100604
+      ],
+      [
+        "53/history.npy",
+        30765
+      ],
+      [
+        "36/history.npy",
+        598491
+      ],
+      [
+        "23/history.npy",
+        39106
+      ],
+      [
+        "23/history.npy",
+        160086
+      ],
+      [
+        "46/history.npy",
+        722858
+      ],
+      [
+        "26/history.npy",
+        275396
+      ],
+      [
+        "30/history.npy",
+        473913
+      ],
+      [
+        "25/history.npy",
+        575287
+      ],
+      [
+        "48/history.npy",
+        262958
+      ],
+      [
+        "54/history.npy",
+        153527
+      ],
+      [
+        "33/history.npy",
+        483029
+      ],
+      [
+        "26/history.npy",
+        586727
+      ],
+      [
+        "15/history.npy",
+        158449
+      ],
+      [
+        "43/history.npy",
+        488462
+      ],
+      [
+        "37/history.npy",
+        255558
+      ],
+      [
+        "26/history.npy",
+        948313
+      ],
+      [
+        "51/history.npy",
+        265096
+      ],
+      [
+        "26/history.npy",
+        47732
+      ],
+      [
+        "13/history.npy",
+        596313
+      ],
+      [
+        "37/history.npy",
+        261299
+      ],
+      [
+        "07/history.npy",
+        3931
+      ],
+      [
+        "25/history.npy",
+        1141259
+      ],
+      [
+        "26/history.npy",
+        320383
+      ]
+    ],
+    "history_braking": [
+      [
+        "26/history_braking.npy",
+        131607
+      ],
+      [
+        "26/history_braking.npy",
+        20715
+      ],
+      [
+        "40/history_braking.npy",
+        94284
+      ],
+      [
+        "43/history_braking.npy",
+        37393
+      ],
+      [
+        "26/history_braking.npy",
+        86913
+      ],
+      [
+        "35/history_braking.npy",
+        2690
+      ],
+      [
+        "40/history_braking.npy",
+        7370
+      ],
+      [
+        "35/history_braking.npy",
+        16456
+      ],
+      [
+        "23/history_braking.npy",
+        12967
+      ],
+      [
+        "43/history_braking.npy",
+        17157
+      ],
+      [
+        "26/history_braking.npy",
+        31550
+      ],
+      [
+        "39/history_braking.npy",
+        59329
+      ],
+      [
+        "24/history_braking.npy",
+        1495
+      ],
+      [
+        "26/history_braking.npy",
+        17628
+      ],
+      [
+        "36/history_braking.npy",
+        1469
+      ],
+      [
+        "32/history_braking.npy",
+        16369
+      ],
+      [
+        "25/history_braking.npy",
+        136991
+      ],
+      [
+        "26/history_braking.npy",
+        7937
+      ],
+      [
+        "53/history_braking.npy",
+        34769
+      ],
+      [
+        "26/history_braking.npy",
+        70905
+      ],
+      [
+        "25/history_braking.npy",
+        30560
+      ],
+      [
+        "39/history_braking.npy",
+        29636
+      ],
+      [
+        "44/history_braking.npy",
+        31934
+      ],
+      [
+        "40/history_braking.npy",
+        7371
+      ],
+      [
+        "48/history_braking.npy",
+        42867
+      ],
+      [
+        "30/history_braking.npy",
+        3382
+      ],
+      [
+        "12/history_braking.npy",
+        71288
+      ],
+      [
+        "18/history_braking.npy",
+        10141
+      ],
+      [
+        "12/history_braking.npy",
+        46247
+      ],
+      [
+        "25/history_braking.npy",
+        178591
+      ],
+      [
+        "57/history_braking.npy",
+        3940
+      ],
+      [
+        "28/history_braking.npy",
+        24366
+      ]
+    ],
+    "history_braking_lateral": [
+      [
+        "60/history_braking_lateral.npy",
+        4778
+      ],
+      [
+        "45/history_braking_lateral.npy",
+        698
+      ],
+      [
+        "43/history_braking_lateral.npy",
+        13264
+      ],
+      [
+        "18/history_braking_lateral.npy",
+        1885
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        5166
+      ],
+      [
+        "58/history_braking_lateral.npy",
+        3572
+      ],
+      [
+        "23/history_braking_lateral.npy",
+        1129
+      ],
+      [
+        "25/history_braking_lateral.npy",
+        1372
+      ],
+      [
+        "31/history_braking_lateral.npy",
+        4125
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        13759
+      ],
+      [
+        "28/history_braking_lateral.npy",
+        4282
+      ],
+      [
+        "34/history_braking_lateral.npy",
+        1685
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        13482
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        11821
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        4269
+      ],
+      [
+        "57/history_braking_lateral.npy",
+        3581
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        16734
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        2918
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        7449
+      ],
+      [
+        "36/history_braking_lateral.npy",
+        2126
+      ],
+      [
+        "57/history_braking_lateral.npy",
+        5575
+      ],
+      [
+        "57/history_braking_lateral.npy",
+        1273
+      ],
+      [
+        "36/history_braking_lateral.npy",
+        4816
+      ],
+      [
+        "14/history_braking_lateral.npy",
+        5720
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        10532
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        6956
+      ],
+      [
+        "45/history_braking_lateral.npy",
+        9661
+      ],
+      [
+        "48/history_braking_lateral.npy",
+        6149
+      ],
+      [
+        "12/history_braking_lateral.npy",
+        728
+      ],
+      [
+        "40/history_braking_lateral.npy",
+        21272
+      ],
+      [
+        "35/history_braking_lateral.npy",
+        2810
+      ],
+      [
+        "39/history_braking_lateral.npy",
+        13387
+      ]
+    ],
+    "history_lateral": [
+      [
+        "32/history_lateral.npy",
+        35792
+      ],
+      [
+        "46/history_lateral.npy",
+        59455
+      ],
+      [
+        "06/history_lateral.npy",
+        48196
+      ],
+      [
+        "30/history_lateral.npy",
+        20787
+      ],
+      [
+        "53/history_lateral.npy",
+        54285
+      ],
+      [
+        "05/history_lateral.npy",
+        34896
+      ],
+      [
+        "14/history_lateral.npy",
+        64527
+      ],
+      [
+        "30/history_lateral.npy",
+        22674
+      ],
+      [
+        "32/history_lateral.npy",
+        46979
+      ],
+      [
+        "31/history_lateral.npy",
+        61763
+      ],
+      [
+        "30/history_lateral.npy",
+        88745
+      ],
+      [
+        "33/history_lateral.npy",
+        55587
+      ],
+      [
+        "43/history_lateral.npy",
+        20949
+      ],
+      [
+        "51/history_lateral.npy",
+        2830
+      ],
+      [
+        "55/history_lateral.npy",
+        49829
+      ],
+      [
+        "39/history_lateral.npy",
+        31823
+      ],
+      [
+        "05/history_lateral.npy",
+        18035
+      ],
+      [
+        "02/history_lateral.npy",
+        9028
+      ],
+      [
+        "34/history_lateral.npy",
+        1360
+      ],
+      [
+        "06/history_lateral.npy",
+        56731
+      ],
+      [
+        "15/history_lateral.npy",
+        8683
+      ],
+      [
+        "09/history_lateral.npy",
+        10132
+      ],
+      [
+        "24/history_lateral.npy",
+        36873
+      ],
+      [
+        "57/history_lateral.npy",
+        72716
+      ],
+      [
+        "06/history_lateral.npy",
+        59610
+      ],
+      [
+        "39/history_lateral.npy",
+        23841
+      ],
+      [
+        "39/history_lateral.npy",
+        43644
+      ],
+      [
+        "45/history_lateral.npy",
+        55908
+      ],
+      [
+        "06/history_lateral.npy",
+        76462
+      ],
+      [
+        "39/history_lateral.npy",
+        45337
+      ],
+      [
+        "55/history_lateral.npy",
+        59810
+      ],
+      [
+        "60/history_lateral.npy",
+        57024
+      ]
+    ],
+    "tracking": [
+      [
+        "tracking_29184/tracking.npy",
+        111824
+      ],
+      [
+        "tracking_62464/tracking.npy",
+        3655
+      ],
+      [
+        "tracking_39936/tracking.npy",
+        81306
+      ],
+      [
+        "tracking_26112/tracking.npy",
+        121330
+      ],
+      [
+        "tracking_70656/tracking.npy",
+        71
+      ],
+      [
+        "tracking_61952/tracking.npy",
+        5117
+      ],
+      [
+        "tracking_43008/tracking.npy",
+        67012
+      ],
+      [
+        "tracking_53760/tracking.npy",
+        99557
+      ],
+      [
+        "tracking_40448/tracking.npy",
+        7084
+      ],
+      [
+        "tracking_19456/tracking.npy",
+        131289
+      ],
+      [
+        "tracking_25600/tracking.npy",
+        246537
+      ],
+      [
+        "tracking_53760/tracking.npy",
+        3241
+      ],
+      [
+        "tracking_55296/tracking.npy",
+        703
+      ],
+      [
+        "tracking_20480/tracking.npy",
+        2793
+      ],
+      [
+        "tracking_25600/tracking.npy",
+        137664
+      ],
+      [
+        "tracking_8192/tracking.npy",
+        1587
+      ],
+      [
+        "tracking_28160/tracking.npy",
+        438
+      ],
+      [
+        "tracking_5632/tracking.npy",
+        7351
+      ],
+      [
+        "tracking_20992/tracking.npy",
+        3925
+      ],
+      [
+        "tracking_4608/tracking.npy",
+        170288
+      ],
+      [
+        "tracking_32256/tracking.npy",
+        76141
+      ],
+      [
+        "tracking_67072/tracking.npy",
+        133627
+      ],
+      [
+        "tracking_48640/tracking.npy",
+        2658
+      ],
+      [
+        "tracking_61952/tracking.npy",
+        1599
+      ],
+      [
+        "tracking_16896/tracking.npy",
+        72467
+      ],
+      [
+        "tracking_52224/tracking.npy",
+        3053
+      ],
+      [
+        "tracking_54784/tracking.npy",
+        101826
+      ],
+      [
+        "tracking_11264/tracking.npy",
+        99461
+      ],
+      [
+        "tracking_21504/tracking.npy",
+        169514
+      ],
+      [
+        "tracking_25600/tracking.npy",
+        3992
+      ],
+      [
+        "tracking_65024/tracking.npy",
+        78225
+      ],
+      [
+        "tracking_23552/tracking.npy",
+        5645
+      ]
+    ],
+    "tracking_lane_change": [
+      [
+        "tracking_50176/tracking_lane_change.npy",
+        2133
+      ],
+      [
+        "tracking_65024/tracking_lane_change.npy",
+        2385
+      ],
+      [
+        "tracking_49152/tracking_lane_change.npy",
+        247
+      ],
+      [
+        "tracking_8192/tracking_lane_change.npy",
+        32
+      ],
+      [
+        "tracking_66048/tracking_lane_change.npy",
+        1391
+      ],
+      [
+        "tracking_28160/tracking_lane_change.npy",
+        11
+      ],
+      [
+        "tracking_47104/tracking_lane_change.npy",
+        384
+      ],
+      [
+        "tracking_57344/tracking_lane_change.npy",
+        36
+      ],
+      [
+        "tracking_38400/tracking_lane_change.npy",
+        11
+      ],
+      [
+        "tracking_15872/tracking_lane_change.npy",
+        504
+      ],
+      [
+        "tracking_51200/tracking_lane_change.npy",
+        166
+      ],
+      [
+        "tracking_50688/tracking_lane_change.npy",
+        1005
+      ],
+      [
+        "tracking_13312/tracking_lane_change.npy",
+        178
+      ],
+      [
+        "tracking_70656/tracking_lane_change.npy",
+        24
+      ],
+      [
+        "tracking_16384/tracking_lane_change.npy",
+        762
+      ],
+      [
+        "tracking_33280/tracking_lane_change.npy",
+        198
+      ],
+      [
+        "tracking_0/tracking_lane_change.npy",
+        383
+      ],
+      [
+        "tracking_40960/tracking_lane_change.npy",
+        85
+      ],
+      [
+        "tracking_2048/tracking_lane_change.npy",
+        1055
+      ],
+      [
+        "tracking_10752/tracking_lane_change.npy",
+        256
+      ],
+      [
+        "tracking_37376/tracking_lane_change.npy",
+        1913
+      ],
+      [
+        "tracking_46592/tracking_lane_change.npy",
+        1970
+      ],
+      [
+        "tracking_53248/tracking_lane_change.npy",
+        1354
+      ],
+      [
+        "tracking_65024/tracking_lane_change.npy",
+        389
+      ],
+      [
+        "tracking_62464/tracking_lane_change.npy",
+        551
+      ],
+      [
+        "tracking_60416/tracking_lane_change.npy",
+        507
+      ],
+      [
+        "tracking_40448/tracking_lane_change.npy",
+        489
+      ],
+      [
+        "tracking_60928/tracking_lane_change.npy",
+        60
+      ],
+      [
+        "tracking_67072/tracking_lane_change.npy",
+        834
+      ],
+      [
+        "tracking_38400/tracking_lane_change.npy",
+        93
+      ],
+      [
+        "tracking_48640/tracking_lane_change.npy",
+        1832
+      ],
+      [
+        "tracking_29184/tracking_lane_change.npy",
+        282
+      ]
+    ]
+  }
+}

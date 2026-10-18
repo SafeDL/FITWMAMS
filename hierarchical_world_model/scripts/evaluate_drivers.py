@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate the selected NPC policy, with independent factual regression before release."""
+"""Evaluate the selected NPC policy's behavior and autonomous traffic statistics."""
 
 from pathlib import Path
 import sys
@@ -23,10 +23,6 @@ from hierarchical_world_model.src.npc_experiments.evaluation import (
 from hierarchical_world_model.src.npc_experiments.figures import plot_npc_results
 from hierarchical_world_model.src.npc_experiments.animations import (
     render_autonomous_examples,
-)
-from hierarchical_world_model.src.npc_experiments.factual_regression import (
-    evaluate_factual_regression,
-    publish_response,
 )
 from hierarchical_world_model.src.stochastic_drivers.idm_population import MODEL_PATH
 from hierarchical_world_model.src.stochastic_drivers.lane_trajectory import (
@@ -66,13 +62,10 @@ def main():
         }
         and mobil["lane_model"] == load_json(LANE_PATH)
     )
-    if unchanged:
-        from hierarchical_world_model.scripts.verify import main as verify_world
+    if not unchanged:
+        from hierarchical_world_model.src.npc_experiments.publication import publish_npc
 
-        verify_world()
-    else:
-        evaluate_factual_regression(config, output)
-        publish_response(config, output)
+        publish_npc(config, output)
     movies = render_autonomous_examples(output)
     report = {
         "status": "complete",
@@ -84,9 +77,6 @@ def main():
         "standalone_runs": closed["completed_runs"],
         "actual_road_steps": closed["actual_road_steps"],
         "animation_road_steps": movies["actual_additional_road_steps"],
-        "factual_test_report": str(
-            ROOT / "results/hierarchical_world_model/factual_test/report.json"
-        ),
         "verification": str(output / "verification.json"),
         "invocation_elapsed_seconds": time.monotonic() - started,
         "measured_simulation_compute_seconds": closed["measured_compute_seconds"],

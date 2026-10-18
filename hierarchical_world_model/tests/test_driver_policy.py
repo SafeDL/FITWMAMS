@@ -17,10 +17,10 @@ from hierarchical_world_model.src.npc_experiments.residual import (
 def correction():
     return {
         "longitudinal": {
-            "feature_mean": [0] * 9,
-            "feature_std": [1] * 9,
-            "mean_coef": [0] * 10,
-            "variance_coef": [0] * 10,
+            "feature_mean": [0] * 13,
+            "feature_std": [1] * 13,
+            "mean_coef": [0] * 14,
+            "variance_coef": [0] * 14,
             "autoregression": autoregression_parameters([1.8, -0.85]),
             "mean_strength": 1,
             "noise_strength": 1,
@@ -96,7 +96,7 @@ def test_driver_residual_restores_and_cannot_relax_immediate_braking():
     assert torch.isfinite(first).all()
 
 
-def test_swept_actual_body_detects_vehicle_before_lane_center_switch():
+def test_actual_oriented_body_detects_vehicle_before_lane_center_switch():
     states = torch.tensor(
         [[0, 0, 20, 0, 0, 0], [12, 2.1, 10, -0.3, 0, 0], [50, 0, 20, 0, 0, 0]],
         dtype=torch.float32,
@@ -106,7 +106,9 @@ def test_swept_actual_body_detects_vehicle_before_lane_center_switch():
         states, torch.ones(3, dtype=torch.bool), dimensions
     )
     assert leader[0].item() == 1
-    assert abs(gap[0].item() - 3.6) < 1e-5
+    angle = np.arctan2(-0.3, 10.0)
+    expected = 12 - 2.4 - 0.5 * (12 * abs(np.cos(angle)) + 2.6 * abs(np.sin(angle)))
+    assert abs(gap[0].item() - expected) < 1e-5
 
 
 def test_residual_cannot_cancel_braking_while_approaching_a_leader():
@@ -183,28 +185,35 @@ def test_persistent_lane_style_changes_intent_without_changing_feasibility():
 
 
 def test_online_driver_residual_snapshot_replays_explicit_innovations():
-    from hierarchical_world_model.tests.test_online_ma_idm import _context, THETA
-    from hierarchical_world_model.src.stochastic_drivers.online import (
-        OnlineMAIDMController,
+    from hierarchical_world_model.tests.traffic_context import (
+        context as traffic_context,
+        THETA,
     )
+    from hierarchical_world_model.src.takeover import TakeoverController
 
     geometry = torch.zeros(1, 3, 2, 5)
     geometry[0, :, :, 1] = torch.tensor([-4.0, 0.0, 4.0])[:, None]
     geometry[0, :, 1, 0] = 200
     geometry[..., 4] = 4
+    original = traffic_context()
+    current = original.current.clone()
+    current[:, 0, 0] = 10
+    current[:, 0, 2] = 10
     context = replace(
-        _context(ego_x=16),
+        original,
+        current=current,
+        history=current[:, None],
         policy_standard_normal=torch.full((1, 6, 2), 0.2),
         map_polylines=geometry,
         map_polyline_valid=torch.ones(1, 3, 2, dtype=torch.bool),
     )
-    controller = OnlineMAIDMController(THETA, driver_correction=correction())
+    controller = TakeoverController(THETA, driver_correction=correction())
     controller(context)
     snapshot = controller.snapshot_runtime()
     assert "driver_residual_state" in snapshot
     next_context = replace(context, policy_standard_normal=torch.full((1, 6, 2), -0.4))
     first = controller(next_context)
-    restored = OnlineMAIDMController(THETA, driver_correction=correction())
+    restored = TakeoverController(THETA, driver_correction=correction())
     restored.restore_runtime(snapshot)
     replay = restored(next_context)
     torch.testing.assert_close(first.actions, replay.actions)
@@ -214,21 +223,21 @@ def test_online_driver_residual_snapshot_replays_explicit_innovations():
 
 
 def test_lane_only_model_cannot_activate_longitudinal_residual_overrides():
-    from hierarchical_world_model.tests.test_online_ma_idm import _context, THETA
-    from hierarchical_world_model.src.stochastic_drivers.online import (
-        OnlineMAIDMController,
+    from hierarchical_world_model.tests.traffic_context import (
+        context as traffic_context,
+        THETA,
     )
+    from hierarchical_world_model.src.takeover import TakeoverController
 
-    context = _context(ego_x=40.0, ego_ax=-0.5)
+    context = traffic_context()
     history = context.current[:, None].repeat(1, 6, 1, 1)
     history[:, 0, 0, 2] += 0.2
     context = replace(
         context,
         history=history,
         history_valid=context.current_valid[:, None].repeat(1, 6, 1),
-        nominal_ego_velocity=torch.zeros(1, 2),
     )
-    baseline = OnlineMAIDMController(THETA)(context)
+    baseline = TakeoverController(THETA)(context)
     lane_only = {
         "response_blend": 1.0,
         "trajectory": {
@@ -236,7 +245,7 @@ def test_lane_only_model_cannot_activate_longitudinal_residual_overrides():
             "shape_shift": [0.0, 0.0],
         },
     }
-    controller = OnlineMAIDMController(THETA, driver_correction=lane_only)
+    controller = TakeoverController(THETA, driver_correction=lane_only)
     actual = controller(context)
     torch.testing.assert_close(actual.actions[..., 0], baseline.actions[..., 0])
     assert controller._driver_residual_state is None

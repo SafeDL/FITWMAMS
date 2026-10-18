@@ -1,0 +1,92 @@
+{
+  "combined_scene_rate": 0.009974872458691844,
+  "combined_scenes": 131,
+  "conflict_candidates": [
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.0625
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.125
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.1875
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.25
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.3125
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.375
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.4375
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.5
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.5625
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.625
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.6875
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.75
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.8125
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.875
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 0.9375
+    },
+    {
+      "scene_rate": 0.0,
+      "threshold": 1.0
+    }
+  ],
+  "conflict_scene_budget": 0.005,
+  "conflict_scenes": 0,
+  "following_scale_s": 0.4361090779304503,
+  "interaction_threshold": 0.8392310738563538,
+  "noncollision_scene_budget": 0.01,
+  "noncollision_scene_rate": 0.009974872458691844,
+  "noncollision_scenes": 131,
+  "raw_units": [
+    "seconds",
+    "inverse_seconds"
+  ],
+  "release_scale_per_s": 1.4608998537063567,
+  "scaling": "95th percentile of positive Train vehicle-episode maximum raw scores",
+  "score_support_is_collision_probability": false,
+  "status": "selected_on_natural_data",
+  "support_threshold": 0.0625,
+  "test_or_ADS_failures_used": false,
+  "threshold_comparison": "inclusive >=; smallest representable threshold above the excluded Val score",
+  "train_scenes": 72771,
+  "train_valid_vehicle_episodes": 205937,
+  "val_scenes": 13133,
+  "current_rule_scope": "Thresholds frozen before following-eligibility refinement; the added eligibility only removes candidates. Method development has inspected Test."
+}

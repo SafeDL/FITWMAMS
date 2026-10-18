@@ -1,5 +1,6 @@
 """Paired, finite-budget driver refinement on actual HighwayEnv rollouts."""
 
+from ..stochastic_drivers.response_data import load_response
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from multiprocessing import get_context
@@ -31,7 +32,6 @@ from .residual import (
 from ..stochastic_drivers.raw_data import (
     DRIVER_DATA_DIR,
     BEHAVIOR_PROTOCOL,
-    load_following,
     load_lane_opportunities,
 )
 from .road import (
@@ -884,9 +884,9 @@ def refinement_points(center, bounds, round_index, count):
     lower, upper = np.maximum(bounds[:, 0], center - half_width), np.minimum(
         bounds[:, 1], center + half_width
     )
-    points = qmc.Sobol(
-        len(center), scramble=True, seed=SEED + 10 + round_index
-    ).random(count)
+    points = qmc.Sobol(len(center), scramble=True, seed=SEED + 10 + round_index).random(
+        count
+    )
     points = lower + points * (upper - lower)
     points[0] = center
     if len(center) == 16:
@@ -941,18 +941,14 @@ def run_search(output, population, mobil, settings):
     val_keys = cohort_selection(
         cohorts, raw["split_recordings"]["val"], budget["val_scenes"]
     )
-    full_states = concatenate_groups(
-        load_following(DRIVER_DATA_DIR, splits=fit_splits, group="response")
-    )
+    full_states = concatenate_groups(load_response(splits=fit_splits))
     full_lanes = concatenate_groups(
         load_lane_opportunities(DRIVER_DATA_DIR, splits=fit_splits)
     )
     train = state_subset(full_states, budget["local_fraction"])
     learning_states = continuous_subset(full_states, budget["local_fraction"])
     lanes = state_subset(full_lanes, budget["local_fraction"], lane=True)
-    validation = load_following(DRIVER_DATA_DIR, splits=("val",), group="response")[
-        "val"
-    ]
+    validation = load_response(splits=("val",))["val"]
     lane_validation = load_lane_opportunities(DRIVER_DATA_DIR, splits=("val",))["val"]
     reference = dict(np.load(output / "policy_calibration/reference.npz"))
     baseline = deepcopy(
@@ -1044,9 +1040,11 @@ def run_search(output, population, mobil, settings):
                 fit,
                 settings,
                 budget["val_repeats"] if long_validation else budget["train_repeats"],
-                budget["val_duration_s"]
-                if long_validation
-                else budget["train_duration_s"],
+                (
+                    budget["val_duration_s"]
+                    if long_validation
+                    else budget["train_duration_s"]
+                ),
                 executor=executor,
             )
             record = {
@@ -1098,7 +1096,9 @@ def run_search(output, population, mobil, settings):
                     key=lambda name: records[name]["score"],
                 )
                 center = np.asarray(records[best]["coordinates"])
-            points = qmc.Sobol(dimension, scramble=True, seed=SEED).random(round_sizes[0])
+            points = qmc.Sobol(dimension, scramble=True, seed=SEED).random(
+                round_sizes[0]
+            )
             points = (
                 bounds[:dimension, 0]
                 + points * np.diff(bounds[:dimension], axis=1).ravel()

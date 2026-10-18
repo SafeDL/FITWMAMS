@@ -1,0 +1,96 @@
+{
+  "baseline_equation": "Published population-mean IDM; within-physical-driver centering for residual dispersion.",
+  "candidates": [
+    {
+      "Val_NLL": 0.39157522356224056,
+      "ridge": 0.001
+    },
+    {
+      "Val_NLL": 0.3898549826544582,
+      "ridge": 0.01
+    },
+    {
+      "Val_NLL": 0.3846245012009566,
+      "ridge": 0.1
+    },
+    {
+      "Val_NLL": 0.6106061099913345,
+      "ridge": 1.0
+    }
+  ],
+  "complete": true,
+  "conditional_groups": {
+    "train": {
+      "all": {
+        "RMSE_mps2": 0.38798843376426606,
+        "bias_mps2": 5.829190798249197e-06,
+        "states": 4837720
+      },
+      "entry": {
+        "RMSE_mps2": 0.5363291306494882,
+        "bias_mps2": -0.001955757847655338,
+        "states": 739072
+      },
+      "lane_change": {
+        "RMSE_mps2": 0.5422940319785874,
+        "bias_mps2": -0.00181334944052865,
+        "states": 1080413
+      },
+      "short_gap": {
+        "RMSE_mps2": 7.03612656100865,
+        "bias_mps2": -6.725593956553537,
+        "states": 68
+      }
+    },
+    "val": {
+      "all": {
+        "RMSE_mps2": 0.37686322799694427,
+        "bias_mps2": 0.009882904744327717,
+        "states": 919154
+      },
+      "entry": {
+        "RMSE_mps2": 0.5319988354400246,
+        "bias_mps2": 0.010084767584604809,
+        "states": 124342
+      },
+      "lane_change": {
+        "RMSE_mps2": 0.5214677910830072,
+        "bias_mps2": 0.013160495506267278,
+        "states": 220990
+      },
+      "short_gap": {
+        "RMSE_mps2": 1.6847068685069035,
+        "bias_mps2": -1.6847068685069035,
+        "states": 1
+      }
+    }
+  },
+  "counts": {
+    "train": {
+      "anticipated_entries": 739072,
+      "short_gaps": 68,
+      "states": 4837720
+    },
+    "val": {
+      "anticipated_entries": 124342,
+      "short_gaps": 1,
+      "states": 919154
+    }
+  },
+  "fit_split": "train",
+  "frozen_MOBIL_and_lane_correction": true,
+  "frozen_assets": {
+    "idm_population.npz": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+    "lane_trajectory.json": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f"
+  },
+  "observation_definition_sha256": "7aada9456f6fe1a26fa637f0c032618eae2319587f644bb013dc1c28231583d3",
+  "selected_ridge": 0.1,
+  "selection_split": "val",
+  "source": {
+    "mtime_ns": 1792311517671227819,
+    "path": "/home/hp/FITWMAMS/results/highd_shared_training_data/driver_behavior/interaction_response/manifest.json",
+    "size_bytes": 16523
+  },
+  "test_used": false,
+  "validation_score": "Gaussian-mixture NLL proxy before action clipping and the unchanged internal IDM braking guard."
+}

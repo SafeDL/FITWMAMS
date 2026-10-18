@@ -27,6 +27,7 @@ from ..stochastic_drivers.driver_policy import (
     exclusive_lane_probabilities,
     response_history_features,
     physical_leader_observation,
+    anticipated_entry_features,
     sample_lane_choice,
 )
 from ..stochastic_drivers.idm_population import sample_theta
@@ -249,13 +250,12 @@ def rectangular_contacts(states, valid, dimensions):
     )
 
 
-def physical_leaders(states, dimensions, target_y=None):
-    """Resolve leaders using present and swept vehicle footprints."""
+def physical_leaders(states, dimensions):
+    """Resolve current leaders from actual vehicle footprints."""
     result = physical_leader_observation(
         torch.from_numpy(states),
         torch.ones(len(states), dtype=torch.bool),
         torch.from_numpy(dimensions),
-        target_y=None if target_y is None else torch.from_numpy(target_y),
     )
     return tuple(value.numpy() for value in result)
 
@@ -281,7 +281,7 @@ def _entry_clear(entry, dimensions, states, actor_dimensions):
 
 
 def _vehicle_state(vehicle):
-    control = getattr(vehicle, "_hiqr_control", np.zeros(2))
+    control = getattr(vehicle, "_external_control", np.zeros(2))
     speed, heading = vehicle.speed, vehicle.heading
     acceleration, yaw_rate = control
     return np.asarray(
@@ -476,7 +476,7 @@ def simulate_road(
                     vehicle.LENGTH, vehicle.WIDTH = map(float, dimensions[actor])
                     vehicle.diagonal = float(np.linalg.norm(dimensions[actor]))
                     vehicle.MAX_SPEED = 100.0
-                    vehicle._hiqr_control = np.zeros(2, np.float32)
+                    vehicle._external_control = np.zeros(2, np.float32)
                     vehicle.actor_index = actor
                     vehicles[actor] = vehicle
                     road.vehicles.append(vehicle)
@@ -535,12 +535,7 @@ def simulate_road(
                 break
             if len(active):
                 sizes = dimensions[active]
-                prospective_target = np.where(
-                    changing[active], target[active], np.nan
-                ).astype(np.float32)
-                gap, speed, leader_speed, leader = physical_leaders(
-                    current, sizes, prospective_target
-                )
+                gap, speed, leader_speed, leader = physical_leaders(current, sizes)
                 history_features = None
                 lane = np.abs(current[:, 1, None] - centers).argmin(-1)
                 maneuver, source_y[active] = causal_maneuver_features(
@@ -583,6 +578,25 @@ def simulate_road(
                         torch.from_numpy(np.where(leader >= 0, leader + 1, -1))[None],
                         sizes_packed,
                     )[0]
+                observed_history = np.zeros((6, len(active), 6), np.float32)
+                observed_valid = np.zeros((6, len(active)), bool)
+                for k, lag in enumerate(range(5, -1, -1)):
+                    use_trace = tick - lag >= entered[active]
+                    if tick >= lag:
+                        observed_history[k, use_trace] = trace[
+                            repeat, tick - lag, active[use_trace]
+                        ]
+                        observed_valid[k, use_trace] = trace_valid[
+                            repeat, tick - lag, active[use_trace]
+                        ]
+                    before_entry = ~use_trace
+                    historical_index = 24 + tick - entered[active[before_entry]] - lag
+                    observed_history[k, before_entry] = cohort["entry_history"][
+                        active[before_entry], historical_index
+                    ]
+                    observed_valid[k, before_entry] = cohort["entry_history_valid"][
+                        active[before_entry], historical_index
+                    ]
                 acceleration, next_residual = corrected_acceleration(
                     torch.from_numpy(gap.astype(np.float32)),
                     torch.from_numpy(speed.astype(np.float32)),
@@ -594,6 +608,17 @@ def simulate_road(
                     initial_innovation=torch.from_numpy(initial_innovations[active]),
                     history_features=history_features,
                     maneuver_features=maneuver,
+                    entry_features=anticipated_entry_features(
+                        torch.from_numpy(current)[None],
+                        torch.ones(1, len(active), dtype=torch.bool),
+                        torch.from_numpy(sizes)[None],
+                        torch.from_numpy(trace[repeat, max(0, tick - 1), active])[None],
+                        torch.from_numpy(trace_valid[repeat, max(0, tick - 1), active])[
+                            None
+                        ],
+                        history=torch.from_numpy(observed_history)[None],
+                        history_valid=torch.from_numpy(observed_valid)[None],
+                    )[0],
                     initialize=torch.from_numpy(entered[active] == tick),
                     dt=DT,
                 )
@@ -764,7 +789,7 @@ def simulate_road(
                     dt=DT,
                 ).clamp(-0.6, 0.6)
                 for local, actor in enumerate(active):
-                    vehicles[actor]._hiqr_control = np.asarray(
+                    vehicles[actor]._external_control = np.asarray(
                         [float(acceleration[local]), float(yaw[local])], np.float32
                     )
             road.step(DT)

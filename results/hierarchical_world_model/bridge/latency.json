@@ -1,0 +1,59 @@
+{
+  "ADS_compute_included": false,
+  "P99_ms": 8.589962817495689,
+  "bridge_timing": "plan commitment update plus shared prediction and admission scoring",
+  "cpu": {
+    "0": {
+      "bridge_ms_quantiles": [
+        1.4836920308880508,
+        1.7316969751846045,
+        1.8215852440334857,
+        2.6543959393166006
+      ],
+      "steps": 2831,
+      "steps_over_40ms": 0,
+      "world_ms_quantiles": [
+        3.5440270439721644,
+        4.026444017654285,
+        4.306721489410842,
+        6.432888039853424
+      ]
+    },
+    "3": {
+      "bridge_ms_quantiles": [
+        1.4538230025209486,
+        1.6796075506135821,
+        1.7670592584181577,
+        2.883856010157615
+      ],
+      "steps": 2831,
+      "steps_over_40ms": 0,
+      "world_ms_quantiles": [
+        4.968439985532314,
+        8.346480986801907,
+        8.589962817495689,
+        10.85230300668627
+      ]
+    },
+    "6": {
+      "bridge_ms_quantiles": [
+        0.0,
+        0.0,
+        0.0,
+        1.9296129466965795
+      ],
+      "steps": 2831,
+      "steps_over_40ms": 0,
+      "world_ms_quantiles": [
+        3.477871010545641,
+        6.959427963010967,
+        7.142880611354485,
+        10.32139000017196
+      ]
+    }
+  },
+  "maximum_active_entities": 7,
+  "passed": true,
+  "physical_step_ms": 40,
+  "torch_threads": 1
+}

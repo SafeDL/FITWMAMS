@@ -362,3 +362,55 @@ class SceneGeometry:
             self.boundary_clearance(positions_xy, vehicle_width_m=vehicle_width_m)
             < -margin_m
         )
+
+
+def rectangle_separation(position, heading, dimensions, padding):
+    """Pairwise SAT gap in metres; <=0 means intersecting Minkowski boxes.
+
+    Padding is in world x/y and includes corner forecast error. Projecting its
+    support on each separating axis avoids pretending heading is certain.
+    """
+    forward = torch.stack((heading.cos(), heading.sin()), -1)
+    lateral = torch.stack((-heading.sin(), heading.cos()), -1)
+    basis = torch.stack((forward, lateral), -2)
+    half = dimensions[:, None] * 0.5
+    delta = position[..., None, :, :] - position[..., :, None, :]
+    gap = None
+    for owner in (False, True):
+        axes = basis[..., None, :, :, :] if owner else basis[..., :, None, :, :]
+        projection = (delta[..., None, :] * axes).sum(-1).abs()
+        own_radius = (
+            (basis[..., :, None, :, None, :] * axes[..., None, :, :]).sum(-1).abs()
+            * half[..., :, None, :, None]
+        ).sum(-2)
+        other_radius = (
+            (basis[..., None, :, :, None, :] * axes[..., None, :, :]).sum(-1).abs()
+            * half[..., None, :, :, None]
+        ).sum(-2)
+        uncertainty = (
+            (padding[..., :, None, :] + padding[..., None, :, :])[..., None, :]
+            * axes.abs()
+        ).sum(-1)
+        local = (projection - own_radius - other_radius - uncertainty).amax(-1)
+        gap = local if gap is None else torch.maximum(gap, local)
+    return gap
+
+
+def paired_rectangle_separation(pi, hi, di, pj, hj, dj):
+    """SAT separation of corresponding rectangles; leading axes broadcast."""
+    dx, dy = (pj - pi).unbind(-1)
+    ci, si, cj, sj = hi.cos(), hi.sin(), hj.cos(), hj.sin()
+    cosine = (ci * cj + si * sj).abs()
+    sine = (si * cj - ci * sj).abs()
+    li, wi = (di * 0.5).unbind(-1)
+    lj, wj = (dj * 0.5).unbind(-1)
+    return torch.maximum(
+        torch.maximum(
+            (dx * ci + dy * si).abs() - li - lj * cosine - wj * sine,
+            (-dx * si + dy * ci).abs() - wi - lj * sine - wj * cosine,
+        ),
+        torch.maximum(
+            (dx * cj + dy * sj).abs() - lj - li * cosine - wi * sine,
+            (-dx * sj + dy * cj).abs() - wj - li * sine - wi * cosine,
+        ),
+    )

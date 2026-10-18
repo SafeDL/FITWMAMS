@@ -1,4 +1,5 @@
 {
+  "bridge_validation": "/home/hp/FITWMAMS/results/hierarchical_world_model/bridge/test_report.json",
   "diffusion": {
     "mtime_ns": 1791307976402222219,
     "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
@@ -66,13 +67,13 @@
       "onset_horizon_seconds": 1.0,
       "opposite_first_crossing": "keep; later return cannot confirm original cue"
     },
+    "longitudinal_calibration": "/home/hp/FITWMAMS/results/hierarchical_world_model/bridge/npc_calibration.json",
     "npc_calibration": "/home/hp/FITWMAMS/archive/hierarchical_world_model/npc_population_environment/previous_results/search/selection.json",
     "raw_data": {
       "mtime_ns": 1791787451595096673,
       "path": "/home/hp/FITWMAMS/results/highd_shared_training_data/driver_behavior/manifest.json",
       "size_bytes": 2844
-    },
-    "training": "/home/hp/FITWMAMS/results/hierarchical_world_model/hiqr_training/training_stochastic_heads_summary.json"
+    }
   },
   "fit_split": "train",
   "lane_trajectory_model": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/lane_trajectory.json",
@@ -117,6 +118,161 @@
         "logit_bias": 0.0,
         "strength": 1.0
       },
+      "longitudinal": {
+        "autoregression": {
+          "coefficients": [
+            1.1827466557302997,
+            -0.215928225711365
+          ],
+          "dt_seconds": 0.04,
+          "initial_correlation": 0.9727109139508191,
+          "innovation_std": 0.22654688708291845,
+          "interval_seconds": 0.2,
+          "source_coefficients": [
+            1.1827466557302997,
+            -0.215928225711365
+          ],
+          "time_scale": 1.0
+        },
+        "diagnostics": {
+          "driver_mean_std_mps2": 0.2608536584564666,
+          "raw_correlations": [
+            {
+              "correlation": 0.9672097563743591,
+              "lag_seconds": 0.2,
+              "pairs": 4716387
+            },
+            {
+              "correlation": 0.9331856966018677,
+              "lag_seconds": 0.4,
+              "pairs": 4606967
+            },
+            {
+              "correlation": 0.8220182657241821,
+              "lag_seconds": 1.0,
+              "pairs": 4316931
+            },
+            {
+              "correlation": 0.6379756331443787,
+              "lag_seconds": 2.0,
+              "pairs": 3887728
+            },
+            {
+              "correlation": 0.40742573142051697,
+              "lag_seconds": 4.0,
+              "pairs": 3099451
+            }
+          ],
+          "raw_residual_std_mps2": 0.4440974295139313,
+          "standardized_within_driver_correlations": [
+            {
+              "correlation": 0.9693945085953501,
+              "lag_seconds": 0.2,
+              "pairs": 4716387
+            },
+            {
+              "correlation": 0.9289545239473752,
+              "lag_seconds": 0.4,
+              "pairs": 4606967
+            },
+            {
+              "correlation": 0.7297196123434482,
+              "lag_seconds": 1.0,
+              "pairs": 4316931
+            },
+            {
+              "correlation": 0.2915490268144408,
+              "lag_seconds": 2.0,
+              "pairs": 3887728
+            },
+            {
+              "correlation": -0.26509720234744344,
+              "lag_seconds": 4.0,
+              "pairs": 3099451
+            }
+          ],
+          "within_driver_std_mps2": 0.30625091527527565
+        },
+        "feature_mean": [
+          27.381240844726562,
+          3.803088665008545,
+          -0.015333697199821472,
+          0.07598352432250977,
+          0.003190465271472931,
+          0.9024282097816467,
+          0.2233310341835022,
+          0.0986919105052948,
+          0.09746429324150085,
+          0.15277279913425446,
+          0.09449262171983719,
+          0.535712718963623,
+          -0.07993404567241669
+        ],
+        "feature_names": [
+          "speed",
+          "log_gap",
+          "closing_speed",
+          "free",
+          "leader_acceleration",
+          "leader_history_available",
+          "changing",
+          "progress",
+          "lateral_speed",
+          "entry_present",
+          "entry_time_s",
+          "entry_relative_x_m",
+          "entry_closing_speed_mps"
+        ],
+        "feature_std": [
+          6.989009857177734,
+          0.671470582485199,
+          2.353938341140747,
+          0.2594006657600403,
+          0.32841140031814575,
+          0.2931024134159088,
+          0.4251655042171478,
+          0.14214067161083221,
+          0.1526230275630951,
+          0.35604622960090637,
+          0.27952906489372253,
+          77.27046203613281,
+          2.1575710773468018
+        ],
+        "mean_coef": [
+          -0.06309709027355258,
+          0.12250141365845982,
+          -0.07982367245932886,
+          0.057148202770629805,
+          0.0005143947552575766,
+          0.12838717062144964,
+          -0.007181853901662444,
+          0.009572849173633498,
+          -0.01966893941983901,
+          0.0563387099225721,
+          0.008469927192480534,
+          -0.0031027056115493458,
+          -0.0023535433551439473,
+          -0.004210718327336323
+        ],
+        "mean_strength": 1.0,
+        "noise_strength": 1.0,
+        "variance_coef": [
+          -3.3527066026548678,
+          0.043852452957361905,
+          -0.5338142701994617,
+          0.20908597811886376,
+          -0.04558410331141067,
+          -0.05533747868459669,
+          -0.0666917992111073,
+          0.041405332755929725,
+          0.021914735103481083,
+          0.22410507718632572,
+          0.14857672121384546,
+          0.002291472526006978,
+          -0.061443958754563446,
+          0.029613236351931096
+        ]
+      },
       "response_blend": 1.0,
       "trajectory": {
         "log_duration_scale": -0.075,
@@ -130,12 +286,9 @@
     "slope": 0.055139950069021795
   },
   "mobil_source": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/mobil.json",
-  "npc_lane_model": null,
-  "reference_recovery_enabled": true,
-  "response_checkpoint": "/home/hp/FITWMAMS/results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt",
-  "response_checkpoint_mtime_ns": 1791538424942697061,
-  "response_selection": "state-triggered rules; no learned selector",
-  "selected_arm": "rules_recovery",
+  "response_protocol": "positive_body_gap_and_observed_lateral_trend",
+  "response_selection": "observed interaction plan applicability",
+  "selected_arm": "tracking_npc_takeover",
   "selected_model": "mobil",
   "selection_reason": "Train calibration and bounded search, frozen Val selection",
   "selection_split": "val",

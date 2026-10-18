@@ -1,10 +1,10 @@
 {
   "actual_road_steps": 6046080,
   "animation_road_steps": 12000,
-  "factual_test_report": "/home/hp/FITWMAMS/results/hierarchical_world_model/factual_test/report.json",
   "fit_split": "train",
   "invocation_elapsed_seconds": 78.81272122397786,
   "measured_simulation_compute_seconds": 21616.357202426298,
+  "policy_scope": "Standalone population/traffic validation before the current longitudinal entry correction; current correction and bridge evidence are in bridge/. This is not a fresh validation of the final combined policy.",
   "published_model": "joint_0_01",
   "recordings_evaluated": 60,
   "selected_candidate": "reference",

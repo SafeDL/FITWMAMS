@@ -1,22 +1,29 @@
-# Shared-data HiQR and the published IDM/MOBIL/lane-response chain.
 paths:
-  output_dir: results/hierarchical_world_model/hiqr_training
-  evaluation_checkpoint: results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt
   sequence_cache_dir: results/highd_shared_training_data/highd_sequence_cache
   source_schema: results/highd_shared_training_data/scenario_conditions/dataset_schema.json
   flow_checkpoint: results/flow/checkpoints/scenario_flow.pt
   diffusion_checkpoint: results/diffusion/checkpoints/best_background_diffusion.pt
   diffusion_contract: results/diffusion/dataset_contract.json
-
+tracking:
+  longitudinal_frequency: 1.0
+  lateral_frequency: 1.0
+  derivative_window: 21
+takeover:
+  lookahead_s: 1.5
+  support_threshold: 0.0625
+  error_trajectories_path: results/hierarchical_world_model/model_assets/interaction_errors.npz
+  interaction_threshold: 0.8392310738563538
+  following_scale_s: 0.4361090779304503
+  release_scale_per_s: 1.4608998537063567
 evaluation_scope:
   schema: highd_all_background
   excluded_background_slots: []
-
-# Flow does not generate a road; ADS uses this explicit three-lane template.
 generated_road:
-  lane_centers_m: [-4.0, 0.0, 4.0]
+  lane_centers_m:
+  - -4.0
+  - 0.0
+  - 4.0
   lane_width_m: 4.0
-
 npc_response:
   output_dir: results/hierarchical_world_model/npc_response
   workers: 24
@@ -24,22 +31,48 @@ npc_response:
   world_workers: 6
   conditional_samples: 16
   convergence_samples: 32
-  convergence_fraction: 0.10
+  convergence_fraction: 0.1
   bootstrap_samples: 2000
   population:
-    log_mean_shift_range: [-0.15, 0.15]
-    std_scale_range: [0.7, 1.3]
-    lane_mean_shift_range: [-0.5, 0.5]
-    lane_std_scale_range: [0.5, 1.5]
+    log_mean_shift_range:
+    - -0.15
+    - 0.15
+    std_scale_range:
+    - 0.7
+    - 1.3
+    lane_mean_shift_range:
+    - -0.5
+    - 0.5
+    lane_std_scale_range:
+    - 0.5
+    - 1.5
   residual:
-    regularization: [0.001, 0.01, 0.1, 1.0]
-    mean_strength_range: [0.0, 1.0]
-    noise_strength_range: [0.0, 1.0]
-    time_scale_range: [0.5, 2.0]
-    lane_strength_range: [0.0, 1.0]
-    direction_bias_range: [-0.25, 0.25]
-    log_duration_range: [-0.15, 0.15]
-    shape_shift_range: [-0.25, 0.25]
+    regularization:
+    - 0.001
+    - 0.01
+    - 0.1
+    - 1.0
+    mean_strength_range:
+    - 0.0
+    - 1.0
+    noise_strength_range:
+    - 0.0
+    - 1.0
+    time_scale_range:
+    - 0.5
+    - 2.0
+    lane_strength_range:
+    - 0.0
+    - 1.0
+    direction_bias_range:
+    - -0.25
+    - 0.25
+    log_duration_range:
+    - -0.15
+    - 0.15
+    shape_shift_range:
+    - -0.25
+    - 0.25
   search:
     candidates_per_arm: 32
     initial_candidates: 16
@@ -52,8 +85,15 @@ npc_response:
     val_scenes: 18
     val_repeats: 8
     val_duration_s: 120
-    local_fraction: 0.10
-    objective_weights: {speed: 1.0, joint: 1.0, lane_rate: 1.0, lane_execution: 1.0, acceleration: 0.1, local: 0.1, change: 0.01}
+    local_fraction: 0.1
+    objective_weights:
+      speed: 1.0
+      joint: 1.0
+      lane_rate: 1.0
+      lane_execution: 1.0
+      acceleration: 0.1
+      local: 0.1
+      change: 0.01
   evaluation:
     short_repeats: 16
     short_duration_s: 5.96
@@ -61,93 +101,10 @@ npc_response:
     long_duration_s: 120
     window_s: 10
     short_window_s: 1.0
-
-model:
-  hidden_dim: 128
-  num_heads: 4
-  relation_layers: 2
-  temporal_layers: 1
-  decoder_layers: 2
-  dropout: 0.1
-  scene_latent_dim: 16
-  agent_latent_dim: 16
-  scene_refresh_responses: 25
-  scene_noise_scale: 0.17
-  agent_noise_scale: 0.08
-  graph_coupled_latent_enabled: true
-  latent_flow_persistence: 0.985
-  behavior_mode_decoder_enabled: true
-  behavior_mode_max_acceleration_mps2: 0.25
-  behavior_mode_max_yaw_rate_rps: 0.015
-  jerk_knots: 5
+dynamics:
+  dt_s: 0.04
+  history_frames: 25
   execute_frames: 1
-  use_soft_plan: true
-  stochastic_latents: true
-  min_acceleration_std_mps2: 0.015
-  min_yaw_rate_std_rps: 0.0002
-  initial_acceleration_std_mps2: 0.20
-  initial_yaw_rate_std_rps: 0.01
-  stochastic_longitudinal_jerk_mps3: 0.60
-  stochastic_yaw_acceleration_rps2: 0.006
-  velocity_rebase_horizon_s: 0.40
-  soft_anchor_final_weight: 0.50
-  causal_response_min_gain: 1.00
-  causal_response_max_gain: 1.40
-  causal_response_initial_gain: 1.10
-  causal_response_scale: 4.0
-  intervention_adapter_enabled: true
-  intervention_adapter_initial_logit: 2.0
-  intervention_trigger_threshold_mps2: 0.50
-  intervention_trigger_history_frames: 5
-  intervention_adapter_max_gain: 0.60
-  intervention_brake_adapter_max_gain: 1.40
-  intervention_accelerate_adapter_max_gain: 2.00
-  intervention_memory_decay: 0.99
-  lateral_response_adapter_enabled: true
-  lateral_intervention_trigger_threshold_rps: 0.05
-  lateral_response_adapter_max_yaw_rate_rps: 0.10
-  lateral_intervention_memory_decay: 0.99
-  lateral_response_trigger_scale_rps: 0.04
-  natural_response_kernel_enabled: false
-  causal_response_field_enabled: false
-  dose_calibrated_intervention_loss: false
-  max_residual_jerk_mps3: 2.0
-  max_residual_yaw_acceleration_rps2: 0.2
-  locality_weight: 1.0
-  monotonicity_weight: 10.0
-  response_strength_weight: 100.0
-  energy_weight: 1.0
-  closed_loop_factual_weight: 10.0
-
-training:
-  experiment_scope: full
-  seed: 20260814
-  device: auto
-  epochs: 50
-  minimum_epochs: 20
-  patience: 10
-  min_delta: 0.00001
-  warmup_epochs: 3
-  batch_size: 512
-  validation_batch_size: 1024
-  num_workers: 0
-  learning_rate: 0.0003
-  minimum_learning_rate: 0.00003
-  weight_decay: 0.0001
-  grad_clip: 1.0
-  intervention_interval: 8
-  intervention_sequences: 4
-  response_calibration_method: propensity
-  response_calibration_minimum_events: 100
-
-stages:
-  base:
-    deterministic_forward: true
-    trainable: backbone
-  stochastic_heads:
-    deterministic_forward: false
-    trainable:
-      - latent_transition.
-      - decoder.behavior_mode.
-      - decoder.scene_innovation.
-      - decoder.agent_innovation.
+  min_acceleration_mps2: -8.0
+  max_acceleration_mps2: 4.0
+  max_yaw_rate_rps: 0.6

@@ -15,7 +15,6 @@ from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.lane_utils import parse_lane_markings
 from process_highD.src.preprocess import prepare_recording
 
-from .driver_policy import physical_leader_observation
 from ..npc_experiments.lateral import (
     EVENT_FIELDS,
     lane_events,
@@ -357,53 +356,6 @@ def nearest_neighbors(states, centers_by_direction):
     return current_front, current_rear, fronts, rears, available
 
 
-def swept_leaders(states):
-    """Batch the exact shared body-corridor observation over physical frames."""
-    order = np.lexsort((states.frame, states.direction))
-    direction, frame = (
-        states[name].to_numpy()[order] for name in ("direction", "frame")
-    )
-    boundaries = np.r_[
-        0,
-        np.flatnonzero((np.diff(direction) != 0) | (np.diff(frame) != 0)) + 1,
-        len(order),
-    ]
-    leader = np.full(len(states), -1, np.int32)
-    gap = np.full(len(states), 1e6, np.float32)
-    front_speed = np.hypot(states.xVelocity, states.yVelocity).to_numpy(np.float32)
-    motion = states[
-        ["x", "y", "xVelocity", "yVelocity", "xAcceleration", "yAcceleration"]
-    ].to_numpy(np.float32)
-    sizes = states[["length", "width"]].to_numpy(np.float32)
-    for begin in range(0, len(boundaries) - 1, 256):
-        groups = [
-            order[lo:hi]
-            for lo, hi in zip(
-                boundaries[begin : begin + 256], boundaries[begin + 1 : begin + 257]
-            )
-        ]
-        width = max(map(len, groups))
-        packed = np.zeros((len(groups), width, 6), np.float32)
-        dimensions = np.ones((len(groups), width, 2), np.float32)
-        valid = np.zeros((len(groups), width), bool)
-        for local, indices in enumerate(groups):
-            packed[local, : len(indices)] = motion[indices]
-            dimensions[local, : len(indices)] = sizes[indices]
-            valid[local, : len(indices)] = ~states._abnormal.to_numpy()[indices]
-        observed = physical_leader_observation(
-            torch.from_numpy(packed),
-            torch.from_numpy(valid),
-            torch.from_numpy(dimensions),
-        )
-        gaps, _, velocities, neighbors = [value.numpy() for value in observed]
-        for local, indices in enumerate(groups):
-            choice = neighbors[local, : len(indices)]
-            leader[indices] = np.where(choice >= 0, indices[choice.clip(0)], -1)
-            gap[indices] = gaps[local, : len(indices)]
-            front_speed[indices] = velocities[local, : len(indices)]
-    return leader, gap, front_speed
-
-
 def extract_recording(recording_id, split, raw_dir, cfg, output):
     torch.set_num_threads(1)
     start = time.perf_counter()
@@ -572,29 +524,6 @@ def extract_recording(recording_id, split, raw_dir, cfg, output):
     payload["follow__leader_vehicle"] = np.where(
         front >= 0, identities["vehicle"][front.clip(0)], -1
     )[keep].astype(np.int32)
-    physical_front, physical_gap, physical_speed = swept_leaders(states)
-    physical_free = (physical_front < 0) & (states.frontSightDistance.to_numpy() >= 120)
-    response_keep = ~abnormal & (speed > 5) & (speed < 60) & (abs(ax) < 8)
-    response_keep &= physical_free | (
-        (physical_front >= 0) & (physical_gap > 2) & (physical_gap < 150)
-    )
-    for key, value in identities.items():
-        payload[f"response__{key}"] = value[response_keep]
-    for key, value in {
-        "gap": physical_gap,
-        "speed": speed,
-        "leader_speed": physical_speed,
-        "acceleration": (vx * ax + vy * states.yAcceleration.to_numpy())
-        / speed.clip(0.5),
-        "changing": states.changing.to_numpy(),
-        "progress": states.progress.to_numpy(),
-        "lateral_speed": states.lateral_speed.to_numpy(),
-        "free": physical_free,
-        "leader_vehicle": np.where(
-            physical_front >= 0, identities["vehicle"][physical_front.clip(0)], -1
-        ),
-    }.items():
-        payload[f"response__{key}"] = value[response_keep].astype(np.float32)
     center_y = np.array(
         [
             centers[int(direction)][int(lane)]
@@ -713,10 +642,6 @@ def extract_recording(recording_id, split, raw_dir, cfg, output):
         "sampled_states": int(len(states)),
         "following_states": int((keep & following).sum()),
         "free_states": int((keep & free).sum()),
-        "response_states": int(response_keep.sum()),
-        "response_maneuver_states": int(
-            (response_keep & states.changing.to_numpy()).sum()
-        ),
         "observed_lane_events": len(observed_events),
         "lane_opportunities": int(usable.sum()),
         "lane_side_candidates": int(available[usable].sum()),
@@ -766,8 +691,8 @@ def load_group(output=DRIVER_DATA_DIR, group="follow", splits=SPLITS):
     return result
 
 
-def load_following(output=DRIVER_DATA_DIR, splits=SPLITS, *, group="follow"):
-    groups = load_group(output, group, splits)
+def load_following(output=DRIVER_DATA_DIR, splits=SPLITS):
+    groups = load_group(output, "follow", splits)
     for data in groups.values():
         data["free"] = data["free"].astype(bool)
         order = np.lexsort((data["frame"], data["vehicle"], data["recording"]))
@@ -894,8 +819,6 @@ def prepare_raw_data(output=DRIVER_DATA_DIR, workers=4):
         "sampled_states",
         "following_states",
         "free_states",
-        "response_states",
-        "response_maneuver_states",
         "observed_lane_events",
         "lane_opportunities",
         "lane_side_candidates",
@@ -935,6 +858,10 @@ def prepare_raw_data(output=DRIVER_DATA_DIR, workers=4):
     (output / "coverage.json").write_text(json.dumps(coverage, indent=2))
     manifest["status"] = "complete"
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    for recordings in splits.values():
+        for recording in recordings:
+            for suffix in ("events.csv", "behavior_events.csv", "observations.npz"):
+                (output / "recordings" / f"{recording:02d}_{suffix}").unlink()
     return coverage
 
 

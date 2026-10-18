@@ -20,10 +20,7 @@ from normalizing_flow.src.data import (  # noqa: E402
     load_scenario_dataset,
     output_dir_from_config,
 )
-from normalizing_flow.src.sampling import (  # noqa: E402
-    load_checkpoint_and_dataset,
-    sample_scenarios,
-)
+from normalizing_flow.src.sampling import load_checkpoint_and_dataset  # noqa: E402
 from normalizing_flow.src.utils import load_json, load_yaml  # noqa: E402
 
 CONFIG = ROOT / "normalizing_flow/config.yaml"
@@ -55,9 +52,7 @@ def main() -> None:
     assert report["final_fit_events"] == report["target_events"] == 2_964
     assert report["cross_validation"]["protocol"].startswith("recording_group_5_fold")
 
-    regenerated = sample_scenarios(
-        model, report["target_events"], report["sample_seed"]
-    )
+    regenerated = model.sample_scenarios(report["target_events"], report["sample_seed"])
     saved = np.load(ROOT / report["generated_samples"], allow_pickle=False)
     for name, values in {
         "c0": regenerated.c0,
@@ -70,7 +65,7 @@ def main() -> None:
     }.items():
         np.testing.assert_array_equal(saved[name], values)
 
-    first = sample_scenarios(model, 8, 1042)
+    first = model.sample_scenarios(8, 1042)
     terms = model.log_prob(first)
     np.testing.assert_allclose(
         terms["joint_log_prob"],

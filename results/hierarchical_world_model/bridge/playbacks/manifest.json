@@ -1,0 +1,98 @@
+{
+  "format_reference": "results/evt/playbacks",
+  "movies": [
+    {
+      "case": 1,
+      "collision": false,
+      "file": "braking.gif",
+      "first_target_handover_s": 3.84,
+      "focus_actor": 1,
+      "fps": 25,
+      "frames": 150,
+      "kind": "braking",
+      "playback_speed": 1,
+      "row": 2713,
+      "seed": 20261015
+    },
+    {
+      "case": 2,
+      "collision": false,
+      "file": "acceleration.gif",
+      "first_target_handover_s": 2.04,
+      "focus_actor": 1,
+      "fps": 25,
+      "frames": 150,
+      "kind": "acceleration",
+      "playback_speed": 1,
+      "row": 2713,
+      "seed": 20261015
+    },
+    {
+      "case": 5,
+      "collision": false,
+      "file": "cut_in.gif",
+      "first_target_handover_s": null,
+      "focus_actor": 5,
+      "fps": 25,
+      "frames": 150,
+      "kind": "cut_in",
+      "playback_speed": 1,
+      "row": 2510,
+      "seed": 20261015
+    },
+    {
+      "case": 3,
+      "collision": true,
+      "file": "corridor_release.gif",
+      "first_target_handover_s": 2.2800000000000002,
+      "focus_actor": 1,
+      "fps": 25,
+      "frames": 150,
+      "kind": "corridor_release",
+      "playback_speed": 1,
+      "row": 2713,
+      "seed": 20261015
+    },
+    {
+      "case": 50,
+      "collision": false,
+      "file": "free_flow.gif",
+      "first_target_handover_s": null,
+      "focus_actor": 1,
+      "fps": 25,
+      "frames": 150,
+      "kind": "free_flow",
+      "playback_speed": 1,
+      "row": 24319,
+      "seed": 20261015
+    },
+    {
+      "case": 0,
+      "collision": false,
+      "file": "null.gif",
+      "first_target_handover_s": null,
+      "focus_actor": 1,
+      "fps": 25,
+      "frames": 150,
+      "kind": "null",
+      "playback_speed": 1,
+      "row": 2713,
+      "seed": 20261015
+    },
+    {
+      "case": 3,
+      "collision": true,
+      "file": "lateral_conflict.gif",
+      "first_target_handover_s": 1.2,
+      "focus_actor": 5,
+      "fps": 25,
+      "frames": 150,
+      "kind": "lateral_conflict",
+      "playback_speed": 1,
+      "row": 2713,
+      "seed": 20261015
+    }
+  ],
+  "scope": "Scripted Test interventions, not ADS algorithm performance",
+  "selection": "First case with a target handover in each kind, otherwise first assigned case. Lateral conflict shows the first other-lane conflict admission in a corridor-release case. All cases and three seeds remain in the experiment report."
+}

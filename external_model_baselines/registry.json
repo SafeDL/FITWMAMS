@@ -92,7 +92,6 @@
   ],
   "top_level_classification": {
     "project_method": [
-      "ads_learning",
       "diffusion",
       "hierarchical_world_model",
       "normalizing_flow"
@@ -120,11 +119,11 @@
     "developer_tools": [
       "tools"
     ],
-    "evaluation_protocols": [
-      "idm_ams"
-    ],
     "catalog": [
       "external_model_baselines"
+    ],
+    "tested_algorithms": [
+      "ads"
     ]
   }
 }

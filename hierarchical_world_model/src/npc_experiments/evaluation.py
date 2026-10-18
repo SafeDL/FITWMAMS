@@ -1,5 +1,6 @@
 """Frozen natural-behavior, road-execution and complete Test response reports."""
 
+from ..stochastic_drivers.response_data import load_response
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +30,6 @@ from .search import (
 from ..stochastic_drivers.raw_data import (
     DRIVER_DATA_DIR,
     SPLITS,
-    load_following,
     load_lane_opportunities,
 )
 
@@ -262,9 +262,7 @@ def conditional_subgroups(output, settings):
     ):
         _save_conditional_table(output, summary)
         return summary
-    following, lanes = load_following(
-        DRIVER_DATA_DIR, group="response"
-    ), load_lane_opportunities(DRIVER_DATA_DIR)
+    following, lanes = load_response(), load_lane_opportunities(DRIVER_DATA_DIR)
     edges = np.quantile(following["train"]["density"], [1 / 3, 2 / 3])
     summary["subgroup_protocol"] = {
         "groups": list(SUBGROUPS),
@@ -427,7 +425,7 @@ def conditional_evaluation(output, settings):
     if summary.get("status") == "complete":
         conditional_subgroups(output, settings)
         return conditional_process_evaluation(output, settings)
-    following = load_following(DRIVER_DATA_DIR, group="response")
+    following = load_response()
     lanes = load_lane_opportunities(DRIVER_DATA_DIR)
     following["all"], lanes["all"] = combine_splits(following), combine_splits(lanes)
     for split in (*SPLITS, "all"):

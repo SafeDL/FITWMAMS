@@ -9,7 +9,6 @@ from hierarchical_world_model.src.highway import HighwayEnvTraffic
 from hierarchical_world_model.src.scene_geometry import SceneGeometry, VehicleDimensions
 from hierarchical_world_model.src.stochastic_drivers.online import (
     nearest_leader_observation,
-    planned_adjacent_lane_intent,
 )
 
 
@@ -143,20 +142,10 @@ def test_leader_gap_uses_pair_specific_half_lengths() -> None:
     states[0, 2, :3] = torch.tensor((10.0, 0.0, 18.0))
     lengths = torch.tensor(((4.8, 6.0, 2.0, 4.8, 4.8, 4.8, 4.8),))
     gap, _, _, leader = nearest_leader_observation(
-        states, valid, vehicle_lengths_m=lengths
+        states,
+        valid,
+        vehicle_lengths_m=lengths,
+        vehicle_widths_m=torch.full_like(lengths, 1.8),
     )
     assert leader[0, 0].item() == 2
     assert torch.isclose(gap[0, 0], torch.tensor(6.0))  # 10 - (6 + 2) / 2
-
-
-def test_planned_intent_uses_map_adjacency_not_nominal_lane_spacing() -> None:
-    maps = torch.zeros(1, 3, 8, 6)
-    maps[0, :, :, 1] = torch.tensor((0.0, 5.8, 12.2))[:, None]
-    maps[0, :, :, 4] = torch.tensor((3.1, 4.4, 3.7))[:, None]
-    valid = torch.ones(1, 3, 8, dtype=torch.bool)
-    origin = torch.zeros(1, 2)
-    terminal = torch.tensor(((5.8, 12.2),))
-    intent, source, target = planned_adjacent_lane_intent(origin, terminal, maps, valid)
-    assert intent.tolist() == [[True, False]]
-    torch.testing.assert_close(source, torch.zeros_like(source))
-    torch.testing.assert_close(target, terminal)

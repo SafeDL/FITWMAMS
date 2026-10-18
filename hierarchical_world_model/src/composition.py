@@ -11,10 +11,6 @@ import torch
 
 from diffusion.src.data import decode_residual_trajectory, prepare_flow_condition
 from diffusion.src.train import load_checkpoint as load_diffusion_checkpoint
-from normalizing_flow.src.sampling import (
-    sample_constraints,
-    sample_scenarios,
-)
 from normalizing_flow.src.scenario import load_checkpoint as load_flow_checkpoint
 from normalizing_flow.src.features import feature_valid_from_slot_mask
 from hierarchical_world_model.src.core.evaluation_scope import (
@@ -25,7 +21,9 @@ from hierarchical_world_model.src.core.evaluation_scope import (
 from hierarchical_world_model.src.core.utils import load_json, load_yaml
 
 from .highway import HighwayEnvClosedLoopWorld
-from .train import load_checkpoint as load_response_checkpoint
+from .takeover import TakeoverConfig, TakeoverController
+from .tracking import TrackingConfig
+from .config import WorldModelConfig
 from .data import artifact_identity
 from .randomness import WorldExogenousState
 from .stochastic_drivers.idm_population import (
@@ -40,17 +38,16 @@ DEFAULT_WORLD_SELECTION = (
 )
 
 
-def load_selected_components(response_checkpoint: str | Path):
+def load_selected_components():
     """Load the published chain and reject the known old/new asset mismatch."""
+    from .shared_evaluation import load_shared_components
+
     selection = load_json(DEFAULT_WORLD_SELECTION)
-    checkpoint = Path(response_checkpoint).resolve()
-    with np.load(DRIVER_MODEL_PATH) as values:
-        population = dict(values)
+    population, fit = load_shared_components()
     if (
         selection["status"] != "selected_after_shared_val_review"
+        or selection["mobil"] != fit["mobil"]
         or selection["selected_model"] != "mobil"
-        or Path(selection["response_checkpoint"]).resolve() != checkpoint
-        or selection["response_checkpoint_mtime_ns"] != checkpoint.stat().st_mtime_ns
         or selection["diffusion"] != artifact_identity(selection["diffusion"]["path"])
         or Path(selection["driver_parameter_source"]).resolve()
         != DRIVER_MODEL_PATH.resolve()
@@ -96,16 +93,18 @@ class HierarchicalWorldSampler:
         flow_checkpoint: str | Path,
         diffusion_checkpoint: str | Path,
         diffusion_contract: str | Path,
-        response_checkpoint: str | Path,
         repo_root: str | Path,
         device: str | torch.device = "cpu",
         ddim_steps: int = 20,
         excluded_slots: tuple[str, ...] = EXCLUDED_EVALUATION_SLOTS,
     ) -> None:
         self.device = torch.device(device)
-        self.generated_road = load_yaml(
+        world_config = load_yaml(
             Path(repo_root) / "hierarchical_world_model/config.yaml"
-        )["generated_road"]
+        )
+        self.generated_road = world_config["generated_road"]
+        self.tracking_config = TrackingConfig(**world_config["tracking"])
+        self.takeover_config = TakeoverConfig(**world_config["takeover"])
         self.flow, flow_payload = load_flow_checkpoint(
             flow_checkpoint,
             repo_root=repo_root,
@@ -121,15 +120,10 @@ class HierarchicalWorldSampler:
         declared = load_json(diffusion_contract)
         if declared != self.diffusion_contract:
             raise ValueError("diffusion checkpoint and declared contract differ")
-        self.response, _ = load_response_checkpoint(
-            response_checkpoint, device=self.device
-        )
-        self.selection, self.driver_population = load_selected_components(
-            response_checkpoint
-        )
+        self.cfg = WorldModelConfig(**world_config["dynamics"])
+        self.selection, self.driver_population = load_selected_components()
         self.flow.eval()
         self.diffusion.eval()
-        self.response.eval()
         self.ddim_steps = int(ddim_steps)
         self.excluded_slots = tuple(str(slot) for slot in excluded_slots)
         self.evaluation_scope = (
@@ -162,9 +156,6 @@ class HierarchicalWorldSampler:
             n,
             seed=seed,
             response_steps=response_steps,
-            scene_refresh_responses=self.response.cfg.scene_refresh_responses,
-            scene_dim=self.response.cfg.scene_latent_dim,
-            agent_dim=self.response.cfg.agent_latent_dim,
         )
 
     def _compose(
@@ -209,10 +200,7 @@ class HierarchicalWorldSampler:
         if exogenous_state is not None:
             if exogenous_state.batch_size != len(scenario.c0):
                 raise ValueError("exogenous state and scenario batch sizes differ")
-            exogenous_state.validate(
-                scene_dim=self.response.cfg.scene_latent_dim,
-                agent_dim=self.response.cfg.agent_latent_dim,
-            )
+            exogenous_state.validate()
             initial_noise = torch.from_numpy(exogenous_state.diffusion_noise).to(
                 self.device
             )
@@ -257,11 +245,7 @@ class HierarchicalWorldSampler:
         self, exogenous_state: WorldExogenousState
     ) -> SampledWorldBatch:
         """Turn an explicit base-randomness state into a concrete traffic world."""
-        exogenous_state.validate(
-            response_steps=exogenous_state.response_steps,
-            scene_dim=self.response.cfg.scene_latent_dim,
-            agent_dim=self.response.cfg.agent_latent_dim,
-        )
+        exogenous_state.validate()
         c0, slot_mask, dimensions = (
             self.flow.sample_initial_conditions_from_base_randomness(
                 exogenous_state.scenario_uniform,
@@ -286,10 +270,9 @@ class HierarchicalWorldSampler:
         self, n: int, *, scenario_seed: int, motion_seed: int
     ) -> SampledWorldBatch:
         """Sample unconstrained scenarios and attach frozen response plans."""
-        sampled = sample_scenarios(self.flow, int(n), scenario_seed)
+        sampled = self.flow.sample_scenarios(int(n), int(scenario_seed))
         c0, slot_mask = self._scope_condition(sampled.c0, sampled.slot_mask)
-        scenario = sample_constraints(
-            self.flow,
+        scenario = self.flow.sample_constraints(
             c0,
             slot_mask,
             sampled.vehicle_dimensions,
@@ -312,13 +295,12 @@ class HierarchicalWorldSampler:
     ) -> SampledWorldBatch:
         """Sample scenarios conditioned on fixed C0 and slot-presence masks."""
         c0, slot_mask = self._scope_condition(c0, slot_mask)
-        scenario = sample_constraints(
-            self.flow,
+        scenario = self.flow.sample_constraints(
             c0,
             slot_mask,
             vehicle_dimensions,
             int(n),
-            scenario_seed,
+            int(scenario_seed),
         )
         return self._compose(
             scenario, scenario_seed=scenario_seed, motion_seed=motion_seed
@@ -330,7 +312,8 @@ class HierarchicalWorldSampler:
         *,
         idm_config: dict[str, Any] | None = None,
         controller: Any = "auto",
-        reference_rebase_weights: tuple[float, float] | None = None,
+        tracking_config: TrackingConfig | None = None,
+        takeover_config: TakeoverConfig | None = None,
     ) -> HighwayEnvClosedLoopWorld:
         """Use the published shared IDM, MOBIL and actual-state continuation."""
         if sample.exogenous_state is None:
@@ -338,19 +321,16 @@ class HierarchicalWorldSampler:
         if isinstance(controller, str):
             if controller != "auto":
                 raise ValueError(
-                    "only controller='auto' is maintained; pass an object for an ablation"
+                    "controller must be auto, a controller, or None for pure tracking"
                 )
-            from .stochastic_drivers.online import (
-                OnlineMAIDMController,
-                calibrated_mobil_parameters,
-            )
+            from .stochastic_drivers.online import calibrated_mobil_parameters
 
-            theta = sample_theta(
-                self.driver_population, sample.exogenous_state.driver_latent
-            )
-            controller = OnlineMAIDMController(
-                theta,
+            controller = TakeoverController(
+                sample_theta(
+                    self.driver_population, sample.exogenous_state.driver_latent
+                ),
                 maneuver_latent=sample.exogenous_state.maneuver_latent,
+                takeover_config=takeover_config or self.takeover_config,
                 **calibrated_mobil_parameters(self.selection["mobil"]),
             )
         batch = len(sample.initial_states)
@@ -367,12 +347,11 @@ class HierarchicalWorldSampler:
         map_valid = np.zeros((batch, 8, 8), bool)
         map_valid[:, :lanes] = True
         world = HighwayEnvClosedLoopWorld(
-            self.response,
+            cfg=self.cfg,
             device=self.device,
             idm_config=idm_config,
             controller=controller,
-            reference_rebase_weights=reference_rebase_weights,
-            reference_recovery_enabled=self.selection["reference_recovery_enabled"],
+            tracking_config=tracking_config or self.tracking_config,
         )
         world.reset(
             torch.from_numpy(sample.initial_states),

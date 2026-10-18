@@ -38,10 +38,10 @@ def test_ar2_has_stationary_variance_and_reproduces_serial_covariance(coefficien
     theta = torch.tensor([33.0, 2.0, 1.2, 1.0, 2.0], dtype=torch.float64)
     correction = {
         "longitudinal": {
-            "feature_mean": [0] * 9,
-            "feature_std": [1] * 9,
-            "mean_coef": [0] * 10,
-            "variance_coef": [0] * 10,
+            "feature_mean": [0] * 13,
+            "feature_std": [1] * 13,
+            "mean_coef": [0] * 14,
+            "variance_coef": [0] * 14,
             "autoregression": parameters,
             "mean_strength": 0.0,
             "noise_strength": 0.1,

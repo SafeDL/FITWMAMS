@@ -7,6 +7,9 @@ import numpy as np
 from scipy.optimize import minimize, minimize_scalar
 from scipy.special import expit, softmax, logsumexp
 
+from ..stochastic_drivers.response_data import load_response
+from ..stochastic_drivers.driver_policy import LONGITUDINAL_FEATURE_NAMES
+
 from .metrics import (
     FEATURE_EDGES,
     hellinger,
@@ -210,9 +213,7 @@ def fit_stage(output, settings):
     np.savez_compressed(
         output / "policy_calibration/driver_parameters.npz", **population
     )
-    data = concatenate_groups(
-        load_following(DRIVER_DATA_DIR, splits=splits, group="response")
-    )
+    data = concatenate_groups(load_response(splits=splits))
     lanes = concatenate_groups(load_lane_opportunities(DRIVER_DATA_DIR, splits=splits))
     base = deepcopy(
         load_json(output / "policy_calibration/reference_mobil.json")["mobil"]
@@ -249,7 +250,7 @@ def fit_stage(output, settings):
     )
     candidates = []
     ridges = settings["residual"]["regularization"]
-    val = load_following(DRIVER_DATA_DIR, splits=("val",), group="response")["val"]
+    val = load_response(splits=("val",))["val"]
     lane_val = load_lane_opportunities(DRIVER_DATA_DIR, splits=("val",))["val"]
     for ridge in dict.fromkeys(ridges):
         cache = output / f"policy_calibration/local_ridge_{ridge}.json"
@@ -509,6 +510,7 @@ def longitudinal_design(data, mean=None, std=None):
             data["changing"],
             data["progress"],
             data["lateral_speed"],
+            *data["entry_features"].T,
         )
     )
     mean = raw.mean(0) if mean is None else np.asarray(mean)
@@ -516,22 +518,11 @@ def longitudinal_design(data, mean=None, std=None):
     return np.column_stack((np.ones(len(raw)), (raw - mean) / std)), mean, std
 
 
-def fit_correction(data, lane, population, mobil, ridge):
+def fit_longitudinal_correction(data, population, ridge):
     """Estimate within-driver residuals before fitting conditional dispersion."""
-    keys = population["driver_keys"]
-    parameters = population["driver_log_parameters"]
-    lookup = {(int(rec), int(actor)): index for index, (rec, actor) in enumerate(keys)}
-    indices = np.fromiter(
-        (
-            lookup.get((int(rec), int(actor)), -1)
-            for rec, actor in zip(data["recording"], data["vehicle"])
-        ),
-        int,
-        len(data["gap"]),
-    )
-    theta = np.broadcast_to(np.exp(population["log_mean"]), (len(indices), 5)).copy()
-    fitted = indices >= 0
-    theta[fitted] = np.exp(parameters[indices[fitted]])
+    # The published population stays fixed; driver centering below separates
+    # persistent individual offsets from the conditional residual variance.
+    theta = np.exp(population["log_mean"])
     residual = data["acceleration"] - idm_acceleration(
         data["gap"],
         data["speed"],
@@ -550,6 +541,27 @@ def fit_correction(data, lane, population, mobil, ridge):
     variance_coefficient[0] += 1.270362845
     sigma = np.exp(0.5 * (x @ variance_coefficient).clip(-16, 4))
     autoregression, correlations = fit_autoregression(data, centered / sigma)
+    return {
+        "feature_names": list(LONGITUDINAL_FEATURE_NAMES),
+        "feature_mean": mean.tolist(),
+        "feature_std": std.tolist(),
+        "mean_coef": coefficient.tolist(),
+        "variance_coef": variance_coefficient.tolist(),
+        "autoregression": autoregression,
+        "mean_strength": 1.0,
+        "noise_strength": 1.0,
+        "diagnostics": {
+            "raw_residual_std_mps2": float(residual.std()),
+            "driver_mean_std_mps2": float(driver_means.std()),
+            "within_driver_std_mps2": float(centered.std()),
+            "raw_correlations": residual_correlations(data, residual),
+            "standardized_within_driver_correlations": correlations,
+        },
+    }
+
+
+def fit_correction(data, lane, population, mobil, ridge):
+    longitudinal = fit_longitudinal_correction(data, population, ridge)
     features = lane["features"]
     lane_mean, lane_std = features.reshape(-1, 8).mean(0), features.reshape(-1, 8).std(
         0
@@ -597,15 +609,7 @@ def fit_correction(data, lane, population, mobil, ridge):
     if not result.success:
         raise RuntimeError(f"Conditional lane correction: {result.message}")
     return {
-        "longitudinal": {
-            "feature_mean": mean.tolist(),
-            "feature_std": std.tolist(),
-            "mean_coef": coefficient.tolist(),
-            "variance_coef": variance_coefficient.tolist(),
-            "autoregression": autoregression,
-            "mean_strength": 1.0,
-            "noise_strength": 1.0,
-        },
+        "longitudinal": longitudinal,
         "lane": {
             "feature_mean": lane_mean.tolist(),
             "feature_std": lane_std.tolist(),
@@ -617,13 +621,7 @@ def fit_correction(data, lane, population, mobil, ridge):
         "ridge": float(ridge),
         "response_blend": 1.0,
         "trajectory": {"log_duration_scale": 0.0, "shape_shift": [0.0, 0.0]},
-        "diagnostics": {
-            "raw_residual_std_mps2": float(residual.std()),
-            "driver_mean_std_mps2": float(driver_means.std()),
-            "within_driver_std_mps2": float(centered.std()),
-            "raw_correlations": residual_correlations(data, residual),
-            "standardized_within_driver_correlations": correlations,
-        },
+        "diagnostics": longitudinal["diagnostics"],
     }
 
 

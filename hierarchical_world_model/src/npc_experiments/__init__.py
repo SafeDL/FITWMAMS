@@ -1,1 +1,1 @@
-"""NPC behavior learning and autonomous-traffic experiments, separate from HiQR."""
+"""NPC behavior learning and autonomous-traffic experiments, separate from tracking/NPC."""

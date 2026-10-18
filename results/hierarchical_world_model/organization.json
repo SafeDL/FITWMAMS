@@ -1,0 +1,267 @@
+{
+  "date": "2026-10-18",
+  "scope": "Consolidate the current world execution and experiment chain; preserve current numerical behavior and necessary failure evidence.",
+  "before": {
+    "python_files": 91,
+    "python_lines": 24794,
+    "result_files": 10665,
+    "result_bytes": 7792902850
+  },
+  "removed_result_directories": [
+    {
+      "directory": "results/hierarchical_world_model/tracking_takeover",
+      "files": 13,
+      "bytes": 30117134
+    },
+    {
+      "directory": "results/hierarchical_world_model/plan_applicability",
+      "files": 7757,
+      "bytes": 6774596007
+    },
+    {
+      "directory": "results/hierarchical_world_model/empirical_bridge",
+      "files": 1486,
+      "bytes": 450214061
+    },
+    {
+      "directory": "results/hierarchical_world_model/interaction_bridge",
+      "files": 1361,
+      "bytes": 141239142
+    }
+  ],
+  "deleted_source_paths": [
+    "hierarchical_world_model/scripts/analyze_interaction_test.py",
+    "hierarchical_world_model/scripts/audit_takeover.py",
+    "hierarchical_world_model/scripts/calibrate_interactions.py",
+    "hierarchical_world_model/scripts/calibrate_takeover.py",
+    "hierarchical_world_model/scripts/evaluate_interaction_test.py",
+    "hierarchical_world_model/scripts/evaluate_takeover.py",
+    "hierarchical_world_model/scripts/verify_bridge_refinement.py",
+    "hierarchical_world_model/scripts/verify_interactions.py",
+    "hierarchical_world_model/src/occupancy.py",
+    "hierarchical_world_model/tests/test_empirical_bridge.py",
+    "hierarchical_world_model/tests/test_occupancy.py"
+  ],
+  "changed_or_added_source_paths": [
+    "hierarchical_world_model/scripts/calibrate_bridge.py",
+    "hierarchical_world_model/scripts/calibrate_drivers.py",
+    "hierarchical_world_model/scripts/calibrate_error_trajectories.py",
+    "hierarchical_world_model/scripts/evaluate_bridge.py",
+    "hierarchical_world_model/scripts/evaluate_bridge_interventions.py",
+    "hierarchical_world_model/scripts/render_bridge_playbacks.py",
+    "hierarchical_world_model/src/bridge_evaluation.py",
+    "hierarchical_world_model/src/error_trajectories.py",
+    "hierarchical_world_model/src/plan_applicability.py",
+    "hierarchical_world_model/src/scene_geometry.py",
+    "hierarchical_world_model/src/stochastic_drivers/driver_policy.py",
+    "hierarchical_world_model/src/stochastic_drivers/response_data.py",
+    "hierarchical_world_model/src/takeover.py",
+    "hierarchical_world_model/tests/test_interaction_bridge.py",
+    "hierarchical_world_model/tests/test_plan_applicability.py",
+    "hierarchical_world_model/tests/test_takeover_experiments.py"
+  ],
+  "module_consolidation": {
+    "occupancy.py prediction and interaction scores": "src/plan_applicability.py",
+    "oriented rectangle separation": "src/scene_geometry.py",
+    "current experiment loading, admission records, timing": "src/bridge_evaluation.py",
+    "two legacy geometry/occupancy test modules": "tests/test_plan_applicability.py"
+  },
+  "current_entries": {
+    "calibration": [
+      "calibrate_error_trajectories.py",
+      "calibrate_drivers.py",
+      "calibrate_bridge.py"
+    ],
+    "evaluation": [
+      "evaluate_bridge.py",
+      "evaluate_bridge_interventions.py"
+    ],
+    "visualization": [
+      "render_bridge_playbacks.py"
+    ]
+  },
+  "retained_evidence": [
+    "Current Train/Val calibration and natural Test records",
+    "All 204 current intervention runs and seven GIF examples",
+    "Original twelve failure cases and historical timing diagnosis",
+    "Frozen NPC assets, Diffusion plans and earlier component evidence with its original scope"
+  ],
+  "limitations": "Latest full generated-scenario ADS comparison matrix is not completed; older standalone NPC reports predate the current longitudinal correction.",
+  "verification": "bridge/verification.json",
+  "no_retraining_or_parameter_change": true,
+  "after": {
+    "python_files": 86,
+    "python_lines": 22392,
+    "result_files": 73,
+    "result_bytes": 471341028
+  },
+  "net_removed_bytes": 7321561822,
+  "shared_training_data_cleanup": {
+    "date": "2026-10-18",
+    "scope": "Delete superseded shared-data protocols and completed calibration/aggregation intermediates; retain current training, calibration and evaluation inputs.",
+    "before": [
+      {
+        "path": "results/highd_shared_training_data/README.md",
+        "files": 1,
+        "bytes": 1830,
+        "allocated_bytes": 4096
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior",
+        "files": 495,
+        "bytes": 785423739,
+        "allocated_bytes": 786632704
+      },
+      {
+        "path": "results/highd_shared_training_data/empirical_pose_errors",
+        "files": 724,
+        "bytes": 34031023510,
+        "allocated_bytes": 34033090560
+      },
+      {
+        "path": "results/highd_shared_training_data/highd_sequence_cache",
+        "files": 12,
+        "bytes": 3841722458,
+        "allocated_bytes": 3841761280
+      },
+      {
+        "path": "results/highd_shared_training_data/interaction_pose_errors",
+        "files": 724,
+        "bytes": 34031023510,
+        "allocated_bytes": 34033094656
+      },
+      {
+        "path": "results/highd_shared_training_data/plan_forecast_errors",
+        "files": 51,
+        "bytes": 370004276,
+        "allocated_bytes": 370110464
+      },
+      {
+        "path": "results/highd_shared_training_data/scenario_conditions",
+        "files": 2,
+        "bytes": 30524174,
+        "allocated_bytes": 30527488
+      }
+    ],
+    "after": [
+      {
+        "path": "results/highd_shared_training_data/README.md",
+        "files": 1,
+        "bytes": 3202,
+        "allocated_bytes": 4096
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior",
+        "files": 194,
+        "bytes": 659570914,
+        "allocated_bytes": 660066304
+      },
+      {
+        "path": "results/highd_shared_training_data/highd_sequence_cache",
+        "files": 12,
+        "bytes": 3841722458,
+        "allocated_bytes": 3841761280
+      },
+      {
+        "path": "results/highd_shared_training_data/scenario_conditions",
+        "files": 2,
+        "bytes": 30524174,
+        "allocated_bytes": 30527488
+      }
+    ],
+    "removed": [
+      {
+        "path": "results/highd_shared_training_data/plan_forecast_errors",
+        "files": 51,
+        "bytes": 370004276,
+        "reason": "superseded_protocol"
+      },
+      {
+        "path": "results/highd_shared_training_data/empirical_pose_errors",
+        "files": 724,
+        "bytes": 34031023510,
+        "reason": "superseded_protocol"
+      },
+      {
+        "path": "results/highd_shared_training_data/interaction_pose_errors",
+        "files": 724,
+        "bytes": 34031023510,
+        "reason": "completed_calibration_temporary_windows"
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior/physical_response",
+        "files": 121,
+        "bytes": 94430728,
+        "reason": "superseded_protocol"
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior/recordings/[0-9][0-9]_events.csv",
+        "files": 60,
+        "bytes": 447438,
+        "reason": "exactly_preserved_in_Train_Val_Test_aggregates"
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior/recordings/[0-9][0-9]_behavior_events.csv",
+        "files": 60,
+        "bytes": 25399495,
+        "reason": "exactly_preserved_in_Train_Val_Test_aggregates"
+      },
+      {
+        "path": "results/highd_shared_training_data/driver_behavior/recordings/[0-9][0-9]_observations.npz",
+        "files": 60,
+        "bytes": 5575164,
+        "reason": "exactly_preserved_in_Train_Val_Test_aggregates"
+      }
+    ],
+    "removed_files": 1800,
+    "removed_bytes": 68557904121,
+    "retained_inputs_unchanged": {
+      "files": 208,
+      "size_and_mtime_unchanged": true
+    },
+    "frozen_model_assets_sha256": {
+      "results/hierarchical_world_model/model_assets/mobil.json": "3eac25cf7354830a605833cc81b563b719a92a68b037565a4c0e6e607a701a39",
+      "results/hierarchical_world_model/model_assets/interaction_errors.npz": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+      "results/hierarchical_world_model/model_assets/idm_population.npz": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+      "results/hierarchical_world_model/model_assets/lane_fit.json": "2bfad5a5eb5c563533fb5f071141ab294381b9ed1893e840a903e63a15834137",
+      "results/hierarchical_world_model/model_assets/lane_trajectory.json": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f",
+      "results/hierarchical_world_model/model_assets/selection.json": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5"
+    },
+    "evidence": {
+      "frozen_representatives_exactly_matched_original_windows": 256,
+      "raw_recording_reports_matched": 42,
+      "tracking_report_matched": true,
+      "all_window_group_counts_matched": true,
+      "duplicate_recording_shards_matched_all_split_aggregates": true,
+      "retained_sequence_ids": 96055,
+      "aligned_splits": {
+        "train": 72771,
+        "val": 13133,
+        "test": 10151
+      },
+      "model_components_and_error_bank_load": true,
+      "npc_observation_signature_unchanged": true
+    },
+    "verification": {
+      "test_command": "OMP_NUM_THREADS=1 python -m pytest hierarchical_world_model/tests ads/idm/tests ads/dqn/tests -q",
+      "passed": 248,
+      "warnings": 3,
+      "seconds": 6.76,
+      "lightweight_real_clustering_publish_and_cleanup_check": true,
+      "report_write_failure_preserves_windows": true,
+      "git_diff_check": true
+    },
+    "regeneration": {
+      "empirical_errors": "python hierarchical_world_model/scripts/calibrate_error_trajectories.py",
+      "temporary_workspace": "results/hierarchical_world_model/bridge/.cache/error_trajectories",
+      "successful_publication_removes_temporary_workspace": true,
+      "successful_raw_data_aggregation_removes_recording_shards": true,
+      "raw_recording_NN_npz_kept": true,
+      "no_training_or_population_evaluation_rerun": true
+    },
+    "modified_source_sha256": {
+      "hierarchical_world_model/scripts/calibrate_error_trajectories.py": "8a2e8eb31cf31d6c30218a504f099de38ee37457ee010db1b662faad9da0f14c",
+      "hierarchical_world_model/src/stochastic_drivers/raw_data.py": "45d0f191cafba569be3f3ba0bf8aec0757cd3389bf8a1bdd6e7771c1025477ae"
+    }
+  }
+}

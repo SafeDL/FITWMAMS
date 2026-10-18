@@ -1,0 +1,133 @@
+{
+  "complete": true,
+  "scope": "Code and results organization; no model refit, parameter selection or new population experiment.",
+  "tests": {
+    "passed": 248,
+    "warnings": 3,
+    "seconds": 6.75,
+    "command": "OMP_NUM_THREADS=1 python -m pytest hierarchical_world_model/tests ads/idm/tests ads/dqn/tests -q"
+  },
+  "trajectory_equivalence": {
+    "runs": 204,
+    "all_trace_fields_bitwise_equal": true,
+    "scripted_ego_controls_unchanged": true,
+    "case_selection_unchanged": true,
+    "arms": [
+      {
+        "arm": "tracker",
+        "seed": 20261015,
+        "scenes": 51,
+        "all_trace_fields_bitwise_equal": true
+      },
+      {
+        "arm": "takeover",
+        "seed": 20261015,
+        "scenes": 51,
+        "all_trace_fields_bitwise_equal": true
+      },
+      {
+        "arm": "takeover",
+        "seed": 20261016,
+        "scenes": 51,
+        "all_trace_fields_bitwise_equal": true
+      },
+      {
+        "arm": "takeover",
+        "seed": 20261017,
+        "scenes": 51,
+        "all_trace_fields_bitwise_equal": true
+      }
+    ]
+  },
+  "migrated_numerical_functions_AST_unchanged": [
+    "planned_lane_change",
+    "rectangle_separation",
+    "paired_rectangle_separation",
+    "forecast_poses",
+    "forecast_bundle",
+    "conflict_scores",
+    "interaction_scores"
+  ],
+  "npc_observation_signature": "7aada9456f6fe1a26fa637f0c032618eae2319587f644bb013dc1c28231583d3",
+  "frozen_NPC_assets_unchanged": {
+    "results/hierarchical_world_model/model_assets/mobil.json": "3eac25cf7354830a605833cc81b563b719a92a68b037565a4c0e6e607a701a39",
+    "results/hierarchical_world_model/model_assets/idm_population.npz": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+    "results/hierarchical_world_model/model_assets/lane_fit.json": "2bfad5a5eb5c563533fb5f071141ab294381b9ed1893e840a903e63a15834137",
+    "results/hierarchical_world_model/model_assets/lane_trajectory.json": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f"
+  },
+  "error_bank_sha256": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+  "full_natural_records": 40604,
+  "full_natural_aggregate_exactly_matches_report": true,
+  "natural_report": "test_report.json",
+  "natural_report_scope": "10151 scenes represented by original full evaluation and saved 98-scene rule-refinement regression; not newly rerun in this organization.",
+  "intervention_report": "interventions.json",
+  "scripts_import_and_frozen_components_load": true,
+  "old_experiment_directories_required_at_runtime": false,
+  "playbacks": {
+    "report": "playbacks/verification.json",
+    "inputs_loaded": 7,
+    "braking_GIF_rerendered_frames": 150,
+    "all_rerendered_pixels_equal": true
+  },
+  "original_experiment_protocols": "provenance.json",
+  "retained_historical_failures": "diagnostics.json",
+  "source_sha256": {
+    "hierarchical_world_model/__init__.py": "f092566701b2e4fdd2a3e7328344bd13e9838aa542fce6e2bd47683ba4eb3780",
+    "hierarchical_world_model/scripts/calibrate_bridge.py": "ab0324e13e6eb6c20ea981f6a134794e87ac553eaf0f39d5fcc727902be25115",
+    "hierarchical_world_model/scripts/calibrate_drivers.py": "7b15cbad12a9e8347928580b215fbbd696296450b461f76e9a5b6ae5a05e62e0",
+    "hierarchical_world_model/scripts/calibrate_error_trajectories.py": "cb49a37c7ac30cc4fb527d57e1b160b3c3d00e3d5db4104e3b1c8df1b7d1c94d",
+    "hierarchical_world_model/scripts/evaluate_bridge.py": "a5bddae79b24c9362e90464aafc2fe46144c22204c2ce44171b814e7ac8c1e95",
+    "hierarchical_world_model/scripts/evaluate_bridge_interventions.py": "fffa219b34588da0ee17285479b1e716b782b3f272e14294f585acd32389e6f4",
+    "hierarchical_world_model/scripts/evaluate_drivers.py": "f49585ea23e4196c558ab65566651df6beb7aeddac4b333c8b289cc1cb88832a",
+    "hierarchical_world_model/scripts/evaluate_generated_online_ads.py": "1d12c9b96ab90ce3aebada802d71c261ac7b3622d956c7616dd8d2bbba5b1d2b",
+    "hierarchical_world_model/scripts/render_bridge_playbacks.py": "61f3bf8096aa41885b571b53d99165f479a0edd79daf334f5517c3ba87378d7d",
+    "hierarchical_world_model/src/__init__.py": "7f577b5f5128abcae5d9ac216b3c9024050face75506726b6001c4bc2090df9a",
+    "hierarchical_world_model/src/ads_interventions.py": "dc454ac75b37bba22ad5d2a0c78667b9197271eb746585c2d234ce7ce2fc6616",
+    "hierarchical_world_model/src/bridge_evaluation.py": "ecb48a22a737e52dae33fb11f978a60e74cd1643536c9a2eb45d3ce4a69ba22f",
+    "hierarchical_world_model/src/composition.py": "01f5303563475c77099605a812db857e547ec442545d65b1069d381245e165ec",
+    "hierarchical_world_model/src/config.py": "0273d99f9d0b92d7a4baa8b37a0dac3ff153e454e8d46797294eb0a418e6a576",
+    "hierarchical_world_model/src/core/__init__.py": "49d361f47358504ce6d9533f45a222d636ee15e763c70891872eca5d1b349b65",
+    "hierarchical_world_model/src/core/dynamics.py": "652eb62fd1a31031f9643ea5b4f6a8d40c884bcad48078555beefa73c118a0ec",
+    "hierarchical_world_model/src/core/evaluation_scope.py": "445ea5c99e03b40b4bff0de57108cd0b1352320d4dedc1dcd4ba3948558e7fe4",
+    "hierarchical_world_model/src/core/highd_metrics.py": "e42843c742a64eee3dde37839c381387a5618e3758c5df0748b364d37c2f3e31",
+    "hierarchical_world_model/src/core/schema.py": "e3b0b53c66e50a1c2d35660367549bd27ca1dea67ce45ee4b17b2128ca7fbf10",
+    "hierarchical_world_model/src/core/sequential_dataset.py": "9d40b41ca68c9768c6a06ad7cd39d625a3e3ea2a38637a5adc53006a295c7ba3",
+    "hierarchical_world_model/src/core/utils.py": "99112c23d9b7f74fdf27a1ecb22ee35a3e69cd8e2f3aba9944e7e27f661b06f1",
+    "hierarchical_world_model/src/data.py": "e94d99f446f81f219139a2293fc4512a3835255826399f46b249546cea94cc1d",
+    "hierarchical_world_model/src/empirical_context.py": "c25093c6c512d32c52fb1b922876575f24f7e85a0b83f40eeb7651329996faad",
+    "hierarchical_world_model/src/error_trajectories.py": "1af48d0f261f25e12bbc4132588f00657ddff4d89f8916ccb062665af912a48a",
+    "hierarchical_world_model/src/execution.py": "f1e6fe1badb6604fa3a69b0dec205be78c06707594903c12e5d8c481966953e6",
+    "hierarchical_world_model/src/highway.py": "cd72b2eeda8d8d9d9e7060fd87461de2cab5f2c87177784076d45a8b12640433",
+    "hierarchical_world_model/src/influence_graph.py": "77538d80e3a2d7fe9d92ccac42884f10aa086679767344e2946a768d0474cfce",
+    "hierarchical_world_model/src/motion.py": "19a7ea269e1d90965c6618d21d66dd7607e8a5e4c67f3b0bdabd9b3b6a429e4d",
+    "hierarchical_world_model/src/npc_experiments/__init__.py": "2c59025bc549355341d35d68fd389164feb25c7dd4ccb0d4d700568ecea4255e",
+    "hierarchical_world_model/src/npc_experiments/animations.py": "9aa64a09af896f4e4f4413174f1dacaf2838f64b6dfdf62560a2504bbedabbd9",
+    "hierarchical_world_model/src/npc_experiments/calibration.py": "008bebcee08b6a19ec318941b01ace77737b27b1dd01c1c8c88a3c5e8eb6d19e",
+    "hierarchical_world_model/src/npc_experiments/evaluation.py": "1d559edf7375c9cd491c8ce3152db793f9e9ffbc6f9e53d8883e22bee4a595c8",
+    "hierarchical_world_model/src/npc_experiments/figures.py": "a95ba1e7cab6f8fe214d2edf9f421c9120f2bdd7ca6e21bbcff0a67c64be3a72",
+    "hierarchical_world_model/src/npc_experiments/lateral.py": "661a6adfff86c3f7483bb8161f43a25fc26a52fbccb578670346078af7a0168b",
+    "hierarchical_world_model/src/npc_experiments/metrics.py": "4a2032138f313f4575fa73e9c9885c13c95492a67dfe91f1ee5b6773ab707415",
+    "hierarchical_world_model/src/npc_experiments/publication.py": "7999d3d3b6b49a273291fd9b3110f0268a08844db61971494ee0bd226cd474ff",
+    "hierarchical_world_model/src/npc_experiments/residual.py": "dede97c2e9dad093e869cbf33f6b5eeaa46d52699d567c2ad939955fb916bb63",
+    "hierarchical_world_model/src/npc_experiments/road.py": "f284a90e28c7c42233c9d91b2b6dec52cabff014d2e19c70810c144a27114e6c",
+    "hierarchical_world_model/src/npc_experiments/search.py": "8091d0781f41d9f790154cbf58219162262c369c705bfb96e86857441057ab7f",
+    "hierarchical_world_model/src/plan_applicability.py": "1fd0f84a57961c0b205346d03bfb0b444407bdf48d1cfe48e1dbfb663a710d06",
+    "hierarchical_world_model/src/planner.py": "fb54568cf6294bed3f0224ada22bda7e71bf6d05b29f46a95fc4f968515c4205",
+    "hierarchical_world_model/src/randomness.py": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767",
+    "hierarchical_world_model/src/reaction_controller.py": "19b7971a9c55a66c35378089a343d22ce5914b160d331e5211faefc4ed824ce2",
+    "hierarchical_world_model/src/scene_geometry.py": "44140d0a21cfa139e3c211a1ea32925c8539bc9c2fe7bb23cdf9d285e9c0ac6e",
+    "hierarchical_world_model/src/shared_evaluation.py": "93f5dd38be4a92f66a6a93b8e14525ab4d99845680570dd88381fc4b3e628534",
+    "hierarchical_world_model/src/stochastic_drivers/__init__.py": "475765b6faf2fd7860505d607be9e48a49712082705863af5a8d581daf49fbfd",
+    "hierarchical_world_model/src/stochastic_drivers/driver_policy.py": "cf6018b9868e4e894439a119159229adf238cc22fa26e1311a8e302b260290ba",
+    "hierarchical_world_model/src/stochastic_drivers/idm_population.py": "6b13ed43f7ea8fa0b827df715c3431174ed2967674ec891110105dc28ac8db96",
+    "hierarchical_world_model/src/stochastic_drivers/lane_choice.py": "0b416219293ce16c7ffbe3436c7f12009f61e88ae0ac0a115556f18442c2dfe7",
+    "hierarchical_world_model/src/stochastic_drivers/lane_fit.py": "84195bee0a157d03d3d094df4a7bd613eec9dfcf999a627ef3b1e1c5c96c048b",
+    "hierarchical_world_model/src/stochastic_drivers/lane_trajectory.py": "99f8602cf7968979841ecaecc1c715ec9cef8dbb9bdeeb4cfdf692a8b6182c64",
+    "hierarchical_world_model/src/stochastic_drivers/mobil_response.py": "066696d6ab87f44d4ace37fbe451930ff740eea0f121ef6727d310c4909de4f3",
+    "hierarchical_world_model/src/stochastic_drivers/online.py": "547dc3b15a6d25c20cc3615ae0632f9ce3453feebc00becb13ff5dbb80c3c7ea",
+    "hierarchical_world_model/src/stochastic_drivers/raw_data.py": "bcbbe749f38b95b954b4de1ead578b58a1222a6338e5c7ca5d3aa8e5a4e9de4b",
+    "hierarchical_world_model/src/stochastic_drivers/response_data.py": "4e8b2228fa48b322eaecc968122abd8bd996ca1e25da816fe6e1b8ede4e2cb7a",
+    "hierarchical_world_model/src/takeover.py": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94",
+    "hierarchical_world_model/src/tracking.py": "b89eea62f81103b46e16135aef65071772d8d15a6d273afbd00fa551290e5fe6"
+  }
+}

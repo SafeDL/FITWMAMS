@@ -38,6 +38,7 @@ class WorldRollout:
     crashed: np.ndarray
     offroad: np.ndarray
     vehicle_dimensions: np.ndarray | None = None
+    takeover_diagnostics: dict[str, np.ndarray] | None = None
 
 
 def hold_current_ego_action(observation: dict[str, torch.Tensor | int]) -> torch.Tensor:
@@ -147,8 +148,9 @@ def rollout_world(
     evt_model: GPDTailModel | None = None,
     risk_options: SafetyEnvelopeRiskOptions | None = None,
     reaction_controller: Any = "auto",
-    reference_rebase_weights: tuple[float, float] | None = (1.0, 0.0),
     excluded_risk_slots: Iterable[str] = (),
+    tracking_config: Any = None,
+    takeover_config: Any = None,
 ) -> WorldRollout:
     """Roll out one generated world with causal online NPC response by default."""
     sample = sampler.compose_exogenous(exogenous_state)
@@ -160,8 +162,9 @@ def rollout_world(
         evt_model=evt_model,
         risk_options=risk_options,
         reaction_controller=reaction_controller,
-        reference_rebase_weights=reference_rebase_weights,
         excluded_risk_slots=excluded_risk_slots,
+        tracking_config=tracking_config,
+        takeover_config=takeover_config,
     )
 
 
@@ -174,8 +177,9 @@ def _rollout_sample(
     evt_model: GPDTailModel | None = None,
     risk_options: SafetyEnvelopeRiskOptions | None = None,
     reaction_controller: Any = None,
-    reference_rebase_weights: tuple[float, float] | None = (1.0, 0.0),
     excluded_risk_slots: Iterable[str] = (),
+    tracking_config: Any = None,
+    takeover_config: Any = None,
 ) -> WorldRollout:
     """Execute an already-composed sample without resampling its scene."""
     idm_config = getattr(ads_policy, "highway_env_idm_config", None)
@@ -183,18 +187,23 @@ def _rollout_sample(
         sample,
         idm_config=idm_config,
         controller=reaction_controller,
-        reference_rebase_weights=reference_rebase_weights,
+        tracking_config=tracking_config,
+        takeover_config=takeover_config,
     )
     assert sample.exogenous_state is not None
-    horizon = min(sample.soft_plan.shape[1], sample.exogenous_state.response_steps)
-    if steps is not None:
-        horizon = min(horizon, int(steps))
+    requested = sample.soft_plan.shape[1] if steps is None else int(steps)
+    horizon = min(requested, sample.exogenous_state.response_steps)
+    if horizon > sample.soft_plan.shape[1] and world.controller is None:
+        raise ValueError(
+            "Execution beyond the plan requires an autonomous NPC controller"
+        )
     state_frames = [world.observe()["agent_states"].cpu().numpy()]
     ego_actions: list[np.ndarray] = []
     background_actions: list[np.ndarray] = []
     collision_pairs: list[np.ndarray] = []
     crashed: list[np.ndarray] = []
     offroad: list[np.ndarray] = []
+    takeover_diagnostics: dict[str, list[np.ndarray]] = {}
     for _ in range(horizon):
         if idm_config is None:
             action = torch.as_tensor(
@@ -216,6 +225,9 @@ def _rollout_sample(
         collision_pairs.append(transition["collision_pairs"].cpu().numpy())
         crashed.append(transition["crashed"].cpu().numpy())
         offroad.append(transition["offroad"].cpu().numpy())
+        for name, value in transition.items():
+            if name.startswith("takeover_") and isinstance(value, torch.Tensor):
+                takeover_diagnostics.setdefault(name, []).append(value.cpu().numpy())
     states = np.stack(state_frames, axis=1).astype(np.float32)
     numerical_valid = np.isfinite(states).all(axis=(1, 2, 3))
     event_risk = trajectory_event_risk(
@@ -242,4 +254,9 @@ def _rollout_sample(
         crashed=np.stack(crashed, axis=1).astype(bool),
         offroad=np.stack(offroad, axis=1).astype(bool),
         vehicle_dimensions=sample.vehicle_dimensions,
+        takeover_diagnostics={
+            name: np.stack(values, axis=1)
+            for name, values in takeover_diagnostics.items()
+        }
+        or None,
     )

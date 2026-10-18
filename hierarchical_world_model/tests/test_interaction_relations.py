@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import torch
 
-from hierarchical_world_model.src.influence_graph import build_dynamic_interaction_relations
+from hierarchical_world_model.src.influence_graph import (
+    build_dynamic_interaction_relations,
+)
 
 
 def _map(centers: tuple[float, ...]) -> tuple[torch.Tensor, torch.Tensor]:
@@ -95,15 +97,3 @@ def test_dynamic_relations_respect_divided_highway_adjacency() -> None:
 
     assert relations.adjacent_lane_index[0, 0].tolist() == [1, -1]
     assert relations.adjacent_lane_index[0, 1].tolist() == [-1, 4]
-
-
-def test_influence_pair_gap_uses_pair_specific_lengths() -> None:
-    from hierarchical_world_model.src.influence_graph import CausalInfluenceGraph
-
-    parent = torch.zeros(1, 1, 6)
-    child = torch.zeros(1, 1, 6)
-    child[..., 0] = -10.0
-    _, _, gap, _, _ = CausalInfluenceGraph._pair_metrics(
-        parent, child, torch.tensor(((6.0,),)), torch.tensor(((2.0,),))
-    )
-    torch.testing.assert_close(gap, torch.tensor(((6.0,),)))

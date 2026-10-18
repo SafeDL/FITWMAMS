@@ -20,7 +20,7 @@ from hierarchical_world_model.src.execution import (
     _rollout_sample,
     trajectory_event_risk,
 )
-from idm_ams.src.world_subset_runner import _build_evaluator
+from ads.idm.src.world_subset_runner import _build_evaluator
 from normalizing_flow.src.metrics import physical_validity_flags
 from normalizing_flow.src.scenario import (
     ScenarioBatch,
@@ -78,7 +78,7 @@ def plan_diagnostics(sample):
 @torch.no_grad()
 def main():
     torch.set_num_threads(4)
-    config_path = ROOT / "idm_ams/configs/world_subset_idm.yaml"
+    config_path = ROOT / "ads/idm/configs/world_subset_idm.yaml"
     config = load_yaml(config_path)
     evaluator, artifacts = _build_evaluator(config, config_path.parent)
     sampler = evaluator.sampler

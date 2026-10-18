@@ -1,0 +1,68 @@
+{
+  "media": [
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "braking.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "acceleration.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "cut_in.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "corridor_release.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "free_flow.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "null.gif",
+      "frames": 150
+    },
+    {
+      "dimensions": [
+        1440,
+        696
+      ],
+      "duration_ms": 6000,
+      "file": "lateral_conflict.gif",
+      "frames": 150
+    }
+  ],
+  "visualization_format": "GIF only"
+}

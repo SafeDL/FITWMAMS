@@ -1,4 +1,4 @@
-"""Contract checks for the generated HiQR + MA-IDM default interface."""
+"""Contract checks for the generated tracking and autonomous-NPC interface."""
 
 from __future__ import annotations
 
@@ -13,14 +13,16 @@ from hierarchical_world_model.src.composition import (
     SampledWorldBatch,
 )
 from hierarchical_world_model.src.config import WorldModelConfig
+from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
+from hierarchical_world_model.src.tracking import TrackingConfig
 from hierarchical_world_model.src.execution import _rollout_sample, rollout_world
 from hierarchical_world_model.scripts.evaluate_generated_online_ads import (
     plan_diagnostics,
 )
-from hierarchical_world_model.src.stochastic_drivers.online import (
-    DEFAULT_MA_IDM_POSTERIOR,
-    OnlineMAIDMController,
-    sample_population_theta_from_world,
+from hierarchical_world_model.src.randomness import WorldExogenousState
+from hierarchical_world_model.src.stochastic_drivers.idm_population import (
+    MODEL_PATH,
+    sample_theta,
 )
 
 
@@ -32,31 +34,15 @@ def test_online_world_commits_and_redecides_every_25hz_tick() -> None:
 
 
 def _exogenous(batch: int = 2) -> SimpleNamespace:
-    rng = np.random.default_rng(19)
-    innovations = rng.standard_normal((batch, 3, 7, 16)).astype(np.float32)
-    return SimpleNamespace(
-        agent_response_innovations=innovations,
-        driver_latent=rng.standard_normal((batch, 6, 5)).astype(np.float32),
-        maneuver_latent=rng.standard_normal((batch, 6, 4)).astype(np.float32),
-        response_steps=3,
-    )
+    return WorldExogenousState.sample(batch, seed=19, response_steps=3)
 
 
 def test_episode_parameters_replay_independently_of_batch_position() -> None:
     exogenous = _exogenous()
-    together = sample_population_theta_from_world(DEFAULT_MA_IDM_POSTERIOR, exogenous)
-    alone = sample_population_theta_from_world(
-        DEFAULT_MA_IDM_POSTERIOR,
-        SimpleNamespace(
-            agent_response_innovations=exogenous.agent_response_innovations[1:],
-            driver_latent=exogenous.driver_latent[1:],
-        ),
-    )
+    population = dict(np.load(MODEL_PATH))
+    together = sample_theta(population, exogenous.driver_latent)
+    alone = sample_theta(population, exogenous.driver_latent[1:])
     np.testing.assert_array_equal(together[1:], alone)
-    np.testing.assert_array_equal(
-        together,
-        sample_population_theta_from_world(DEFAULT_MA_IDM_POSTERIOR, exogenous),
-    )
     assert np.isfinite(together).all()
 
 
@@ -82,18 +68,6 @@ def test_generated_plan_checks_the_composed_motion_and_keeps_sampled_dimensions(
     np.testing.assert_array_equal(sample.soft_plan, original)
 
 
-def test_missing_driver_latent_does_not_silently_use_legacy_sampling() -> None:
-    exogenous = _exogenous(batch=1)
-    del exogenous.driver_latent
-    with pytest.raises(AttributeError, match="driver_latent"):
-        sample_population_theta_from_world(DEFAULT_MA_IDM_POSTERIOR, exogenous)
-    assert np.isfinite(
-        sample_population_theta_from_world(
-            DEFAULT_MA_IDM_POSTERIOR, exogenous, use_driver_latent=False
-        )
-    ).all()
-
-
 def test_create_world_uses_only_the_maintained_response_chain(monkeypatch):
     import hierarchical_world_model.src.composition as composition
 
@@ -110,9 +84,8 @@ def test_create_world_uses_only_the_maintained_response_chain(monkeypatch):
     )
 
     class FakeWorld:
-        def __init__(self, model, *, controller, **kwargs):
+        def __init__(self, *, controller, **kwargs):
             self.controller = controller
-            self.reference_recovery_enabled = kwargs["reference_recovery_enabled"]
 
         def reset(self, *args, **kwargs):
             self.reset_args = args
@@ -122,29 +95,29 @@ def test_create_world_uses_only_the_maintained_response_chain(monkeypatch):
     sampler = HierarchicalWorldSampler.__new__(HierarchicalWorldSampler)
     sampler.device = torch.device("cpu")
     sampler.generated_road = {"lane_centers_m": [-4.0, 0.0, 4.0], "lane_width_m": 4.0}
-    sampler.response = object()
+    sampler.cfg = WorldModelConfig()
     sampler.selection = {
         "mobil": {"politeness": 0.0, "bias": -3.0, "slope": 0.1},
-        "reference_recovery_enabled": True,
     }
     sampler.driver_population = {
         "log_mean": np.log([33, 2, 1.3, 1.2, 2]),
         "log_cov": np.eye(5) * 0.01,
     }
+    sampler.takeover_config = TakeoverConfig()
+    sampler.tracking_config = TrackingConfig()
     world = sampler.create_world(sample)
-    assert isinstance(world.controller, OnlineMAIDMController)
+    assert isinstance(world.controller, TakeoverController)
     for retired in ("lane_choice_model", "response_model", "residual_path_bank"):
         assert not hasattr(world.controller, retired)
     assert world.controller.autonomous_lane_changes_enabled
-    assert world.controller.lane_changes_on_response_only
+    assert not world.controller.lane_changes_on_response_only
     assert not world.controller.mobil_parameter_variation
     assert world.controller.mobil_onset_calibration == (-3.0, 0.1)
-    assert world.reference_recovery_enabled
     assert not any(key.startswith("nominal_") for key in world.reset_kwargs)
     assert world.reset_kwargs["vehicle_dimensions"].shape == (1, 7, 2)
     assert world.reset_args[4].any(-1).sum() == 3
     np.testing.assert_array_equal(world.reset_args[3][0, :3, 0, 1], [-4, 0, 4])
-    with pytest.raises(ValueError, match="only controller='auto'"):
+    with pytest.raises(ValueError, match="controller must be"):
         sampler.create_world(sample, controller="auto_lane_choice")
     assert sampler.create_world(sample, controller=None).controller is None
 

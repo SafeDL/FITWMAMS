@@ -1,0 +1,1137 @@
+{
+  "adequacy": "Low admission rate and absence of collisions do not establish that each handover is necessary or behaviorally reasonable",
+  "behavior_seeds": [
+    20261015,
+    20261016,
+    20261017
+  ],
+  "by_recording": [
+    {
+      "recording_id": 4,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.043082022444234466,
+        "ADE_defined_runs": 1977,
+        "ADE_scene_mean_m": 0.042424388164838095,
+        "ADE_scene_quantiles_m": [
+          0.03912787511944771,
+          0.07052592784166335,
+          0.1054341122508049,
+          0.20632174611091614
+        ],
+        "NPC_offroad_runs": 105,
+        "actor_frames": 540423,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 153,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 2130,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 659,
+        "unique_scenes": 710,
+        "vehicle_episodes": 3627,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.043082022444234466,
+        "ADE_defined_runs": 659,
+        "ADE_scene_mean_m": 0.042424388164838095,
+        "ADE_scene_quantiles_m": [
+          0.03912787511944771,
+          0.07052192389965058,
+          0.1037701080739497,
+          0.20632174611091614
+        ],
+        "NPC_offroad_runs": 35,
+        "actor_frames": 180141,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 51,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 710,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 659,
+        "unique_scenes": 710,
+        "vehicle_episodes": 1209,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 8,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04164824426234627,
+        "ADE_defined_runs": 2727,
+        "ADE_scene_mean_m": 0.041393733028080665,
+        "ADE_scene_quantiles_m": [
+          0.037868931889534,
+          0.07297931611537933,
+          0.09297861158847809,
+          0.3138215243816376
+        ],
+        "NPC_offroad_runs": 156,
+        "actor_frames": 776886,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 171,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 2898,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 909,
+        "unique_scenes": 966,
+        "vehicle_episodes": 5214,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.04164824426234627,
+        "ADE_defined_runs": 909,
+        "ADE_scene_mean_m": 0.041393733028080665,
+        "ADE_scene_quantiles_m": [
+          0.037868931889534,
+          0.07263638377189628,
+          0.09280618309974661,
+          0.3138215243816376
+        ],
+        "NPC_offroad_runs": 52,
+        "actor_frames": 258962,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 57,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 966,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 909,
+        "unique_scenes": 966,
+        "vehicle_episodes": 1738,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 10,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04432351061741004,
+        "ADE_defined_runs": 1425,
+        "ADE_scene_mean_m": 0.043604718356540326,
+        "ADE_scene_quantiles_m": [
+          0.039897579699754715,
+          0.07650988996028898,
+          0.10384235024452207,
+          0.1709182858467102
+        ],
+        "NPC_offroad_runs": 42,
+        "actor_frames": 416604,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 114,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 1539,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 475,
+        "unique_scenes": 513,
+        "vehicle_episodes": 2796,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.04432351061741004,
+        "ADE_defined_runs": 475,
+        "ADE_scene_mean_m": 0.043604718356540326,
+        "ADE_scene_quantiles_m": [
+          0.039897579699754715,
+          0.07636077776551245,
+          0.10254154592752454,
+          0.1709182858467102
+        ],
+        "NPC_offroad_runs": 14,
+        "actor_frames": 138868,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 38,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 513,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 475,
+        "unique_scenes": 513,
+        "vehicle_episodes": 932,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 11,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.045560772293204974,
+        "ADE_defined_runs": 5955,
+        "ADE_scene_mean_m": 0.04553088998745761,
+        "ADE_scene_quantiles_m": [
+          0.04190155491232872,
+          0.0747925341129303,
+          0.10339490160346032,
+          0.534331202507019
+        ],
+        "NPC_offroad_runs": 402,
+        "actor_frames": 2858118,
+        "admitted_runs": 9,
+        "admitted_scenes": 3,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 12,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 2,
+          "initial_conflict": 0,
+          "release": 1,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 6,
+          "initial_conflict": 0,
+          "release": 3,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 5967,
+        "scene_takeover_rate": 0.0015082956259426848,
+        "scene_takeover_rate_with_NPCs": 0.0015113350125944584,
+        "scenes_with_NPCs": 1985,
+        "unique_scenes": 1989,
+        "vehicle_episodes": 19182,
+        "vehicle_takeover_rate": 0.00046918986549890525,
+        "vehicle_takeovers": 9
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.04522298691108614,
+        "ADE_defined_runs": 1985,
+        "ADE_scene_mean_m": 0.04525396094495614,
+        "ADE_scene_quantiles_m": [
+          0.04187452793121338,
+          0.07446811646223069,
+          0.10273788273334508,
+          0.2014378011226654
+        ],
+        "NPC_offroad_runs": 134,
+        "actor_frames": 952706,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 4,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 1989,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 1985,
+        "unique_scenes": 1989,
+        "vehicle_episodes": 6394,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 17,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04541973739616544,
+        "ADE_defined_runs": 2316,
+        "ADE_scene_mean_m": 0.045200231792292656,
+        "ADE_scene_quantiles_m": [
+          0.04112497717142105,
+          0.07987438142299652,
+          0.11513599120080432,
+          0.44343921542167664
+        ],
+        "NPC_offroad_runs": 60,
+        "actor_frames": 730398,
+        "admitted_runs": 3,
+        "admitted_scenes": 1,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 150,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 1,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 3,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 2466,
+        "scene_takeover_rate": 0.0012165450121654502,
+        "scene_takeover_rate_with_NPCs": 0.0012953367875647669,
+        "scenes_with_NPCs": 772,
+        "unique_scenes": 822,
+        "vehicle_episodes": 4902,
+        "vehicle_takeover_rate": 0.0006119951040391676,
+        "vehicle_takeovers": 3
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.045095168699347626,
+        "ADE_defined_runs": 772,
+        "ADE_scene_mean_m": 0.04485674394497291,
+        "ADE_scene_quantiles_m": [
+          0.04112497717142105,
+          0.07979978062212466,
+          0.11277721308171734,
+          0.1969548612833023
+        ],
+        "NPC_offroad_runs": 20,
+        "actor_frames": 243466,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 50,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 822,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 772,
+        "unique_scenes": 822,
+        "vehicle_episodes": 1634,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 21,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.040797889123942416,
+        "ADE_defined_runs": 2649,
+        "ADE_scene_mean_m": 0.040432243773530184,
+        "ADE_scene_quantiles_m": [
+          0.03699410334229469,
+          0.06993984431028366,
+          0.09968669593334195,
+          0.1712104082107544
+        ],
+        "NPC_offroad_runs": 207,
+        "actor_frames": 798342,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 195,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 2844,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 883,
+        "unique_scenes": 948,
+        "vehicle_episodes": 5358,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.040797889123942416,
+        "ADE_defined_runs": 883,
+        "ADE_scene_mean_m": 0.040432243773530184,
+        "ADE_scene_quantiles_m": [
+          0.03699410334229469,
+          0.0699126087129116,
+          0.0992510695755481,
+          0.1712104082107544
+        ],
+        "NPC_offroad_runs": 69,
+        "actor_frames": 266114,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 65,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 948,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 883,
+        "unique_scenes": 948,
+        "vehicle_episodes": 1786,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 22,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04255028848322611,
+        "ADE_defined_runs": 2073,
+        "ADE_scene_mean_m": 0.042012928654850824,
+        "ADE_scene_quantiles_m": [
+          0.03831042721867561,
+          0.07324019074440002,
+          0.10736671835184097,
+          0.3386708199977875
+        ],
+        "NPC_offroad_runs": 144,
+        "actor_frames": 738891,
+        "admitted_runs": 6,
+        "admitted_scenes": 2,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 69,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 2,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 6,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 2142,
+        "scene_takeover_rate": 0.0028011204481792717,
+        "scene_takeover_rate_with_NPCs": 0.002894356005788712,
+        "scenes_with_NPCs": 691,
+        "unique_scenes": 714,
+        "vehicle_episodes": 4959,
+        "vehicle_takeover_rate": 0.0012099213551119178,
+        "vehicle_takeovers": 6
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.04216671000697804,
+        "ADE_defined_runs": 691,
+        "ADE_scene_mean_m": 0.041774910789754045,
+        "ADE_scene_quantiles_m": [
+          0.03831042721867561,
+          0.07316410169005394,
+          0.10169062837958341,
+          0.13345840573310852
+        ],
+        "NPC_offroad_runs": 48,
+        "actor_frames": 246297,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 23,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 714,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 691,
+        "unique_scenes": 714,
+        "vehicle_episodes": 1653,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 42,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04430126592606677,
+        "ADE_defined_runs": 5766,
+        "ADE_scene_mean_m": 0.04480392265867182,
+        "ADE_scene_quantiles_m": [
+          0.041593754664063454,
+          0.07295941561460495,
+          0.10045507550239563,
+          0.3840409815311432
+        ],
+        "NPC_offroad_runs": 117,
+        "actor_frames": 2284170,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 27,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 5793,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 1922,
+        "unique_scenes": 1931,
+        "vehicle_episodes": 15330,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.04430126592606676,
+        "ADE_defined_runs": 1922,
+        "ADE_scene_mean_m": 0.04480392265867182,
+        "ADE_scene_quantiles_m": [
+          0.041593754664063454,
+          0.07295541763305663,
+          0.10029371134936807,
+          0.3840409815311432
+        ],
+        "NPC_offroad_runs": 39,
+        "actor_frames": 761390,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 9,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 1931,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 1922,
+        "unique_scenes": 1931,
+        "vehicle_episodes": 5110,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    },
+    {
+      "recording_id": 49,
+      "takeover": {
+        "ADE_actor_frame_weighted_m": 0.04049015955525579,
+        "ADE_defined_runs": 4635,
+        "ADE_scene_mean_m": 0.04023021815390906,
+        "ADE_scene_quantiles_m": [
+          0.03690214455127716,
+          0.07036647945642471,
+          0.0980285257101059,
+          0.15207836031913757
+        ],
+        "NPC_offroad_runs": 123,
+        "actor_frames": 1747770,
+        "admitted_runs": 3,
+        "admitted_scenes": 1,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 39,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 1,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 3,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 4674,
+        "scene_takeover_rate": 0.0006418485237483953,
+        "scene_takeover_rate_with_NPCs": 0.0006472491909385113,
+        "scenes_with_NPCs": 1545,
+        "unique_scenes": 1558,
+        "vehicle_episodes": 11730,
+        "vehicle_takeover_rate": 0.0002557544757033248,
+        "vehicle_takeovers": 3
+      },
+      "tracker": {
+        "ADE_actor_frame_weighted_m": 0.0404519024823053,
+        "ADE_defined_runs": 1545,
+        "ADE_scene_mean_m": 0.04019794520292082,
+        "ADE_scene_quantiles_m": [
+          0.03687743842601776,
+          0.07011601477861402,
+          0.09774969369173046,
+          0.15207836031913757
+        ],
+        "NPC_offroad_runs": 41,
+        "actor_frames": 582590,
+        "admitted_runs": 0,
+        "admitted_scenes": 0,
+        "any_collision_runs": 0,
+        "ego_collision_runs": 0,
+        "no_NPC_runs": 13,
+        "ownership_releases": 0,
+        "reason_scene_counts": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "reasons": {
+          "expiry": 0,
+          "following": 0,
+          "initial_conflict": 0,
+          "release": 0,
+          "runtime_conflict": 0
+        },
+        "repeated_takeovers": 0,
+        "runs": 1558,
+        "scene_takeover_rate": 0.0,
+        "scene_takeover_rate_with_NPCs": 0.0,
+        "scenes_with_NPCs": 1545,
+        "unique_scenes": 1558,
+        "vehicle_episodes": 3910,
+        "vehicle_takeover_rate": 0.0,
+        "vehicle_takeovers": 0
+      }
+    }
+  ],
+  "complete": true,
+  "evaluation": "Natural no-intervention replay with logged ego controls; not generated scenarios or a new ADS evaluation",
+  "executed_rollouts": 392,
+  "execution": "New following eligibility only removes candidates. All 98 formerly admitted scenes rerun with three seeds and a same-batch tracker comparison; first-admission-free prefixes from the other 10053 scenes remain exactly valid. Original population tracker metrics retained.",
+  "intervention_and_generated_ADS_evaluation_included": false,
+  "newly_replayed_scenes": 98,
+  "paired_ADE_delta_m": 0.0001425669112838567,
+  "paired_outcomes": {
+    "introduced_NPC_offroad": 0,
+    "introduced_any_collision": 0,
+    "introduced_ego_collision": 0,
+    "resolved_any_collision": 0,
+    "resolved_ego_collision": 0
+  },
+  "parameters_frozen": true,
+  "parameters_selected_on_test": false,
+  "physical_steps": 58408,
+  "previous_report_sha256": "4c880deb5e18081dd91ba1ef1546c6975d8646d52f82f3116eed05491323296c",
+  "recording_bootstrap_95_percent": {
+    "note": "2000 whole-recording resamples; only nine recordings, repeated seeds are not independent scenes",
+    "paired_ADE_delta_m": [
+      2.5728617521994414e-05,
+      0.00025909910611597093
+    ],
+    "takeover_scene_rate": [
+      0.00019168569978273356,
+      0.001233188004539612
+    ]
+  },
+  "recordings": [
+    4,
+    8,
+    10,
+    11,
+    17,
+    21,
+    22,
+    42,
+    49
+  ],
+  "represented_rollouts": 40604,
+  "split": "test",
+  "status": "full_Test_cohort_updated_by_monotone_gate_regression",
+  "summary": {
+    "admitted_subset_takeover": {
+      "ADE_actor_frame_weighted_m": 0.2067869217512333,
+      "ADE_defined_runs": 21,
+      "ADE_scene_mean_m": 0.2203090400213287,
+      "ADE_scene_quantiles_m": [
+        0.14189884066581726,
+        0.446728378534317,
+        0.5168106377124787,
+        0.534331202507019
+      ],
+      "NPC_offroad_runs": 3,
+      "actor_frames": 11175,
+      "admitted_runs": 21,
+      "admitted_scenes": 7,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 0,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 12,
+        "initial_conflict": 0,
+        "release": 9,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 21,
+      "scene_takeover_rate": 1.0,
+      "scene_takeover_rate_with_NPCs": 1.0,
+      "scenes_with_NPCs": 7,
+      "unique_scenes": 7,
+      "vehicle_episodes": 75,
+      "vehicle_takeover_rate": 0.28,
+      "vehicle_takeovers": 21
+    },
+    "admitted_subset_tracker": {
+      "ADE_actor_frame_weighted_m": 0.06783550733753524,
+      "ADE_defined_runs": 7,
+      "ADE_scene_mean_m": 0.07327920837061745,
+      "ADE_scene_quantiles_m": [
+        0.08118285983800888,
+        0.11276498660445212,
+        0.11664426371455192,
+        0.11761408299207687
+      ],
+      "NPC_offroad_runs": 1,
+      "actor_frames": 3725,
+      "admitted_runs": 0,
+      "admitted_scenes": 0,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 0,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 0,
+        "initial_conflict": 0,
+        "release": 0,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 0,
+        "initial_conflict": 0,
+        "release": 0,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 7,
+      "scene_takeover_rate": 0.0,
+      "scene_takeover_rate_with_NPCs": 0.0,
+      "scenes_with_NPCs": 7,
+      "unique_scenes": 7,
+      "vehicle_episodes": 25,
+      "vehicle_takeover_rate": 0.0,
+      "vehicle_takeovers": 0
+    },
+    "takeover_20261015": {
+      "ADE_actor_frame_weighted_m": 0.04351244700931014,
+      "ADE_defined_runs": 9841,
+      "ADE_scene_mean_m": 0.04317404067906761,
+      "ADE_scene_quantiles_m": [
+        0.039594922214746475,
+        0.07380178570747375,
+        0.10340720266103748,
+        0.534331202507019
+      ],
+      "NPC_offroad_runs": 452,
+      "actor_frames": 3630534,
+      "admitted_runs": 7,
+      "admitted_scenes": 7,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 310,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 10151,
+      "scene_takeover_rate": 0.0006895872327849473,
+      "scene_takeover_rate_with_NPCs": 0.000711309826237171,
+      "scenes_with_NPCs": 9841,
+      "unique_scenes": 10151,
+      "vehicle_episodes": 24366,
+      "vehicle_takeover_rate": 0.0002872855618484774,
+      "vehicle_takeovers": 7
+    },
+    "takeover_20261016": {
+      "ADE_actor_frame_weighted_m": 0.043453434490504546,
+      "ADE_defined_runs": 9841,
+      "ADE_scene_mean_m": 0.04313006622885428,
+      "ADE_scene_quantiles_m": [
+        0.039594922214746475,
+        0.07380178570747375,
+        0.10364185571670545,
+        0.3840409815311432
+      ],
+      "NPC_offroad_runs": 452,
+      "actor_frames": 3630534,
+      "admitted_runs": 7,
+      "admitted_scenes": 7,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 310,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 10151,
+      "scene_takeover_rate": 0.0006895872327849473,
+      "scene_takeover_rate_with_NPCs": 0.000711309826237171,
+      "scenes_with_NPCs": 9841,
+      "unique_scenes": 10151,
+      "vehicle_episodes": 24366,
+      "vehicle_takeover_rate": 0.0002872855618484774,
+      "vehicle_takeovers": 7
+    },
+    "takeover_20261017": {
+      "ADE_actor_frame_weighted_m": 0.04344638199291331,
+      "ADE_defined_runs": 9841,
+      "ADE_scene_mean_m": 0.04312531386076505,
+      "ADE_scene_quantiles_m": [
+        0.039594922214746475,
+        0.07380178570747375,
+        0.10364185571670545,
+        0.446728378534317
+      ],
+      "NPC_offroad_runs": 452,
+      "actor_frames": 3630534,
+      "admitted_runs": 7,
+      "admitted_scenes": 7,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 310,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 10151,
+      "scene_takeover_rate": 0.0006895872327849473,
+      "scene_takeover_rate_with_NPCs": 0.000711309826237171,
+      "scenes_with_NPCs": 9841,
+      "unique_scenes": 10151,
+      "vehicle_episodes": 24366,
+      "vehicle_takeover_rate": 0.0002872855618484774,
+      "vehicle_takeovers": 7
+    },
+    "takeover_all_seeds": {
+      "ADE_actor_frame_weighted_m": 0.04347075449757562,
+      "ADE_defined_runs": 29523,
+      "ADE_scene_mean_m": 0.04314314025622898,
+      "ADE_scene_quantiles_m": [
+        0.039594922214746475,
+        0.07380178570747375,
+        0.10370170786976776,
+        0.534331202507019
+      ],
+      "NPC_offroad_runs": 1356,
+      "actor_frames": 10891602,
+      "admitted_runs": 21,
+      "admitted_scenes": 7,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 930,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 4,
+        "initial_conflict": 0,
+        "release": 3,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 12,
+        "initial_conflict": 0,
+        "release": 9,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 30453,
+      "scene_takeover_rate": 0.0006895872327849473,
+      "scene_takeover_rate_with_NPCs": 0.000711309826237171,
+      "scenes_with_NPCs": 9841,
+      "unique_scenes": 10151,
+      "vehicle_episodes": 73098,
+      "vehicle_takeover_rate": 0.0002872855618484774,
+      "vehicle_takeovers": 21
+    },
+    "tracker": {
+      "ADE_actor_frame_weighted_m": 0.043328187586292144,
+      "ADE_defined_runs": 9841,
+      "ADE_scene_mean_m": 0.04303855649222583,
+      "ADE_scene_quantiles_m": [
+        0.03959066420793533,
+        0.07356949895620346,
+        0.10280877500772487,
+        0.3840409815311432
+      ],
+      "NPC_offroad_runs": 452,
+      "actor_frames": 3630534,
+      "admitted_runs": 0,
+      "admitted_scenes": 0,
+      "any_collision_runs": 0,
+      "ego_collision_runs": 0,
+      "no_NPC_runs": 310,
+      "ownership_releases": 0,
+      "reason_scene_counts": {
+        "expiry": 0,
+        "following": 0,
+        "initial_conflict": 0,
+        "release": 0,
+        "runtime_conflict": 0
+      },
+      "reasons": {
+        "expiry": 0,
+        "following": 0,
+        "initial_conflict": 0,
+        "release": 0,
+        "runtime_conflict": 0
+      },
+      "repeated_takeovers": 0,
+      "runs": 10151,
+      "scene_takeover_rate": 0.0,
+      "scene_takeover_rate_with_NPCs": 0.0,
+      "scenes_with_NPCs": 9841,
+      "unique_scenes": 10151,
+      "vehicle_episodes": 24366,
+      "vehicle_takeover_rate": 0.0,
+      "vehicle_takeovers": 0
+    }
+  },
+  "test_role": "Frozen diagnostic evaluation; these Test recordings have been inspected in earlier development, not a new blind test",
+  "unadmitted_exact_tracker_runs": 30432,
+  "unadmitted_runs": 30432,
+  "unchanged_scenes_reused": 10053,
+  "unique_scenes": 10151
+}
