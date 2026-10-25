@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,7 @@ def cohort_manifest(arrays: dict[str, np.ndarray]) -> dict[str, Any]:
     split = np.asarray(arrays["split_index"], np.int64)
     return {
         "cohort": "canonical_cleaned_full_horizon_background_slots",
-        "canonical_sequences": int(len(arrays["agent_valid"])),
+        "canonical_sequences": len(arrays["agent_valid"]),
         "background_slot_stability_required": True,
         "splits": {
             name: {"sequences": int(np.sum(split == index))}
@@ -64,7 +65,7 @@ def recording_lane_map(
     edges = []
     for direction in directions:
         visible = [lane for lane in direction if lane in index_by_id]
-        for left, right in zip(visible, visible[1:]):
+        for left, right in itertools.pairwise(visible):
             a, b = index_by_id[left], index_by_id[right]
             edges.extend(((a, b, 1), (b, a, 1)))
     return polylines, valid, np.asarray(edges, np.int64).reshape(-1, 3)
@@ -426,7 +427,7 @@ def prepare_sequential_dataset(
         recording_id = int(arrays["recording_id"][start])
         ego_id = int(arrays["ego_id"][start])
         anchor_frame = int(arrays["anchor_frame"][start])
-        recording, vehicles = _recording_data(recording_id)
+        _recording, vehicles = _recording_data(recording_id)
         slot_ids = _segment_slot_ids(natural)
         vehicle_ids = np.concatenate((np.asarray((ego_id,), np.int64), slot_ids))
         for slot_index, vehicle_id in enumerate(vehicle_ids):

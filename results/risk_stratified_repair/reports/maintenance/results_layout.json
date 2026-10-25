@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "recorded_utc": "2026-10-25T03:30:39.580575+00:00",
+  "previous_layout": "whole-root DATA symlink",
+  "current_layout": "versionable real root with child DATA symlinks and curated reports",
+  "physical_data_root": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair",
+  "child_links": {
+    "development": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/development",
+    "formal": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/formal",
+    "materials": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/materials",
+    "preparation": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/preparation"
+  },
+  "model_or_data_files_moved": 0,
+  "source_bytes_changed": 0,
+  "formal_workers_running": false
+}

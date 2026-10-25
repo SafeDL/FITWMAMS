@@ -97,15 +97,24 @@ class WorldModelSpec:
 
     def load_exogenous(self, path: str | Path) -> Any:
         if self.model_id == "tracking_npc":
-            from hierarchical_world_model.src.randomness import WorldExogenousState
+            import numpy as np
+
             from hierarchical_world_model.src.empirical_context import (
+                EMPIRICAL_K_RNG_SCHEMA_NAME,
                 EmpiricalKWorldState,
             )
+            from hierarchical_world_model.src.randomness import (
+                RNG_SCHEMA_NAME,
+                WorldExogenousState,
+            )
 
-            try:
+            with np.load(path) as values:
+                schema = str(values["schema_name"])
+            if schema == RNG_SCHEMA_NAME:
                 return WorldExogenousState.load(path)
-            except (KeyError, ValueError):
+            if schema == EMPIRICAL_K_RNG_SCHEMA_NAME:
                 return EmpiricalKWorldState.load(path)
+            raise ValueError(f"unsupported tracking/NPC RNG schema: {schema!r}")
         if self.model_id == "trafficbots":
             from .trafficbots_randomness import TrafficBotsExogenousState
 

@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/Tsinghua-MARS-Lab/StateTransformer",
+  "commit": "b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5",
+  "archive_sha256": "d3d9f5f8c5d2a9e0eadc2efc966d17793cb12af03f0fd39d3456671117c774a4",
+  "local_changes": [
+    "Python imports namespaced under ads.str2.vendor; original model parameter names retained.",
+    "Optional observed-future masks for native raster encoder proposal labels and teacher-forced tokens; inference unchanged.",
+    "Use PyTorch attention and explicit original head_dim=16 with Transformers 4.49.",
+    "Native STR/PDM postprocessing retained through causal highway map objects.",
+    "Native build_models also restores head_dim after selecting backbone width for Transformers 4.49; checkpoint parameters unchanged."
+  ]
+}

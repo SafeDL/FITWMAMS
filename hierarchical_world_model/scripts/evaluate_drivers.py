@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 """Evaluate the selected NPC policy's behavior and autonomous traffic statistics."""
 
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,17 +12,17 @@ sys.path.insert(0, str(ROOT))
 
 from hierarchical_world_model.src.config import load_protocol_config
 from hierarchical_world_model.src.core.utils import load_json, save_json
+from hierarchical_world_model.src.npc_experiments.animations import (
+    render_autonomous_examples,
+)
 from hierarchical_world_model.src.npc_experiments.calibration import MOBIL_PATH
 from hierarchical_world_model.src.npc_experiments.evaluation import (
-    conditional_evaluation,
     closed_evaluation,
+    conditional_evaluation,
     stage_models,
     verify_npc_results,
 )
 from hierarchical_world_model.src.npc_experiments.figures import plot_npc_results
-from hierarchical_world_model.src.npc_experiments.animations import (
-    render_autonomous_examples,
-)
 from hierarchical_world_model.src.stochastic_drivers.idm_population import MODEL_PATH
 from hierarchical_world_model.src.stochastic_drivers.lane_trajectory import (
     MODEL_PATH as LANE_PATH,

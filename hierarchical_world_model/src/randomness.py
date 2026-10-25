@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+
 import numpy as np
 
 DIFFUSION_HORIZON_STEPS = 149
@@ -63,7 +64,7 @@ class WorldExogenousState:
             "scenario_uniform": (n,),
             "c0_base_latent": (n, 26),
             "k_base_latent": (n, 36),
-            "diffusion_noise": (n, 149, 12),
+            "diffusion_noise": (n, DIFFUSION_HORIZON_STEPS, 12),
             "driver_latent": (n, 6, 5),
             "maneuver_latent": (n, 6, 4),
             "policy_response_innovations": (n, steps, 6, 2),
@@ -79,7 +80,7 @@ class WorldExogenousState:
             raise ValueError("invalid response horizon or categorical uniform")
 
     @classmethod
-    def sample(cls, n, *, seed, response_steps=149):
+    def sample(cls, n, *, seed, response_steps=DIFFUSION_HORIZON_STEPS):
         n, steps = int(n), int(response_steps)
         if n < 1 or steps < 1:
             raise ValueError("batch and response horizon must be positive")
@@ -102,7 +103,7 @@ class WorldExogenousState:
                 (n, 36), dtype=np.float32
             ),
             diffusion_noise=rng("diffusion_noise").standard_normal(
-                (n, 149, 12), dtype=np.float32
+                (n, DIFFUSION_HORIZON_STEPS, 12), dtype=np.float32
             ),
             driver_latent=rng("driver_latent").standard_normal(
                 (n, 6, 5), dtype=np.float32
@@ -189,13 +190,6 @@ class WorldExogenousState:
                 self.batch_size, dtype=np.float64
             )
             block = "scenario_uniform"
-        else:
-            aliases = {
-                "driver": "driver_latent",
-                "maneuver": "maneuver_latent",
-                "policy": "policy_response_innovations",
-            }
-            block = aliases.get(block, block)
         if block != "scenario_uniform" and block in {
             "c0_base_latent",
             "k_base_latent",
@@ -248,9 +242,3 @@ class WorldExogenousState:
         elif block != "scenario_uniform":
             raise ValueError(f"unknown exogenous block {block!r}")
         return WorldExogenousState(**values)
-
-    def pcn_mutate(
-        self, block: str, *, beta: float, seed: int
-    ) -> "WorldExogenousState":
-        """Backward-compatible whole-block pCN proposal."""
-        return self.mutate(block, beta=beta, seed=seed)

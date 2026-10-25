@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-25",
+  "scope": "自动驾驶长尾场景生成、选择性交通响应、分支失效发现及修复后反馈；算法原理仅核对直接采用的NSuS",
+  "privacy": "使用中性查询与已公开标题、公开号；未上传未公开交底书、代码、权利要求或实验记录",
+  "queries": [
+    "autonomous driving multimodal failure scenario testing repair world model subset simulation",
+    "LitSim InterSim reactive traffic simulation trajectory replay",
+    "Niching Subset Simulation hill valley graph failure modes",
+    "GUARD autonomous driving adaptive regression testing generative world models"
+  ],
+  "sources": [
+    {
+      "name": "World Engine",
+      "url": "https://arxiv.org/html/2606.19836v1",
+      "public_date": "2026-06-18",
+      "checked": "第2、3.3、3.4节及附录B；长尾发现、行为世界、交互及原策略约束后训练",
+      "role": "main",
+      "metadata_url": "https://arxiv.org/abs/2606.19836v1",
+      "project_url": "https://github.com/OpenDriveLab/WorldEngine",
+      "date_note": "论文首版为6月18日，项目新闻写6月19日，以arXiv版本记录为准"
+    },
+    {
+      "name": "LitSim",
+      "url": "https://arxiv.org/html/2403.04299",
+      "checked_version": "v2 2024-05-01",
+      "checked": "第III、IV节；冲突、接管、冲突解除返回日志",
+      "role": "main"
+    },
+    {
+      "name": "WO2025090341A1",
+      "url": "https://patents.google.com/patent/WO2025090341A1/en",
+      "public_date": "2025-05-01",
+      "checked": "权利要求1至6；选择性行为切换及连锁响应",
+      "role": "main"
+    },
+    {
+      "name": "Niching subset simulation",
+      "url": "https://discovery.ucl.ac.uk/id/eprint/10204007/",
+      "year": "2025",
+      "checked": "作者原文第3、4节；输入分区、性能谷图、社区及SVM",
+      "fulltext_url": "https://discovery.ucl.ac.uk/id/eprint/10204007/7/Diaz%20De%20La%20O_Niching%20subset%20simulation_VoR.pdf",
+      "role": "direct_algorithm_basis"
+    },
+    {
+      "name": "GUARD",
+      "url": "https://waabi.ai/research/guard",
+      "year": "2023",
+      "checked": "作者项目页及原文；概率区域、安全边界、主动查询和版本回归展示",
+      "fulltext_url": "https://www.datocms-assets.com/163962/1755336558-paper.pdf",
+      "role": "main"
+    },
+    {
+      "name": "US20230222268A1",
+      "url": "https://patents.google.com/patent/US20230222268A1/en",
+      "public_date": "2023-07-13",
+      "checked": "权利要求1至9；参数变体、边界选择；说明书software changes处重复测试及边界更新",
+      "role": "main"
+    },
+    {
+      "name": "KING",
+      "url": "https://arxiv.org/html/2204.13683",
+      "public_date": "2022-04-28",
+      "checked": "第3、4.4节；专家可解场景及原数据混合微调",
+      "role": "main"
+    }
+  ],
+  "screened_context": [
+    {
+      "name": "InterSim",
+      "url": "https://arxiv.org/html/2210.14413",
+      "checked": "主车计划条件及显式交互关系；同类背景不增加正文来源"
+    },
+    {
+      "name": "GENBO",
+      "url": "https://arxiv.org/html/2307.10590v2",
+      "checked": "边界状态对及再训练；不把相反端点本身当作新机制"
+    },
+    {
+      "name": "US20230222267A1",
+      "url": "https://patents.google.com/patent/US20230222267A1/en",
+      "checked": "场景不确定性优先；相同系列的参数变体专利作为正文代表"
+    }
+  ],
+  "prior_filing_comparison": "support/source_0.txt为用户提供前案正文提取，非公开检索文件；实际递交文本及日期待代理师核对",
+  "limitations": "针对性有限检索；不保证没有其他公开，不量化授权概率，单一文件的区别与多文件组合启示分别评价"
+}

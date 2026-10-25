@@ -10,15 +10,14 @@ import yaml
 
 pytest.importorskip("torch")
 
-from ads.idm.src import world_subset_runner
-from ads.idm.src import trafficbots_runner
+from ads.idm.src import trafficbots_runner, world_subset_runner
 
 
 def test_shared_world_preflight_allows_dirty_worktree(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(
         world_subset_runner,
         "_run_provenance",
-        lambda config: {"repository_commit": "abc", "worktree_dirty": True},
+        lambda: {"repository_commit": "abc", "worktree_dirty": True},
     )
     monkeypatch.setattr(
         world_subset_runner,
@@ -56,7 +55,7 @@ def test_formal_trafficbots_runner_rejects_a_dirty_worktree(
     monkeypatch.setattr(
         trafficbots_runner,
         "_run_provenance",
-        lambda config: {"repository_commit": "abc", "worktree_dirty": True},
+        lambda: {"repository_commit": "abc", "worktree_dirty": True},
     )
     with pytest.raises(
         RuntimeError,
@@ -83,7 +82,7 @@ def test_trafficbots_runner_rejects_historical_masked_checkpoint_scope(
     monkeypatch.setattr(
         trafficbots_runner,
         "_run_provenance",
-        lambda config: {"repository_commit": "abc", "worktree_dirty": False},
+        lambda: {"repository_commit": "abc", "worktree_dirty": False},
     )
     config = {"paths": {"trafficbots_config": str(traffic_config)}}
     with pytest.raises(ValueError, match="evaluation_scope schema is not supported"):
@@ -94,7 +93,7 @@ def test_shared_world_preflight_rejects_mixed_components(tmp_path, monkeypatch):
     monkeypatch.setattr(
         world_subset_runner,
         "_run_provenance",
-        lambda config: {"repository_commit": "abc", "worktree_dirty": False},
+        lambda: {"repository_commit": "abc", "worktree_dirty": False},
     )
     monkeypatch.setattr(
         world_subset_runner,

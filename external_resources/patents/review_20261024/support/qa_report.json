@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-24",
+  "checks_passed": true,
+  "documents": {
+    "新颖性创造性与前案区别分析及审阅意见处理说明.docx": {
+      "zip_xml_valid": true,
+      "docx_loader_reopened": true,
+      "pdf_pages": 11,
+      "math_objects": 0,
+      "native_math_paragraphs": 0,
+      "text_characters": 10638,
+      "image_formula_remnants": 0,
+      "comments": 0,
+      "tracked_insertions_deletions": 0,
+      "hyperlinks_verified": 16,
+      "sha256": "ae4e126c986ad573587a39636ef6e0723cbd5413bd0ec7c15f75764e3a37540f"
+    },
+    "技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法_审阅修订稿.docx": {
+      "zip_xml_valid": true,
+      "docx_loader_reopened": true,
+      "pdf_pages": 17,
+      "math_objects": 125,
+      "native_math_paragraphs": 22,
+      "text_characters": 15830,
+      "image_formula_remnants": 0,
+      "comments": 8,
+      "tracked_insertions_deletions": 0,
+      "hyperlinks_verified": 11,
+      "sha256": "e2d5d06b7d0e24bf7bcae3732f5b9af37bb691bb0f9dbeb3afc1f6e43c1068e3",
+      "numbered_equations": 14,
+      "original_comment_parts_byte_preserved": true,
+      "figure_placeholders": 8,
+      "section6_tables": 0,
+      "pdf_equation_number_right_edge_pt": 527.5
+    }
+  },
+  "original_source_documents_unchanged": true,
+  "experiments_or_training_started": false,
+  "review_response_map_entries": 8,
+  "native_child_replies_added": false,
+  "comment_delivery": "保留原始批注及元数据，在独立说明中逐条答复；未要求原生回复框",
+  "office_validation": "LibreOffice 7.3加载及PDF导出；Microsoft Word桌面／连接会话不可用，未进行Word保存关闭重开",
+  "layout_review": "全页缩略图及放大公式页面检查；编号右边缘一致，公式及符号说明保持同页"
+}

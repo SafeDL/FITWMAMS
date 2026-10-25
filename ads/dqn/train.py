@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """Train or continue a DQN ADS policy in the traffic world."""
 
 from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import time
+from pathlib import Path
 
 import gymnasium
 import stable_baselines3
@@ -16,10 +15,9 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.utils import get_linear_fn
 
-from .env import ADSHighwayEnv
-from .events import HighDEventStore
-from .provenance import artifact_record
-from .runtime import DEFAULT_WORLD_CONFIG, FrozenWorldFactory
+from ads.common.environment import ADSHighwayEnv
+from ads.common.instances import artifact_record
+from ads.common.world import DEFAULT_WORLD_CONFIG, FrozenWorldFactory, HighDEventStore
 
 
 def main() -> None:

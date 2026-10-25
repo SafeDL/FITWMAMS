@@ -1,0 +1,12 @@
+{
+  "additional_ads_executions": 0,
+  "all_archive_members_hash_verified": true,
+  "archive": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/ads_source.tar.gz",
+  "archive_bytes": 2987235,
+  "archive_sha256": "57a72f65ff11128ea7ef740d3ec8c4576ac5ae29aa9936447aa1b73fa59f03de",
+  "model_weights_copied": false,
+  "python_files": 424,
+  "registered_config_sha256": "a91616c3ad8bccd90fd84ab516eb9ae0c5875387e1a55eb698a8127d9b0f1d99",
+  "status": "passed",
+  "total_files": 551
+}

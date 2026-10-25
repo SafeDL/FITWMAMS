@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-25",
+  "revision": "focused_review",
+  "scope": "自动驾驶测试后扩散规划器修正中的记录来源、具体训练目标及实际未来范围",
+  "privacy": "仅中性关键词和公开标题、公开号；未上传未公开交底书、权利要求、代码或实验记录",
+  "queries": [
+    "\"autonomous driving\" \"diffusion\" \"repair\" planner",
+    "\"diffusion planner\" \"distillation\" \"fine-tuning\"",
+    "patent autonomous driving recovery trajectory neural planner training"
+  ],
+  "sources": [
+    {
+      "name": "KING",
+      "url": "https://arxiv.org/html/2204.13683",
+      "public_date_or_year": "2022-04-28",
+      "checked": "第3节及4.4节：专家可纠正过滤、原任务和危险样本混合微调",
+      "role": "direct_comparison",
+      "rechecked": "2026-10-25"
+    },
+    {
+      "name": "Reflect-VLA",
+      "url": "https://arxiv.org/html/2610.13453v1",
+      "public_date_or_year": "2026-10-09",
+      "checked": "第3.4节式7至10：可靠行为保持、风险行为纠正",
+      "role": "direct_comparison",
+      "rechecked": "2026-10-25"
+    },
+    {
+      "name": "GRID-Planner",
+      "url": "https://arxiv.org/html/2610.21984v1",
+      "public_date_or_year": "2026-10-15",
+      "checked": "第3.5节式23至25：优势加权扩散和自蒸馏",
+      "role": "direct_comparison",
+      "rechecked": "2026-10-25"
+    },
+    {
+      "name": "US20250171046A1",
+      "url": "https://patents.google.com/patent/US20250171046A1/en",
+      "public_date_or_year": "2025-05-29",
+      "checked": "权利要求1、4及说明书：逐时计划、实际执行路径、驾驶员偏好及前版本差异参照",
+      "role": "direct_comparison",
+      "rechecked": "2026-10-25"
+    },
+    {
+      "name": "CN121404308A",
+      "url": "https://patents.google.com/patent/CN121404308A/zh",
+      "public_date_or_year": "2026-01-27",
+      "checked": "权利要求1、11和恢复轨迹说明",
+      "role": "direct_comparison",
+      "rechecked": "2026-10-25"
+    },
+    {
+      "name": "Diffusion Planner",
+      "url": "https://proceedings.iclr.cc/paper_files/paper/2025/hash/5c0cd43063f087eb32e572d040a19cd2-Abstract-Conference.html",
+      "public_date_or_year": "2025",
+      "checked": "ICLR原文入口；另核对arxiv2501.15564v1及本地官方实现",
+      "role": "implementation_baseline",
+      "rechecked": "2026-10-25"
+    }
+  ],
+  "screening_followup": {
+    "queries": [
+      "\"Online Self-Training for Co-Adaptation\"",
+      "\"Online Self-Training\" \"Co-Adaptation\" diffusion planner controller arxiv"
+    ],
+    "sources": [
+      {
+        "name": "US20250214608A1",
+        "url": "https://patents.google.com/patent/US20250214608A1/en",
+        "checked": "权利要求1及15，2025-07-03公开；次优条件标注与恢复模仿，作为筛查记录，未增加正文对照"
+      },
+      {
+        "name": "ORCHID",
+        "url": "https://arxiv.org/abs/2603.05291",
+        "checked": "作者公开摘要及版本记录；机器人操作，非本次自动驾驶直接对照",
+        "access_note": "OpenReview页面验证阻断；arXiv作者公开摘要可读，未据搜索摘要作技术论证"
+      }
+    ]
+  },
+  "comparison_policy": "正文五项直接对照与一项实施模型基础；按具体技术重合选择，不以数量或对本案是否有利选择",
+  "previous_search_archive": "before_focused_review/search_log.json",
+  "limitations": "有限范围查新。单篇未确认完整公开不等于创造性成立；实际申请基准日与最终文本待核定。不作授权概率或新颖性保证。"
+}

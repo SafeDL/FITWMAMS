@@ -9,12 +9,13 @@ from matplotlib.colors import to_rgba
 from PIL import Image
 
 from process_highD.src.natural_event_playback import (
-    NaturalPlaybackOptions,
     ROAD_COLOR,
     SLOT_COLOR,
     TARGET_COLOR,
+    NaturalPlaybackOptions,
 )
 from tools.plot_style import get_pyplot
+
 from ..core.utils import load_json, save_json
 from ..stochastic_drivers.raw_data import DRIVER_DATA_DIR
 from .evaluation import stage_models
@@ -167,7 +168,7 @@ def render_movie(cohort, states, valid, run, destination, title, *, event=None):
         destination,
         save_all=True,
         append_images=images[1:],
-        duration=int(round(1000 * DT)),
+        duration=round(1000 * DT),
         loop=0,
         disposal=1,
         optimize=True,

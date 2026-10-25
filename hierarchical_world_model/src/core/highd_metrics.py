@@ -88,7 +88,7 @@ def factual_metrics(
         "P95_displacement_error_m": float(np.quantile(values, 0.95)),
         "P99_displacement_error_m": float(np.quantile(values, 0.99)),
         "speed_MAE_mps": float(speed[mask].mean()),
-        "sequences": int(len(generated)),
+        "sequences": len(generated),
         "frames": int(generated.shape[1]),
     }
 
@@ -168,8 +168,9 @@ def _histogram_summary(
     edges = np.linspace(*bounds, bins + 1)
     real_counts, _ = np.histogram(np.clip(real, *bounds), bins=edges)
     generated_counts, _ = np.histogram(np.clip(generated, *bounds), bins=edges)
-    r, g = real_counts / max(real_counts.sum(), 1), generated_counts / max(
-        generated_counts.sum(), 1
+    r, g = (
+        real_counts / max(real_counts.sum(), 1),
+        generated_counts / max(generated_counts.sum(), 1),
     )
     return {
         "bin_edges": edges.tolist(),
@@ -304,9 +305,10 @@ def distribution_metrics(
     generated_jerk_mask = np.broadcast_to(
         active[:, None, None, :, None], generated_jerk.shape
     )
-    real_windowed, generated_windowed = _windowed_jerk(
-        target_highd_actions, 1
-    ), _windowed_jerk(generated_highd, 2)
+    real_windowed, generated_windowed = (
+        _windowed_jerk(target_highd_actions, 1),
+        _windowed_jerk(generated_highd, 2),
+    )
     real_windowed_mask = np.broadcast_to(active[:, None, :, None], real_windowed.shape)
     generated_windowed_mask = np.broadcast_to(
         active[:, None, None, :, None], generated_windowed.shape
@@ -323,10 +325,11 @@ def distribution_metrics(
     generated_nearest = _nearest_object_distance(
         worlds.reshape(-1, 149, 7, 6), np.repeat(active, len(samples), 0)
     )
-    real_collision, generated_collision = _collision_indicator(
-        target_states, active
-    ), _collision_indicator(
-        worlds.reshape(-1, 149, 7, 6), np.repeat(active, len(samples), 0)
+    real_collision, generated_collision = (
+        _collision_indicator(target_states, active),
+        _collision_indicator(
+            worlds.reshape(-1, 149, 7, 6), np.repeat(active, len(samples), 0)
+        ),
     )
     real_accel = np.linalg.norm(target_highd_actions[real_mask].reshape(-1, 2), axis=-1)
     generated_accel = np.linalg.norm(
@@ -479,9 +482,10 @@ def intervention_metrics(
         strong.background_actions[:, onset:] - baseline.background_actions[:, onset:]
     )
     magnitude = np.linalg.norm(mild_delta, axis=-1)[:, committed:]
-    near_mask, far_mask = np.broadcast_to(
-        near[:, None], magnitude.shape
-    ), np.broadcast_to(far[:, None], magnitude.shape)
+    near_mask, far_mask = (
+        np.broadcast_to(near[:, None], magnitude.shape),
+        np.broadcast_to(far[:, None], magnitude.shape),
+    )
     near_value = float(magnitude[near_mask].mean()) if near_mask.any() else 0.0
     far_value = float(magnitude[far_mask].mean()) if far_mask.any() else 0.0
     near_profile = (magnitude * near[:, None]).sum((0, 2)) / near_mask.sum((0, 2)).clip(
@@ -532,9 +536,10 @@ def intervention_metrics(
             & active
         )
         expected = -1.0 if kind == "brake" else 1.0
-        mild_long, strong_long = mild_delta[:, committed:25, :, 0].mean(
-            1
-        ), strong_delta[:, committed:25, :, 0].mean(1)
+        mild_long, strong_long = (
+            mild_delta[:, committed:25, :, 0].mean(1),
+            strong_delta[:, committed:25, :, 0].mean(1),
+        )
         result["direction_success_rate"] = (
             float((expected * mild_long[following] > 0).mean())
             if following.any()
@@ -650,7 +655,7 @@ def intervention_dose_response(
     for dose, rollout in treatments.items():
         values: dict[str, Any] = {}
         for horizon in horizons:
-            result = effect(rollout, int(round(horizon / 0.04)))
+            result = effect(rollout, round(horizon / 0.04))
             values[f"{horizon:.1f}s"] = {
                 "p10_p50_p90": (
                     np.quantile(result, (0.1, 0.5, 0.9)).tolist()

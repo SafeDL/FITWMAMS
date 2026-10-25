@@ -5,17 +5,18 @@ inference, simulation, factual metrics, and risk metrics.  The scope still
 provides an explicit contract so historical masked artifacts cannot be mixed
 with future all-slot results.
 """
+
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch
 
 from .schema import SLOT_NAMES, slot_index
-
 
 EVALUATION_SCOPE_SCHEMA = "highd_all_background"
 EXCLUDED_EVALUATION_SLOTS: tuple[str, ...] = ()
@@ -99,14 +100,16 @@ def require_evaluation_scope(config: dict[str, Any]) -> None:
     declared = config.get("evaluation_scope")
     expected = evaluation_scope_contract()
     if not isinstance(declared, dict):
-        raise ValueError("configuration must declare evaluation_scope")
+        raise TypeError("configuration must declare evaluation_scope as a mapping")
     if declared.get("schema") != expected["schema"]:
         raise ValueError("configuration evaluation_scope schema is not supported")
     if (
         tuple(declared.get("excluded_background_slots", ()))
         != EXCLUDED_EVALUATION_SLOTS
     ):
-        raise ValueError("configuration evaluation scope does not match the full-population contract")
+        raise ValueError(
+            "configuration evaluation scope does not match the full-population contract"
+        )
 
 
 def require_scoped_evt_model(model_path: str | Path) -> dict[str, Any]:
@@ -121,8 +124,9 @@ def require_scoped_evt_model(model_path: str | Path) -> dict[str, Any]:
         summary = json.load(handle)
     scope = summary.get("evaluation_scope")
     if not isinstance(scope, dict) or (
-        tuple(scope.get("excluded_risk_slots", ()))
-        != EXCLUDED_EVALUATION_SLOTS
+        tuple(scope.get("excluded_risk_slots", ())) != EXCLUDED_EVALUATION_SLOTS
     ):
-        raise ValueError("EVT model was not calibrated on the full background population")
+        raise ValueError(
+            "EVT model was not calibrated on the full background population"
+        )
     return summary

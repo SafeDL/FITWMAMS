@@ -36,10 +36,10 @@ def test_trafficbots_exogenous_state_exact_replay_and_prior_mutation(tmp_path) -
     for name, value in state.as_dict().items():
         assert np.array_equal(value, loaded.as_dict()[name])
 
-    personality = state.pcn_mutate("personality_latent", beta=0.2, seed=19)
+    personality = state.mutate("personality_latent", beta=0.2, seed=19)
     assert not np.array_equal(personality.personality_latent, state.personality_latent)
     assert np.array_equal(personality.destination_uniform, state.destination_uniform)
-    destination = state.pcn_mutate("destination_uniform", beta=0.2, seed=20)
+    destination = state.mutate("destination_uniform", beta=0.2, seed=20)
     assert np.all(
         (destination.destination_uniform >= 0.0)
         & (destination.destination_uniform < 1.0)

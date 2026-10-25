@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-23",
+  "checks_passed": true,
+  "documents": {
+    "技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法_修订稿.docx": {
+      "zip_xml_valid": true,
+      "docx_loader_reopened": true,
+      "math_objects": 112,
+      "display_equations": 14,
+      "tables": 4,
+      "legacy_pict_objects": 0,
+      "old_equation_fields": 0,
+      "equationxml_parts": 0,
+      "media_objects": 0,
+      "chinese_or_punctuation_in_equations": [],
+      "unrendered_math_markers": [],
+      "compatibility_mode": "15",
+      "comments_parts": [],
+      "tracked_insertions": 0,
+      "tracked_deletions": 0,
+      "text_characters": 15695,
+      "sha256": "5716fb4b1aa014f467c13aa157f9b51efb11716b1a7c0582f403d3b912398761",
+      "figure_placeholders": 4,
+      "pdf_pages": 17,
+      "pdf_render_no_error_placeholders": true
+    },
+    "聚焦检索与工程实现核对说明.docx": {
+      "zip_xml_valid": true,
+      "docx_loader_reopened": true,
+      "math_objects": 0,
+      "display_equations": 0,
+      "tables": 3,
+      "legacy_pict_objects": 0,
+      "old_equation_fields": 0,
+      "equationxml_parts": 0,
+      "media_objects": 0,
+      "chinese_or_punctuation_in_equations": [],
+      "unrendered_math_markers": [],
+      "compatibility_mode": "15",
+      "comments_parts": [],
+      "tracked_insertions": 0,
+      "tracked_deletions": 0,
+      "text_characters": 8727,
+      "sha256": "e193b049452f5e2087983916d67673fbef8d8bd047174deee01a180957166543",
+      "pdf_pages": 10,
+      "pdf_render_no_error_placeholders": true
+    }
+  },
+  "visual_review": "All-page contact sheets inspected; larger views checked for equation blocks 6–11. No clipped formula or image formula.",
+  "office_validation": "LibreOffice 7.3 DOCX load and PDF export passed. Microsoft Word desktop is unavailable; Word-native reopening was not performed.",
+  "sources_unchanged_by_task": true,
+  "experiments_started": false
+}

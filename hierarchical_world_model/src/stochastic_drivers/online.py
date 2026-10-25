@@ -4,25 +4,25 @@ import numpy as np
 import torch
 from torch import nn
 
-from ..reaction_controller import ManeuverPhase, ReactionControllerContext
 from ..core.dynamics import KinematicTrafficDynamics
+from ..reaction_controller import ManeuverPhase, ReactionControllerContext
 from ..scene_geometry import (
     torch_adjacent_lane_index,
     torch_map_lane_geometry,
     torch_nearest_lane_geometry,
 )
-from .mobil_response import MOBILDecision, evaluate_mobil_candidates
 from .driver_policy import (
-    corrected_acceleration,
-    causal_maneuver_features,
-    exclusive_lane_probabilities,
-    response_history_features,
-    physical_leader_observation,
     anticipated_entry_features,
+    causal_maneuver_features,
+    corrected_acceleration,
+    exclusive_lane_probabilities,
+    physical_leader_observation,
+    response_history_features,
     sample_lane_choice,
 )
 from .lane_choice import lane_choice_features
 from .lane_trajectory import LearnedLaneTrajectory, path_clearance
+from .mobil_response import MOBILDecision, evaluate_mobil_candidates
 
 
 def calibrated_mobil_parameters(fit):
@@ -155,14 +155,12 @@ class NPCPolicy(nn.Module):
         ):
             raise ValueError("MOBIL thresholds must be non-negative")
         self._autonomous_lane_active: torch.Tensor | None = None
-        self._autonomous_lane_initial_active: torch.Tensor | None = None
         self._autonomous_lane_ever: torch.Tensor | None = None
         self._autonomous_lane_target_y: torch.Tensor | None = None
         self._lane_path_coefficients: torch.Tensor | None = None
         self._lane_path_origin: torch.Tensor | None = None
         self._lane_path_distance: torch.Tensor | None = None
         self._lane_path_waiting: torch.Tensor | None = None
-        self._lane_path_replans: torch.Tensor | None = None
         self._maneuver_phase: torch.Tensor | None = None
         self._maneuver_stable_frames: torch.Tensor | None = None
         self._maneuver_cooldown_frames: torch.Tensor | None = None
@@ -308,9 +306,6 @@ class NPCPolicy(nn.Module):
             self._autonomous_lane_active = torch.zeros(
                 active_shape, dtype=torch.bool, device=npc.device
             )
-            self._autonomous_lane_initial_active = torch.zeros_like(
-                self._autonomous_lane_active
-            )
             self._autonomous_lane_ever = torch.zeros_like(self._autonomous_lane_active)
             self._autonomous_lane_target_y = torch.zeros_like(npc[..., 1])
             self._lane_path_coefficients = torch.zeros(
@@ -319,7 +314,6 @@ class NPCPolicy(nn.Module):
             self._lane_path_origin = npc[..., 0].clone()
             self._lane_path_distance = torch.ones_like(npc[..., 0])
             self._lane_path_waiting = torch.zeros_like(self._autonomous_lane_active)
-            self._lane_path_replans = torch.zeros_like(npc[..., 0], dtype=torch.long)
             self._maneuver_phase = torch.full(
                 active_shape,
                 int(ManeuverPhase.TRACK),
@@ -506,8 +500,9 @@ class NPCPolicy(nn.Module):
         different = torch.arange(6, device=npc.device)[:, None].ne(
             torch.arange(6, device=npc.device)[None, :]
         )
-        lower_slot = torch.arange(6, device=npc.device)[None, :] < (
-            torch.arange(6, device=npc.device)[:, None]
+        lower_slot = (
+            torch.arange(6, device=npc.device)[None, :]
+            < (torch.arange(6, device=npc.device)[:, None])
         )
         active_target_index, _, _, _ = torch_nearest_lane_geometry(
             self._autonomous_lane_target_y,
@@ -691,7 +686,6 @@ class NPCPolicy(nn.Module):
             road_bounds,
         )
         replace_path = replan & clear
-        self._lane_path_replans += replace_path.to(torch.long)
         self._lane_path_coefficients = torch.where(
             replace_path[..., None], path[0], self._lane_path_coefficients
         )
@@ -735,14 +729,12 @@ class NPCPolicy(nn.Module):
         "driver_residual_state",
         "driver_source_y",
         "autonomous_lane_active",
-        "autonomous_lane_initial_active",
         "autonomous_lane_ever",
         "autonomous_lane_target_y",
         "lane_path_coefficients",
         "lane_path_origin",
         "lane_path_distance",
         "lane_path_waiting",
-        "lane_path_replans",
         "maneuver_phase",
         "maneuver_stable_frames",
         "maneuver_cooldown_frames",

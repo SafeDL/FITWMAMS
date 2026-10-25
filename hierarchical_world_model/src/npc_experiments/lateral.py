@@ -344,25 +344,26 @@ def lateral_distances(model, real, model_km, real_km):
 def conditional_lane_statistics(data_dir, split, mobil, samples=16, fraction=1.0):
     """Initial-state-conditioned lane execution; no target future is a control input."""
     from pathlib import Path
-    import pandas as pd
+
     import torch
+
     from ..core.dynamics import (
         DynamicsConfig,
         KinematicTrafficDynamics,
     )
     from ..core.utils import load_json
-    from ..stochastic_drivers.raw_data import load_lane_events
     from ..stochastic_drivers.lane_trajectory import (
         LearnedLaneTrajectory,
         limit_realized_lateral_acceleration,
     )
+    from ..stochastic_drivers.raw_data import load_lane_events
 
     data_dir = Path(data_dir)
     events, observations = load_lane_events(data_dir, splits=(split,))[split]
     if fraction < 1:
         chosen = np.concatenate(
             [
-                group.index.to_numpy()[:: int(round(1 / fraction))]
+                group.index.to_numpy()[:: round(1 / fraction)]
                 for _, group in events.groupby("recording_id")
             ]
         )
@@ -502,8 +503,9 @@ def conditional_lane_statistics(data_dir, split, mobil, samples=16, fraction=1.0
     )
     for name in (*PROCESS_FEATURES, "duration_speed_joint"):
         real, simulated = numeric["real_" + name], numeric["model_" + name]
-        flat_r, flat_m = real.reshape(len(real), -1), simulated.reshape(
-            len(simulated), -1
+        flat_r, flat_m = (
+            real.reshape(len(real), -1),
+            simulated.reshape(len(simulated), -1),
         )
         boot = distance(flat_r[draws].sum(1), flat_m[draws].sum(1))
         report[name] = {

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fixed-event, per-event ADS evaluation for paired comparisons."""
 
 from __future__ import annotations
@@ -6,18 +5,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import tempfile
 import time
+from pathlib import Path
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from stable_baselines3 import DQN
 
-from .env import ADSHighwayEnv
-from .events import HighDEventStore
-from .provenance import artifact_record
-from .runtime import DEFAULT_WORLD_CONFIG, FrozenWorldFactory
+from ads.common.environment import ADSHighwayEnv
+from ads.common.instances import artifact_record
+from ads.common.world import DEFAULT_WORLD_CONFIG, FrozenWorldFactory, HighDEventStore
 
 
 def _publish_evaluation_artifacts(
@@ -153,9 +151,8 @@ def evaluate_policy(model, env: ADSHighwayEnv) -> pd.DataFrame:
             {
                 "event_id": info["event_id"],
                 "source_event_id": info["source_event_id"],
-                "failure": bool(
-                    info["collision"] or info["offroad"] or info.get("stalled", False)
-                ),
+                "failure": bool(info["collision"] or info["offroad"]),
+                "safety_failure": bool(info["collision"] or info["offroad"]),
                 "collision": bool(info["collision"]),
                 "any_vehicle_collision": bool(
                     info.get("any_vehicle_collision", info["collision"])
@@ -244,7 +241,7 @@ def main() -> None:
     finite_ttc = results.loc[np.isfinite(results["minimum_ttc_s"]), "minimum_ttc_s"]
     summary = {
         "algorithm": args.algorithm,
-        "events": int(len(results)),
+        "events": len(results),
         "failures": int(results["failure"].sum()),
         "failure_rate": float(results["failure"].mean()),
         "mean_progress_m": float(results["progress_m"].mean()),
@@ -253,11 +250,11 @@ def main() -> None:
             None if finite_distance.empty else float(finite_distance.mean())
         ),
         "distance_metric": "axis_aligned_vehicle_surface_clearance_m",
-        "minimum_distance_event_count": int(len(finite_distance)),
+        "minimum_distance_event_count": len(finite_distance),
         "median_minimum_ttc_s": (
             None if finite_ttc.empty else float(finite_ttc.median())
         ),
-        "finite_ttc_event_count": int(len(finite_ttc)),
+        "finite_ttc_event_count": len(finite_ttc),
         "npc_collision_rate": float(results["npc_collision"].mean()),
         "any_vehicle_collision_rate": float(results["any_vehicle_collision"].mean()),
         "mean_abs_acceleration_mps2": float(

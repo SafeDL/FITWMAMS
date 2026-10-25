@@ -1,7 +1,7 @@
 """Batching preserves native execution and inactive episodes remain on plan."""
 
 import numpy as np
-import torch
+
 from hierarchical_world_model.src.shared_evaluation import (
     highway_rollout,
     scene_randomness,
@@ -19,14 +19,14 @@ def native_scenes():
     states[..., :2] += initial[:, None, :, 2:4] * time[None, :, None, None]
     valid = np.ones((2, 174, 7), bool)
     valid[:, :, 2:] = False
-    arrays = dict(
-        agent_states=states,
-        agent_valid=valid,
-        vehicle_dimensions=np.broadcast_to([4.8, 1.8], (2, 7, 2)).copy(),
-        map_polylines=c.map_polylines.numpy().repeat(2, 0),
-        map_polyline_valid=c.map_polyline_valid.numpy().repeat(2, 0),
-        sequence_id=np.array(["nat_01_1", "nat_01_2"]),
-    )
+    arrays = {
+        "agent_states": states,
+        "agent_valid": valid,
+        "vehicle_dimensions": np.broadcast_to([4.8, 1.8], (2, 7, 2)).copy(),
+        "map_polylines": c.map_polylines.numpy().repeat(2, 0),
+        "map_polyline_valid": c.map_polyline_valid.numpy().repeat(2, 0),
+        "sequence_id": np.array(["nat_01_1", "nat_01_2"]),
+    }
     return arrays, np.arange(2), states[:, 25:174, 1:, :2].copy()
 
 

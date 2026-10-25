@@ -1,0 +1,90 @@
+{
+  "additional_world_executions": 0,
+  "cohorts": {
+    "empirical_natural": {
+      "assets_hash": "b1cb87b79d88f3da11fdb4e487ed6258ecfa8f0c1e397e3c36634693895f0a1e",
+      "instances": 2000,
+      "ordered_instance_hashes_sha256": "3c190bf1416fb3847b15e65134e3857a61010e5afabc0a41198d2dd753aa6bee",
+      "roots_sha256": "eabd194b032d8f4cda8b3ccb03b49c6fb275a829e816ba345ebd27a58cdc36fa",
+      "sampling_roots": 2000,
+      "statistical_inference_unit": "recording_id",
+      "statistical_inference_units": 9,
+      "true_recorded_history": true
+    },
+    "natural_generated": {
+      "assets_hash": "0e71d04d5081005151305e33c45a338e31350e7e0ae024432d129463e57843f5",
+      "instances": 2000,
+      "ordered_instance_hashes_sha256": "b237c038682ef6e05f302e638591c05cf432da6299773d546cbb04f69c316bf2",
+      "roots_sha256": "eedf3522ac91f1ef32424443a14341ca9b0e079edc62dcd507f98b4c8a812a8b",
+      "sampling_roots": 2000,
+      "statistical_inference_unit": "instance_hash",
+      "statistical_inference_units": 2000,
+      "true_recorded_history": false
+    },
+    "tail_generated": {
+      "assets_hash": "8e6aa1cc70482251ec6763e071f3091c7c297dfbfef3f8a998354584e2d753ff",
+      "instances": 2000,
+      "ordered_instance_hashes_sha256": "4aaac32c64232b60901d56d1764b1613004fe8bfd35eb342646f23e95d94d716",
+      "roots_sha256": "e897db3210ae53cc59dcb8f36fd9d7d6af336d268f622edb4ab6cf794146f3bb",
+      "sampling_roots": 2000,
+      "statistical_inference_unit": "instance_hash",
+      "statistical_inference_units": 2000,
+      "true_recorded_history": false
+    }
+  },
+  "complete_instance_files_verified": 6000,
+  "configuration_sha256": "a91616c3ad8bccd90fd84ab516eb9ae0c5875387e1a55eb698a8127d9b0f1d99",
+  "empirical_association_groups": 1229,
+  "empirical_recording_direction_strata": 18,
+  "empirical_sources_reused_by_tail_flow": 60,
+  "empirical_test_recordings": 9,
+  "freeze_sha256": "3d3b9b243197baecb96af2933ebac4c7f30b90d93febd32fb90da3b21c030867",
+  "frozen_policies": {
+    "guided": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603",
+    "initial": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+    "monte_carlo": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db",
+    "subset": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83"
+  },
+  "frozen_python_source_files_unchanged": 424,
+  "model_selection_from_final_results": false,
+  "recorded_utc": "2026-10-24T23:57:10.800186+00:00",
+  "scope": "Actual frozen final input cohorts, model identities, recorded history and ADS-stage isolation; final outcomes not inspected",
+  "source_independence": "ADS-stage holdout; full highD tail fitting retained and reused empirical sources explicitly identified",
+  "status": "passed",
+  "unique_instances_across_cohorts": 6000,
+  "unique_sampling_roots_across_cohorts": 6000,
+  "usage_ledgers": {
+    "results/risk_stratified_repair/development/carl/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 17402
+    },
+    "results/risk_stratified_repair/development/diffusion_planner/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 10048
+    },
+    "results/risk_stratified_repair/development/diffusion_planner_functional/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 9335
+    },
+    "results/risk_stratified_repair/development/diffusion_planner_selective/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 1287
+    },
+    "results/risk_stratified_repair/formal/diffusion_planner/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 31147
+    },
+    "results/risk_stratified_repair/materials/carl/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 3024
+    },
+    "results/risk_stratified_repair/materials/diffusion_planner/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 3024
+    },
+    "results/risk_stratified_repair/preparation/carl_repair_review/fixed_replay/usage.sqlite": {
+      "final_identity_overlap": 0,
+      "non_test_identities_checked": 4
+    }
+  }
+}

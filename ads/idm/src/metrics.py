@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from hierarchical_world_model.src.core.evaluation_scope import scoped_agent_valid
 
 

@@ -1,0 +1,16 @@
+cohort,scope,algorithm,comparison,instances,independent_units,collision_difference,ci95_low,ci95_high,bootstrap_unit,ci_method,ci_is_degenerate,discordant_instances
+empirical_natural,versus_initial,diffusion_planner,guided,2000,9,0.002,-0.00125240707757409,0.004840683750546846,recording_id,cluster_percentile_bootstrap,False,20
+empirical_natural,versus_initial,diffusion_planner,monte_carlo,2000,9,0.0035,-0.0015372790161414297,0.008025701129355202,recording_id,cluster_percentile_bootstrap,False,31
+empirical_natural,versus_initial,diffusion_planner,subset,2000,9,0.001,-0.002580012658814579,0.004318618042226488,recording_id,cluster_percentile_bootstrap,False,20
+empirical_natural,between_repair_methods,diffusion_planner,guided_vs_monte_carlo,2000,9,-0.0015,-0.003824112093182374,0.0006915868783117432,recording_id,cluster_percentile_bootstrap,False,13
+empirical_natural,between_repair_methods,diffusion_planner,guided_vs_subset,2000,9,0.001,-0.0009935419771485345,0.0026918504757167776,recording_id,cluster_percentile_bootstrap,False,4
+natural_generated,versus_initial,diffusion_planner,guided,2000,2000,-0.002,-0.010929486076083253,0.006955416368154464,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,28
+natural_generated,versus_initial,diffusion_planner,monte_carlo,2000,2000,-0.0015,-0.008989344521350692,0.0060185088013953465,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,19
+natural_generated,versus_initial,diffusion_planner,subset,2000,2000,-0.0025,-0.011561226460752198,0.006592656370296575,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,29
+natural_generated,between_repair_methods,diffusion_planner,guided_vs_monte_carlo,2000,2000,-0.0005,-0.007268142882768617,0.006280647618783555,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,15
+natural_generated,between_repair_methods,diffusion_planner,guided_vs_subset,2000,2000,0.0005,-0.006280647618783555,0.007268142882768617,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,15
+tail_generated,versus_initial,diffusion_planner,guided,2000,2000,-0.0105,-0.01989686662330032,-0.0009749518112879309,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,35
+tail_generated,versus_initial,diffusion_planner,monte_carlo,2000,2000,-0.0115,-0.020777520717061185,-0.0020760770660354947,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,35
+tail_generated,versus_initial,diffusion_planner,subset,2000,2000,-0.014,-0.023753334707901478,-0.004083663307016496,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,40
+tail_generated,between_repair_methods,diffusion_planner,guided_vs_monte_carlo,2000,2000,0.001,-0.0029490344336766208,0.004855127326177288,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,4
+tail_generated,between_repair_methods,diffusion_planner,guided_vs_subset,2000,2000,0.0035,-0.0016711323782508875,0.008481244822468011,instance_hash,paired_discordance_clopper_pearson_bonferroni,False,9

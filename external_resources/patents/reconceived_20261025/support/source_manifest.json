@@ -1,0 +1,98 @@
+[
+  {
+    "path": "doc/risk_stratified_repair.md",
+    "sha256": "a64a1df0bcd4d7672b6649f55b0db70638323209b7735e2c7273fea4d76e1c94"
+  },
+  {
+    "path": "ads/diffusion_planner/supervision.py",
+    "sha256": "7f9ffe6cce6ff210206af7f7b7aecb675c139ee2c0b2f1c354f36ad23cc91953"
+  },
+  {
+    "path": "ads/diffusion_planner/repair.py",
+    "sha256": "591646c8b675dfc632f1e4b1d96cccba3d91185f53c7c8eb36c06eda4e413c4c"
+  },
+  {
+    "path": "ads/diffusion_planner/policy.py",
+    "sha256": "20f56341cb852049bf32b3489a59b8f042c4b0d239a069ecc88d7eb95496e0cc"
+  },
+  {
+    "path": "ads/nuplan/losses.py",
+    "sha256": "61067c1cc524b486cfd24942630a42d4b1927e8768997f69352fe337ff97909c"
+  },
+  {
+    "path": "ads/nuplan/teacher.py",
+    "sha256": "49602d836f686a2634b72ff14ab3207cdf0fe3636b4aeba11738aa6b7f8ad39b"
+  },
+  {
+    "path": "ads/common/expert.py",
+    "sha256": "839b2b54628e0a2ea3a8429782d7eedc0efeb904a67e1b846f04706a53b64262"
+  },
+  {
+    "path": "ads/common/demonstrations.py",
+    "sha256": "f0ae82b98bdd1884cf21b2c7f1aa561f16248f69722ae71638dbe48ab9e6d489"
+  },
+  {
+    "path": "ads/common/admission.py",
+    "sha256": "574ecb302f9ac651c703b1745b622d9eb29adc27033a452f2788f8465e715024"
+  },
+  {
+    "path": "ads/common/randomness.py",
+    "sha256": "82763f05108e8365094e9e926df46838cce8094ed827552e119ca6e842243fc1"
+  },
+  {
+    "path": "ads/common/instances.py",
+    "sha256": "9b610cf5a7115166b484c8b9b8f64e829d9e3b28f7509c5625f1e6996d3ae2eb"
+  },
+  {
+    "path": "hierarchical_world_model/src/randomness.py",
+    "sha256": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767"
+  },
+  {
+    "path": "hierarchical_world_model/src/highway.py",
+    "sha256": "cd72b2eeda8d8d9d9e7060fd87461de2cab5f2c87177784076d45a8b12640433"
+  },
+  {
+    "path": "hierarchical_world_model/src/takeover.py",
+    "sha256": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94"
+  },
+  {
+    "path": "ads/tests/test_diffusion_repair.py",
+    "sha256": "28a46abc65b791f5b6059a12296e1a076be21ffea8040c5adb21258cfb535ce8"
+  },
+  {
+    "path": "external_resources/patents/技术交底书-一种基于失效邻域的自动驾驶测试调度方法.docx",
+    "sha256": "3d8585e04c5044fe5f2a866bbecebe3e59a4a58350485977e6ca777672ad6b68"
+  },
+  {
+    "path": "external_resources/patents/revision_20261025/技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法.docx",
+    "sha256": "3de9a7ba5863232c7e364c3098aaff1728a3cb36b9819a15185ad2d67534a9bf"
+  },
+  {
+    "path": "external_resources/patents/revision_20261023/XJYZL20260889-ZS2612700-1-II-一种面向安全关键事件的自动驾驶长尾测试方法-篇幅缩减版.docx",
+    "sha256": "d2fac18d76f62a966f17492773dbad2b48faf6ec1ed4836ab6c388150651743a"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_search_comparison.json",
+    "sha256": "78fda225e687c96141d9985d75420c13011a5ba4490009a5e0edb1cd48b9560a"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_material_acceptance.json",
+    "sha256": "2cc6d9963298c6ed696fa98d89cc2c99cc79b8e1c9bca3bbf7115921cc2d00bb"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_one_label_replay.json",
+    "sha256": "321824be1958a83c9e04e441bfdfc579e483d0c7345e3ed73cd7ae67b43b773c"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_one_admission_acceptance.json",
+    "sha256": "18817eb1b3f707ec71a485d8ea461586929ed41eecda4fe493bfae34c01adc41"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_two_replay_acceptance.json",
+    "sha256": "a9f44211f4a7e3e813875a73f481b697760fc41c5a08aebb935b4ae84bddf06e"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_delivery_acceptance.json",
+    "sha256": "fd3e1426915db3239a7246419de61edec52944f8664f35e0614935a1cc51b4c7"
+  }
+]

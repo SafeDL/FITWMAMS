@@ -1,0 +1,141 @@
+{
+  "additional_ads_executions": 0,
+  "common_training_seed": 2640395221,
+  "initial_policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+  "methods": {
+    "guided": {
+      "actual_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidates": [
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "dd5c965995cee3d51d41654764001054afce018e2279a8a9280b97bef4683de9",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 500,
+          "optimizer_parameters": 38
+        },
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "ec26906681b2115ffe3fe486171631d8ad3b9dfe549189f8d860a45f100fe8d6",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 1000,
+          "optimizer_parameters": 38
+        }
+      ],
+      "category_samples": {
+        "history": 0,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 8000,
+        "normal": 8000
+      },
+      "effective_batch": 64,
+      "finite_losses": 1000,
+      "objective_samples": {
+        "native_supervision": 39174,
+        "original_retention": 48000,
+        "successful_retention": 8826
+      },
+      "optimization_sha256": "9f31cf62b2d59127e160c7d060495f42ea10920fc61290bf642a25c38a5f3494",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 2640395221
+    },
+    "monte_carlo": {
+      "actual_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidates": [
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "ec26fec03d9ecfbc2fd6cd086b476cffde92a1b1707bb9e0cef3e77a85eb3361",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 500,
+          "optimizer_parameters": 38
+        },
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "ee70ae58a541ac89bf9dc6490299d4ccabd8f35189945865b91d6e44d6ea6422",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 1000,
+          "optimizer_parameters": 38
+        }
+      ],
+      "category_samples": {
+        "history": 0,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 8051,
+        "normal": 7949
+      },
+      "effective_batch": 64,
+      "finite_losses": 1000,
+      "objective_samples": {
+        "native_supervision": 40051,
+        "original_retention": 48000,
+        "successful_retention": 7949
+      },
+      "optimization_sha256": "18ab9601bc6701106afb1e80e64d7162af1bbc8110a98284f172ce065ceac8f0",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 2640395221
+    },
+    "subset": {
+      "actual_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidates": [
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "4f45d1282f2d48fe0afd486fe80b3c24e8ffbc42177411ddf98061d6e5c37845",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 500,
+          "optimizer_parameters": 38
+        },
+        {
+          "all_adam_steps_match": true,
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "aa7464fb71dbc27f19e019c2235e09527c575f9c6ffb54b31835b1068afacb40",
+          "frozen_tensors_exactly_preserved": 238,
+          "gradient_updates": 1000,
+          "optimizer_parameters": 38
+        }
+      ],
+      "category_samples": {
+        "history": 0,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 8051,
+        "normal": 7949
+      },
+      "effective_batch": 64,
+      "finite_losses": 1000,
+      "objective_samples": {
+        "native_supervision": 40051,
+        "original_retention": 48000,
+        "successful_retention": 7949
+      },
+      "optimization_sha256": "d32c7b595cebdb3f057cb32189e4ae41099a0d3bcbc56fbc81d1574b34b1446d",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 2640395221
+    }
+  },
+  "official_ema_equal_to_initial": true,
+  "scope": "Independent audit of all completed formal round-one optimization checkpoints; no extra training or simulation"
+}

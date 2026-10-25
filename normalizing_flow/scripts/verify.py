@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Verify the maintained all-tail scenario Flow artifacts."""
 
 from __future__ import annotations
@@ -13,15 +12,15 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from diffusion.src.data import prepare_flow_condition  # noqa: E402
-from normalizing_flow.src.data import (  # noqa: E402
+from diffusion.src.data import prepare_flow_condition
+from normalizing_flow.src.data import (
     dataset_dir_from_config,
     evt_tail_indices,
     load_scenario_dataset,
     output_dir_from_config,
 )
-from normalizing_flow.src.sampling import load_checkpoint_and_dataset  # noqa: E402
-from normalizing_flow.src.utils import load_json, load_yaml  # noqa: E402
+from normalizing_flow.src.sampling import load_checkpoint_and_dataset
+from normalizing_flow.src.utils import load_json, load_yaml
 
 CONFIG = ROOT / "normalizing_flow/config.yaml"
 DIFFUSION_CONTRACT = ROOT / "results/diffusion/dataset_contract.json"

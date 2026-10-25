@@ -1,10 +1,11 @@
 """Physical driver observations from complete, screened original highD recordings."""
 
+import itertools
+import json
+import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import json
 from pathlib import Path
-import time
 
 import numpy as np
 import pandas as pd
@@ -210,9 +211,9 @@ def lane_labels(track, lane_centers):
     audit["no_cross"][cues[keep & ~opposite]] = True
     audit["observation_gap"][cues[gap]] = True
     audit["truncated_future"][cues[unresolved & ~gap & ~nonadjacent & truncated]] = True
-    audit["horizon_unresolved"][
-        cues[unresolved & ~gap & ~nonadjacent & ~truncated]
-    ] = True
+    audit["horizon_unresolved"][cues[unresolved & ~gap & ~nonadjacent & ~truncated]] = (
+        True
+    )
     observed[cues] = confirmed | keep
     label[cues[confirmed]] = np.where(side[confirmed] < 0, 1, 2)
     visible_end = np.minimum(horizon, frames[(next_invalid - 1).clip(min=0)])
@@ -333,7 +334,7 @@ def nearest_neighbors(states, centers_by_direction):
     ]
     groups = {}
     x = states.x.to_numpy()
-    for begin, end in zip(boundaries[:-1], boundaries[1:]):
+    for begin, end in itertools.pairwise(boundaries):
         indices = order[begin:end]
         current_front[indices[:-1]] = indices[1:]
         current_rear[indices[1:]] = indices[:-1]
@@ -638,8 +639,8 @@ def extract_recording(recording_id, split, raw_dir, cfg, output):
     report = {
         "recording": int(recording_id),
         "split": split,
-        "physical_vehicles": int(len(recording.vehicle_ids())),
-        "sampled_states": int(len(states)),
+        "physical_vehicles": len(recording.vehicle_ids()),
+        "sampled_states": len(states),
         "following_states": int((keep & following).sum()),
         "free_states": int((keep & free).sum()),
         "observed_lane_events": len(observed_events),
@@ -650,7 +651,7 @@ def extract_recording(recording_id, split, raw_dir, cfg, output):
             name: int((stable & states[f"label_audit__{name}"].to_numpy()).sum())
             for name in LABEL_AUDIT_NAMES
         },
-        "complete_lane_events": int(len(events)),
+        "complete_lane_events": len(events),
         "leader_identity_compared": int(both.sum()),
         "leader_identity_agreement": (
             float(np.mean(real_leader[both] == states.precedingId.to_numpy()[both]))

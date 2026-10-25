@@ -8,22 +8,22 @@ import numpy as np
 import pytest
 import torch
 
+from hierarchical_world_model.scripts.evaluate_generated_online_ads import (
+    plan_diagnostics,
+)
 from hierarchical_world_model.src.composition import (
     HierarchicalWorldSampler,
     SampledWorldBatch,
 )
 from hierarchical_world_model.src.config import WorldModelConfig
-from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
-from hierarchical_world_model.src.tracking import TrackingConfig
 from hierarchical_world_model.src.execution import _rollout_sample, rollout_world
-from hierarchical_world_model.scripts.evaluate_generated_online_ads import (
-    plan_diagnostics,
-)
 from hierarchical_world_model.src.randomness import WorldExogenousState
 from hierarchical_world_model.src.stochastic_drivers.idm_population import (
     MODEL_PATH,
     sample_theta,
 )
+from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
+from hierarchical_world_model.src.tracking import TrackingConfig
 
 
 def test_online_world_commits_and_redecides_every_25hz_tick() -> None:
@@ -69,7 +69,7 @@ def test_generated_plan_checks_the_composed_motion_and_keeps_sampled_dimensions(
 
 
 def test_create_world_uses_only_the_maintained_response_chain(monkeypatch):
-    import hierarchical_world_model.src.composition as composition
+    from hierarchical_world_model.src import composition
 
     sample = SampledWorldBatch(
         scenario=None,
@@ -123,7 +123,7 @@ def test_create_world_uses_only_the_maintained_response_chain(monkeypatch):
 
 
 def test_public_rollout_passes_auto_controller_by_default(monkeypatch) -> None:
-    import hierarchical_world_model.src.execution as execution
+    from hierarchical_world_model.src import execution
 
     sample = SimpleNamespace()
     exogenous = object()
@@ -149,7 +149,7 @@ def test_public_rollout_passes_auto_controller_by_default(monkeypatch) -> None:
 def test_composed_sample_execution_uses_its_explicit_response_horizon(
     monkeypatch,
 ) -> None:
-    import hierarchical_world_model.src.execution as execution
+    from hierarchical_world_model.src import execution
 
     state = torch.zeros((1, 7, 6))
 

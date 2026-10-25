@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/DiffusionAD/Flow-Planner",
+  "commit": "366df7654d7b7fa77f9d2577279da63127c6d2f8",
+  "archive_sha256": "a223d0d95c922b4d8c824cbba513fb341191a8ae4fad8d163362af2891759694",
+  "local_changes": [
+    "Python imports namespaced under ads.flow_planner.vendor; original model parameter names retained."
+  ]
+}

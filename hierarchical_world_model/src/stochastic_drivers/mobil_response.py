@@ -57,20 +57,20 @@ def evaluate_mobil_candidates(
     lengths = (
         torch.full(states.shape[:2], 4.8, dtype=states.dtype, device=states.device)
         if vehicle_lengths_m is None
-        else torch.as_tensor(vehicle_lengths_m, dtype=states.dtype, device=states.device)
+        else torch.as_tensor(
+            vehicle_lengths_m, dtype=states.dtype, device=states.device
+        )
     )
     actor_index = torch.arange(1, 7, device=states.device)[None].expand(batch, -1)
 
-    def acceleration(follower_actor: torch.Tensor, leader_actor: torch.Tensor) -> torch.Tensor:
+    def acceleration(
+        follower_actor: torch.Tensor, leader_actor: torch.Tensor
+    ) -> torch.Tensor:
         has_follower = follower_actor.gt(0)
         follower = follower_actor.clamp(1, 6)
         leader = leader_actor.clamp_min(0)
-        follower_state = torch.gather(
-            states, 1, follower[..., None].expand(-1, -1, 6)
-        )
-        leader_state = torch.gather(
-            states, 1, leader[..., None].expand(-1, -1, 6)
-        )
+        follower_state = torch.gather(states, 1, follower[..., None].expand(-1, -1, 6))
+        leader_state = torch.gather(states, 1, leader[..., None].expand(-1, -1, 6))
         follower_speed = torch.linalg.vector_norm(follower_state[..., 2:4], dim=-1)
         leader_speed = torch.linalg.vector_norm(leader_state[..., 2:4], dim=-1)
         pair_length = 0.5 * (
@@ -91,16 +91,16 @@ def evaluate_mobil_candidates(
 
     current_leader = relations.leader_index[:, 1:]
     current_acceleration = acceleration(actor_index, current_leader)
-    incentives = torch.full((batch, 6, 2), -float("inf"), dtype=states.dtype, device=states.device)
+    incentives = torch.full(
+        (batch, 6, 2), -float("inf"), dtype=states.dtype, device=states.device
+    )
     safe = torch.zeros((batch, 6, 2), dtype=torch.bool, device=states.device)
     for side_index in range(2):
         front = relations.adjacent_front_index[:, 1:, side_index]
         rear = relations.adjacent_rear_index[:, 1:, side_index]
         lane_available = relations.adjacent_lane_index[:, 1:, side_index].ge(0)
         own_after = acceleration(actor_index, front)
-        rear_before_leader = torch.gather(
-            relations.leader_index, 1, rear.clamp_min(0)
-        )
+        rear_before_leader = torch.gather(relations.leader_index, 1, rear.clamp_min(0))
         rear_before = acceleration(rear, rear_before_leader)
         rear_after = acceleration(rear, actor_index)
 
@@ -115,30 +115,33 @@ def evaluate_mobil_candidates(
         )
         old_rear_local = old_rear_score.argmin(dim=1)
         has_old_rear = torch.isfinite(old_rear_score.amin(dim=1))
-        old_rear = torch.where(has_old_rear, old_rear_local + 1, torch.full_like(old_rear_local, -1))
+        old_rear = torch.where(
+            has_old_rear, old_rear_local + 1, torch.full_like(old_rear_local, -1)
+        )
         old_before = acceleration(old_rear, actor_index)
         old_after = acceleration(old_rear, current_leader)
 
         value = (
-            own_after - current_acceleration
+            own_after
+            - current_acceleration
             + politeness_value * ((rear_after - rear_before) + (old_after - old_before))
             - plan_keep_bias
         )
-        candidate_safe = lane_available & (
-            rear.lt(0) | (rear_after >= -safe_braking)
-        )
+        candidate_safe = lane_available & (rear.lt(0) | (rear_after >= -safe_braking))
         safe[..., side_index] = candidate_safe
         incentives[..., side_index] = torch.where(
             candidate_safe, value, torch.full_like(value, -float("inf"))
         )
     best_local = incentives.argmax(dim=-1)
     best_value = torch.gather(incentives, 2, best_local[..., None]).squeeze(-1)
-    selected = valid[:, 1:] & torch.isfinite(best_value) & (
-        best_value >= incentive_threshold
+    selected = (
+        valid[:, 1:] & torch.isfinite(best_value) & (best_value >= incentive_threshold)
     )
     best_side = torch.where(
         selected,
-        torch.where(best_local.eq(0), -torch.ones_like(best_local), torch.ones_like(best_local)),
+        torch.where(
+            best_local.eq(0), -torch.ones_like(best_local), torch.ones_like(best_local)
+        ),
         torch.zeros_like(best_local),
     )
     target_lane = torch.gather(

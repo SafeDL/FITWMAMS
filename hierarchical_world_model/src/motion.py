@@ -10,7 +10,7 @@ def observed_acceleration(
     *,
     history=None,
     history_valid=None,
-    dt=0.04
+    dt=0.04,
 ):
     ax = torch.zeros_like(current[..., 2])
     ay = torch.zeros_like(ax)
@@ -66,7 +66,7 @@ def motion_forecast(
     *,
     dt=0.04,
     history=None,
-    history_valid=None
+    history_valid=None,
 ):
     acceleration = observed_acceleration(
         current,

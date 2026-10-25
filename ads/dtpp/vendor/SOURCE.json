@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/MCZhi/DTPP",
+  "commit": "4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7",
+  "archive_sha256": "39350be726da09de413a12d6ffc1355790adec7ca4ede9c8a0a135f263667401",
+  "local_changes": [
+    "Python imports namespaced under ads.dtpp.vendor; original model parameter names retained.",
+    "Expose first- and second-stage candidate lists for offline supervised labels; native tree selection unchanged."
+  ]
+}

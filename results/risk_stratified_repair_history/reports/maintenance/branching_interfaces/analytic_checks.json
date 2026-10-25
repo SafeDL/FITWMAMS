@@ -1,0 +1,201 @@
+{
+  "seed": 20260926,
+  "formal_traffic_executions": 0,
+  "implementation_sha256": {
+    "engine.py": "61760b6af4a4d8b4aa45624f2d859969bf23a61e176f5b658bc93f06500ecbf7",
+    "branches.py": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733",
+    "analytic.py": "6abc8f00ed13236eaa92fe5a3afd1032014f7ba85a707498cbfad2060375161b"
+  },
+  "problems": {
+    "unbalanced": {
+      "subset": {
+        "evaluations": 1816,
+        "execution_budget": 5000,
+        "unused_budget": 3184,
+        "stop_reason": "scheduled_tasks_complete",
+        "execution_costs": {
+          "initial_prior": 500,
+          "conditional_proposal": 750,
+          "fresh_prior": 500,
+          "branch_check": 66
+        },
+        "unique_safety_failures": 344,
+        "unique_collisions": 344,
+        "failure_domains": [
+          "posthoc.0"
+        ],
+        "failure_domain_interpretation": "empirical_search_branches_not_all_connected_components",
+        "independent_failure_roots": 71,
+        "hit_fraction": 0.19657142857142856,
+        "hit_fraction_is_prior_probability": false,
+        "elapsed_s": 4.542094560019905,
+        "generation_elapsed_s": 0.31204447359777987,
+        "execution_elapsed_s": 0.0,
+        "total_search_elapsed_s": 4.542094560019905,
+        "feedback": {},
+        "branch_transitions": [],
+        "branch_relationships": {
+          "old_to_new": {},
+          "new_to_old": {},
+          "split_old_branches": [],
+          "merged_new_branches": []
+        },
+        "pending_tasks": {
+          "initial_prior": 0,
+          "fresh_prior": 0,
+          "active_branches": []
+        },
+        "retained_archive_endpoints": 0,
+        "known_regions_found": [
+          "left",
+          "right"
+        ],
+        "ambient_dimension": 5481,
+        "active_dimensions": 2
+      },
+      "guided": {
+        "evaluations": 2750,
+        "execution_budget": 5000,
+        "unused_budget": 2250,
+        "stop_reason": "scheduled_tasks_complete",
+        "execution_costs": {
+          "initial_prior": 500,
+          "branch_check": 500,
+          "conditional_proposal": 1000,
+          "fresh_prior": 500,
+          "terminal_proposal": 250
+        },
+        "unique_safety_failures": 669,
+        "unique_collisions": 669,
+        "failure_domains": [
+          "refresh_0",
+          "refresh_1",
+          "root.0.0",
+          "root.0.1.0",
+          "root.0.1.1",
+          "root.1"
+        ],
+        "failure_domain_interpretation": "empirical_search_branches_not_all_connected_components",
+        "independent_failure_roots": 62,
+        "hit_fraction": 0.29733333333333334,
+        "hit_fraction_is_prior_probability": false,
+        "elapsed_s": 7.010472977999598,
+        "generation_elapsed_s": 0.47513758929562755,
+        "execution_elapsed_s": 0.0,
+        "total_search_elapsed_s": 7.010472977999598,
+        "feedback": {},
+        "branch_transitions": [],
+        "branch_relationships": {
+          "old_to_new": {},
+          "new_to_old": {},
+          "split_old_branches": [],
+          "merged_new_branches": []
+        },
+        "pending_tasks": {
+          "initial_prior": 0,
+          "fresh_prior": 0,
+          "active_branches": []
+        },
+        "retained_archive_endpoints": 0,
+        "known_regions_found": [
+          "left",
+          "right"
+        ],
+        "ambient_dimension": 5481,
+        "active_dimensions": 2
+      }
+    },
+    "weak_early_branch": {
+      "subset": {
+        "evaluations": 1816,
+        "execution_budget": 5000,
+        "unused_budget": 3184,
+        "stop_reason": "scheduled_tasks_complete",
+        "execution_costs": {
+          "initial_prior": 500,
+          "conditional_proposal": 750,
+          "fresh_prior": 500,
+          "branch_check": 66
+        },
+        "unique_safety_failures": 163,
+        "unique_collisions": 163,
+        "failure_domains": [
+          "posthoc.0"
+        ],
+        "failure_domain_interpretation": "empirical_search_branches_not_all_connected_components",
+        "independent_failure_roots": 40,
+        "hit_fraction": 0.09314285714285714,
+        "hit_fraction_is_prior_probability": false,
+        "elapsed_s": 3.843945833010366,
+        "generation_elapsed_s": 0.28593176949652843,
+        "execution_elapsed_s": 0.0,
+        "total_search_elapsed_s": 3.843945833010366,
+        "feedback": {},
+        "branch_transitions": [],
+        "branch_relationships": {
+          "old_to_new": {},
+          "new_to_old": {},
+          "split_old_branches": [],
+          "merged_new_branches": []
+        },
+        "pending_tasks": {
+          "initial_prior": 0,
+          "fresh_prior": 0,
+          "active_branches": []
+        },
+        "retained_archive_endpoints": 0,
+        "known_regions_found": [
+          "right"
+        ],
+        "ambient_dimension": 5481,
+        "active_dimensions": 2
+      },
+      "guided": {
+        "evaluations": 2146,
+        "execution_budget": 5000,
+        "unused_budget": 2854,
+        "stop_reason": "scheduled_tasks_complete",
+        "execution_costs": {
+          "initial_prior": 500,
+          "branch_check": 396,
+          "conditional_proposal": 750,
+          "fresh_prior": 500
+        },
+        "unique_safety_failures": 189,
+        "unique_collisions": 189,
+        "failure_domains": [
+          "refresh_0",
+          "refresh_1",
+          "root"
+        ],
+        "failure_domain_interpretation": "empirical_search_branches_not_all_connected_components",
+        "independent_failure_roots": 29,
+        "hit_fraction": 0.108,
+        "hit_fraction_is_prior_probability": false,
+        "elapsed_s": 3.8378693019913044,
+        "generation_elapsed_s": 0.33912296599010006,
+        "execution_elapsed_s": 0.0,
+        "total_search_elapsed_s": 3.8378693019913044,
+        "feedback": {},
+        "branch_transitions": [],
+        "branch_relationships": {
+          "old_to_new": {},
+          "new_to_old": {},
+          "split_old_branches": [],
+          "merged_new_branches": []
+        },
+        "pending_tasks": {
+          "initial_prior": 0,
+          "fresh_prior": 0,
+          "active_branches": []
+        },
+        "retained_archive_endpoints": 0,
+        "known_regions_found": [
+          "right"
+        ],
+        "ambient_dimension": 5481,
+        "active_dimensions": 2
+      }
+    }
+  }
+}

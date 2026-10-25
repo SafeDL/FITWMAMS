@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/autonomousvision/CaRL",
+  "commit": "2677d1477193ecb5eb41ad8d7e4eda78057fd8a9",
+  "adaptations": [
+    "local imports and gymnasium"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "history_archives_unchanged": 5,
+  "history_initial_weights_unchanged": 3,
+  "history_report_hashes_unchanged": 17,
+  "implementation_regression_tests": 101,
+  "layout": "real result root with DATA child symlinks and local curated reports",
+  "model_or_evidence_files_deleted": 0,
+  "recorded_utc": "2026-10-25T03:35:46.222866+00:00",
+  "removed_cache_bytes": 342856,
+  "removed_cache_directories": 11,
+  "removed_cache_files": 56,
+  "ruff": "passed",
+  "status": "passed",
+  "venv_ads_exists": false
+}

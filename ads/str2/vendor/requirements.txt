@@ -1,0 +1,13 @@
+evaluate
+transformers
+accelerate
+datasets
+numpy
+opencv-python
+pandas
+Pillow
+scipy
+tqdm
+einops
+wandb
+scikit-learn

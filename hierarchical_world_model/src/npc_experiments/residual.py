@@ -97,11 +97,11 @@ def temporal_statistics(states, valid, cohort, population):
     """Common position derivatives and per-vehicle residual covariance sums."""
     from scipy.ndimage import minimum_filter1d
 
+    from ..stochastic_drivers.idm_population import idm_acceleration
     from .metrics import (
         diagnostic_states,
         longitudinal_acceleration,
     )
-    from ..stochastic_drivers.idm_population import idm_acceleration
     from .road import neighbors
 
     if states.ndim == 3:

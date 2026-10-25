@@ -1,0 +1,134 @@
+{
+  "recorded_utc": "2026-10-23T03:14:57.171842+00:00",
+  "scope": "paused experiment analysis, source corrections, synthetic tests and saved-observation forward diagnostics only",
+  "new_formal_rollouts": 0,
+  "optimizer_updates": 0,
+  "new_final_test_instances": 0,
+  "paused_processes": {
+    "3809131": "State:\tT (stopped)",
+    "3592706": "State:\tT (stopped)",
+    "3757469": "State:\tT (stopped)"
+  },
+  "confirmed_bug": "DP/Flow unavailable future was incorrectly zeroed after native corruption; retain stochastic corruption while masking unknown clean targets and loss",
+  "existing_repaired_checkpoints_unchanged": true,
+  "affected_legacy_training": [
+    "diffusion_planner/20260926/monte_carlo/round_1",
+    "diffusion_planner/20260926/monte_carlo/round_2",
+    "diffusion_planner/20260926/subset/round_1",
+    "diffusion_planner/20260926/subset/round_2",
+    "diffusion_planner/20260926/guided/round_1",
+    "diffusion_planner/20260926/guided/round_2",
+    "flow_planner/20260926/monte_carlo/round_1",
+    "flow_planner/20260926/monte_carlo/round_2",
+    "flow_planner/20260926/subset/round_1",
+    "flow_planner/20260926/subset/round_2",
+    "flow_planner/20260926/guided/round_1",
+    "flow_planner/20260926/guided/round_2"
+  ],
+  "legacy_protocol_and_implementation_revision_unchanged": true,
+  "new_protocol_config": "ads/configs/method_c_nuplan.yaml",
+  "new_protocol_executed": false,
+  "active_model_scope": [
+    "carl",
+    "diffusion_planner",
+    "dtpp",
+    "flow_planner",
+    "str2"
+  ],
+  "historical_only_models": [
+    "dqn",
+    "ppo",
+    "plant2"
+  ],
+  "new_fixed_budget_per_round": 5000,
+  "new_search_executions_planned": 150000,
+  "final_evaluation_cases_per_cohort": 2000,
+  "final_evaluation_completed": {
+    "tail_generated": 0,
+    "empirical_natural": 0,
+    "natural_generated": 0
+  },
+  "test_runs": [
+    {
+      "files": [
+        "test_fixed_search_budget.py",
+        "test_native_noise_masks.py",
+        "test_search.py",
+        "test_campaign_protocol.py"
+      ],
+      "passed": 71,
+      "seconds": 50.67
+    },
+    {
+      "files": [
+        "test_fixed_search_budget.py",
+        "test_discovery_comparison.py"
+      ],
+      "passed": 31,
+      "seconds": 4.05,
+      "overlap_with_prior_run": 28
+    }
+  ],
+  "lint": "changed files pass ruff with pre-existing Python 3.10 timezone rule UP017 excluded",
+  "source_changes": {
+    "ads/nuplan/losses.py": {
+      "before": "287cdb1c4198f2570d91080efd9e624e19b1350b3073eee3cc4cd9777b09b929",
+      "after": "515a818a57e44acbe52aa48cdec1f18fb2ad26356fbdaed0059c36de7029b984"
+    },
+    "ads/search/engine.py": {
+      "before": "421e95ed0be153a98a4e6ed3041e56c5a82f5ca359919a89b79403557136cd0c",
+      "after": "2466b72a14072b32bacd68523db862f6091b094f94571ad58195bc064af0df4a"
+    },
+    "ads/search/comparison.py": {
+      "before": "a43f2a01332d491e00c17cdedb995a2d0ab729238235142e0a61f0ec32a985d7",
+      "after": "48b3839d6871154739b59edc13493f26461db1c4aa88cb684c565b393a0c8f3e"
+    },
+    "ads/run_campaign.py": {
+      "before": "857dc2ab2c1c99cdaa873fc843907b470f0acf9b740647c947eac81e96815ad9",
+      "after": "d4ca814ee1bcb09d9cc3b035e58332eb44f905c7a6b6b912d168d7978f4dfaae"
+    },
+    "ads/report.py": {
+      "before": "7df2b4b029bcc7bf9e05a73586e8782ace342894eb272ec81be3554d3942ba08",
+      "after": "bc387c4b0267d9760bbb116636d1037d0b9c389adbc77fc097bb184166a526b8"
+    },
+    "ads/tests/test_native_noise_masks.py": {
+      "before": null,
+      "after": "4a082016d9473f858c2011a6e583f15bae0647f9ec8409d30af040b72699dfbd"
+    },
+    "ads/tests/test_fixed_search_budget.py": {
+      "before": null,
+      "after": "b1d65eef7ae83f1701f26508657029d6c3c022992106bb714c7c279e6995fd13"
+    },
+    "ads/tests/test_discovery_comparison.py": {
+      "before": "24fe9ac5ed31133136442b5791099b2ed03ca28805fe65718fa00705e5df3a6c",
+      "after": "bd4134a2062fe3fd045be482d44bbf5f253c2c6aeb46b4346c222c43fc8850cb"
+    },
+    "ads/configs/method_c_nuplan.yaml": {
+      "before": null,
+      "after": "65371d36eb9e97e573cc87454523ed8de2507d629c7b5e98c786ebadba8e6ecf"
+    },
+    "ads/README.md": {
+      "before": null,
+      "after": "8117dc102eed44c7ccfa8555db16e9f4838d13816657b652c9dab4577f2032d6"
+    },
+    "doc/method_c_experiments.md": {
+      "before": null,
+      "after": "1e26d2e94a928f9338d82e9a4820bbd6edadb0397036b9bc30aa7815c3889ae7"
+    }
+  },
+  "evidence": {
+    "diffusion_planner_native_output_diagnostic.json": "27703410e7ec657a748d659c7b9299b4ca858b3bd84f72bf3bb0afe2280079a3",
+    "flow_planner_native_output_diagnostic.json": "e2e3d40c0844f2ea74a762c7b4277853546ee7d1b11ae6e310feb3f1b5bc450e",
+    "label_coverage.json": "ebc7aceff9e761aed4b248a4397a38f7e53d428efb37665e24acd2d8133f85da",
+    "noise_corruption_check.json": "43eb5f99c413fb1ee5eb6ebf1568fb90c3489a567e940d6712fd2b60ce2bcf6d",
+    "normal_expert_speed.json": "56f8ec852ecd70433e2d90e84c1044d11e93d2309fcdced02fbc3192426dbd8c",
+    "prior_driving_behavior.json": "c10255d8d3f2b88d8e99655a79dd06f50b71bec43302f68a1b7a12290d178a34"
+  },
+  "remaining_work": [
+    "Rebuild corrected repair weights and evaluate on paired development instances after experiment resume",
+    "Validate and, if required, revise normal-source behavior retention; revised curriculum not implemented",
+    "Keep three final cohorts sealed until policy/config freeze",
+    "Deploy four additional native planners into nuplan_workspace for manual evaluation; no nuPlan scenario results yet"
+  ],
+  "causal_limit": "Confirmed input bug and observed behavior drift do not establish a unique cause for aggregate collision regression; no corrected-checkpoint safety claim."
+}

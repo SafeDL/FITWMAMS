@@ -1,0 +1,207 @@
+{
+  "checked_utc": "2026-10-19T16:59:39.797441+00:00",
+  "status": "passed",
+  "scope": "Full accepted Method C implementation and all registered formal experiments; no external validation dataset",
+  "formal_audit": {
+    "deep": true,
+    "deep_verified_instance_files": 447463,
+    "flow_fit_events": 2964,
+    "iid_executions": 96000,
+    "independent_worlds": 2000,
+    "prefetched_required_expert_instances": 576,
+    "protocol_hash": "8cef6b3c4e6d6629f532c478269bf46461d08d80ec51acda27f5a0683372d408",
+    "search_executions": 294912,
+    "status": "passed",
+    "training_units": 84
+  },
+  "native_completed_units": 170,
+  "final_policies": 48,
+  "repair_checkpoints": 72,
+  "archive_round_comparisons": 72,
+  "tests_passed": 416,
+  "requirements": [
+    {
+      "id": "frozen_prior",
+      "requirement": "全部 2,964 个 EVT 尾部事件；既有 Flow/Diffusion/道路/NPC 资产及世界实现保持冻结；无外部数据验证",
+      "evidence": [
+        "ads/common/setup.py",
+        "results/method_c/formal/protocol.json",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "complete_instances_and_lineage",
+      "requirement": "完整初态、尺寸、地图、软计划和全部外生随机块序列化；内容、祖先、变异父节点、用途分别标识；直接回放生成实例",
+      "evidence": [
+        "ads/common/instances.py",
+        "ads/tests/test_instances.py",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "causal_execution",
+      "requirement": "四 ADS 的因果观测和原生专属编码；5 Hz 决策、25 Hz 物理执行；安全标签为自车碰撞或越界；停车/NPC 碰撞/EVT 分开",
+      "evidence": [
+        "ads/common/observations.py",
+        "ads/common/control.py",
+        "ads/common/evaluation.py",
+        "ads/tests/test_execution.py",
+        "results/method_c/validation/actual_policy_replay.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "native_policies",
+      "requirement": "DQN/PPO 49 维与五语义动作；CaRL 官方 simple_52971_500M Beta 网络；PlanT 官方内嵌配置、对象/BEV/路线及轨迹头；全部在 ads/ 并完成 highway 适配",
+      "evidence": [
+        "ads/README.md",
+        "ads/carl/policy.py",
+        "ads/plant2/policy.py",
+        "results/method_c/validation/initial_adaptation_progress.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "interaction_search",
+      "requirement": "已有随机块单块变异；交互软选择与父子风险变化反馈；Flow/Diffusion 改变后重生成；响应噪声限已消耗维度；无搜索网络或额外敏感性探针",
+      "evidence": [
+        "ads/search/engine.py",
+        "ads/tests/test_search.py",
+        "results/method_c/formal/training_audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "search_and_archives",
+      "requirement": "每轮 4,096 次，批次最多 256；约 60/20/20；每批祖先最多 8 子代；每域 16、每祖先 4；FPS 保留；真实单块同结构成功邻居，允许空档案",
+      "evidence": [
+        "ads/search/archive.py",
+        "ads/search/engine.py",
+        "ads/audit.py",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "feedback",
+      "requirement": "两轮修复；同 Ω 档案重测；精确域权重 1+u+2g；历史角色按发现时策略核验，不捏造成功边界",
+      "evidence": [
+        "ads/search/archive.py",
+        "ads/audit.py",
+        "ads/tests/test_audit.py",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "curriculum",
+      "requirement": "R1 50/50/0、R2 50/30/20；按域取缺陷；普通来源为无搜索筛选 P0；来源为空回到普通 P0；准确有序课程和实例已保存",
+      "evidence": [
+        "ads/common/curriculum.py",
+        "ads/common/repair.py",
+        "ads/tests/test_curriculum.py",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "dqn_repair",
+      "requirement": "首轮不加载旧世界 replay；累计步数下正确预热；第二轮仅继承当前分支新世界经验；每轮 20,480 决策步",
+      "evidence": [
+        "ads/common/repair.py",
+        "results/method_c/validation/formal_dqn_all_two_rounds.json",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "ppo_carl_repair",
+      "requirement": "当前策略重新收集 on-policy 轨迹；档案只控制重置；每轮 20,480 决策步，预算在同算法各分支相同",
+      "evidence": [
+        "ads/ppo/train.py",
+        "ads/carl/train.py",
+        "results/method_c/validation/formal_ppo_completed_two_rounds.json",
+        "results/method_c/validation/formal_carl_all_two_rounds.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "plant_repair_and_experts",
+      "requirement": "每轮最多 32 新课程实例；每实例最多 64 粗+64 局部专家候选；固定 Ω、NPC 正常响应；仅全程自车安全且不停车示范可作正标签；1,000 更新、有效 batch64；未来只作离线标签",
+      "evidence": [
+        "ads/plant2/teacher.py",
+        "ads/plant2/train.py",
+        "results/method_c/validation/all_required_teacher_physics.json",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "teacher_costs_and_coverage",
+      "requirement": "无合格示范不造正标签；按实际消费者/来源报告覆盖及标签量；共享缓存生成成本去重；预生成选择与训练实际清单一致",
+      "evidence": [
+        "ads/common/teacher_coverage.py",
+        "ads/common/teacher_costs.py",
+        "results/method_c/formal/reports/teacher_coverage.csv",
+        "results/method_c/formal/reports/teacher_generation.csv"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "registered_experiments",
+      "requirement": "两组主实验、四算法、三种子、三分支、两轮；同算法种子内共享 π0；原始子集搜索达原阈值后可重启；不将自适应命中率当 P0 失效概率",
+      "evidence": [
+        "ads/configs/method_c.yaml",
+        "ads/tasks.py",
+        "results/method_c/validation/discovery_round1/subset_stop_audit.json",
+        "results/method_c/formal/reports/discovery.csv",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "sealed_final_evaluation",
+      "requirement": "全部策略冻结后生成 2,000 全新共享 IID 实例；与开发/修复/烟雾测试的祖先及内容隔离；实际训练入口拒绝；不依据测试调参或选模型",
+      "evidence": [
+        "ads/common/evaluation_sampling.py",
+        "results/method_c/formal/frozen_policies.json",
+        "results/method_c/validation/final_cohort_seal_audit.json",
+        "results/method_c/formal/audit.json"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "paired_statistics_and_diagnostics",
+      "requirement": "配对失效率差、95% CI、碰撞/越界/进度/停车、逐种子结果；跨种子共享世界仍为 N=2000；逐轮实际更新前后档案比较按祖先聚类，仅作针对性诊断",
+      "evidence": [
+        "ads/common/reporting.py",
+        "ads/common/archive_diagnostics.py",
+        "results/method_c/formal/evaluation/summary.json",
+        "results/method_c/formal/reports/repair_per_seed.csv",
+        "results/method_c/formal/reports/archive_diagnostics.csv"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "verification_and_reporting",
+      "requirement": "世界原有测试、实例回放、416 项测试、正式全预算及全部实例深审计；发现与修复图表、生成/搜索/专家/训练成本及工程废弃尝试分别记录；按实际结果限定结论",
+      "evidence": [
+        "results/method_c/validation/pytest.log",
+        "results/method_c/formal/audit.json",
+        "results/method_c/formal/reports/discovery.pdf",
+        "results/method_c/formal/reports/repair.pdf",
+        "results/method_c/formal/engineering_incidents.json"
+      ],
+      "status": "passed"
+    }
+  ],
+  "interpretation_limits": [
+    "IID uncertainty is conditional on the trained policies and frozen P0 generator; three seeds reuse the same 2000 worlds.",
+    "Adaptive discovery and ancestor-clustered archive diagnostics do not estimate P0 failure probabilities.",
+    "Expert search without a qualified demonstration does not prove an instance irreparable.",
+    "Wall-clock costs include concurrent scheduling and hybrid-core allocation; no controlled wall-time speedup claim.",
+    "No universal improvement or external-data generalization is assumed; results must be stated per algorithm and branch."
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "paused_utc": "2026-10-23T01:43:16.116305+00:00",
+  "requested_by_user": true,
+  "goal_status": "paused",
+  "method": "SIGSTOP; process memory and open search preserved",
+  "processes": [
+    {
+      "pid": 3809131,
+      "state": "State:\tT (stopped)",
+      "cmdline": "/home/hp/anaconda3/envs/tread/bin/python -u -m ads.run_campaign --config ads/configs/method_c.yaml --workers 12"
+    },
+    {
+      "pid": 3592706,
+      "state": "State:\tT (stopped)",
+      "cmdline": "/home/hp/anaconda3/envs/tread/bin/python -u results/method_c/branching/preparation/prefetch_remaining_native_experts.py"
+    },
+    {
+      "pid": 3757469,
+      "state": "State:\tT (stopped)",
+      "cmdline": "/home/hp/anaconda3/envs/tread/bin/python -u -m ads.worker repair str2 20260926 --method monte_carlo --round 1 --search-only --config ads/configs/method_c.yaml"
+    }
+  ],
+  "scheduler_status_before_pause": {
+    "completed_units": 50,
+    "failed": [],
+    "pid": 3809131,
+    "running": {
+      "repair_str2_20260926_monte_carlo_1": 3757469
+    },
+    "status": "running",
+    "total_units": 114,
+    "updated_utc": "2026-10-23T01:41:22.086206+00:00",
+    "workers": 12
+  },
+  "str2_monte_carlo_first_round_completed_executions": 2929,
+  "source_and_protocol_unchanged": true
+}

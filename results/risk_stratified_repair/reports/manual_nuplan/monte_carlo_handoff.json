@@ -1,0 +1,36 @@
+{
+  "algorithm": "diffusion_planner",
+  "automatic_evaluation": false,
+  "common_scenarios": {
+    "path": "scenarios.json",
+    "sha256": "87b184d569c85830f9b46d8001c59d8e4fb77bed4d254901c82d1a32b026a3a0"
+  },
+  "comparison": "monte_carlo",
+  "included_in_highd_statistics": false,
+  "native_metrics": {
+    "initial": "diffusion_planner/monte_carlo/20260926/native_metrics/initial",
+    "repaired": "diffusion_planner/monte_carlo/20260926/native_metrics/repaired"
+  },
+  "policies": {
+    "initial": {
+      "native_path": "diffusion_planner/monte_carlo/20260926/initial/model.pth",
+      "native_sha256": "33b04d5a4eac837b6c441dbcb72afe99dbfbd8b638e484ba48b25bf96170555e",
+      "source": {
+        "path": "results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/baseline/policy.pth",
+        "sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764"
+      }
+    },
+    "repaired": {
+      "native_path": "diffusion_planner/monte_carlo/20260926/repaired/model.pth",
+      "native_sha256": "d8257e68b1aa8461d60a2517b456f58753f37b650d918e570307f90a60cdbef3",
+      "source": {
+        "path": "results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/monte_carlo/round_2/policy.pth",
+        "sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db"
+      }
+    }
+  },
+  "protocol_hash": "da5233afb952054b315a486f5151408b5ef7ab8d9d480ada9e8a78416725093a",
+  "schema": "nuplan_manual_policy_pair_v1",
+  "seed": 20260926,
+  "used_for_model_selection": false
+}

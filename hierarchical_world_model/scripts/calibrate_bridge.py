@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """Full Train scaling and natural Val selection for the one-time handover."""
 
+import sys
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import get_context
 from pathlib import Path
-import sys
 
 import numpy as np
 import torch
@@ -15,19 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from hierarchical_world_model.src import bridge_evaluation as experiment
-from hierarchical_world_model.src.core.utils import load_yaml, save_json, file_sha256
-from hierarchical_world_model.src.data import prepare_experiment_data, ego_controls
+from hierarchical_world_model.src.core.utils import file_sha256, load_yaml, save_json
+from hierarchical_world_model.src.data import ego_controls, prepare_experiment_data
 from hierarchical_world_model.src.error_trajectories import MODEL_PATH
 from hierarchical_world_model.src.highway import HighwayEnvClosedLoopWorld
 from hierarchical_world_model.src.plan_applicability import (
-    forecast_bundle,
     conflict_scores,
+    forecast_bundle,
     interaction_scores,
 )
 from hierarchical_world_model.src.reaction_controller import ReactionControllerOutput
+from hierarchical_world_model.src.shared_evaluation import scene_randomness
 from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
 from hierarchical_world_model.src.tracking import TrackingConfig
-from hierarchical_world_model.src.shared_evaluation import scene_randomness
 
 OUTPUT = ROOT / "results/hierarchical_world_model/bridge"
 BATCH = 128
@@ -155,24 +154,24 @@ def select(train, val):
     conflict = val["conflict"].max(1)
     combined = (val["interaction"] / np.array(scales, dtype=np.float32)).max((1, 2))
     candidates = [
-        dict(threshold=k / 16, scene_rate=float(np.mean(conflict >= k / 16)))
+        {"threshold": k / 16, "scene_rate": float(np.mean(conflict >= k / 16))}
         for k in range(1, 17)
     ]
     qualified = [c for c in candidates if c["scene_rate"] <= 0.005]
-    report = dict(
-        status="failed_no_conflict_threshold",
-        train_scenes=len(train["rows"]),
-        val_scenes=len(val["rows"]),
-        scaling="95th percentile of positive Train vehicle-episode maximum raw scores",
-        following_scale_s=scales[0],
-        release_scale_per_s=scales[1],
-        conflict_candidates=candidates,
-        conflict_scene_budget=0.005,
-        noncollision_scene_budget=0.01,
-        test_or_ADS_failures_used=False,
-        raw_units=["seconds", "inverse_seconds"],
-        score_support_is_collision_probability=False,
-    )
+    report = {
+        "status": "failed_no_conflict_threshold",
+        "train_scenes": len(train["rows"]),
+        "val_scenes": len(val["rows"]),
+        "scaling": "95th percentile of positive Train vehicle-episode maximum raw scores",
+        "following_scale_s": scales[0],
+        "release_scale_per_s": scales[1],
+        "conflict_candidates": candidates,
+        "conflict_scene_budget": 0.005,
+        "noncollision_scene_budget": 0.01,
+        "test_or_ADS_failures_used": False,
+        "raw_units": ["seconds", "inverse_seconds"],
+        "score_support_is_collision_probability": False,
+    }
     if not qualified:
         save_json(report, OUTPUT / "selection.json")
         return report

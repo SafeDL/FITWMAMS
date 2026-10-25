@@ -11,23 +11,19 @@ from scipy.signal import savgol_filter
 
 from process_highD.src.natural_segments import _build_vehicle_cache
 from process_highD.src.preprocess import prepare_recording
-from .metrics import (
-    DT,
-    FEATURE_EDGES,
-    JOINT_EDGES,
-)
+
 from ..highway import (
     UnicycleDynamicsVehicleMixin,
     _highway_classes,
 )
 from ..influence_graph import build_dynamic_interaction_relations
 from ..stochastic_drivers.driver_policy import (
-    corrected_acceleration,
-    causal_maneuver_features,
-    exclusive_lane_probabilities,
-    response_history_features,
-    physical_leader_observation,
     anticipated_entry_features,
+    causal_maneuver_features,
+    corrected_acceleration,
+    exclusive_lane_probabilities,
+    physical_leader_observation,
+    response_history_features,
     sample_lane_choice,
 )
 from ..stochastic_drivers.idm_population import sample_theta
@@ -37,6 +33,11 @@ from ..stochastic_drivers.lane_trajectory import (
     limit_realized_lateral_acceleration,
 )
 from ..stochastic_drivers.mobil_response import evaluate_mobil_candidates
+from .metrics import (
+    DT,
+    FEATURE_EDGES,
+    JOINT_EDGES,
+)
 
 DURATION_S = 120
 START_S = 60
@@ -157,7 +158,7 @@ def road_cohorts(
                 "bounds": np.asarray([low, high], np.float32),
             }
             print(
-                f"Road {key}: {len(included)} initialized/entering vehicles, {high-low:.1f} m",
+                f"Road {key}: {len(included)} initialized/entering vehicles, {high - low:.1f} m",
                 flush=True,
             )
     return cohorts, np.asarray(free, np.float32)
@@ -338,7 +339,7 @@ def simulate_road(
     ticks = (
         available_ticks
         if duration_s is None
-        else min(available_ticks, int(round(duration_s / DT)) + 1)
+        else min(available_ticks, round(duration_s / DT) + 1)
     )
     dimensions = cohort["dimensions"]
     centers, widths = cohort["lane_centers"], cohort["lane_widths"]
@@ -886,7 +887,7 @@ def traffic_statistics(
         states[..., 0] <= cohort["bounds"][1]
     )
     valid = valid & inside
-    repetitions, ticks, actors = valid.shape
+    repetitions, ticks, _actors = valid.shape
     windows = max(1, int(np.ceil((ticks - 1) * DT / window_s)))
     derived = states.copy()
     for derivative, columns in ((1, slice(2, 4)), (2, slice(4, 6))):
@@ -929,7 +930,7 @@ def traffic_statistics(
     for tick in range(1, ticks, 5):
         window = min(int(tick * DT // window_s), windows - 1)
         current, present = states[:, tick], valid[:, tick]
-        lane, leader, gap, front_speed, _ = neighbors(
+        _lane, leader, gap, _front_speed, _ = neighbors(
             current, present, cohort["dimensions"], cohort["lane_centers"]
         )
         derivative = derived[:, tick]

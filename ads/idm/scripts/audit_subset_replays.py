@@ -1,24 +1,18 @@
-#!/usr/bin/env python3
 """Replay retained AMS cases and check exact metrics."""
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from ads.idm.src.world_model_registry import get_world_model  # noqa: E402
+from ads.idm.src.world_model_registry import get_world_model
 from hierarchical_world_model.src.core.utils import (
     load_json,
     load_yaml,
     save_json,
-)  # noqa: E402
+)
 
 
 def main() -> None:

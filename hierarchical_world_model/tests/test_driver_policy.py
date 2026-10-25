@@ -1,16 +1,17 @@
-import numpy as np
-import torch
 from dataclasses import replace
 
+import numpy as np
+import torch
+
+from hierarchical_world_model.src.npc_experiments.residual import (
+    autoregression_parameters,
+)
 from hierarchical_world_model.src.stochastic_drivers.driver_policy import (
     corrected_acceleration,
     exclusive_lane_probabilities,
     lane_frame_probabilities,
     physical_leader_observation,
     sample_lane_choice,
-)
-from hierarchical_world_model.src.npc_experiments.residual import (
-    autoregression_parameters,
 )
 
 
@@ -185,11 +186,13 @@ def test_persistent_lane_style_changes_intent_without_changing_feasibility():
 
 
 def test_online_driver_residual_snapshot_replays_explicit_innovations():
+    from hierarchical_world_model.src.takeover import TakeoverController
     from hierarchical_world_model.tests.traffic_context import (
-        context as traffic_context,
         THETA,
     )
-    from hierarchical_world_model.src.takeover import TakeoverController
+    from hierarchical_world_model.tests.traffic_context import (
+        context as traffic_context,
+    )
 
     geometry = torch.zeros(1, 3, 2, 5)
     geometry[0, :, :, 1] = torch.tensor([-4.0, 0.0, 4.0])[:, None]
@@ -223,11 +226,13 @@ def test_online_driver_residual_snapshot_replays_explicit_innovations():
 
 
 def test_lane_only_model_cannot_activate_longitudinal_residual_overrides():
+    from hierarchical_world_model.src.takeover import TakeoverController
     from hierarchical_world_model.tests.traffic_context import (
-        context as traffic_context,
         THETA,
     )
-    from hierarchical_world_model.src.takeover import TakeoverController
+    from hierarchical_world_model.tests.traffic_context import (
+        context as traffic_context,
+    )
 
     context = traffic_context()
     history = context.current[:, None].repeat(1, 6, 1, 1)

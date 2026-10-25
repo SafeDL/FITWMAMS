@@ -2,9 +2,9 @@ import numpy as np
 import torch
 
 from hierarchical_world_model.src.npc_experiments.lateral import (
-    lane_events,
     distance,
     event_histograms,
+    lane_events,
     lateral_protocol,
 )
 from hierarchical_world_model.src.stochastic_drivers.driver_policy import (

@@ -3,17 +3,31 @@
 from __future__ import annotations
 
 import csv
+import subprocess
 from dataclasses import asdict
 from pathlib import Path
-import subprocess
 from typing import Any
 
 import numpy as np
 
+from diffusion.src.data import load_data_bundle, split_rows
 from hierarchical_world_model.src.composition import (
     DEFAULT_WORLD_SELECTION,
     HierarchicalWorldSampler,
     load_selected_components,
+)
+from hierarchical_world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    require_evaluation_scope,
+    require_scoped_evt_model,
+)
+from hierarchical_world_model.src.core.utils import (
+    file_sha256,
+    load_json,
+    load_yaml,
+    resolve_path,
+    save_json,
+    select_device,
 )
 from hierarchical_world_model.src.empirical_context import EmpiricalKContextSampler
 from hierarchical_world_model.src.highway import (
@@ -21,28 +35,10 @@ from hierarchical_world_model.src.highway import (
 )
 from tools.evt import GPDTailModel, load_evt_model
 from tools.idm_ego import load_idm_ego_config
-from diffusion.src.data import load_data_bundle, split_rows
-from hierarchical_world_model.src.core.utils import (
-    load_json,
-    load_yaml,
-    save_json,
-    select_device,
-    file_sha256,
-)
-from hierarchical_world_model.src.core.evaluation_scope import (
-    evaluation_scope_contract,
-    require_evaluation_scope,
-    require_scoped_evt_model,
-)
 
 from .idm_policy import HighwayEnvIDMPolicy
 from .world_evaluator import CurrentWorldEvaluator, WorldEvaluation
 from .world_subset_simulation import WorldSubsetResult, run_world_subset_simulation
-
-
-def _resolve_path(value: str | Path, base: Path) -> Path:
-    path = Path(value)
-    return path if path.is_absolute() else (base / path).resolve()
 
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -55,7 +51,7 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _run_provenance(config: dict[str, Any]) -> dict[str, Any]:
+def _run_provenance() -> dict[str, Any]:
     root = Path(__file__).resolve().parents[3]
     commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"],
@@ -78,14 +74,16 @@ def _run_provenance(config: dict[str, Any]) -> dict[str, Any]:
 def _world_config(
     config: dict[str, Any], config_dir: Path
 ) -> tuple[dict[str, Any], Path]:
-    path = _resolve_path(config["paths"]["world_model_config"], config_dir)
+    path = resolve_path(config["paths"]["world_model_config"], base=config_dir)
     return load_yaml(path), path
 
 
 def _require_tail_flow_quality(
     world_config: dict[str, Any], repo_root: Path
 ) -> dict[str, Any]:
-    flow_checkpoint = _resolve_path(world_config["paths"]["flow_checkpoint"], repo_root)
+    flow_checkpoint = resolve_path(
+        world_config["paths"]["flow_checkpoint"], base=repo_root
+    )
     manifest_path = flow_checkpoint.parent.parent / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError(
@@ -107,7 +105,7 @@ def _require_formal_provenance(
     config: dict[str, Any], config_dir: Path
 ) -> dict[str, Any]:
     """Require the selected component chain, not a clean Git release."""
-    run_provenance = _run_provenance(config)
+    run_provenance = _run_provenance()
     world_config, _ = _world_config(config, config_dir)
     root = Path(__file__).resolve().parents[3]
     selection, _ = load_selected_components()
@@ -143,9 +141,9 @@ def _build_evaluator(
         device=device,
         ddim_steps=int(config["simulation"].get("ddim_steps", 20)),
     )
-    idm_path = _resolve_path(config["paths"]["idm_ego_config"], config_dir)
+    idm_path = resolve_path(config["paths"]["idm_ego_config"], base=config_dir)
     policy = HighwayEnvIDMPolicy.from_dict(load_idm_ego_config(idm_path))
-    evt_path = _resolve_path(config["paths"]["evt_model"], config_dir)
+    evt_path = resolve_path(config["paths"]["evt_model"], base=config_dir)
     require_scoped_evt_model(evt_path)
     test_space = config.get("test_space", {})
     kind = str(test_space.get("kind", "full_prior"))
@@ -240,7 +238,6 @@ def _failure_target(
 
 
 def _world_dimensions(evaluator: CurrentWorldEvaluator) -> dict[str, int]:
-    cfg = evaluator.sampler.cfg
     return {
         "response_steps": evaluator.steps,
     }
@@ -353,8 +350,7 @@ def _subset_uncertainty(result: WorldSubsetResult, p0: float) -> dict[str, float
             min(1.0, result.probability + 1.96 * standard_error)
         ),
         "uncertainty_method": (
-            "final-level binomial approximation; does not account for MCMC "
-            "correlation"
+            "final-level binomial approximation; does not account for MCMC correlation"
         ),
     }
 
@@ -368,11 +364,11 @@ def run_subset_from_config(
     alone does not invalidate the selected model or its evaluation.
     """
     formal_provenance = (
-        _require_formal_provenance(config, config_dir)
-        if formal
-        else _run_provenance(config)
+        _require_formal_provenance(config, config_dir) if formal else _run_provenance()
     )
-    output_dir = _resolve_path(config["subset_simulation"]["output_dir"], config_dir)
+    output_dir = resolve_path(
+        config["subset_simulation"]["output_dir"], base=config_dir
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
     target = _failure_target(evaluator.evt_model, config)
@@ -473,11 +469,9 @@ def run_monte_carlo_from_config(
 ) -> Path:
     """Run independent prior samples for the current-world probability baseline."""
     formal_provenance = (
-        _require_formal_provenance(config, config_dir)
-        if formal
-        else _run_provenance(config)
+        _require_formal_provenance(config, config_dir) if formal else _run_provenance()
     )
-    output_dir = _resolve_path(config["monte_carlo"]["output_dir"], config_dir)
+    output_dir = resolve_path(config["monte_carlo"]["output_dir"], base=config_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
     target = _failure_target(evaluator.evt_model, config)

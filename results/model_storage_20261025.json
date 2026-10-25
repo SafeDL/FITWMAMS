@@ -1,0 +1,1310 @@
+{
+  "recorded_utc": "2026-10-25T10:16:05.813497+00:00",
+  "status": "verified",
+  "model_storage_root": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models",
+  "restored_files": [
+    {
+      "logical_path": "ads/plant2/artifacts/official_2.ckpt",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_2.ckpt",
+      "source_url": "https://huggingface.co/SimonGer/PlanT2/resolve/e81b261f8b92b20225d020fe9b7a0470c1434d96/epoch%3D029_final_2.ckpt",
+      "bytes": 446559352,
+      "sha256": "a7bcb717ea0279faf6f93cb05768c6d0e4703b40c7e81fbdd8b78964f11ac1eb",
+      "elapsed_s": 33.35146164894104,
+      "status": "restored_and_linked"
+    },
+    {
+      "logical_path": "ads/plant2/artifacts/official_3.ckpt",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_3.ckpt",
+      "source_url": "https://huggingface.co/SimonGer/PlanT2/resolve/e81b261f8b92b20225d020fe9b7a0470c1434d96/epoch%3D029_final_3.ckpt",
+      "bytes": 446559352,
+      "sha256": "3eaa9f7ba563b133ce9918ebfa5f7c6ea0201066717553ff2275012d42c4c46a",
+      "elapsed_s": 33.77163124084473,
+      "status": "restored_and_linked"
+    }
+  ],
+  "policy": "必要的被测模型及其复现权重保留在 DATA 盘；工程中保留原路径链接及来源校验记录。",
+  "migrated_files": [
+    {
+      "logical_path": "ads/carl/artifacts/official.pth",
+      "bytes": 7954594,
+      "mtime_ns": 1792420877563055600,
+      "inode": 7229735,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/carl/artifacts/official.pth",
+      "sha256": "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/plant2/artifacts/official_1.ckpt",
+      "bytes": 446559352,
+      "mtime_ns": 1792341677181100243,
+      "inode": 7232976,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_1.ckpt",
+      "sha256": "2f896d8d7640d4b7b68bcef8615a73e9761e850870a24f914c4c908f0f2199f4",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/flow_planner/artifacts/model.pth",
+      "bytes": 57244066,
+      "mtime_ns": 1792518625077150735,
+      "inode": 7210842,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/model.pth",
+      "sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260926/replay_buffer.pkl",
+      "bytes": 41201842,
+      "mtime_ns": 1790430155461266557,
+      "inode": 7220460,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260926/replay_buffer.pkl",
+      "sha256": "c6034ee71cf8399ced682f5be772361c1fb929a5d5364d67afcf431de87111e6",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260928/replay_buffer.pkl",
+      "bytes": 41201842,
+      "mtime_ns": 1790430158247296998,
+      "inode": 7220462,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260928/replay_buffer.pkl",
+      "sha256": "cbf8b7c8184c874f780a621423be003c6f1ebb7e34babb45ede5b41a40293827",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260927/replay_buffer.pkl",
+      "bytes": 41201840,
+      "mtime_ns": 1790430144921151807,
+      "inode": 7220458,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260927/replay_buffer.pkl",
+      "sha256": "202aac1e4f2a889ff4c487e59848e10a5048dff52bc917f7f9e96651d44c4b7e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/checkpoint-297000/model.safetensors",
+      "bytes": 3431991920,
+      "mtime_ns": 1792519478393964091,
+      "inode": 7211404,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/checkpoint-297000/model.safetensors",
+      "sha256": "1057642b6b7fab9a68348dab41f13bd9b6091fed416a19e311a7da3e01eb7801",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/dtpp/artifacts/base_model.pth",
+      "bytes": 23952592,
+      "mtime_ns": 1792518624951149187,
+      "inode": 7210854,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dtpp/artifacts/base_model.pth",
+      "sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "ads/diffusion_planner/artifacts/model.pth",
+      "bytes": 48549085,
+      "mtime_ns": 1792518623020125467,
+      "inode": 7210852,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/model.pth",
+      "sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/baseline/policy.pth",
+      "bytes": 23869511,
+      "mtime_ns": 1792391042543463111,
+      "inode": 7733658,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/baseline/policy.pth",
+      "sha256": "d6887eb87054d2a6c3ea79a7725f130e7bf846968807aefdfd686be67a54edb9",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/monte_carlo/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792409672571304125,
+      "inode": 8040919,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/monte_carlo/round_2/policy.pth",
+      "sha256": "4163c3d0a8d36b4c6c05d5d6db3107303e4ab2e6c45355c2681121b9c5c8e734",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/monte_carlo/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792396165127008317,
+      "inode": 7887927,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/monte_carlo/round_1/policy.pth",
+      "sha256": "4e09a2c22c4810d74e3b3939caeca9272c378ca6d0486d876fa7ecd26b61c48d",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/subset/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792410028843562464,
+      "inode": 8035812,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/subset/round_2/policy.pth",
+      "sha256": "fb708f84ed5c007a8b8ce118f7f434c407b1a1b5c8f87ceb8219757b7601aa36",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/subset/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792396573374684861,
+      "inode": 7887887,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/subset/round_1/policy.pth",
+      "sha256": "d7e7fdb302220ef18e56d546c5326692dd8d89da6aeb6636fe82a393f730d2d7",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/guided/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792410825457046429,
+      "inode": 8035827,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/guided/round_2/policy.pth",
+      "sha256": "b9e2cdf0450583d18bc3700fbd120c700225e1289c2eea83e5c2022962c80651",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260928/guided/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792397278620296447,
+      "inode": 7887920,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260928/guided/round_1/policy.pth",
+      "sha256": "b6dd293352d20f085a6250f0e9dd7dffde4d87625042a3529e9528bfa590d6db",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/baseline/policy.pth",
+      "bytes": 23869511,
+      "mtime_ns": 1792390900620779366,
+      "inode": 7777595,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/baseline/policy.pth",
+      "sha256": "6395b02f67e0e34b64f4224d033f1fae8bb7d4577e17081313c953246bfe274d",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/monte_carlo/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792409204399493845,
+      "inode": 8035809,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/monte_carlo/round_2/policy.pth",
+      "sha256": "c03d90a141dfe287e1f9aea518c281d279a4cefa38b4ccf9a5420f7f5a1b84cf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/monte_carlo/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792395759142094010,
+      "inode": 7887891,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/monte_carlo/round_1/policy.pth",
+      "sha256": "46948ef1bd43ab6b153b5c9770bf79f25bee9ee2a32242d0cfe0bb628c241a2e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/subset/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792408995450699188,
+      "inode": 8040929,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/subset/round_2/policy.pth",
+      "sha256": "96a716663010c1f70d9e62732d76f746da8b28cd771cad123ebb901a5b3ded8b",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/subset/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792396537120187138,
+      "inode": 7887899,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/subset/round_1/policy.pth",
+      "sha256": "47f4ff9c5490e8f8d6bf0b54f761e50493c4bdc206d862816e2cf435b5c0f54f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/guided/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792409817974888164,
+      "inode": 8007863,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/guided/round_2/policy.pth",
+      "sha256": "bcf6a77aeaed0bd09e6ab7873e36c5258f36cd564c9338b3b134dfe463dd312e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260927/guided/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792396473870316409,
+      "inode": 7905792,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260927/guided/round_1/policy.pth",
+      "sha256": "baf5c5dd3bdc3602cd0fe9f2157e53e07b9b2ceaa50684e36c508fdcfbbce3e9",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/baseline/policy.pth",
+      "bytes": 23869511,
+      "mtime_ns": 1792389908134335840,
+      "inode": 7777504,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/baseline/policy.pth",
+      "sha256": "c05b2b96f5af3a22281827d30b8bec6745037f29ce8af50c9507b29da25b666f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/monte_carlo/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792408332213943310,
+      "inode": 8421061,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/monte_carlo/round_2/policy.pth",
+      "sha256": "a6787fff956f96f68e6a7b996014999a080ce4a21ec81a97a1562696d336be1c",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/monte_carlo/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792395389899213363,
+      "inode": 7905794,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/monte_carlo/round_1/policy.pth",
+      "sha256": "308419a9dcab61f86c158326ae5b0439f64c8cfd89ceb4df80c2e0a0318e88fa",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/subset/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792409095157307555,
+      "inode": 8040937,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/subset/round_2/policy.pth",
+      "sha256": "7431996d4356f996c01070f3f7713b9e684b4bd096e493517535c2314b1e7c87",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/subset/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792395506812151905,
+      "inode": 7905798,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/subset/round_1/policy.pth",
+      "sha256": "03c4cb773ae0be1392ba0a988e1800708efd46733a46f92c90d54450b3d1293c",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/guided/round_2/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792408607982431735,
+      "inode": 8257540,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/guided/round_2/policy.pth",
+      "sha256": "75c8ff35ddbacf31db21aec123e2d3d7bd6b03232b3bad2a144742e2d48d2981",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/carl/20260926/guided/round_1/policy.pth",
+      "bytes": 23869575,
+      "mtime_ns": 1792395234783488064,
+      "inode": 7905779,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/carl/20260926/guided/round_1/policy.pth",
+      "sha256": "0ccdd0f508138e0cfb40b005f4e503363e88add34397671af7a6fbb9fb733295",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/baseline/policy.ckpt",
+      "bytes": 446544186,
+      "mtime_ns": 1792398998866617073,
+      "inode": 7905822,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/baseline/policy.ckpt",
+      "sha256": "445d7a5ca7859d51d794baffbb83577e8d815951128f67e5fd00f45e366927d8",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/monte_carlo/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792417764776178157,
+      "inode": 8564674,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/monte_carlo/round_2/policy.ckpt",
+      "sha256": "d3593adc503012f3cc5ba240397f13124a0b66f35d350abc908d0e5146837a7f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/monte_carlo/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792407609053887575,
+      "inode": 8172018,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/monte_carlo/round_1/policy.ckpt",
+      "sha256": "6f7155edc4219a134b49fb9af90a267e20b527f2e1e8a0c43aa65dac8615ccd8",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/subset/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792420480964236229,
+      "inode": 8826800,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/subset/round_2/policy.ckpt",
+      "sha256": "cdc8be81c1750934ffc84d4e4f69f45ad801e7fb5097e4210f6f8e1f77dff45f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/subset/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792414087788978929,
+      "inode": 8298203,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/subset/round_1/policy.ckpt",
+      "sha256": "2262fe6ffd584c59c9f2fd1792b5e41e1a85daa588c7cef1937606705b69658b",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/guided/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792419914291080174,
+      "inode": 8826794,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/guided/round_2/policy.ckpt",
+      "sha256": "702dc901c8ddebaa1545351ac02fb2e6e1f1d2f7f8b6fbebbb118db32d717e0a",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260928/guided/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792413208358540317,
+      "inode": 8172037,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260928/guided/round_1/policy.ckpt",
+      "sha256": "3cfba930db303cd4564e5322eb03825f7a6c5a2fba95360e1f7ca961c671a2ea",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/baseline/policy.ckpt",
+      "bytes": 446544186,
+      "mtime_ns": 1792397131458069874,
+      "inode": 7777868,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/baseline/policy.ckpt",
+      "sha256": "e735c2f23e42e78637aa79af10893dbc659509dd52e39fe1bb361a0248e70db8",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/monte_carlo/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792417830933201019,
+      "inode": 8564673,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/monte_carlo/round_2/policy.ckpt",
+      "sha256": "cf6811e2f9d8d64e486c1d8f9d1e6904c4c283a9c907f3a32f3becd43fc7104f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/monte_carlo/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792407510766185637,
+      "inode": 8172019,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/monte_carlo/round_1/policy.ckpt",
+      "sha256": "76d06708b38e2a3f686d0f422aac91812f93559cb19ef0bdbcf659e36a8b6adc",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/subset/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792419649362407018,
+      "inode": 8826790,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/subset/round_2/policy.ckpt",
+      "sha256": "8cd198127cd9976c7111ae9399f7264860ac93f55f36f745abd1e4a914b86479",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/subset/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792412180875858303,
+      "inode": 8172033,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/subset/round_1/policy.ckpt",
+      "sha256": "40177e4a64c9fae95ed16cedad7e43f6903bbb524f20646cdef3705b140fd992",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/guided/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792419258877092853,
+      "inode": 8826787,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/guided/round_2/policy.ckpt",
+      "sha256": "c245ea689f968b5ca3f76c3c5e4a81b1d20b5bccf4b160705c3fc730bacc0f49",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260927/guided/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792411360319720032,
+      "inode": 8172029,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260927/guided/round_1/policy.ckpt",
+      "sha256": "0930717262726d23abe0b690eba5e7de6aed48abb350fdfdc3dffc9f81394590",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/baseline/policy.ckpt",
+      "bytes": 446544186,
+      "mtime_ns": 1792394890510491577,
+      "inode": 7777814,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/baseline/policy.ckpt",
+      "sha256": "95acbdc7b1eabe795ca9b91c325729b1e092f1bb88b1021730c9f3836254b275",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/monte_carlo/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792417570542164136,
+      "inode": 8040964,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/monte_carlo/round_2/policy.ckpt",
+      "sha256": "20373b158b2c0313b1b30196991b87422dff28d5f4040cf0b36fc885de23f908",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/monte_carlo/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792406776555505804,
+      "inode": 8035835,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/monte_carlo/round_1/policy.ckpt",
+      "sha256": "d1d44281ee3a71c532b411e400672ac47f3dc199e9c9cc2354294d822ef81ad5",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/subset/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792418852215875870,
+      "inode": 8695528,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/subset/round_2/policy.ckpt",
+      "sha256": "2c0b794ac6afb7ce850ea66de6297eb439dbb22aee2d454b5c286466b73344c1",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/subset/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792410129937301231,
+      "inode": 8172025,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/subset/round_1/policy.ckpt",
+      "sha256": "6caa20d48b2e03e9eeda1e5ece953bd3f4b8ea27c775bac633673a96dca19fa4",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/guided/round_2/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792418343500086119,
+      "inode": 8695524,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/guided/round_2/policy.ckpt",
+      "sha256": "b2f6572163646ad2c04881a81fd581afa0345feeb273ca0c1985060e40e38531",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/plant2/20260926/guided/round_1/policy.ckpt",
+      "bytes": 446544698,
+      "mtime_ns": 1792408999026756897,
+      "inode": 8040930,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/plant2/20260926/guided/round_1/policy.ckpt",
+      "sha256": "8dd7602116eb776179c31a8416e4240b2d4956feeb44a1aba76120c9a72941d9",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/baseline/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792389816195222304,
+      "inode": 7777496,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/baseline/replay_buffer.pkl",
+      "sha256": "0ac986b5ed8247dbd65f8833b91610ee9c50b963e2a010b07809f430b0f3227b",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/baseline/policy.zip",
+      "bytes": 405824,
+      "mtime_ns": 1792389816183222157,
+      "inode": 7777495,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/baseline/policy.zip",
+      "sha256": "4ecca50e6d1ce0dcc4d2fcc26b934d2238f88e4f0bd8683d4e2032cd21ed854f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_2/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792415558040507623,
+      "inode": 8695497,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_2/replay_buffer.pkl",
+      "sha256": "10ede3495bac74de3f9103a2c8f5b5feb2ac7ce5b11532de1a5e5f091ecb4368",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_2/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792415558026507411,
+      "inode": 8681508,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_2/policy.zip",
+      "sha256": "57ebdb2f422a9e1cbf36b9a7651b567545a16d5a2586729088fe107b4155fbee",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_1/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792402076078250664,
+      "inode": 8171954,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_1/replay_buffer.pkl",
+      "sha256": "158a9ca71ae5f72cae0a7489670edaa272265c9dc73aad5bef795c0865b16053",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792402076066250478,
+      "inode": 8137048,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/monte_carlo/round_1/policy.zip",
+      "sha256": "4e9784f9ad98d424919adf70f28cbecc800bf63098d45fea485d3dbb2026650d",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_2/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792415441321746781,
+      "inode": 8695491,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_2/replay_buffer.pkl",
+      "sha256": "f9dc3d4792bc3e0910ca8ac1b44201c3ba7bc4cdeb54ad75636bd2a4a158a1e4",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_2/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792415441309746600,
+      "inode": 8695481,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_2/policy.zip",
+      "sha256": "fc5af17a41db871edeefcc5392f13589571ddd5e28939af15d6ea2b80adb4c90",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_1/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792402624599839514,
+      "inode": 8171968,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_1/replay_buffer.pkl",
+      "sha256": "fb8c575f87a8836a33d197664310f900929e83dd8ada34408d420d0106d24d3b",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792402624586839309,
+      "inode": 8171966,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/subset/round_1/policy.zip",
+      "sha256": "a04f3dc2aeb94b52c612e15ddeddd8adfc5d58d9102df323e04f690ab2b28158",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_2/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792415550431392747,
+      "inode": 8695494,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_2/replay_buffer.pkl",
+      "sha256": "ea6b017e21af83dfe6be6ca8048cbdc17b1c8c44dc765f6c026fb6aa2b14f15e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_2/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792415550418392551,
+      "inode": 8676594,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_2/policy.zip",
+      "sha256": "dd34b3f46058cec3a69fb5784734df2c629b76aa9dd0f7a108782ed02616efcd",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_1/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792401757566351155,
+      "inode": 8160676,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_1/replay_buffer.pkl",
+      "sha256": "e955c63fc7bb671198ff0385d47e5f81676c07d5a3cd2131fb813363f2c21d15",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792401757545350835,
+      "inode": 8155656,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260928/guided/round_1/policy.zip",
+      "sha256": "64186f193ce90a6aa7c9940e461ae691a3b8db3aaf619ac139d58d6313dbc699",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/baseline/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792388601234235104,
+      "inode": 7512888,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/baseline/replay_buffer.pkl",
+      "sha256": "53ca4fff6d88fbee6e2d0f8a06bcafb3062164cbfc88938ff602c6e8eb2b3d38",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/baseline/policy.zip",
+      "bytes": 405824,
+      "mtime_ns": 1792388601221234994,
+      "inode": 7497978,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/baseline/policy.zip",
+      "sha256": "32fa3d4beeaa6025bf0356aca7a59d44a1829e05acaa9ad0932b6c4033c66924",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_2/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792414620685520752,
+      "inode": 8695485,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_2/replay_buffer.pkl",
+      "sha256": "c5cef4e34fb668345e02c12083a8ba7acc0cf6a78fad4c8985f21d5ca4200da4",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_2/policy.zip",
+      "bytes": 405830,
+      "mtime_ns": 1792414620672520562,
+      "inode": 8695480,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_2/policy.zip",
+      "sha256": "168bfbc64a12dc11dd9e7459c0c7b228c1ea45b1c77c0935a3a654c51a1a86f5",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_1/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792399020406033579,
+      "inode": 7905827,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_1/replay_buffer.pkl",
+      "sha256": "535cbb07862db167e1ec7e7eee9b8bdb566cc5052e3e7a2b237189820cde3aaf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792399020386033194,
+      "inode": 7905824,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/monte_carlo/round_1/policy.zip",
+      "sha256": "57cd1e619ab8ac77bdf3877704e4d67f2db314784a249dcf6cd6e56c978b9784",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_2/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792414998148097636,
+      "inode": 8695488,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_2/replay_buffer.pkl",
+      "sha256": "263f9a56e5f99c3ca6eaca4dcb2720ea572ca4b8f5ac92e0fd89c7b3c37aeeb4",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_2/policy.zip",
+      "bytes": 405830,
+      "mtime_ns": 1792414998127097323,
+      "inode": 8695475,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_2/policy.zip",
+      "sha256": "221530ddece811bf02f2b002383fd131581bf07588e3da6fa71c8a65c9cd1b75",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_1/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792399523164182279,
+      "inode": 7905831,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_1/replay_buffer.pkl",
+      "sha256": "aa2eedc0e4850a63b23fec91ddb4f3290ff8beae85beb257c534c7e535e1a483",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792399523151182052,
+      "inode": 7883543,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/subset/round_1/policy.zip",
+      "sha256": "5950af2d8bf8a4cf745192484b2d135410d5ad233bb4f88192dc02b1a9536c58",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_2/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792411738321714618,
+      "inode": 8040956,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_2/replay_buffer.pkl",
+      "sha256": "b8e2b7f10d0a66f34dfd365af875e7376c4bde108727de7e4654df12562bd8bf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_2/policy.zip",
+      "bytes": 405830,
+      "mtime_ns": 1792411738300714282,
+      "inode": 8040955,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_2/policy.zip",
+      "sha256": "13b2931e2f33e33be577a34ad1a112228be1efdc7628fe71c072424e81f1ce0e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_1/replay_buffer.pkl",
+      "bytes": 41201933,
+      "mtime_ns": 1792396411743457842,
+      "inode": 7905806,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_1/replay_buffer.pkl",
+      "sha256": "a5e805cc9a49619f01772c00fe97926e91975338ddf6cd631a41b3b9ec8671bf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792396411731457675,
+      "inode": 7887905,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260927/guided/round_1/policy.zip",
+      "sha256": "9b88547f8e1d822d0fb7a06806f1efb48daa34431d916b764a9b48a12ec5fc4e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/baseline/replay_buffer.pkl",
+      "bytes": 41201932,
+      "mtime_ns": 1792346526590930625,
+      "inode": 7499083,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/baseline/replay_buffer.pkl",
+      "sha256": "d3ac2d183ab3066bef38629ba10d2b4e9d423b10e7d073b9e752047b808d4cea",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/baseline/policy.zip",
+      "bytes": 405824,
+      "mtime_ns": 1792346526578930488,
+      "inode": 7499082,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/baseline/policy.zip",
+      "sha256": "3db1add636a353c215f3d598af255996d7229ebaf86f4206912eccfcdb4c9342",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_2/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792353171900264703,
+      "inode": 7500430,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_2/replay_buffer.pkl",
+      "sha256": "e9a926bd2a06a7cd09a25d681611c544c4e3323f58cfbb4ba683e95272b28e10",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_2/policy.zip",
+      "bytes": 405859,
+      "mtime_ns": 1792353171889264540,
+      "inode": 7500428,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_2/policy.zip",
+      "sha256": "0d3751470f0d9668a343bbb0984de934a8c99d34cbe9413e189c18ad86044858",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_1/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792349847123696196,
+      "inode": 7499838,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_1/replay_buffer.pkl",
+      "sha256": "02674c68596cb24b196460b2d292e75fbb347dc8f930e9b87e5a6408092e6877",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_1/policy.zip",
+      "bytes": 405855,
+      "mtime_ns": 1792349847111696064,
+      "inode": 7499836,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/monte_carlo/round_1/policy.zip",
+      "sha256": "ef9744c26af381935aa2ed6453070ad9f8641b6df3a5961874c0d423eb52757e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_2/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792359890150417526,
+      "inode": 7500576,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_2/replay_buffer.pkl",
+      "sha256": "e9d7910b89a38c31f5f6b1a4fdbfd9b32d02a9fa85b58f8d44efce43058f1463",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_2/policy.zip",
+      "bytes": 405859,
+      "mtime_ns": 1792359890139417358,
+      "inode": 7500574,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_2/policy.zip",
+      "sha256": "06b8e84616e0f44a0290644937ad682d9371a1d5b266c954a9e01ecf9df5e50a",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_1/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792356457130123357,
+      "inode": 7500499,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_1/replay_buffer.pkl",
+      "sha256": "2752c75893bdbf09fcce5b6b4a0c273b9ee171a2e89471acd5cf5c54285d7dcf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_1/policy.zip",
+      "bytes": 405855,
+      "mtime_ns": 1792356457119123248,
+      "inode": 7500497,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/subset/round_1/policy.zip",
+      "sha256": "e2590e93041f20a975a56f845672d80b9947b1f9b18f4a07234ba2762c2e4226",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_2/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792411850646518789,
+      "inode": 8040959,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_2/replay_buffer.pkl",
+      "sha256": "f777a677d4bf380dfa1cc7b1c45ced855ab517e2d97a51ad4ab85af458c28935",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_2/policy.zip",
+      "bytes": 405830,
+      "mtime_ns": 1792411850624518435,
+      "inode": 8040954,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_2/policy.zip",
+      "sha256": "28f585eef6b75e73256b28258e4f6c3c6dc576a4df64f8e4654ab815413f5cd3",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_1/replay_buffer.pkl",
+      "bytes": 41201934,
+      "mtime_ns": 1792396338973447461,
+      "inode": 7905803,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_1/replay_buffer.pkl",
+      "sha256": "e4042f524dc8d9c6cf36144f0f2b6f86854eac6cea7a37fa16711b5964a4b789",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_1/policy.zip",
+      "bytes": 405826,
+      "mtime_ns": 1792396338961447294,
+      "inode": 7887924,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/dqn/20260926/guided/round_1/policy.zip",
+      "sha256": "6d1978eb41f99ee1fc7d2252a175b2e39ad87a336ed67dca50e392c906285d94",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/baseline/policy.zip",
+      "bytes": 593294,
+      "mtime_ns": 1792393197305293605,
+      "inode": 7887885,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/baseline/policy.zip",
+      "sha256": "7230d0f086be327efad1b8ad67174b4da5ac7a6bf884322982e82fa8b6f0b585",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/monte_carlo/round_2/policy.zip",
+      "bytes": 594659,
+      "mtime_ns": 1792420507149618650,
+      "inode": 8955484,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/monte_carlo/round_2/policy.zip",
+      "sha256": "3054b3d0ce8716f9e50933854843cdf9e1102a7df206aa451562a5d90009e819",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/monte_carlo/round_1/policy.zip",
+      "bytes": 594063,
+      "mtime_ns": 1792404868434098581,
+      "inode": 8171996,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/monte_carlo/round_1/policy.zip",
+      "sha256": "ff27d3b7095a5bc31ceafe0c84f23f66ccad7b18158df881b8dda35795d48455",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/subset/round_2/policy.zip",
+      "bytes": 594659,
+      "mtime_ns": 1792420987000669099,
+      "inode": 8927260,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/subset/round_2/policy.zip",
+      "sha256": "d74b6680ceb72b814027731ab3a2d82d0145b81211e99a861dc031fbdec5e637",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/subset/round_1/policy.zip",
+      "bytes": 594063,
+      "mtime_ns": 1792405793865221262,
+      "inode": 8141971,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/subset/round_1/policy.zip",
+      "sha256": "b5d3a30da02ef779bf9c101db42f26e2a0b0e4f9a81817c295001b9f9a130d1a",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/guided/round_2/policy.zip",
+      "bytes": 594659,
+      "mtime_ns": 1792420496209458836,
+      "inode": 8955485,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/guided/round_2/policy.zip",
+      "sha256": "e733f4ff35584683551a10e32c854db6683b9f93c3b92127d9dd1839797bfc98",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260928/guided/round_1/policy.zip",
+      "bytes": 594063,
+      "mtime_ns": 1792404625437257794,
+      "inode": 8172004,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260928/guided/round_1/policy.zip",
+      "sha256": "4a7348aab3bf89abc67d77522b105787cbb4b02b8346cf24a00156e405cc1b7c",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/baseline/policy.zip",
+      "bytes": 593298,
+      "mtime_ns": 1792392990758003694,
+      "inode": 7887901,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/baseline/policy.zip",
+      "sha256": "d854cc715bcb72f0c3a6c2a7554a028485915f751276319f1631a2efc8e278e3",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/monte_carlo/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792418699309536502,
+      "inode": 8782625,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/monte_carlo/round_2/policy.zip",
+      "sha256": "574f4790f0a5139e151f97d49a366b297cc0887055ecd892712b97690a354b9e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/monte_carlo/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792403946223537561,
+      "inode": 8171972,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/monte_carlo/round_1/policy.zip",
+      "sha256": "3095e7cd7dffaa79b19eacde2124eec18076a27ccfb4efabf2911ddd8610e19f",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/subset/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792418577253668071,
+      "inode": 8791461,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/subset/round_2/policy.zip",
+      "sha256": "64cefb5e6fcd4df7b8c0bc79aa95d78c04f6d9e7a04f9090b43a5f0038c44592",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/subset/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792404980040863092,
+      "inode": 8141987,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/subset/round_1/policy.zip",
+      "sha256": "59c3f6571cb4b95d7f2cb7cf42b18e2531a1b114cd1e48af05e06545ceaa353c",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/guided/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792417926929682571,
+      "inode": 8686509,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/guided/round_2/policy.zip",
+      "sha256": "284c42973f2121e3b502ff5021df1f5a02187c7a04eccd8f8e4ba738c30edf9e",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260927/guided/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792404494290185684,
+      "inode": 8171994,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260927/guided/round_1/policy.zip",
+      "sha256": "5854da91d956d84f1c5b61117ed2a3c54cab638fb3f32fa52859b7501c207bcf",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/baseline/policy.zip",
+      "bytes": 593294,
+      "mtime_ns": 1792389629875872056,
+      "inode": 7777465,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/baseline/policy.zip",
+      "sha256": "6fe9d1a2625e4b13ce75cfaa36607f149ff3d78d9232b7c2133061624d584b6c",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/monte_carlo/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792417124702262796,
+      "inode": 8695510,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/monte_carlo/round_2/policy.zip",
+      "sha256": "ed60918c5dd9f2379ab616749ca85516dcc571d95492a33364a65db6ffa990aa",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/monte_carlo/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792403719025962216,
+      "inode": 8171989,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/monte_carlo/round_1/policy.zip",
+      "sha256": "5ad26f65516cc10f4a263e1e84add919959647be81ac541035a1891179d148cb",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/subset/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792417330517408016,
+      "inode": 8695515,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/subset/round_2/policy.zip",
+      "sha256": "03d81de3412ea6e9957de98435961d76ebefa4e06ae934da7f053ede8e28c970",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/subset/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792403611953280605,
+      "inode": 8171980,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/subset/round_1/policy.zip",
+      "sha256": "803ac5034ed79973bf1936e9c692fc7943c7191e09259c56e5c4d14c0ce4a887",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/guided/round_2/policy.zip",
+      "bytes": 594663,
+      "mtime_ns": 1792417376366128933,
+      "inode": 8686548,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/guided/round_2/policy.zip",
+      "sha256": "11ba6db72a3aeec58ec9e5885c9cc89343474dc9642ba5759ed34a1813ea0880",
+      "status": "linked_to_verified_DATA_copy"
+    },
+    {
+      "logical_path": "results/risk_stratified_repair_history/formal/ppo/20260926/guided/round_1/policy.zip",
+      "bytes": 594067,
+      "mtime_ns": 1792403568615600749,
+      "inode": 8171976,
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/results/risk_stratified_repair_history/formal/ppo/20260926/guided/round_1/policy.zip",
+      "sha256": "dd691e9e86c8940d29eca90d4ced9d593f51f424fc4314d2cf829419b02dc959",
+      "status": "linked_to_verified_DATA_copy"
+    }
+  ],
+  "copy_elapsed_s": 24.403042316436768,
+  "filesystem_before_link_switch": {
+    "total": 495041576960,
+    "used": 372532260864,
+    "free": 97287393280
+  },
+  "migrated_bytes": 14904796643,
+  "restored_bytes": 893118704,
+  "relocated_utc": "2026-10-25T10:17:44.715406+00:00",
+  "tracked_small_policies_kept_in_repo": [
+    "ads/dqn/artifacts/policies/seed20260926/policy.zip",
+    "ads/dqn/artifacts/policies/seed20260928/policy.zip",
+    "ads/dqn/artifacts/policies/seed20260927/policy.zip"
+  ],
+  "filesystem_after_link_switch": {
+    "total": 495041576960,
+    "used": 357627564032,
+    "free": 112192090112
+  },
+  "mirrored_support_files": [
+    {
+      "logical_path": "ads/carl/artifacts/official.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/carl/artifacts/official.json",
+      "bytes": 262,
+      "sha256": "faf21b11fbdfb3342db70e5ff4624eb95ee050f532b1d4ba3bbed4a7c43dd260",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/plant2/artifacts/official_1.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_1.json",
+      "bytes": 230,
+      "sha256": "3fdc4a3cb0035b11bda7e4e0c798c424376521bbea97bd7270d625d75650321c",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/plant2/artifacts/official_2.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_2.json",
+      "bytes": 230,
+      "sha256": "f6f870d1aa98940b351b7c89094ff3b56ee933cfdf25f56b1537ac1785b34669",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/plant2/artifacts/official_3.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_3.json",
+      "bytes": 230,
+      "sha256": "3c4b4cd843d112eed10fe0e13e6d071ab1a440ad25fff258fa3578e3bef072d8",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/flow_planner/artifacts/model.pth.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/model.pth.source.json",
+      "bytes": 190,
+      "sha256": "196cca4d67c32dc14c6f98bc1395dc266299be03463053916443fe7f13a9ac63",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/flow_planner/artifacts/model_config.yaml",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/model_config.yaml",
+      "bytes": 7036,
+      "sha256": "2914c4f174e7fba8baf9ee7d42300c640a285f9d6fa13d36b78f0a3cbb9a03fe",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/flow_planner/artifacts/model_config.yaml.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/model_config.yaml.source.json",
+      "bytes": 194,
+      "sha256": "40080d16ef83a5eb332fa0e6fb6b1c077b72e74356ac82c6120d1cf7732ce5d3",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/flow_planner/artifacts/official.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/official.json",
+      "bytes": 997,
+      "sha256": "28627bd4337112791b94a99c4e4fea387a60d63b116135423208cedc5b97aa24",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260926/policy.zip",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260926/policy.zip",
+      "bytes": 404410,
+      "sha256": "b2cb5c9204fa9351f0900f374249cbd00327b37527d7d6403ae582dd8200cbc7",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260927/policy.zip",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260927/policy.zip",
+      "bytes": 404406,
+      "sha256": "e14abc325a31e15ae9334b667eaa6451acacc4827710e355cb7e931be19242e5",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/dqn/artifacts/policies/seed20260928/policy.zip",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dqn/artifacts/policies/seed20260928/policy.zip",
+      "bytes": 404410,
+      "sha256": "884878dd3cedb4e7bbdc2c67075cd43f6655358b3b061d039e6398b65374f19a",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/checkpoint-297000/config.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/checkpoint-297000/config.json",
+      "bytes": 3795,
+      "sha256": "b646c178ed3cd19182827e2ef223f8d6a90d331d42a597697762b6200c49f940",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/checkpoint-297000/generation_config.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/checkpoint-297000/generation_config.json",
+      "bytes": 111,
+      "sha256": "a55ffd6c03203b34d195ae9e4a7e9003fd293ce3cdb56d232af931856614f306",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/checkpoint-297000/kmeans_traj_8s_512.csv",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/checkpoint-297000/kmeans_traj_8s_512.csv",
+      "bytes": 2476452,
+      "sha256": "4fef7267cd8ce31b07f27effaaed3d530de8384f4b50c438fb16d3d97ea686b2",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/official.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/official.json",
+      "bytes": 1518,
+      "sha256": "e3e9877d5946822d484209550dee72e002f9aef8b9a746d09e85f1f653181e17",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/str2/artifacts/str_open.tar.gz.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/str_open.tar.gz.source.json",
+      "bytes": 207,
+      "sha256": "3c05468358f4d43ff82746a20a43831890da0ab4ac41bce0f1f4ab68b6ccd422",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/dtpp/artifacts/base_model.pth.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dtpp/artifacts/base_model.pth.source.json",
+      "bytes": 190,
+      "sha256": "834a1a2864b28a8bb92a874c685f852e5cf8d472e62c7a149345b065851aebe0",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/dtpp/artifacts/official.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dtpp/artifacts/official.json",
+      "bytes": 878,
+      "sha256": "cb8917564a7ec2f47b2c17903aa31bdc1a3419ebd3edfe725bbe7532a2d9c787",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/diffusion_planner/artifacts/args.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/args.json",
+      "bytes": 7404,
+      "sha256": "7e62b89a50953f133d55484777e54490f7f24e58feec1efcf696bcc7b91bdf10",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/diffusion_planner/artifacts/args.json.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/args.json.source.json",
+      "bytes": 200,
+      "sha256": "ca12a20ce33064747be0837e328735ef9c29b9c673022e202afeafaeaddd2c19",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/diffusion_planner/artifacts/model.pth.source.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/model.pth.source.json",
+      "bytes": 204,
+      "sha256": "198d4862ec37eb625cdb3fa63cfd0b5d36eeed265ed8ea8a9097e9de693235a4",
+      "status": "mirrored_source_retained"
+    },
+    {
+      "logical_path": "ads/diffusion_planner/artifacts/official.json",
+      "physical_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/official.json",
+      "bytes": 1027,
+      "sha256": "f7acacb4b3aa526cc0a12734e8fdcf6454e8bc443de83b7c0daa3f4bc199c309",
+      "status": "mirrored_source_retained"
+    }
+  ],
+  "support_files_purpose": "同时保留可直接从 DATA 加载的完整官方模型包：配置、词表、来源记录及 Git 中的小型 DQN 策略副本；工程中的这些原件不删除。",
+  "support_files_mirrored_utc": "2026-10-25T10:18:59.731063+00:00",
+  "verification": {
+    "migrated_and_restored_files_sha256_valid": 116,
+    "all_original_model_paths_are_valid_links": true,
+    "support_files_source_and_copy_sha256_valid": 22,
+    "source_code_files_unchanged": 799,
+    "patent_materials_unchanged": true,
+    "history_initial_weights_unchanged": 3,
+    "history_report_snapshots_unchanged": 17,
+    "current_report_snapshots_unchanged": 56,
+    "raw_and_shared_data_metadata_unchanged": true,
+    "training_or_simulation_performed": false,
+    "native_checkpoint_paths_and_hashes": [
+      {
+        "algorithm": "diffusion_planner",
+        "logical_checkpoint": "ads/diffusion_planner/artifacts/model.pth",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/artifacts/model.pth",
+        "sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+        "both_loading_locations_available": true
+      },
+      {
+        "algorithm": "dtpp",
+        "logical_checkpoint": "ads/dtpp/artifacts/base_model.pth",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/dtpp/artifacts/base_model.pth",
+        "sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073",
+        "both_loading_locations_available": true
+      },
+      {
+        "algorithm": "flow_planner",
+        "logical_checkpoint": "ads/flow_planner/artifacts/model.pth",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/flow_planner/artifacts/model.pth",
+        "sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e",
+        "both_loading_locations_available": true
+      },
+      {
+        "algorithm": "str2",
+        "logical_checkpoint": "ads/str2/artifacts/checkpoint-297000",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/str2/artifacts/checkpoint-297000",
+        "sha256": "dee84e8c4d54cd357d2a5befaee16d91c14c0cf1d37342bde6d44602217a3831",
+        "both_loading_locations_available": true
+      },
+      {
+        "algorithm": "carl",
+        "logical_checkpoint": "ads/carl/artifacts/official.pth",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/carl/artifacts/official.pth",
+        "sha256": "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d"
+      },
+      {
+        "algorithm": "plant2",
+        "logical_checkpoint": "ads/plant2/artifacts/official_1.ckpt",
+        "physical_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/plant2/artifacts/official_1.ckpt",
+        "sha256": "2f896d8d7640d4b7b68bcef8615a73e9761e850870a24f914c4c908f0f2199f4"
+      }
+    ],
+    "STR2_safetensors_and_config_read_from_both_locations": true,
+    "actual_project_file_hash_directory_unchanged": true,
+    "both_restored_weights_match_pre_deletion_hashes": true,
+    "source_code_sha256_manifest": "e5cb78987a73aa1ea5b61616649a65f23bc7d5b4b015d8d544ec1d9074eca0fc"
+  },
+  "files_verified_utc": "2026-10-25T10:20:00.233090+00:00",
+  "filesystem_after": {
+    "total": 495041576960,
+    "used": 357627658240,
+    "free": 112191995904
+  },
+  "DATA_filesystem_after": {
+    "total": 1511401713664,
+    "used": 710282227712,
+    "free": 801119485952
+  },
+  "previous_cleanup_record": "results/storage_cleanup_20261025.json",
+  "human_readable_report": "doc/storage_cleanup_20261025.md",
+  "document_changes": [
+    "doc/style.md",
+    "ads/README.md",
+    "results/risk_stratified_repair_history/README.md",
+    "doc/storage_cleanup_20261025.md"
+  ],
+  "verified_utc": "2026-10-25T10:24:06.666667+00:00",
+  "project_storage_allocated_bytes_after": 32456331264
+}

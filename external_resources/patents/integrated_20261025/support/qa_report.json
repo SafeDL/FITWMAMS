@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-25",
+  "structural_checks_passed": true,
+  "native_equations": 76,
+  "inline_equations": 65,
+  "numbered_equations": 11,
+  "figures_png": 3,
+  "logic_figure_placeholders": 2,
+  "heading_1": 7,
+  "heading_2": 5,
+  "tables": 2,
+  "source_hashes_verified": 15,
+  "new_model_or_simulation_executions": 0,
+  "word_desktop_reopen": false,
+  "word_desktop_note": "No desktop Word session is available; ZIP/XML and python-docx readback checked. Layout is inspected with LibreOffice rendering.",
+  "docx_sha256": "88f9566cf36e75e6a0252d90d05292648441a38f42774c20f94a4412e5bed381",
+  "layout_pages": 12,
+  "visual_review": "All 12 pages reviewed; final changed method pages rendered again. Equations, captions, tables, figures, and pagination inspected.",
+  "formula_number_alignment": "11 equation numbers share the right tab; PDF text bounding boxes within body margins.",
+  "pdf_delivered": false,
+  "svg_delivered": false
+}

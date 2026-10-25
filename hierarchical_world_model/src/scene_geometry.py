@@ -171,7 +171,7 @@ class VehicleDimensions:
     @classmethod
     def constant(
         cls, count: int, *, length_m: float = 4.8, width_m: float = 1.8
-    ) -> "VehicleDimensions":
+    ) -> VehicleDimensions:
         if int(count) < 1:
             raise ValueError("vehicle count must be positive")
         return cls(
@@ -180,7 +180,7 @@ class VehicleDimensions:
         )
 
     @classmethod
-    def from_array(cls, values: np.ndarray) -> "VehicleDimensions":
+    def from_array(cls, values: np.ndarray) -> VehicleDimensions:
         array = np.asarray(values, dtype=np.float64)
         if array.ndim != 2 or array.shape[1] != 2:
             raise ValueError("vehicle_dimensions must have shape [agents,2]")
@@ -230,7 +230,7 @@ class SceneGeometry:
         lane_widths: np.ndarray | float = 3.6,
         x_min: float = -10_000.0,
         x_max: float = 10_000.0,
-    ) -> "SceneGeometry":
+    ) -> SceneGeometry:
         centers = np.asarray(lane_centers_y, dtype=np.float64)
         if centers.ndim != 1 or len(centers) < 1:
             raise ValueError("lane_centers_y must be a non-empty vector")
@@ -247,7 +247,7 @@ class SceneGeometry:
     @classmethod
     def from_map_polylines(
         cls, map_polylines: np.ndarray, map_polyline_valid: np.ndarray
-    ) -> "SceneGeometry":
+    ) -> SceneGeometry:
         polylines = np.asarray(map_polylines, dtype=np.float64)
         valid = np.asarray(map_polyline_valid, dtype=bool)
         if polylines.ndim != 3 or polylines.shape[-1] < 2:

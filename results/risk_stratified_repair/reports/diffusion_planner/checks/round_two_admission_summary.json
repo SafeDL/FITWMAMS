@@ -1,0 +1,383 @@
+{
+  "additional_ads_executions": 0,
+  "candidate_development_executions": 6000,
+  "final_cohorts_opened": false,
+  "methods": {
+    "guided": {
+      "accepted_update": false,
+      "actual_round_two_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidate_development_executions": 2000,
+      "candidates": [
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 64,
+            "regressed": 1,
+            "repaired": 30
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 25,
+              "collision_before": 9,
+              "collision_regressed": 17,
+              "collision_repaired": 1,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 108.91788553619385,
+              "progress_before_m": 100.12986167526245,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 49,
+              "collision_before": 15,
+              "collision_regressed": 44,
+              "collision_repaired": 10,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 123.76623150587082,
+              "progress_before_m": 106.57862347888947,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/tail_generated/collision",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/natural_generated/collision",
+            "previous/tail_generated/collision"
+          ],
+          "sha256": "f2ca3efd6f94b24a9eaa827993d7b0b59feae453e05eaa119963bb45be6028df",
+          "updates": 500
+        },
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 64,
+            "regressed": 2,
+            "repaired": 37
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 29,
+              "collision_before": 9,
+              "collision_regressed": 24,
+              "collision_repaired": 4,
+              "instances": 500,
+              "offroad_after": 1,
+              "offroad_before": 0,
+              "progress_after_m": 103.1734202079773,
+              "progress_before_m": 100.12986167526245,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 56,
+              "collision_before": 15,
+              "collision_regressed": 50,
+              "collision_repaired": 9,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 111.13317811775208,
+              "progress_before_m": 106.57862347888947,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/natural_generated/offroad",
+            "official/tail_generated/collision",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/natural_generated/collision",
+            "previous/natural_generated/offroad",
+            "previous/tail_generated/collision"
+          ],
+          "sha256": "383bc8d5cc96398a440b960eb9042c5e74cf754fecb835b2ca80f230a92690de",
+          "updates": 1000
+        }
+      ],
+      "deployed_sha256": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603",
+      "final_cohorts_opened": false,
+      "method": "guided",
+      "previous_reference_development_reuse": {
+        "natural_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "fd51e0efde48de72d3e7848e9184795e5bca397484a47afdfde13287e8dd8e48"
+        },
+        "tail_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "8e4192512edf5150f2a60a411cccf65cec5c42ee05bed262b5a6cf6076cbc380"
+        }
+      },
+      "recorded_utc": "2026-10-24T23:50:35.596162+00:00",
+      "retained_optimizer_checkpoint": "first-round accepted 500 updates",
+      "retained_policy_byte_hash_identical_to_round_one": true,
+      "round": 2,
+      "scope": "Completed formal guided second-round admission and unchanged accepted deployment; all development pairs verified",
+      "status": "passed"
+    },
+    "monte_carlo": {
+      "accepted_update": false,
+      "actual_round_two_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidate_development_executions": 2000,
+      "candidates": [
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 28,
+            "regressed": 0,
+            "repaired": 9
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 17,
+              "collision_before": 9,
+              "collision_regressed": 11,
+              "collision_repaired": 3,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 111.09817420959473,
+              "progress_before_m": 100.75237157058716,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 38,
+              "collision_before": 14,
+              "collision_regressed": 35,
+              "collision_repaired": 11,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 127.60385302686691,
+              "progress_before_m": 106.79351796150208,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/tail_generated/collision",
+            "previous/natural_generated/collision",
+            "previous/tail_generated/collision"
+          ],
+          "sha256": "8c2ea862aeb7865601c604d93e9edc12b4d7372b078dcb5abaf079ac68892fe9",
+          "updates": 500
+        },
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 28,
+            "regressed": 1,
+            "repaired": 5
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 29,
+              "collision_before": 9,
+              "collision_regressed": 23,
+              "collision_repaired": 3,
+              "instances": 500,
+              "offroad_after": 1,
+              "offroad_before": 0,
+              "progress_after_m": 106.16228944206237,
+              "progress_before_m": 100.75237157058716,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 44,
+              "collision_before": 14,
+              "collision_regressed": 40,
+              "collision_repaired": 10,
+              "instances": 500,
+              "offroad_after": 1,
+              "offroad_before": 0,
+              "progress_after_m": 114.9780850892067,
+              "progress_before_m": 106.79351796150208,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/natural_generated/offroad",
+            "official/tail_generated/collision",
+            "official/tail_generated/offroad",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/natural_generated/collision",
+            "previous/natural_generated/offroad",
+            "previous/tail_generated/collision",
+            "previous/tail_generated/offroad"
+          ],
+          "sha256": "2195cafdfb573ae6a14369f0a70b64a3b16a36b2f08fc9df9ae9cd36497125df",
+          "updates": 1000
+        }
+      ],
+      "deployed_sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db",
+      "final_cohorts_opened": false,
+      "method": "monte_carlo",
+      "previous_reference_development_reuse": {
+        "natural_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "26f87d4656c2d18177c9e613b092cd83b1b830fa0696220e71231c47b9e6c956"
+        },
+        "tail_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "3cefaab8cf6c3c3af03901ad77eb41c9ddcba9ec2db2a2dd56bda9f8324510ed"
+        }
+      },
+      "recorded_utc": "2026-10-24T23:10:43.916386+00:00",
+      "retained_optimizer_checkpoint": "first-round accepted 500 updates",
+      "retained_policy_byte_hash_identical_to_round_one": true,
+      "round": 2,
+      "scope": "Completed formal MC second-round admission and deployed-state retention; all candidate development pairs verified",
+      "status": "passed"
+    },
+    "subset": {
+      "accepted_update": false,
+      "actual_round_two_updates": 1000,
+      "additional_ads_executions": 0,
+      "candidate_development_executions": 2000,
+      "candidates": [
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 30,
+            "regressed": 1,
+            "repaired": 12
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 27,
+              "collision_before": 10,
+              "collision_regressed": 23,
+              "collision_repaired": 6,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 118.93160989570617,
+              "progress_before_m": 101.56983472061157,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 53,
+              "collision_before": 11,
+              "collision_regressed": 49,
+              "collision_repaired": 7,
+              "instances": 500,
+              "offroad_after": 0,
+              "offroad_before": 0,
+              "progress_after_m": 138.16742374801635,
+              "progress_before_m": 109.01301151704789,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/tail_generated/collision",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/natural_generated/collision",
+            "previous/tail_generated/collision"
+          ],
+          "sha256": "64aa47013596f5be2a0793deb6dbac0e615f595529cb224994d851137453de08",
+          "updates": 500
+        },
+        {
+          "accepted": false,
+          "archive_safety_failure_diagnostic": {
+            "endpoints": 30,
+            "regressed": 2,
+            "repaired": 11
+          },
+          "cohorts": {
+            "natural_generated": {
+              "collision_after": 30,
+              "collision_before": 10,
+              "collision_regressed": 25,
+              "collision_repaired": 5,
+              "instances": 500,
+              "offroad_after": 4,
+              "offroad_before": 0,
+              "progress_after_m": 112.38760513305664,
+              "progress_before_m": 101.56983472061157,
+              "stalled_after": 0,
+              "stalled_before": 0
+            },
+            "tail_generated": {
+              "collision_after": 59,
+              "collision_before": 11,
+              "collision_regressed": 54,
+              "collision_repaired": 6,
+              "instances": 500,
+              "offroad_after": 3,
+              "offroad_before": 0,
+              "progress_after_m": 119.27427140522003,
+              "progress_before_m": 109.01301151704789,
+              "stalled_after": 0,
+              "stalled_before": 0
+            }
+          },
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/natural_generated/collision",
+            "official/natural_generated/offroad",
+            "official/tail_generated/collision",
+            "official/tail_generated/offroad",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/natural_generated/collision",
+            "previous/natural_generated/offroad",
+            "previous/tail_generated/collision",
+            "previous/tail_generated/offroad"
+          ],
+          "sha256": "a8a7fc45dcf8349ba092493991120e497d06ca762331a971ba1293e6f9ba1b2c",
+          "updates": 1000
+        }
+      ],
+      "deployed_sha256": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83",
+      "final_cohorts_opened": false,
+      "method": "subset",
+      "previous_reference_development_reuse": {
+        "natural_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "7b23dea4ac7fd3b38908b15e6e2ce9ea77b0bc30b44ee0b34618ad184caa5b66"
+        },
+        "tail_generated": {
+          "cache_hits": 500,
+          "new_executions": 0,
+          "summary_sha256": "4932fe1403d09f6a90420b037b3dbe8f5574d9eb0cb4aec38704cc07df03a15a"
+        }
+      },
+      "recorded_utc": "2026-10-24T23:31:33.123408+00:00",
+      "retained_optimizer_checkpoint": "first-round accepted 500 updates",
+      "retained_policy_byte_hash_identical_to_round_one": true,
+      "round": 2,
+      "scope": "Completed formal second-round admission and unchanged accepted deployment; all development pairs verified",
+      "status": "passed"
+    }
+  },
+  "new_previous_reference_executions": 0,
+  "previous_development_reference_cache_hits": 3000,
+  "scope": "Completed second-round formal admissions; frozen final policies all retain accepted first-round deployments",
+  "status": "passed"
+}

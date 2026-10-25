@@ -1,21 +1,17 @@
-#!/usr/bin/env python3
 """Build the checked, protocol-matched IDM world-model comparison report."""
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from ads.idm.src.multi_world_runner import (  # noqa: E402
+from ads.idm.src.multi_world_runner import (
     build_comparison_report,
     build_explicit_subset_comparison,
 )
-from hierarchical_world_model.src.core.utils import load_yaml  # noqa: E402
+from hierarchical_world_model.src.core.utils import load_yaml
+
+ROOT = Path(__file__).resolve().parents[3]
 
 CONFIG = ROOT / "ads/idm/configs/world_models_idm.yaml"
 

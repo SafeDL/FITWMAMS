@@ -8,7 +8,10 @@ from hierarchical_world_model.src.npc_experiments.metrics import (
     diagnostic_states,
     hellinger,
 )
-from hierarchical_world_model.src.npc_experiments.road import neighbors, traffic_statistics
+from hierarchical_world_model.src.npc_experiments.road import (
+    neighbors,
+    traffic_statistics,
+)
 
 
 def traffic():
@@ -68,7 +71,7 @@ def test_shared_motion_operator_preserves_positions_and_quadratic_dynamics():
 
 
 def test_overflow_and_negative_gap_are_not_silently_dropped():
-    state, valid, dimensions, maps, map_valid = traffic()
+    state, valid, dimensions, _maps, _map_valid = traffic()
     state[0, 2, 0] = -1
     states = np.repeat(state[:, None], 150, axis=1)
     time = np.arange(150) * 0.04

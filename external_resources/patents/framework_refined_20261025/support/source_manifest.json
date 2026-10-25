@@ -1,0 +1,226 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "8e3df32595d13a2496d5c5ad7f8c3bf5584e182ecf622beac9e738b51e84c070"
+  },
+  {
+    "path": "process_highD/README.md",
+    "sha256": "e3b17fbdea0d9d857168fa3c3e338a0317278ce0b20392cb8345a86e3e22de47"
+  },
+  {
+    "path": "process_highD/src/safety_envelope_risk.py",
+    "sha256": "e6426d76b5f7c2439f66ae701f2cb90c53d9c6913c280ea8743efbf6cd0664df"
+  },
+  {
+    "path": "process_highD/src/evt_pipeline.py",
+    "sha256": "7c01d9245a6c741c85a71e4cae4f83305d9b3c678b44a82f3cbe9c59792495ea"
+  },
+  {
+    "path": "tools/evt.py",
+    "sha256": "16f921214d9a044c11c09eaa8fabed9ef4d195cf007376a5b69d75519be702ca"
+  },
+  {
+    "path": "normalizing_flow/README.md",
+    "sha256": "d3c7cc6ab7f93accde823d63437f52bbef4b580ef16ec67cc8d09fccee632f98"
+  },
+  {
+    "path": "normalizing_flow/src/scenario.py",
+    "sha256": "a9da768af9edf2f899b62766d336687e3cccab45fc3a5d6db2711ec4d4d20039"
+  },
+  {
+    "path": "normalizing_flow/src/model.py",
+    "sha256": "0a081e0a37f17e116c29583b444bda5c635f663ee7c660fa5e182a2315dc874c"
+  },
+  {
+    "path": "diffusion/README.md",
+    "sha256": "384fc02ffb88559b300ceec024c39601d616208663f089a7fdeb7abc1fbd383e"
+  },
+  {
+    "path": "diffusion/src/data.py",
+    "sha256": "78f34a36b02d2c9c0c70a89f5bd69dfd98fd6ae84eb7d95b2187dbe887451557"
+  },
+  {
+    "path": "diffusion/src/model.py",
+    "sha256": "663abd041dc36c6dfca50fc09c84598f9d42d075fe504140325a966a2cd0b89c"
+  },
+  {
+    "path": "hierarchical_world_model/README.md",
+    "sha256": "41a695b0032a29bba02aa0c893e5c00be5a6134bf0ce9512c21cc66b794434ae"
+  },
+  {
+    "path": "hierarchical_world_model/config.yaml",
+    "sha256": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9"
+  },
+  {
+    "path": "hierarchical_world_model/src/composition.py",
+    "sha256": "5d8efd1c427b7dc163b7ea625c3982c2ca0f4ef89a96799c5a8ab2f649b714ef"
+  },
+  {
+    "path": "hierarchical_world_model/src/randomness.py",
+    "sha256": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767"
+  },
+  {
+    "path": "hierarchical_world_model/src/plan_applicability.py",
+    "sha256": "1fd0f84a57961c0b205346d03bfb0b444407bdf48d1cfe48e1dbfb663a710d06"
+  },
+  {
+    "path": "hierarchical_world_model/src/takeover.py",
+    "sha256": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94"
+  },
+  {
+    "path": "hierarchical_world_model/src/highway.py",
+    "sha256": "cd72b2eeda8d8d9d9e7060fd87461de2cab5f2c87177784076d45a8b12640433"
+  },
+  {
+    "path": "ads/search/engine.py",
+    "sha256": "0efad57bb9a9a8445c75c678107d3e4898fbad66fd452df8c76fefe95b3d723f"
+  },
+  {
+    "path": "ads/search/branches.py",
+    "sha256": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733"
+  },
+  {
+    "path": "ads/search/archive.py",
+    "sha256": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5"
+  },
+  {
+    "path": "ads/common/instances.py",
+    "sha256": "9b610cf5a7115166b484c8b9b8f64e829d9e3b28f7509c5625f1e6996d3ae2eb"
+  },
+  {
+    "path": "ads/common/evaluation.py",
+    "sha256": "f77c08480c3c2348314d9d5143f5622f399dcdee7297624fc64f2a907705c372"
+  },
+  {
+    "path": "ads/common/randomness.py",
+    "sha256": "82763f05108e8365094e9e926df46838cce8094ed827552e119ca6e842243fc1"
+  },
+  {
+    "path": "ads/common/expert.py",
+    "sha256": "839b2b54628e0a2ea3a8429782d7eedc0efeb904a67e1b846f04706a53b64262"
+  },
+  {
+    "path": "ads/common/demonstrations.py",
+    "sha256": "f0ae82b98bdd1884cf21b2c7f1aa561f16248f69722ae71638dbe48ab9e6d489"
+  },
+  {
+    "path": "ads/common/admission.py",
+    "sha256": "574ecb302f9ac651c703b1745b622d9eb29adc27033a452f2788f8465e715024"
+  },
+  {
+    "path": "ads/diffusion_planner/supervision.py",
+    "sha256": "7f9ffe6cce6ff210206af7f7b7aecb675c139ee2c0b2f1c354f36ad23cc91953"
+  },
+  {
+    "path": "ads/diffusion_planner/repair.py",
+    "sha256": "591646c8b675dfc632f1e4b1d96cccba3d91185f53c7c8eb36c06eda4e413c4c"
+  },
+  {
+    "path": "ads/diffusion_planner/policy.py",
+    "sha256": "20f56341cb852049bf32b3489a59b8f042c4b0d239a069ecc88d7eb95496e0cc"
+  },
+  {
+    "path": "ads/nuplan/losses.py",
+    "sha256": "61067c1cc524b486cfd24942630a42d4b1927e8768997f69352fe337ff97909c"
+  },
+  {
+    "path": "ads/nuplan/teacher.py",
+    "sha256": "49602d836f686a2634b72ff14ab3207cdf0fe3636b4aeba11738aa6b7f8ad39b"
+  },
+  {
+    "path": "ads/carl/train.py",
+    "sha256": "b71c2e118506ef98405a24d1421a8ba1ce46ee18dd7bbc73c86a89ba73e4c382"
+  },
+  {
+    "path": "ads/tasks.py",
+    "sha256": "9790fda59b7c14817de4e211d4724115f077d77e7f161e541b9814741c9214ae"
+  },
+  {
+    "path": "ads/configs/diffusion_planner_experiment.yaml",
+    "sha256": "583a36c396c97b4a3467136ca124318affa888e58dd1f9f636fa9046e96d9ff7"
+  },
+  {
+    "path": "doc/risk_stratified_repair.md",
+    "sha256": "a64a1df0bcd4d7672b6649f55b0db70638323209b7735e2c7273fea4d76e1c94"
+  },
+  {
+    "path": "results/evt/evt_summary.json",
+    "sha256": "dacf836ce7a4294ea021c72271ad806b18166d0009b18598b62192356df4790e"
+  },
+  {
+    "path": "results/flow/evaluation_summary.json",
+    "sha256": "55577991d6506ab37be2c26642225cc6e6523d5d3da223bad7aaf46718d0b1cd"
+  },
+  {
+    "path": "results/diffusion/evaluation_summary.json",
+    "sha256": "4930ae1add6530d16f831e3b12f9e5fad669cc19dc6ea41b3aee27a48bc7154b"
+  },
+  {
+    "path": "results/hierarchical_world_model/bridge/test_report.json",
+    "sha256": "39df69436820d5719efc67609a5c9d2d29e9af2f1b74a16038cdae8c488d52af"
+  },
+  {
+    "path": "results/hierarchical_world_model/bridge/interventions.json",
+    "sha256": "dc1c0e6af4b4364b1efc8a6389f6b58f4f91e961cb375164d0d7ecca91513441"
+  },
+  {
+    "path": "results/hierarchical_world_model/bridge/latency.json",
+    "sha256": "5ecefc8b77ec0b169c714e25c70264cd54fba558911d38793e0f0c6569507729"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_search_comparison.json",
+    "sha256": "78fda225e687c96141d9985d75420c13011a5ba4490009a5e0edb1cd48b9560a"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_material_acceptance.json",
+    "sha256": "2cc6d9963298c6ed696fa98d89cc2c99cc79b8e1c9bca3bbf7115921cc2d00bb"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_two_replay_acceptance.json",
+    "sha256": "a9f44211f4a7e3e813875a73f481b697760fc41c5a08aebb935b4ae84bddf06e"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_one_admission_acceptance.json",
+    "sha256": "18817eb1b3f707ec71a485d8ea461586929ed41eecda4fe493bfae34c01adc41"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_delivery_acceptance.json",
+    "sha256": "fd3e1426915db3239a7246419de61edec52944f8664f35e0614935a1cc51b4c7"
+  },
+  {
+    "path": "external_resources/patents/figures/E05_braking_response.png",
+    "sha256": "323d62287b9ef209758b93a2e2648b630c3a596f554633ca723fcae44cd7d53d"
+  },
+  {
+    "path": "external_resources/patents/figures/E08_maneuver_handover.png",
+    "sha256": "e7bc1f3ea6317452d7aef57d21c415e3352a04ae589b9a235ac789aaab929a1f"
+  },
+  {
+    "path": "external_resources/patents/figures/manifest.json",
+    "sha256": "a030570b029f4e331a0a49e39bbf11316a1427f4c5a58a49a2c49474cba00a81"
+  },
+  {
+    "path": "external_resources/patents/技术交底书-一种基于失效邻域的自动驾驶测试调度方法.docx",
+    "sha256": "3d8585e04c5044fe5f2a866bbecebe3e59a4a58350485977e6ca777672ad6b68"
+  },
+  {
+    "path": "external_resources/patents/revision_20261025/技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法.docx",
+    "sha256": "3de9a7ba5863232c7e364c3098aaff1728a3cb36b9819a15185ad2d67534a9bf"
+  },
+  {
+    "path": "external_resources/patents/revision_20261023/XJYZL20260889-ZS2612700-1-II-一种面向安全关键事件的自动驾驶长尾测试方法-篇幅缩减版.docx",
+    "sha256": "d2fac18d76f62a966f17492773dbad2b48faf6ec1ed4836ab6c388150651743a"
+  },
+  {
+    "path": "hierarchical_world_model/src/error_trajectories.py",
+    "sha256": "1af48d0f261f25e12bbc4132588f00657ddff4d89f8916ccb062665af912a48a"
+  },
+  {
+    "path": "external_resources/patents/framework_20261025/技术交底书_面向多失效域的自动驾驶交互测试与修复方法.docx",
+    "sha256": "54d4e90c6e185a7c267200d6056c093d2994fd30b5b104f9e23bab69831c23ac"
+  },
+  {
+    "path": "external_resources/patents/framework_20261025/技术交底书_面向多失效域的自动驾驶交互测试与修复方法.md",
+    "sha256": "3a7a2829dab5743bc5592bbe5f2f61b10623b65d05bf2afd3ca611697dc6c906"
+  }
+]

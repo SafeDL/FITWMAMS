@@ -5,12 +5,12 @@ from pathlib import Path
 
 import torch
 
+from .error_trajectories import ErrorTrajectoryBank
+from .plan_applicability import conflict_scores, forecast_bundle, interaction_scores
 from .reaction_controller import ManeuverPhase, ReactionControllerOutput
 from .scene_geometry import torch_map_lane_geometry, torch_nearest_lane_geometry
 from .stochastic_drivers.lane_trajectory import frenet_feedback
 from .stochastic_drivers.online import NPCPolicy, nearest_leader_observation
-from .plan_applicability import conflict_scores, forecast_bundle, interaction_scores
-from .error_trajectories import ErrorTrajectoryBank
 
 
 @dataclass(frozen=True)
@@ -247,7 +247,6 @@ class TakeoverController(NPCPolicy):
                 ongoing, int(ManeuverPhase.EXECUTE), self._maneuver_phase
             )
         self._autonomous_lane_ever |= entered
-        self._autonomous_lane_initial_active |= ongoing
 
     def forward(self, context, *, deterministic=False):
         del deterministic
@@ -315,19 +314,19 @@ class TakeoverController(NPCPolicy):
         self.admission_time_s = torch.where(
             entered, self.interaction_time, self.admission_time_s
         )
-        diagnostics = dict(
-            takeover_started=entered,
-            takeover_owned=self.owned.clone(),
-            takeover_motion_changed=self.response_executed.clone(),
-            takeover_reason=reason,
-            takeover_score=score,
-            takeover_conflict_time_s=time,
-            takeover_influencer=neighbour,
-            takeover_interaction_score=self.interaction_score,
-            takeover_following_score_s=self.interaction_raw[..., 0],
-            takeover_release_score_per_s=self.interaction_raw[..., 1],
-            takeover_interaction_time_s=self.interaction_time,
-        )
+        diagnostics = {
+            "takeover_started": entered,
+            "takeover_owned": self.owned.clone(),
+            "takeover_motion_changed": self.response_executed.clone(),
+            "takeover_reason": reason,
+            "takeover_score": score,
+            "takeover_conflict_time_s": time,
+            "takeover_influencer": neighbour,
+            "takeover_interaction_score": self.interaction_score,
+            "takeover_following_score_s": self.interaction_raw[..., 0],
+            "takeover_release_score_per_s": self.interaction_raw[..., 1],
+            "takeover_interaction_time_s": self.interaction_time,
+        }
         active = self.owned & valid
         base = context.base_actions
         theta = (
@@ -376,7 +375,6 @@ class TakeoverController(NPCPolicy):
             base_actions=actions,
             planned_path_xy=None,
             planned_current_xy=None,
-            planned_terminal_xy=None,
         )
         actions, lane_active, mobil = self._autonomous_lane_response(
             no_plan,

@@ -1,0 +1,44 @@
+{
+  "observed_utc": "2026-10-23T02:18:30.944188+00:00",
+  "scope": "existing initial-prior executions only; development evidence, not final evaluation",
+  "per_round_instances": 500,
+  "within_round_instances_shared_across_methods": true,
+  "across_rounds_use_different_iid_instances": true,
+  "world_assets_unchanged": true,
+  "data": "paused_prior_diagnostics.csv",
+  "guided_collision_counts_pi0_then_pi1": {
+    "dqn": [
+      107,
+      56
+    ],
+    "ppo": [
+      13,
+      3
+    ],
+    "carl": [
+      5,
+      4
+    ],
+    "plant2": [
+      76,
+      18
+    ],
+    "diffusion_planner": [
+      26,
+      191
+    ],
+    "dtpp": [
+      21,
+      22
+    ],
+    "flow_planner": [
+      25,
+      265
+    ]
+  },
+  "material_regression_signal": [
+    "diffusion_planner",
+    "flow_planner"
+  ],
+  "additional_rollouts_or_training": 0
+}

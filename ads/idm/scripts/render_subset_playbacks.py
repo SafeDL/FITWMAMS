@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 """Render model-specific HighwayEnv playbacks for retained AMS cases."""
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,19 +10,15 @@ import imageio.v2 as imageio
 import numpy as np
 from PIL import Image, ImageDraw
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from ads.idm.src.world_model_registry import get_world_model  # noqa: E402
+from ads.idm.src.world_model_registry import get_world_model
+from hierarchical_world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    scoped_agent_valid,
+)
 from hierarchical_world_model.src.core.utils import (
     load_json,
     load_yaml,
     save_json,
-)  # noqa: E402
-from hierarchical_world_model.src.core.evaluation_scope import (  # noqa: E402
-    evaluation_scope_contract,
-    scoped_agent_valid,
 )
 
 EGO_COLOR = "#D62728"
@@ -116,9 +110,9 @@ def _diverse_tracking_npc_cases(
     subset_dir: Path, count: int, evaluator: Any, *, overwrite: bool
 ) -> list[dict[str, Any]]:
     """Screen every AMS failure and materialize semantic-diverse tail cases."""
+    from hierarchical_world_model.src.empirical_context import EmpiricalKWorldState
     from hierarchical_world_model.src.execution import rollout_world
     from hierarchical_world_model.src.randomness import WorldExogenousState
-    from hierarchical_world_model.src.empirical_context import EmpiricalKWorldState
 
     summary = load_json(subset_dir / "world_subset_summary.json")
     if (
@@ -259,7 +253,7 @@ def _diverse_tracking_npc_cases(
             "selection": "semantic-strata representatives plus score/risk/clearance coverage",
             "source_population": str(subset_dir / "world_subset_final_population.npz"),
             "failure_threshold": threshold,
-            "failure_worlds_screened": int(len(failures)),
+            "failure_worlds_screened": len(failures),
             "semantic_counts": counts,
             "cases": cases,
         },
@@ -443,7 +437,7 @@ def _render_case(
     def point(x: float, y: float, center_x: float) -> tuple[int, int]:
         pixel_x = plot_left + (x - center_x + 60.0) / 120.0 * (plot_right - plot_left)
         pixel_y = plot_bottom - (y + 8.2) / 16.4 * (plot_bottom - plot_top)
-        return int(round(pixel_x)), int(round(pixel_y))
+        return round(pixel_x), round(pixel_y)
 
     def vehicle_polygon(state: np.ndarray, center_x: float) -> list[tuple[int, int]]:
         x, y, vx, vy = (float(value) for value in state[:4])
@@ -531,7 +525,7 @@ def _render_case(
             None if first_collision is None else float(first_collision * 0.04)
         ),
         "frame_stride": int(frame_stride),
-        "playback_frames": int(len(frames)),
+        "playback_frames": len(frames),
     }
 
 
@@ -554,7 +548,7 @@ def render_subset_playbacks(
     ).resolve()
     if selection not in {"risk", "semantic_diverse", "test_sweep_diverse"}:
         raise ValueError(
-            "selection must be 'risk', 'semantic_diverse', or " "'test_sweep_diverse'"
+            "selection must be 'risk', 'semantic_diverse', or 'test_sweep_diverse'"
         )
     target_dir = (
         output_dir.resolve() if output_dir is not None else subset_dir / "playbacks"

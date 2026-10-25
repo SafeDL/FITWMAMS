@@ -1,0 +1,75 @@
+{
+  "additional_ads_executions": 0,
+  "completed_pilot_audit_sha256": "1932d562b58fba6a30e1c2d3ade23e8a4b52f5368a7590218457f80ead37a2fb",
+  "deployed_tensors_equal_to_original": 71,
+  "enhanced_CaRL_policy_delivered": false,
+  "final_cohorts_opened": false,
+  "formal_CaRL_experiment_started": false,
+  "native_loader_acceptance_sha256": "32b6bc8cd5f50615994a4a4066a9dfb919ccd76719fd8c330a0752d4b501dbe9",
+  "native_strict_loader_and_8_observation_parity_passed": true,
+  "new_PPO_decisions": 40960,
+  "nuplan_simulation_performed": false,
+  "optimizer_updates_consumed": 160,
+  "original_optimizer_and_repair_state_preserved": true,
+  "pilot_outcome": "no_accepted_enhancement",
+  "rounds": [
+    {
+      "accepted_update": false,
+      "candidate_checks": [
+        {
+          "decision_steps": 8192,
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/tail_generated/collision",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/tail_generated/collision"
+          ],
+          "highway_passed": false
+        },
+        {
+          "decision_steps": 20480,
+          "failed_checks": [
+            "official/improvement/tail_or_archive_improved",
+            "official/tail_generated/collision",
+            "previous/improvement/tail_or_archive_improved",
+            "previous/tail_generated/collision"
+          ],
+          "highway_passed": false
+        }
+      ],
+      "new_PPO_decisions": 20480,
+      "optimizer_updates": 80,
+      "policy_sha256": "7f8db6237d20077aa19871e06977a7a13ef42cba29db0b266ba67504ba7440ab",
+      "round": 1,
+      "search_executions": 5000
+    },
+    {
+      "accepted_update": false,
+      "candidate_checks": [
+        {
+          "decision_steps": 8192,
+          "failed_checks": [
+            "official/tail_generated/offroad",
+            "previous/tail_generated/offroad"
+          ],
+          "highway_passed": false
+        },
+        {
+          "decision_steps": 20480,
+          "failed_checks": [
+            "official/natural_generated/collision",
+            "previous/natural_generated/collision"
+          ],
+          "highway_passed": false
+        }
+      ],
+      "new_PPO_decisions": 20480,
+      "optimizer_updates": 80,
+      "policy_sha256": "7f8db6237d20077aa19871e06977a7a13ef42cba29db0b266ba67504ba7440ab",
+      "round": 2,
+      "search_executions": 5000
+    }
+  ],
+  "search_executions": 10000,
+  "status": "passed"
+}

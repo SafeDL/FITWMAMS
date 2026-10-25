@@ -1,16 +1,18 @@
 from copy import deepcopy
+
 import numpy as np
+
 from hierarchical_world_model.src.npc_experiments.search import (
     MAIN_COMPONENTS,
+    continuous_subset,
+    exposure_summary,
+    load_candidate,
     objective,
     paired_closed_acceptable,
-    exposure_summary,
     paired_objective_se,
     refinement_points,
-    shifted_population,
     save_candidate,
-    load_candidate,
-    continuous_subset,
+    shifted_population,
 )
 
 

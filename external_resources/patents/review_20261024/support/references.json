@@ -1,0 +1,62 @@
+[
+  [
+    "1",
+    "Mendoza J P, Unnikrishnan R, Wahal S, Zhang L. Selectively intelligent actors in simulations. WO2025090341A1，2025-05-01公开。",
+    "https://patents.google.com/patent/WO2025090341A1/en",
+    "权利要求1—3及涉及空间路径跟随、交互传播的说明书段落"
+  ],
+  [
+    "2",
+    "Suo S, Wong K, Xu J, et al. MixSim: A Hierarchical Framework for Mixed Reality Traffic Simulation. CVPR，2023。",
+    "https://waabi.ai/research/mixsim",
+    "方法中的路线条件响应策略及安全关键路线变体"
+  ],
+  [
+    "3",
+    "Lin H, Chen H, Wolff E. System and method of causal composition diffusion for closed loop traffic generation. US20260134173A1，2026-05-14公开。",
+    "https://patents.google.com/patent/US20260134173A1/en",
+    "权利要求1、20；中国同族线索CN122053616A另行核对"
+  ],
+  [
+    "4",
+    "Lin H, Huang X, Phan-Minh T, et al. Causal Composition Diffusion Model for Closed-loop Traffic Generation. CVPR，2025；arXiv:2412.17920，首版2024-12-23。",
+    "https://arxiv.org/html/2412.17920v3",
+    "第4节因果排序与组合引导；本次核对v3，2025-05-26"
+  ],
+  [
+    "5",
+    "Huang P, Ding W, Stoler B, et al. CaDRE: Controllable and Diverse Generation of Safety-Critical Driving Scenarios Using Real-World Trajectories. arXiv:2403.13208，首版2024-03-19；核对v2，2024-12-12。",
+    "https://arxiv.org/html/2403.13208v2",
+    "第III节质量—多样性定义、算法1及占用感知重启"
+  ],
+  [
+    "6",
+    "Rempe D, Philion J, Guibas L, Fidler S, Litany O. Generating Useful Accident-Prone Driving Scenarios via a Learned Traffic Prior. CVPR，2022。",
+    "https://research.nvidia.com/labs/toronto-ai/STRIVE/",
+    "潜空间事故生成、解场景优化及碰撞类型聚类"
+  ],
+  [
+    "7",
+    "白先旭，李亲，李维汉，石琴。一种自动驾驶车辆在不同安全域的测试场景创建方法。CN116361175A，2023-06-30公开。",
+    "https://patents.google.com/patent/CN116361175A/zh",
+    "权利要求1的特征分类、组合测试及安全域划分"
+  ],
+  [
+    "8",
+    "祝亚运，单文君，余福珍。基于混合专家模型的自动驾驶测试场景生成方法和系统。CN121743096A，2026-03-27公开。",
+    "https://patents.google.com/patent/CN121743096A/zh",
+    "权利要求1、10的敏感区域识别与场景参数调整"
+  ],
+  [
+    "9",
+    "Pathrudkar S, Bhaskaran S, Indla V S, et al. Realistic test scenario variation and test coverage generation for testing of autonomous vehicles. WO2025190506A2，2025-09-18公开。",
+    "https://patents.google.com/patent/WO2025190506A2/en",
+    "权利要求1—2及后续有关场景覆盖生成的权利要求"
+  ],
+  [
+    "10",
+    "Liang L, Cheng X, Chen T Y, Zheng X. From Particles to Perils: SVGD-Based Hazardous Scenario Generation for Autonomous Driving Systems Testing. PACMSE，2026；arXiv:2604.18918，2026-04-20公开。",
+    "https://arxiv.org/html/2604.18918v1",
+    "第3.2—3.3节自适应种子、危险模型及粒子排斥"
+  ]
+]

@@ -1,16 +1,17 @@
 """Admission rationale, physical side interactions, and persistent maneuver intent."""
 
 from dataclasses import replace
-import torch
+
 import pytest
+import torch
 
 from hierarchical_world_model.src.motion import motion_forecast
 from hierarchical_world_model.src.stochastic_drivers.driver_policy import (
-    physical_leader_observation,
     anticipated_entry_features,
+    physical_leader_observation,
 )
 from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
-from hierarchical_world_model.tests.traffic_context import context, THETA
+from hierarchical_world_model.tests.traffic_context import THETA, context
 
 
 def with_history(c, previous):
@@ -221,6 +222,7 @@ def test_natural_thresholds_keep_conflict_and_noncollision_budgets_separate(
 ):
     import numpy as np
     import yaml
+
     from hierarchical_world_model.scripts import calibrate_bridge as calibration
 
     monkeypatch.setattr(calibration, "ROOT", tmp_path)
@@ -228,16 +230,16 @@ def test_natural_thresholds_keep_conflict_and_noncollision_budgets_separate(
     directory = tmp_path / "hierarchical_world_model"
     directory.mkdir()
     (directory / "config.yaml").write_text(yaml.safe_dump({"takeover": {}}))
-    train = dict(
-        rows=np.arange(20),
-        valid=np.ones((20, 1), bool),
-        interaction=np.ones((20, 1, 2), np.float32),
-    )
-    val = dict(
-        rows=np.arange(1000),
-        conflict=np.zeros((1000, 1), np.float32),
-        interaction=np.zeros((1000, 1, 2), np.float32),
-    )
+    train = {
+        "rows": np.arange(20),
+        "valid": np.ones((20, 1), bool),
+        "interaction": np.ones((20, 1, 2), np.float32),
+    }
+    val = {
+        "rows": np.arange(1000),
+        "conflict": np.zeros((1000, 1), np.float32),
+        "interaction": np.zeros((1000, 1, 2), np.float32),
+    }
     val["conflict"][:4] = 1
     val["interaction"][:, 0, 0] = np.arange(1000)
     result = calibration.select(train, val)

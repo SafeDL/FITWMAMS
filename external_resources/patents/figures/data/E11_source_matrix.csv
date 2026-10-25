@@ -1,0 +1,8 @@
+interaction_type,root_01,root_02,root_03,root_04,root_05,root_06,root_07,root_08,root_09,root_10,root_11,root_12
+front_tracking,3,3,5,2,3,3,4,2,4,3,6,13
+rear_owned,19,19,16,19,17,17,14,17,14,15,11,4
+rear_tracking,0,0,0,0,0,0,1,0,0,0,0,0
+adjacent_tracking,0,0,0,0,0,0,0,0,0,0,0,0
+offroad_right,0,0,0,0,0,0,0,0,0,0,0,0
+adjacent_owned,0,0,0,0,0,0,0,0,0,0,0,0
+front_owned,0,0,0,0,0,0,0,0,0,0,0,0

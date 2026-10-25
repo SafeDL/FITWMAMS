@@ -1,0 +1,305 @@
+{
+  "date": "2026-10-24",
+  "figures": [
+    {
+      "stem": "E01_natural_event",
+      "title": "自然驾驶事件与关键风险时刻",
+      "caption": "从存在严格切入、至少三个有效背景位置且未跟踪车辆未超过已跟踪峰值风险的片段中，按事件风险降序选取首例；道路视图按各时刻主车纵向位置平移，保持实际空间比例。risk_trace是截至当前时刻的峰值加暴露项，不是瞬时风险；虚线时刻取原始事件表的瞬时风险峰值。",
+      "requirements": [
+        "E01"
+      ],
+      "event_id": "nat_25_001243_012870",
+      "row": 31209,
+      "focus_slot": 1,
+      "frames": [
+        0,
+        13,
+        75,
+        149
+      ],
+      "event_risk": 1.0443952083587646,
+      "instant_peak_frame": 13
+    },
+    {
+      "stem": "E02_reference_execution",
+      "title": "稀疏结点、参考生成与实际执行",
+      "caption": "案例0，背景位置1。参考来自既有真实结点条件下的确定性扩散计划；下排为各轨迹相对插值基准的位置差，不是预测误差。",
+      "requirements": [
+        "E02"
+      ],
+      "case": 0,
+      "event_id": "nat_04_000417_009582",
+      "actor": 1,
+      "seed": 20261015,
+      "knots_s": [
+        0.0,
+        2.0,
+        4.0,
+        5.96
+      ]
+    },
+    {
+      "stem": "E03_natural_replay",
+      "title": "自然回放的轨迹保持",
+      "caption": "左图为案例0的背景车逐时平均位移误差，主车不参与；右图为有背景车场景的场景平均误差经验分布，响应臂先在同场景内平均随机实现。自然报告包含原全量运行和后续回归复用，不属于重新盲测。",
+      "requirements": [
+        "E03"
+      ],
+      "scene_count": 9841,
+      "example_case": 0
+    },
+    {
+      "stem": "E04_reference_retention",
+      "title": "无干预与自由行驶下的参考保持",
+      "caption": "左列为无干预案例0，右列为自由行驶案例50；每列分别比较同一刺激下的参考跟踪与响应执行，所选关注车辆均未接管。两列不是相同初态的配对样本。",
+      "requirements": [
+        "E04"
+      ],
+      "cases": [
+        0,
+        50
+      ],
+      "seed": 20261015
+    },
+    {
+      "stem": "E05_braking_response",
+      "title": "主车制动后的跟驰响应",
+      "caption": "道路视图为响应臂实际状态，虚线包围框和轨迹为同一刺激下参考跟踪臂的关注车辆；下方为真实执行曲线。主车受脚本控制。首次碰撞时刻按碰撞后状态索引对应的物理时刻标记。",
+      "requirements": [
+        "E05"
+      ],
+      "case": 1,
+      "event_id": "nat_04_000417_009582",
+      "actor": 1,
+      "seed": 20261015,
+      "handover_s": 3.84,
+      "onset_s": 1.0,
+      "any_collision": false,
+      "ego_collision": false,
+      "first_collision_s": null,
+      "snapshot_frames": [
+        86,
+        114
+      ]
+    },
+    {
+      "stem": "E06_leader_release",
+      "title": "前车离开原车道后的背景响应",
+      "caption": "道路视图为响应臂实际状态，虚线包围框和轨迹为同一刺激下参考跟踪臂的关注车辆；下方为真实执行曲线。主车受脚本控制。首次碰撞时刻按碰撞后状态索引对应的物理时刻标记。",
+      "requirements": [
+        "E06"
+      ],
+      "case": 3,
+      "event_id": "nat_04_000417_009582",
+      "actor": 1,
+      "seed": 20261015,
+      "handover_s": 2.2800000000000002,
+      "onset_s": 1.0,
+      "any_collision": true,
+      "ego_collision": true,
+      "first_collision_s": 2.48,
+      "snapshot_frames": [
+        47,
+        75
+      ]
+    },
+    {
+      "stem": "E07_lateral_response",
+      "title": "目标车道车辆的交互响应",
+      "caption": "道路视图为响应臂实际状态，虚线包围框和轨迹为同一刺激下参考跟踪臂的关注车辆；下方为真实执行曲线。主车受脚本控制。首次碰撞时刻按碰撞后状态索引对应的物理时刻标记。",
+      "requirements": [
+        "E07"
+      ],
+      "case": 3,
+      "event_id": "nat_04_000417_009582",
+      "actor": 5,
+      "seed": 20261015,
+      "handover_s": 1.2,
+      "onset_s": 1.0,
+      "any_collision": true,
+      "ego_collision": true,
+      "first_collision_s": 2.48,
+      "snapshot_frames": [
+        20,
+        48
+      ]
+    },
+    {
+      "stem": "E08_maneuver_handover",
+      "title": "已开始换道的接管与机动承接",
+      "caption": "案例28，关注背景位置1；接管记录在2.60秒记载换道已开始，进度0.854。曲线显示实际位置、速度及控制动作，保留该回合后续碰撞时刻；未补画未保存的连续进度或重置换道对照。",
+      "requirements": [
+        "E08"
+      ],
+      "case": 28,
+      "seed": 20261015,
+      "event_id": "nat_21_000186_003789",
+      "actor": 1,
+      "handover_s": 2.6,
+      "logged_progress": 0.8540358543395996,
+      "first_collision_s": 5.5200000000000005
+    },
+    {
+      "stem": "E09_handover_timing",
+      "title": "接管状态与实际运动改变的逐步记录",
+      "caption": "案例1，关注背景位置1；横轴为控制器调用时标。运动改变标记检查上一物理步已执行动作，两个标记的首次记录索引差不解释为物理响应延迟。",
+      "requirements": [
+        "E09"
+      ],
+      "case": 1,
+      "actor": 1,
+      "seed": 20261015,
+      "first_owned_index": 96,
+      "first_motion_changed_index": 97
+    },
+    {
+      "stem": "E11_interaction_sources",
+      "title": "实际交互类别与抽样来源",
+      "caption": "使用已完成开发搜索的5000条执行记录，按实例哈希去重；左图为全部去重实例类别，右图按实例数选取前12个来源，同行来源跨类别统一编号。类别中的“接管”是控制权状态。此图为观察计数，不是联合名额分配或完整失效域识别结果。",
+      "requirements": [
+        "E11"
+      ],
+      "raw_records": 5000,
+      "unique_instances": 5000,
+      "source_ranking": "instance_count_desc_then_root_id",
+      "root_count": 3000
+    },
+    {
+      "stem": "E14_runtime",
+      "title": "不同背景车辆数量下的执行耗时",
+      "caption": "分别绘制桥接与完整世界更新分位统计。各配置2831步，共8493步；桥接计时包含于世界更新，不相加。不包含ADS计算，40毫秒线为物理步长。",
+      "requirements": [
+        "E14"
+      ],
+      "physical_steps": 8493,
+      "ADS_compute_included": false,
+      "physical_step_ms": 40
+    }
+  ],
+  "skipped": [
+    {
+      "requirement": "E10",
+      "reason": "已有一般生成搜索父子记录，但固定自然事件及非选中输入一致性证据尚未完成，不绘制固定事件风险配对图。"
+    },
+    {
+      "requirement": "E12",
+      "reason": "所核对搜索档案保留输入及执行摘要，缺少用于该图的原始完整逐帧闭环轨迹；按用户要求跳过，不启动重放。"
+    },
+    {
+      "requirement": "E13",
+      "reason": "缺少原运行与重放的成对轨迹证据；跳过，不启动重放。"
+    },
+    {
+      "requirement": "E15",
+      "reason": "跨类别联合名额分配尚无完整实际分配与后续调用日志。"
+    },
+    {
+      "requirement": "E16",
+      "reason": "尚无本案完整联合流程的同预算比较和消融结果。"
+    }
+  ],
+  "sources": [
+    {
+      "path": "results/hierarchical_world_model/bridge/intervention_traces.npz",
+      "bytes": 9103253,
+      "mtime_ns": 1792329996608377860,
+      "sha256": "9df83cdacdd97353a8bdf154ee35c1e13c17595baeed3adfa87bbc004440c041"
+    },
+    {
+      "path": "results/hierarchical_world_model/bridge/intervention_cases.json",
+      "bytes": 22786,
+      "mtime_ns": 1792330088068718461,
+      "sha256": "7903e34abe88d367ed0f25006b033314cb22636d7f8446740cda86db8502fcb1"
+    },
+    {
+      "path": "results/hierarchical_world_model/bridge/interventions.json",
+      "bytes": 418220,
+      "mtime_ns": 1792330085885686896,
+      "sha256": "dc1c0e6af4b4364b1efc8a6389f6b58f4f91e961cb375164d0d7ecca91513441"
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/agent_states.npy",
+      "bytes": 2807879888,
+      "mtime_ns": 1791109780841707399
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/agent_valid.npy",
+      "bytes": 116995118,
+      "mtime_ns": 1791109780872707832
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/sequence_id.npy",
+      "bytes": 36885248,
+      "mtime_ns": 1791109780130697470,
+      "sha256": "39433ca1623732835f74e8681a831476bd305fdbfc8966c64050adcedd482797"
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/map_polylines.npy",
+      "bytes": 147540608,
+      "mtime_ns": 1791109780910708363
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/map_polyline_valid.npy",
+      "bytes": 6147648,
+      "mtime_ns": 1791109780911708377,
+      "sha256": "3a87e3e43ec85a31b21ed48e50629f603f0ba38dbba8aa776daec9b9aeada582"
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/vehicle_dimensions.npy",
+      "bytes": 5379208,
+      "mtime_ns": 1791109780921708516,
+      "sha256": "250b17aedcd1c928cffca827c8e91a456c4ce24577eeb48733d0bc8acb34a516"
+    },
+    {
+      "path": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache/manifest.json",
+      "bytes": 1325,
+      "mtime_ns": 1791109781097710974,
+      "sha256": "0fc9bdb2200b3db1eb1749967f6b05e05223525d037e4318c3af3f0eea0f6397"
+    },
+    {
+      "path": "results/evt/natural_segments.csv",
+      "bytes": 21509983,
+      "mtime_ns": 1791108115713989861,
+      "sha256": "883bd001910827d29d9f1a042d325f8ce2869278301893c8de458e9fc6aac823"
+    },
+    {
+      "path": "results/evt/natural_risk_traces.npz",
+      "bytes": 6417849,
+      "mtime_ns": 1791108115907991884,
+      "sha256": "284cad0da00f75fa1ea14c81499cdd422947c52b010e9c9673ef1cae49391df9"
+    },
+    {
+      "path": "results/highd_shared_training_data/scenario_conditions/dataset.npz",
+      "bytes": 30514284,
+      "mtime_ns": 1791272000315982551,
+      "sha256": "a5cc0837f00f1814ad4f45151ad6f8d31723edb7569d23d3ba200a605ec58530"
+    },
+    {
+      "path": "results/hierarchical_world_model/bridge/natural_records.json.gz",
+      "bytes": 1426874,
+      "mtime_ns": 1792329995967368326,
+      "sha256": "5680d6f253abef0f4cdbae0afa5f0b49772074155344f811e6b92608ba3e2391"
+    },
+    {
+      "path": "results/risk_stratified_repair/development/diffusion_planner_functional/diffusion_planner/20260926/guided/round_1/search.jsonl",
+      "bytes": 7415555,
+      "mtime_ns": 1792831881412856800,
+      "sha256": "8fedb90555adfff3319384d8ab7a2f1e167af0c47fb42ec75c9d5d6685b755b4"
+    },
+    {
+      "path": "results/hierarchical_world_model/bridge/latency.json",
+      "bytes": 1314,
+      "mtime_ns": 1792328312805717154,
+      "sha256": "5ecefc8b77ec0b169c714e25c70264cd54fba558911d38793e0f0c6569507729"
+    }
+  ],
+  "model_executions_started": false,
+  "training_started": false,
+  "rendering": "matplotlib from existing numeric outputs",
+  "font": "Droid Sans Fallback (Chinese) / Liberation Serif (Latin and digits)",
+  "formats": [
+    "png_300dpi"
+  ],
+  "script": "external_resources/patents/figures/scripts/draw_engineering_patent.py",
+  "format_updated": "2026-10-25"
+}

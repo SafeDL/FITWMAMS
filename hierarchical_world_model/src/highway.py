@@ -11,12 +11,13 @@ import numpy as np
 import torch
 
 from tools.idm_ego import IDM_PARAMETER_KEYS
+
+from .config import WorldModelConfig
 from .core.dynamics import HIGHD_INTEGRATION_SPEED_MAX_MPS
 from .influence_graph import build_dynamic_interaction_relations
 from .reaction_controller import ReactionControllerContext
 from .scene_geometry import SceneGeometry, VehicleDimensions
 from .tracking import TrackingConfig, tracking_actions, tracking_reference
-from .config import WorldModelConfig
 
 HIGHWAY_ENV_DYNAMICS_CONTRACT = "kinematic_unicycle_on_highwayenv_road"
 
@@ -772,13 +773,13 @@ class HighwayEnvClosedLoopWorld:
 
     def observe(self):
         states, valid = self._require()
-        return dict(
-            agent_states=states.detach().clone(),
-            agent_valid=valid.detach().clone(),
-            map_polylines=self.map_polylines.clone(),
-            map_polyline_valid=self.map_polyline_valid.clone(),
-            reference_index=self.reference_index,
-        )
+        return {
+            "agent_states": states.detach().clone(),
+            "agent_valid": valid.detach().clone(),
+            "map_polylines": self.map_polylines.clone(),
+            "map_polyline_valid": self.map_polyline_valid.clone(),
+            "reference_index": self.reference_index,
+        }
 
     def _controller_context(self, actions):
         index = min(self.reference_index, self.reference.shape[1] - 1)
@@ -797,7 +798,6 @@ class HighwayEnvClosedLoopWorld:
             planned_current_xy=(
                 self.reference_base if index == 0 else self.reference[:, index - 1]
             ),
-            planned_terminal_xy=self.reference[:, -1],
             planned_path_xy=self.reference,
             map_polylines=self.map_polylines,
             map_polyline_valid=self.map_polyline_valid,

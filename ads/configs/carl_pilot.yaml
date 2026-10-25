@@ -1,0 +1,78 @@
+# CaRL guided pilot; common frozen scenes, official nuPlan initialization.
+output_dir: results/risk_stratified_repair/development/carl
+master_seed: 20260926
+seeds:
+- 20260926
+algorithms:
+- carl
+methods:
+- guided
+rounds: 2
+runtime:
+  device: cuda
+  world_device: cpu
+  torch_threads: 1
+  generation_batch_size: 32
+world_config: hierarchical_world_model/config.yaml
+evt_model: results/evt/evt_model.json
+ddim_steps: 20
+repair:
+  normal_instances: 512
+  rl_steps: 20480
+  plant_updates: 1000
+  plant_normal_teacher_instances: 32
+  plant_new_teacher_instances: 32
+  plant_batch_size: 64
+  micro_batch_sizes:
+    str2: 1
+  plant_micro_batch_size: 8
+  plant_learning_rate: 1.0e-05
+teacher:
+  candidate_budget: 128
+search:
+  budget: 5000
+  batch_size: 250
+  generation_batch_size: 32
+  initial_samples: 500
+  fresh_samples: 500
+  branch_check_budget: 500
+  graph_size: 12
+  replay_limit: 256
+  elite_fraction: 0.1
+  beta: 0.2
+  joint_fraction: 0.2
+  subset_max_levels: 8
+  terminal_proposals: 250
+  archive_capacity: 16
+  archive_root_limit: 4
+  fixed_budget: true
+evaluation:
+  instances: 2000
+  bootstrap_replicates: 10000
+  natural_flow_checkpoint: results/natural_flow/checkpoints/scenario_flow.pt
+  natural_dataset: results/highd_shared_training_data/scenario_conditions/dataset.npz
+  natural_segments: results/evt/natural_segments.csv
+  sequence_cache: results/highd_shared_training_data/highd_sequence_cache/sequence_cache
+carl:
+  rollout_steps: 4096
+  batch_size: 1024
+  micro_batch_size: 128
+  epochs: 4
+  learning_rate: 2.5e-05
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.1
+  value_coefficient: 0.5
+  entropy_coefficient: 0.01
+run_kind: pilot
+manual_nuplan:
+  output_dir: results/risk_stratified_repair_manual_nuplan
+  automatic_evaluation: false
+capability_preserving_repair:
+  retention_coefficient: 1.0
+  native_materials: /media/hp/DATA/nuplan_workspace/preparation/retention/carl/materials.json
+  keep_candidates: 512
+  development_tail: 500
+  development_natural: 500
+  nuplan_validation: manual_by_user
+  minimum_progress_ratio: 0.98

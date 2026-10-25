@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any
 
 import numpy as np
 import torch
 
+from hierarchical_world_model.src.core.evaluation_scope import scoped_agent_valid
 from process_highD.src.safety_envelope_risk import (
     SafetyEnvelopeRiskOptions,
     pairwise_safety_envelope_intrusion,
@@ -18,7 +20,6 @@ from tools.evt import GPDTailModel
 
 from .composition import HierarchicalWorldSampler, SampledWorldBatch
 from .randomness import WorldExogenousState
-from hierarchical_world_model.src.core.evaluation_scope import scoped_agent_valid
 
 ADSActionPolicy = Callable[[dict[str, torch.Tensor | int]], torch.Tensor | np.ndarray]
 

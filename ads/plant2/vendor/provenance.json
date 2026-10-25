@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/autonomousvision/plant2",
+  "commit": "6269e5a43c6f6b984d2bd97e3ec4a025ebefbeef",
+  "adaptations": [
+    "disable redundant ResNet ImageNet download; full official checkpoint supplies those parameters",
+    "select eager BERT attention explicitly; upstream requests attention maps and otherwise falls back to the same implementation"
+  ]
+}

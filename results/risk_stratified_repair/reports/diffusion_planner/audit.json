@@ -1,0 +1,9 @@
+{
+  "cohort_instances": 2000,
+  "deep": true,
+  "final_executions": 24000,
+  "protocol_hash": "da5233afb952054b315a486f5151408b5ef7ab8d9d480ada9e8a78416725093a",
+  "search_executions": 30000,
+  "status": "passed",
+  "training_units": 7
+}

@@ -2,9 +2,9 @@
 
 import torch
 
-from .idm_population import torch_idm
-from ..motion import observed_acceleration, advance_motion
+from ..motion import advance_motion, observed_acceleration
 from ..scene_geometry import paired_rectangle_separation
+from .idm_population import torch_idm
 
 
 def body_relations(states, dimensions):

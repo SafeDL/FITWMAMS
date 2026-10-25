@@ -1,0 +1,164 @@
+{
+  "actual_gradient_updates": 3000,
+  "additional_ads_executions": 0,
+  "common_training_seed": 3012315301,
+  "effective_batch": 64,
+  "final_cohorts_opened": false,
+  "methods": {
+    "guided": {
+      "actual_gradient_updates": 1000,
+      "additional_ads_executions": 0,
+      "base_cumulative_adam_step": 500,
+      "base_policy_sha256": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603",
+      "candidates": [
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "f2ca3efd6f94b24a9eaa827993d7b0b59feae453e05eaa119963bb45be6028df",
+          "cumulative_adam_step": 1000,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 500,
+          "optimizer_states": 38
+        },
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "383bc8d5cc96398a440b960eb9042c5e74cf754fecb835b2ca80f230a92690de",
+          "cumulative_adam_step": 1500,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 1000,
+          "optimizer_states": 38
+        }
+      ],
+      "category_samples": {
+        "history": 3192,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 4727,
+        "normal": 8081
+      },
+      "effective_batch": 64,
+      "final_cohorts_opened": false,
+      "finite_loss_records": 1000,
+      "method": "guided",
+      "objective_samples": {
+        "native_supervision": 39838,
+        "original_retention": 48000,
+        "successful_retention": 8162
+      },
+      "optimization_sha256": "03bd5a932893cae62734a72ba2eaa69a58cd560a42f7ced4aa6d225adafa51e4",
+      "recorded_utc": "2026-10-24T23:31:44.824247+00:00",
+      "round": 2,
+      "scope": "Completed formal second-round optimization and candidate states; admission pending",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 3012315301
+    },
+    "monte_carlo": {
+      "actual_gradient_updates": 1000,
+      "additional_ads_executions": 0,
+      "base_cumulative_adam_step": 500,
+      "base_policy_sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db",
+      "candidates": [
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "8c2ea862aeb7865601c604d93e9edc12b4d7372b078dcb5abaf079ac68892fe9",
+          "cumulative_adam_step": 1000,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 500,
+          "optimizer_states": 38
+        },
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "2195cafdfb573ae6a14369f0a70b64a3b16a36b2f08fc9df9ae9cd36497125df",
+          "cumulative_adam_step": 1500,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 1000,
+          "optimizer_states": 38
+        }
+      ],
+      "category_samples": {
+        "history": 3278,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 4767,
+        "normal": 7955
+      },
+      "effective_batch": 64,
+      "final_cohorts_opened": false,
+      "finite_loss_records": 1000,
+      "method": "monte_carlo",
+      "objective_samples": {
+        "native_supervision": 40515,
+        "original_retention": 48000,
+        "successful_retention": 7485
+      },
+      "optimization_sha256": "a6ad12ba985d5fbb881b9a12edea001e6c3320eddad02c2374ced2859bb0c2c5",
+      "recorded_utc": "2026-10-24T22:50:37.180649+00:00",
+      "round": 2,
+      "scope": "Actual completed MC second-round optimization and saved candidate states; admission still pending",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 3012315301
+    },
+    "subset": {
+      "actual_gradient_updates": 1000,
+      "additional_ads_executions": 0,
+      "base_cumulative_adam_step": 500,
+      "base_policy_sha256": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83",
+      "candidates": [
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "64aa47013596f5be2a0793deb6dbac0e615f595529cb224994d851137453de08",
+          "cumulative_adam_step": 1000,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 500,
+          "optimizer_states": 38
+        },
+        {
+          "changed_ema_tensors": 38,
+          "changed_raw_tensors": 38,
+          "checkpoint_sha256": "a8a7fc45dcf8349ba092493991120e497d06ca762331a971ba1293e6f9ba1b2c",
+          "cumulative_adam_step": 1500,
+          "frozen_state_tensors_exact": 238,
+          "gradient_updates_this_round": 1000,
+          "optimizer_states": 38
+        }
+      ],
+      "category_samples": {
+        "history": 3278,
+        "keep": 16000,
+        "native": 32000,
+        "new_failure": 4767,
+        "normal": 7955
+      },
+      "effective_batch": 64,
+      "final_cohorts_opened": false,
+      "finite_loss_records": 1000,
+      "method": "subset",
+      "objective_samples": {
+        "native_supervision": 40515,
+        "original_retention": 48000,
+        "successful_retention": 7485
+      },
+      "optimization_sha256": "440207a0956c8e8da6f97c781da4aeeda15c138c457b5f6b87e7500f213ea36d",
+      "recorded_utc": "2026-10-24T23:11:37.853983+00:00",
+      "round": 2,
+      "scope": "Completed formal second-round optimization and candidate states; admission pending",
+      "status": "passed",
+      "teacher_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "trainable_parameters": 1585860,
+      "trainable_tensors": 38,
+      "training_seed": 3012315301
+    }
+  },
+  "scope": "All formal second-round optimization units",
+  "status": "passed"
+}

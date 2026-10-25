@@ -42,8 +42,6 @@ subset_simulation:
     - diffusion_noise  # changing it rebuilds the 149-frame Diffusion plan
     - driver_latent
     - maneuver_latent
-    - scene_innovations
-    - agent_response_innovations
     - policy_response_innovations
     - policy_calibration_innovations
   pcn_beta: 0.20

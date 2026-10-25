@@ -1,10 +1,12 @@
 from dataclasses import replace
+
 import torch
+
 from hierarchical_world_model.src.config import WorldModelConfig
-from hierarchical_world_model.src.reaction_controller import ReactionControllerContext
 from hierarchical_world_model.src.influence_graph import (
     build_dynamic_interaction_relations,
 )
+from hierarchical_world_model.src.reaction_controller import ReactionControllerContext
 
 THETA = torch.tensor([33.0, 2.0, 1.2, 1.4, 2.0]).expand(6, -1).clone()
 
@@ -32,7 +34,6 @@ def context():
         base_actions=base,
         cfg=WorldModelConfig(),
         planned_current_xy=states[:, 1:, :2],
-        planned_terminal_xy=path[:, -1],
         planned_path_xy=path,
         map_polylines=maps,
         map_polyline_valid=map_valid,

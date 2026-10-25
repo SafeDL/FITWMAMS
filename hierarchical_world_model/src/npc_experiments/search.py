@@ -1,52 +1,53 @@
 """Paired, finite-budget driver refinement on actual HighwayEnv rollouts."""
 
-from ..stochastic_drivers.response_data import load_response
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import nullcontext
 from copy import deepcopy
 from multiprocessing import get_context
 from pathlib import Path
-from contextlib import nullcontext
 
 import numpy as np
 import pandas as pd
 from scipy.stats import qmc
 
-from .metrics import (
-    FEATURE_EDGES,
-    hellinger,
-)
+from process_highD.src.io_utils import load_config, resolve_data_path
+
 from ..core.utils import (
     load_json,
     save_json,
 )
 from ..data import artifact_identity
+from ..stochastic_drivers.idm_population import LOWER, UPPER
+from ..stochastic_drivers.raw_data import (
+    BEHAVIOR_PROTOCOL,
+    DRIVER_DATA_DIR,
+    load_lane_opportunities,
+)
+from ..stochastic_drivers.response_data import load_response
 from .calibration import (
     compact_population,
     conditional_metrics,
     fit_correction,
 )
+from .lateral import (
+    EVENT_FIELDS,
+    event_histograms,
+    lane_events,
+    lateral_distances,
+)
+from .metrics import (
+    FEATURE_EDGES,
+    hellinger,
+)
 from .residual import (
     autoregression_parameters,
     temporal_statistics,
-)
-from ..stochastic_drivers.raw_data import (
-    DRIVER_DATA_DIR,
-    BEHAVIOR_PROTOCOL,
-    load_lane_opportunities,
 )
 from .road import (
     road_cohorts,
     simulate_road,
     traffic_statistics,
 )
-from .lateral import (
-    EVENT_FIELDS,
-    lane_events,
-    event_histograms,
-    lateral_distances,
-)
-from ..stochastic_drivers.idm_population import LOWER, UPPER
-from process_highD.src.io_utils import load_config, resolve_data_path
 
 ROOT = Path(__file__).resolve().parents[3]
 SEED = 20261012
@@ -753,7 +754,7 @@ def state_subset(data, fraction, lane=False):
     stops = np.r_[starts[1:], len(order)]
     chosen = np.concatenate(
         [
-            order[start : stop : int(round(1 / fraction))]
+            order[start : stop : round(1 / fraction)]
             for start, stop in zip(starts, stops)
         ]
     )
@@ -777,7 +778,7 @@ def continuous_subset(data, fraction):
     stops = np.r_[starts[1:], len(order)]
     chosen = np.concatenate(
         [
-            order[start : stop : int(round(1 / fraction))]
+            order[start : stop : round(1 / fraction)]
             for start, stop in zip(starts, stops)
         ]
     )
@@ -881,8 +882,9 @@ def paired_objective_se(first, second, weights):
 
 def refinement_points(center, bounds, round_index, count):
     half_width = np.diff(bounds, axis=1)[:, 0] / (4 * 2**round_index)
-    lower, upper = np.maximum(bounds[:, 0], center - half_width), np.minimum(
-        bounds[:, 1], center + half_width
+    lower, upper = (
+        np.maximum(bounds[:, 0], center - half_width),
+        np.minimum(bounds[:, 1], center + half_width),
     )
     points = qmc.Sobol(len(center), scramble=True, seed=SEED + 10 + round_index).random(
         count

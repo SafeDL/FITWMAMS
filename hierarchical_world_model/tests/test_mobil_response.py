@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import torch
 
-from hierarchical_world_model.src.influence_graph import build_dynamic_interaction_relations
+from hierarchical_world_model.src.influence_graph import (
+    build_dynamic_interaction_relations,
+)
 from hierarchical_world_model.src.stochastic_drivers.mobil_response import (
     evaluate_mobil_candidates,
 )
-
 
 THETA = torch.tensor([33.0, 2.0, 1.2, 1.4, 2.0]).view(1, 1, 5).expand(1, 6, 5)
 

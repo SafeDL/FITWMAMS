@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """Paired scripted Test interventions under the frozen bridge parameters."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -12,9 +11,9 @@ sys.path.insert(0, str(ROOT))
 
 from hierarchical_world_model.src import bridge_evaluation as experiment
 from hierarchical_world_model.src.core.utils import (
+    file_sha256,
     load_yaml,
     save_json,
-    file_sha256,
 )
 from hierarchical_world_model.src.data import ego_controls
 from hierarchical_world_model.src.scene_geometry import torch_map_lane_geometry
@@ -37,7 +36,7 @@ def select_cases():
     states = torch.tensor(np.asarray(arrays["agent_states"][rows, 24 + ONSET]))
     valid = torch.tensor(np.asarray(arrays["agent_valid"][rows, 24 + ONSET]))
     dimensions = torch.tensor(np.asarray(arrays["vehicle_dimensions"][rows]))
-    gap, speed, _, leader = physical_leader_observation(states, valid, dimensions)
+    _gap, speed, _, leader = physical_leader_observation(states, valid, dimensions)
     lanes, present, _ = torch_map_lane_geometry(
         torch.tensor(np.asarray(arrays["map_polylines"][rows])),
         torch.tensor(np.asarray(arrays["map_polyline_valid"][rows])),
@@ -111,7 +110,7 @@ def select_cases():
                     )
             candidates.sort()
             allocation.append(
-                dict(recording=int(rec), family=family, eligible=len(candidates))
+                {"recording": int(rec), "family": family, "eligible": len(candidates)}
             )
             if not candidates:
                 continue
@@ -123,54 +122,54 @@ def select_cases():
             )
             for kind in kinds:
                 specs.append(
-                    dict(
-                        case=len(specs),
-                        row=row,
-                        index=int(index),
-                        recording=int(rec),
-                        sequence_id=str(arrays["sequence_id"][row]),
-                        family=family,
-                        kind=kind,
-                        actor=actor - 1,
-                        onset_frame=ONSET,
-                        onset_s=1.0,
-                        target_y=target_y,
-                        source_y=source_y,
-                        initial_headway_s=headway,
-                        brake_dose={0: 0, 1: 4, 2: 8}[int(rec) % 3],
-                    )
+                    {
+                        "case": len(specs),
+                        "row": row,
+                        "index": int(index),
+                        "recording": int(rec),
+                        "sequence_id": str(arrays["sequence_id"][row]),
+                        "family": family,
+                        "kind": kind,
+                        "actor": actor - 1,
+                        "onset_frame": ONSET,
+                        "onset_s": 1.0,
+                        "target_y": target_y,
+                        "source_y": source_y,
+                        "initial_headway_s": headway,
+                        "brake_dose": {0: 0, 1: 4, 2: 8}[int(rec) % 3],
+                    }
                 )
     # An existing natural free-flow case illustrates removal of the old trigger.
     index = int(np.flatnonzero(rows == 24319)[0])
     specs.append(
-        dict(
-            case=len(specs),
-            row=24319,
-            index=index,
-            recording=21,
-            sequence_id=str(arrays["sequence_id"][24319]),
-            family="free_flow",
-            kind="free_flow",
-            actor=1,
-            onset_frame=ONSET,
-            onset_s=1.0,
-            target_y=0.0,
-            source_y=0.0,
-            brake_dose=0,
-        )
+        {
+            "case": len(specs),
+            "row": 24319,
+            "index": index,
+            "recording": 21,
+            "sequence_id": str(arrays["sequence_id"][24319]),
+            "family": "free_flow",
+            "kind": "free_flow",
+            "actor": 1,
+            "onset_frame": ONSET,
+            "onset_s": 1.0,
+            "target_y": 0.0,
+            "source_y": 0.0,
+            "brake_dose": 0,
+        }
     )
     save_json(
-        dict(
-            cases=specs,
-            allocation=allocation,
-            selection="One speed-matched close follower and one adjacent rear vehicle per Test recording, closest to 0.7 s headway; chosen before outcomes. Road/plan eligibility counts retained.",
-            intended_scope="Illustrative mechanism checks, not population performance estimates or parameter selection",
-            protocols=dict(
-                braking="Existing held-out doses -1.5/-3/-6 m/s2 for 0.8/1.6/2.4 s",
-                acceleration="+4 m/s2 for 2 s, capped by the existing physical action limit",
-                lateral="2 s quintic displacement to an adjacent mapped lane; all controls recovered once, then executed open-loop",
-            ),
-        ),
+        {
+            "cases": specs,
+            "allocation": allocation,
+            "selection": "One speed-matched close follower and one adjacent rear vehicle per Test recording, closest to 0.7 s headway; chosen before outcomes. Road/plan eligibility counts retained.",
+            "intended_scope": "Illustrative mechanism checks, not population performance estimates or parameter selection",
+            "protocols": {
+                "braking": "Existing held-out doses -1.5/-3/-6 m/s2 for 0.8/1.6/2.4 s",
+                "acceleration": "+4 m/s2 for 2 s, capped by the existing physical action limit",
+                "lateral": "2 s quintic displacement to an adjacent mapped lane; all controls recovered once, then executed open-loop",
+            },
+        },
         OUTPUT / "intervention_cases.json",
     )
     return specs
@@ -272,37 +271,37 @@ def intervention_regression(config, specs):
         original = [
             r for r in results if r["arm"] == "tracker" and r["stimulus"] == kind
         ]
-        summaries[kind] = dict(
-            cases=len(original),
-            bridge_runs=len(new),
-            admitted_runs=sum(r["takeovers"] > 0 for r in new),
-            vehicle_takeovers=sum(r["takeovers"] for r in new),
-            reasons={
+        summaries[kind] = {
+            "cases": len(original),
+            "bridge_runs": len(new),
+            "admitted_runs": sum(r["takeovers"] > 0 for r in new),
+            "vehicle_takeovers": sum(r["takeovers"] for r in new),
+            "reasons": {
                 name: sum(e["reason"] == code for r in new for e in r["events"])
                 for code, name in experiment.REASONS.items()
             },
-            tracker_collision_cases=sum(r["any_collision"] for r in original),
-            bridge_collision_runs=sum(r["any_collision"] for r in new),
-            introduced_collision_pairs=sum(
+            "tracker_collision_cases": sum(r["any_collision"] for r in original),
+            "bridge_collision_runs": sum(r["any_collision"] for r in new),
+            "introduced_collision_pairs": sum(
                 r["any_collision"] and not base[r["case"]]["any_collision"] for r in new
             ),
-            resolved_collision_pairs=sum(
+            "resolved_collision_pairs": sum(
                 not r["any_collision"] and base[r["case"]]["any_collision"] for r in new
             ),
-        )
-    result = dict(
-        complete=True,
-        parameters=config["takeover"],
-        cases=len(specs),
-        runs=len(results),
-        seeds=list(SEEDS),
-        summary=summaries,
-        records=results,
-        artificially_intervened_ego=True,
-        real_ADS_policy=False,
-        parameters_fitted_on_these_cases=False,
-        interpretation="Scripted Test mechanisms; all selected outcomes retained. Collisions are outcomes, not the takeover objective. No response-success rate or necessity label inferred from collision counts.",
-    )
+        }
+    result = {
+        "complete": True,
+        "parameters": config["takeover"],
+        "cases": len(specs),
+        "runs": len(results),
+        "seeds": list(SEEDS),
+        "summary": summaries,
+        "records": results,
+        "artificially_intervened_ego": True,
+        "real_ADS_policy": False,
+        "parameters_fitted_on_these_cases": False,
+        "interpretation": "Scripted Test mechanisms; all selected outcomes retained. Collisions are outcomes, not the takeover objective. No response-success rate or necessity label inferred from collision counts.",
+    }
     np.savez_compressed(OUTPUT / "intervention_traces.npz", **traces)
     save_json(result, OUTPUT / "interventions.json")
     return result
@@ -320,12 +319,12 @@ def main():
     ]
     signature = {str(path.relative_to(ROOT)): file_sha256(path) for path in sources}
     save_json(
-        dict(
-            source_sha256=signature,
-            parameters=config["takeover"],
-            parameter_selection="Frozen natural Train/Val parameters; no selection on intervention outcomes",
-            test_role="Previously diagnosed Test recordings",
-        ),
+        {
+            "source_sha256": signature,
+            "parameters": config["takeover"],
+            "parameter_selection": "Frozen natural Train/Val parameters; no selection on intervention outcomes",
+            "test_role": "Previously diagnosed Test recordings",
+        },
         OUTPUT / "intervention_protocol.json",
     )
     specs = select_cases()

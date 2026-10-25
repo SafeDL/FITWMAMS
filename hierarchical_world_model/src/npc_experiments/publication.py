@@ -1,7 +1,9 @@
 """Publish a Train/Val-selected NPC policy after its independent evaluation."""
 
 from pathlib import Path
+
 import numpy as np
+
 from ..core.utils import load_json, save_json
 from ..data import artifact_identity
 from ..stochastic_drivers.idm_population import MODEL_PATH
@@ -31,25 +33,27 @@ def publish_npc(config, output):
     fit["driver_parameter_source"] = str(MODEL_PATH)
     save_json(fit, MOBIL_PATH)
     save_json(fit["mobil"]["lane_model"], LANE_PATH)
-    selection = dict(
-        status="selected_after_shared_val_review",
-        selected_model="mobil",
-        selected_arm="tracking_npc_takeover",
-        fit_split="train",
-        selection_split="val",
-        test_used_for_selection=False,
-        source=fit["source"],
-        diffusion=artifact_identity(config["paths"]["diffusion_checkpoint"]),
-        driver_parameter_source=str(MODEL_PATH),
-        driver_population={k: population[k].tolist() for k in ("log_mean", "log_cov")},
-        lane_trajectory_model=str(LANE_PATH),
-        lane_trajectory_model_mtime_ns=LANE_PATH.stat().st_mtime_ns,
-        mobil=fit["mobil"],
-        mobil_source=str(MOBIL_PATH),
-        evidence={
+    selection = {
+        "status": "selected_after_shared_val_review",
+        "selected_model": "mobil",
+        "selected_arm": "tracking_npc_takeover",
+        "fit_split": "train",
+        "selection_split": "val",
+        "test_used_for_selection": False,
+        "source": fit["source"],
+        "diffusion": artifact_identity(config["paths"]["diffusion_checkpoint"]),
+        "driver_parameter_source": str(MODEL_PATH),
+        "driver_population": {
+            k: population[k].tolist() for k in ("log_mean", "log_cov")
+        },
+        "lane_trajectory_model": str(LANE_PATH),
+        "lane_trajectory_model_mtime_ns": LANE_PATH.stat().st_mtime_ns,
+        "mobil": fit["mobil"],
+        "mobil_source": str(MOBIL_PATH),
+        "evidence": {
             "npc_calibration": str(output / "policy_calibration/selected_model.json"),
             "verification": str(output / "verification.json"),
         },
-    )
+    }
     save_json(selection, MODEL_PATH.parent / "selection.json")
     return selection

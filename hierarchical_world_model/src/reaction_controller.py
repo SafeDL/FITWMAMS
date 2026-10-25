@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 from enum import IntEnum
+
 import torch
+
 from .config import WorldModelConfig
 from .influence_graph import DynamicInteractionRelations
 
@@ -30,7 +32,6 @@ class ReactionControllerContext:
     policy_standard_normal: torch.Tensor | None = None
     policy_initial_standard_normal: torch.Tensor | None = None
     planned_current_xy: torch.Tensor | None = None
-    planned_terminal_xy: torch.Tensor | None = None
     planned_path_xy: torch.Tensor | None = None
     response_index: int = 0
 

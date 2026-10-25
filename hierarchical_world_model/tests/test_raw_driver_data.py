@@ -3,8 +3,6 @@
 import numpy as np
 import pandas as pd
 
-from process_highD.src.loader import HighDRecording
-
 from hierarchical_world_model.src.stochastic_drivers.raw_data import (
     canonical_lateral,
     extract_complete_events,
@@ -12,6 +10,7 @@ from hierarchical_world_model.src.stochastic_drivers.raw_data import (
     nearest_neighbors,
     recording_splits,
 )
+from process_highD.src.loader import HighDRecording
 
 
 def test_frozen_recording_splits_cover_all_sixty_without_overlap():

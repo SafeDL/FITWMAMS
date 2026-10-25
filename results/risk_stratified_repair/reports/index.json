@@ -1,0 +1,288 @@
+{
+  "files": {
+    "carl/completed_pilot_audit.json": {
+      "bytes": 181,
+      "sha256": "1932d562b58fba6a30e1c2d3ade23e8a4b52f5368a7590218457f80ead37a2fb",
+      "source": "results/risk_stratified_repair/development/carl/completed_pilot_audit.json"
+    },
+    "carl/completed_pilot_outcome_acceptance.json": {
+      "bytes": 2485,
+      "sha256": "304c5b0dc238c66de6ca6204f206f10f2b6bee411bcbd2aa0e1b4fd5ec54a8b5",
+      "source": "results/risk_stratified_repair/preparation/carl_repair_review/completed_pilot_outcome_acceptance.json"
+    },
+    "carl/native_loader_acceptance.json": {
+      "bytes": 1134,
+      "sha256": "32b6bc8cd5f50615994a4a4066a9dfb919ccd76719fd8c330a0752d4b501dbe9",
+      "source": "results/risk_stratified_repair/development/carl/native_loader_acceptance.json"
+    },
+    "carl/pilot_summary.json": {
+      "bytes": 33090,
+      "sha256": "ab8e4e0dd140ef63c12416309ca23379df697b517c3ca69289a8b92ed708aae4",
+      "source": "results/risk_stratified_repair/development/carl/pilot_summary.json"
+    },
+    "carl/post_integration_pytest.xml": {
+      "bytes": 14094,
+      "sha256": "28c5bcdb5925b666fd6067f2a9a42aa4c2a4f58209c95e39a3311fe818eb2f3f",
+      "source": "results/risk_stratified_repair/preparation/carl_repair_review/post_integration_pytest.xml"
+    },
+    "carl/source_archive.json": {
+      "bytes": 589,
+      "sha256": "ad16aeadb0ebeadda505cfbc2d2649add30788cf520a98fd9934970bc28d047d",
+      "source": "results/risk_stratified_repair/development/carl/source_archive.json"
+    },
+    "carl/source_integration.json": {
+      "bytes": 839,
+      "sha256": "3e77ba421d18210264388f99b74d255781df72987ac35f36e459b3293f4d6ad2",
+      "source": "results/risk_stratified_repair/preparation/carl_repair_review/source_integration.json"
+    },
+    "diffusion_planner/analysis.md": {
+      "bytes": 7588,
+      "sha256": "e7d679bd37aa1026ef14e31e61c975870962fe71c8f5ef0c2e5fa9bdec0c4ce9",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/analysis.md"
+    },
+    "diffusion_planner/archive_diagnostics.csv": {
+      "bytes": 2894,
+      "sha256": "71e3d9fa8920711c954fa09efe8facbb0150b3fd065bfc22aff4043012395fe4",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/archive_diagnostics.csv"
+    },
+    "diffusion_planner/audit.json": {
+      "bytes": 238,
+      "sha256": "b638d610d9ea2cf133eb49fbb74d433bb1d53c65b17b3b22e9aa4679dbea584c",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/audit.json"
+    },
+    "diffusion_planner/checks/completed_delivery_acceptance.json": {
+      "bytes": 14464,
+      "sha256": "fd3e1426915db3239a7246419de61edec52944f8664f35e0614935a1cc51b4c7",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_delivery_acceptance.json"
+    },
+    "diffusion_planner/checks/completed_training_execution_costs.json": {
+      "bytes": 884,
+      "sha256": "692f5616b7332d815c426585c60c784651a5a7af7e4d87e8ac1070838e40af05",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_training_execution_costs.json"
+    },
+    "diffusion_planner/checks/empirical_natural_evaluation_acceptance.json": {
+      "bytes": 12020,
+      "sha256": "8d72685d6bbb213bcee510afda5c0c087add0138578ba2ae3ec7946a18fb56d3",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/empirical_natural_evaluation_acceptance.json"
+    },
+    "diffusion_planner/checks/final_cohort_acceptance.json": {
+      "bytes": 4221,
+      "sha256": "6a46bc1ab3e6d8a593476370d3adba1703a0f86c237b921ebeab813ee9bbeaa2",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/final_cohort_acceptance.json"
+    },
+    "diffusion_planner/checks/natural_generated_evaluation_acceptance.json": {
+      "bytes": 11986,
+      "sha256": "c1b62ee0ab1b09b50621d484de8882b1cec0741b7ec16ee10e67be6b6f084df4",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/natural_generated_evaluation_acceptance.json"
+    },
+    "diffusion_planner/checks/round_one_optimization_acceptance.json": {
+      "bytes": 4922,
+      "sha256": "56a2adcd8c3ba0a4fc5d6413bb8d61da115fd83073d74d42854a5c4ce3a5af7f",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_optimization_acceptance.json"
+    },
+    "diffusion_planner/checks/round_one_posthoc_annotation_acceptance.json": {
+      "bytes": 1356,
+      "sha256": "171e8aba8307632de5313f62407f3936182d7153c75519c775ccebf5c33f525b",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_posthoc_annotation_acceptance.json"
+    },
+    "diffusion_planner/checks/round_one_search_comparison.json": {
+      "bytes": 3924,
+      "sha256": "78fda225e687c96141d9985d75420c13011a5ba4490009a5e0edb1cd48b9560a",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_search_comparison.json"
+    },
+    "diffusion_planner/checks/round_two_admission_summary.json": {
+      "bytes": 14388,
+      "sha256": "fbbcb7ff6731cee584236d52f87b27a3e95bd2e618150bbbe95b529c1d599737",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_two_admission_summary.json"
+    },
+    "diffusion_planner/checks/round_two_optimization_acceptance.json": {
+      "bytes": 6042,
+      "sha256": "ee6f0a1da8602e3a75c5f1ebd49fe106d50b6e39f1a09850221aea2ad988a01b",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_two_optimization_acceptance.json"
+    },
+    "diffusion_planner/checks/tail_generated_evaluation_acceptance.json": {
+      "bytes": 11305,
+      "sha256": "074788bfdd0d5a0174912f63738f66481de6b8b3d09a7d387d781d2286814951",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/preparation/tail_generated_evaluation_acceptance.json"
+    },
+    "diffusion_planner/complete_execution_costs.csv": {
+      "bytes": 727,
+      "sha256": "73e9a0d38cc50acc398e2b2c4af59e6121ef5a55a93b6fe04c4d4d436fb67b73",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/complete_execution_costs.csv"
+    },
+    "diffusion_planner/costs.csv": {
+      "bytes": 1573,
+      "sha256": "46ac7e1c0d6be2f79676bf0419b41ef9bc2432ab01da8bff0d4b1940821bae2d",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/costs.csv"
+    },
+    "diffusion_planner/delivery.json": {
+      "bytes": 5146,
+      "sha256": "86f940356d83f9cf9c607001f887e7f6732234c4ac5cda033165782c710dab3d",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/delivery.json"
+    },
+    "diffusion_planner/final_empirical_natural.csv": {
+      "bytes": 741,
+      "sha256": "577cf3fb3105183b68487c23f3714d34a2da0d58d86888a532952b7de324156e",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/final_empirical_natural.csv"
+    },
+    "diffusion_planner/final_natural_generated.csv": {
+      "bytes": 777,
+      "sha256": "2ef2a424844adad114b0b09c28b8d633ad9aa58fb3252e39f53dd8e9e5bb130c",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/final_natural_generated.csv"
+    },
+    "diffusion_planner/final_outcomes.csv": {
+      "bytes": 1848,
+      "sha256": "ca093503f67a1781630208b0cbb021d2139138c52a6e15faafdf1da23fd61066",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/final_outcomes.csv"
+    },
+    "diffusion_planner/final_tail_generated.csv": {
+      "bytes": 641,
+      "sha256": "525893e6be1922ab242737d7482af680f561a0618f7d298ebb7fe4908f96d123",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/final_tail_generated.csv"
+    },
+    "diffusion_planner/first_round_discovery/curves.csv": {
+      "bytes": 298835,
+      "sha256": "cc84584eb685c85a6086924460a25411d0b974399bbf22546ddfd43e26818306",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/first_round_discovery/curves.csv"
+    },
+    "diffusion_planner/first_round_discovery/discovery.pdf": {
+      "bytes": 33692,
+      "sha256": "6b754da6a37f6244bf3b1d83eb7f8f50ab8d7f91fbba8366c0004cc063e8a1b6",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/first_round_discovery/discovery.pdf"
+    },
+    "diffusion_planner/first_round_discovery/manifest.json": {
+      "bytes": 2337,
+      "sha256": "a948941cecc7aa93da2f60ffefd6581b43243ad8a837aeee885ebad9b277c579",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/first_round_discovery/manifest.json"
+    },
+    "diffusion_planner/native_acceptance/guided.json": {
+      "bytes": 779,
+      "sha256": "0617e699d1e8d9dd39406eecd505376ca869b99c464b00a09e55648fe43c0773",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/guided.json"
+    },
+    "diffusion_planner/native_acceptance/initial.json": {
+      "bytes": 774,
+      "sha256": "766c68085f2a8eef886e3360e4a16b35e3a5b577148378e7d181b7c643ed1622",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/initial.json"
+    },
+    "diffusion_planner/native_acceptance/monte_carlo.json": {
+      "bytes": 789,
+      "sha256": "97aef2e3c7cac33b7edc56321c43dbc8dcc6c3aefe6e607d5cfc6bc95ca14058",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/monte_carlo.json"
+    },
+    "diffusion_planner/native_acceptance/subset.json": {
+      "bytes": 779,
+      "sha256": "a5ba5bb21244b6cbc260da0f45e8c0a05fc54bf0b92019dc26d5b28a323ab137",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/subset.json"
+    },
+    "diffusion_planner/protocol.json": {
+      "bytes": 3913,
+      "sha256": "01187fa7b5957af591119b39a568f0734be830d0a8d4edf106edfde6bea83025",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/protocol.json"
+    },
+    "diffusion_planner/recipe_freeze.json": {
+      "bytes": 628,
+      "sha256": "d8590f0f6298c0f3531dac750422785edff51e8efd26c4604acb385b61bde86b",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/recipe_freeze.json"
+    },
+    "diffusion_planner/repair.pdf": {
+      "bytes": 19645,
+      "sha256": "cb87c3767e999771bdfe9328f05e87eaa0b8dbcd183eaaf411b1104941fbbc3b",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/repair.pdf"
+    },
+    "diffusion_planner/repair_comparisons.csv": {
+      "bytes": 2997,
+      "sha256": "c4e4d816a19073a1fdeaf492a704424459aa0cea592ca0398cd2d49102217d87",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/repair_comparisons.csv"
+    },
+    "diffusion_planner/round_one_development.csv": {
+      "bytes": 1331,
+      "sha256": "2079fefb57d4d3621f2cff60b94b1791d3524cbcabe0e214e31f3302302b50a2",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/round_one_development.csv"
+    },
+    "diffusion_planner/search_execution_summary.csv": {
+      "bytes": 506,
+      "sha256": "5cb103d59c51932969903f01e44efb7a466e30ec85f7c1878af2eb4a69a91d35",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/search_execution_summary.csv"
+    },
+    "diffusion_planner/source_archive.json": {
+      "bytes": 504,
+      "sha256": "7acd2a4c76d690084441c4719386d7704e86237189f7c00ee8fcb44369fdbcc0",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/source_archive.json"
+    },
+    "diffusion_planner/source_snapshot.json": {
+      "bytes": 54042,
+      "sha256": "fb33a30a10ca61c2c6e1721f474a6a9816749650a6377b92b5f41029788f3a5f",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/source_snapshot.json"
+    },
+    "diffusion_planner/status.json": {
+      "bytes": 193,
+      "sha256": "29e590a90f43031f1b4308f0ccd31210d630541d7e0c85dbb2522b5df7c97ec5",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/status.json"
+    },
+    "diffusion_planner/summary.json": {
+      "bytes": 53586,
+      "sha256": "bfc1201383dcc06c5915c9ab73d36c96c8adaf61f352a9fa0090d8469549ad60",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/evaluation/summary.json"
+    },
+    "diffusion_planner/teacher_coverage.csv": {
+      "bytes": 2616,
+      "sha256": "f576176699738400b2d4a484df985d1f91bbbf96694932c83a6e3cb93edd9fa6",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/teacher_coverage.csv"
+    },
+    "diffusion_planner/teacher_generation.csv": {
+      "bytes": 41944,
+      "sha256": "9ed3b06dd1127cd42e4a0dc3c8881cc9bcee9ce8648908123ca31a47ec20f633",
+      "source": "results/risk_stratified_repair/formal/diffusion_planner/reports/teacher_generation.csv"
+    },
+    "maintenance/completed_cleanup.json": {
+      "bytes": 507,
+      "sha256": "b863c941c7951087a62f1986d2a17d6a79699aacedbb091c42e50221ee162395",
+      "source": "results/risk_stratified_repair/preparation/completed_cleanup.json"
+    },
+    "maintenance/results_layout.json": {
+      "bytes": 847,
+      "sha256": "7e5f76180d7656b0ab75237ba88437e9b8191590624ecd06a738473f21a6cd0c",
+      "source": "results/risk_stratified_repair/preparation/results_layout.json"
+    },
+    "manual_nuplan/README.md": {
+      "bytes": 4599,
+      "sha256": "23bc86f7b4e53656f7f1a439fa4623a12c5c91364771f5428a32600f06aed8ba",
+      "source": "results/risk_stratified_repair_manual_nuplan/README.md"
+    },
+    "manual_nuplan/guided_handoff.json": {
+      "bytes": 1521,
+      "sha256": "6f49a6b0e9487f9bc0d91a05e4219e3f44ea34deaff4e56c08330bf4f2eedfa5",
+      "source": "results/risk_stratified_repair_manual_nuplan/diffusion_planner/guided/20260926/handoff.json"
+    },
+    "manual_nuplan/monte_carlo_handoff.json": {
+      "bytes": 1551,
+      "sha256": "d6112da79fc02dd160c73f37cbc62309fb8c3b516f2a99ece20c1890da033961",
+      "source": "results/risk_stratified_repair_manual_nuplan/diffusion_planner/monte_carlo/20260926/handoff.json"
+    },
+    "manual_nuplan/preparation/final_configuration_acceptance.json": {
+      "bytes": 827,
+      "sha256": "def6c02d24a25994e10632cd6ae2d7807fdc6ab4f45b33ee79a7af9ef6e6fa35",
+      "source": "results/risk_stratified_repair_manual_nuplan/preparation/final_configuration_acceptance.json"
+    },
+    "manual_nuplan/preparation/final_configuration_check.sh": {
+      "bytes": 1401,
+      "sha256": "60aa9331e56c2313173746a3a1d3013a0abcdaf7cb135f8efdc8d9a57399096c",
+      "source": "results/risk_stratified_repair_manual_nuplan/preparation/final_configuration_check.sh"
+    },
+    "manual_nuplan/scenarios.json": {
+      "bytes": 28298,
+      "sha256": "87b184d569c85830f9b46d8001c59d8e4fb77bed4d254901c82d1a32b026a3a0",
+      "source": "results/risk_stratified_repair_manual_nuplan/scenarios.json"
+    },
+    "manual_nuplan/subset_handoff.json": {
+      "bytes": 1521,
+      "sha256": "d6c141016a5c6fae079e92a3d2f5303edfbec70a9da310477e759aabf2e9ee28",
+      "source": "results/risk_stratified_repair_manual_nuplan/diffusion_planner/subset/20260926/handoff.json"
+    }
+  },
+  "full_trajectories_included": false,
+  "model_weights_included": false,
+  "purpose": "Byte-identical compact evidence snapshots for Git; full models, inputs and journals remain on DATA",
+  "recorded_utc": "2026-10-25T03:35:46.230965+00:00"
+}

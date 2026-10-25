@@ -72,7 +72,7 @@ class TrafficBotsExogenousState:
         *,
         seed: int,
         latent_dim: int = 16,
-    ) -> "TrafficBotsExogenousState":
+    ) -> TrafficBotsExogenousState:
         if int(n) < 1 or int(latent_dim) < 1:
             raise ValueError("n and latent_dim must be positive")
         state = cls(
@@ -99,7 +99,7 @@ class TrafficBotsExogenousState:
 
     def replace_arrays(
         self, values: dict[str, np.ndarray]
-    ) -> "TrafficBotsExogenousState":
+    ) -> TrafficBotsExogenousState:
         state = TrafficBotsExogenousState(
             **{
                 name: np.asarray(values[name]).copy()
@@ -109,15 +109,15 @@ class TrafficBotsExogenousState:
         state.validate(latent_dim=self.personality_latent.shape[-1])
         return state
 
-    def select(self, indices: slice | np.ndarray) -> "TrafficBotsExogenousState":
+    def select(self, indices: slice | np.ndarray) -> TrafficBotsExogenousState:
         return TrafficBotsExogenousState(
             **{name: value[indices].copy() for name, value in self.as_dict().items()}
         )
 
     @classmethod
     def concatenate(
-        cls, states: list["TrafficBotsExogenousState"]
-    ) -> "TrafficBotsExogenousState":
+        cls, states: list[TrafficBotsExogenousState]
+    ) -> TrafficBotsExogenousState:
         if not states:
             raise ValueError("states must not be empty")
         result = cls(
@@ -129,9 +129,9 @@ class TrafficBotsExogenousState:
         result.validate(latent_dim=states[0].personality_latent.shape[-1])
         return result
 
-    def pcn_mutate(
+    def mutate(
         self, block: str, *, beta: float, seed: int
-    ) -> "TrafficBotsExogenousState":
+    ) -> TrafficBotsExogenousState:
         if not 0.0 < float(beta) <= 1.0:
             raise ValueError("beta must lie in (0, 1]")
         values = self.as_dict()
@@ -161,7 +161,7 @@ class TrafficBotsExogenousState:
         )
 
     @classmethod
-    def load(cls, path: str | Path) -> "TrafficBotsExogenousState":
+    def load(cls, path: str | Path) -> TrafficBotsExogenousState:
         with np.load(path) as values:
             required = {*TRAFFICBOTS_RANDOM_BLOCKS, "rng_schema"}
             if not required.issubset(values.files):

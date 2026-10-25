@@ -1,40 +1,39 @@
 """Raw-data calibration and compact conditional corrections for NPC drivers."""
 
-from pathlib import Path
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 from scipy.optimize import minimize, minimize_scalar
-from scipy.special import expit, softmax, logsumexp
+from scipy.special import expit, logsumexp, softmax
 
-from ..stochastic_drivers.response_data import load_response
-from ..stochastic_drivers.driver_policy import LONGITUDINAL_FEATURE_NAMES
-
-from .metrics import (
-    FEATURE_EDGES,
-    hellinger,
-)
 from ..core.utils import (
     load_json,
     save_json,
+)
+from ..stochastic_drivers.driver_policy import LONGITUDINAL_FEATURE_NAMES
+from ..stochastic_drivers.idm_population import (
+    fit_parameters,
+    fit_population,
+    idm_acceleration,
+    population_driver_parameters,
+    population_predictions,
+)
+from ..stochastic_drivers.raw_data import (
+    DRIVER_DATA_DIR,
+    load_following,
+    load_lane_events,
+    load_lane_opportunities,
+)
+from ..stochastic_drivers.response_data import load_response
+from .metrics import (
+    FEATURE_EDGES,
+    hellinger,
 )
 from .residual import (
     driver_residuals,
     fit_autoregression,
     residual_correlations,
-)
-from ..stochastic_drivers.idm_population import (
-    idm_acceleration,
-    population_predictions,
-    population_driver_parameters,
-    fit_parameters,
-    fit_population,
-)
-from ..stochastic_drivers.raw_data import (
-    DRIVER_DATA_DIR,
-    load_following,
-    load_lane_opportunities,
-    load_lane_events,
 )
 
 
@@ -114,8 +113,9 @@ def fit_lane_style(data, population, mobil):
 
 
 def fit_lane_model(data_dir, reference, ridge):
-    from ..stochastic_drivers.lane_fit import training_parameters
     import pandas as pd
+
+    from ..stochastic_drivers.lane_fit import training_parameters
 
     data_dir = Path(data_dir)
     groups = load_lane_events(data_dir, splits=("train",))
@@ -563,9 +563,10 @@ def fit_longitudinal_correction(data, population, ridge):
 def fit_correction(data, lane, population, mobil, ridge):
     longitudinal = fit_longitudinal_correction(data, population, ridge)
     features = lane["features"]
-    lane_mean, lane_std = features.reshape(-1, 8).mean(0), features.reshape(-1, 8).std(
-        0
-    ).clip(1e-3)
+    lane_mean, lane_std = (
+        features.reshape(-1, 8).mean(0),
+        features.reshape(-1, 8).std(0).clip(1e-3),
+    )
     z = (features - lane_mean) / lane_std
     z = np.concatenate((np.ones((*z.shape[:2], 1)), z), -1).astype(np.float64)
     own, social, safe = lane_inputs(lane, population)

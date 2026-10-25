@@ -6,12 +6,12 @@ import numpy as np
 import torch
 
 from .core.utils import load_json
-from .data import ego_controls, artifact_identity
+from .data import artifact_identity, ego_controls
 from .highway import HighwayEnvClosedLoopWorld
 from .randomness import WORLD_RANDOM_BLOCKS, WorldExogenousState
 from .stochastic_drivers.idm_population import MODEL_PATH
 from .stochastic_drivers.raw_data import DRIVER_DATA_DIR, LABEL_PROTOCOL
-from .stochastic_drivers.response_data import RESPONSE_DATA_DIR, PROTOCOL
+from .stochastic_drivers.response_data import PROTOCOL, RESPONSE_DATA_DIR
 
 ROOT = Path(__file__).resolve().parents[2]
 MOBIL_PATH = ROOT / "results/hierarchical_world_model/model_assets/mobil.json"

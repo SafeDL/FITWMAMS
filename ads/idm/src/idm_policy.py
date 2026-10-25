@@ -20,7 +20,7 @@ class HighwayEnvIDMPolicy:
     config: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, values: dict[str, Any]) -> "HighwayEnvIDMPolicy":
+    def from_dict(cls, values: dict[str, Any]) -> HighwayEnvIDMPolicy:
         """Keep only the HighwayEnv IDM parameters accepted by the marker."""
         allowed = {"target_speed", "enable_lane_change", *IDM_PARAMETER_KEYS}
         return cls({name: values[name] for name in allowed if name in values})

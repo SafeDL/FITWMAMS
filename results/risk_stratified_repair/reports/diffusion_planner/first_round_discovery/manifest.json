@@ -1,0 +1,42 @@
+{
+  "acceptance_sha256": "78fda225e687c96141d9985d75420c13011a5ba4490009a5e0edb1cd48b9560a",
+  "additional_ads_executions": 0,
+  "algorithm": "diffusion_planner",
+  "all_executions_including_diagnostics_are_on_the_cost_axis": true,
+  "annotation_acceptance_sha256": "171e8aba8307632de5313f62407f3936182d7153c75519c775ccebf5c33f525b",
+  "collision_count_excludes_branch_checks_and_archive_replays": true,
+  "excluded_posthoc_fields": [
+    "common_partition_resolved",
+    "common_branch_id"
+  ],
+  "executions_per_method": 5000,
+  "outputs": {
+    "curves.csv": "cc84584eb685c85a6086924460a25411d0b974399bbf22546ddfd43e26818306",
+    "discovery.pdf": "6b754da6a37f6244bf3b1d83eb7f8f50ab8d7f91fbba8366c0004cc063e8a1b6",
+    "discovery.png": "f34739b6a3755a1c1841ebf4b31447190468ad874c1905bc852d4263e37ee5ce"
+  },
+  "plot_implementation_sha256": "b8a086c5af14a38f108e0fdaa78aa6b69ccd17d9881ef323958ce251e9923fb8",
+  "policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+  "sampling_roots_are_not_failure_domains": true,
+  "scope": "Completed first-round discovery; no repair or final-evaluation claims",
+  "search_journals": {
+    "guided": {
+      "executed_core_sha256": "5c96d3d76cf6d78a3eeb65bb9fb189c2179e4370117c5f07b960ea327b167cb3",
+      "path": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/guided/round_1/search.jsonl",
+      "sha256": "2ce7adbf2510a0db75257ef9fd767bb8b8ca759ff41ba684f3524a1e35f96e69"
+    },
+    "monte_carlo": {
+      "executed_core_sha256": "bd943c12d8a01fd5d97e24d37b178b5e2c6a98e894df3749e15bb025961aa70e",
+      "path": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/monte_carlo/round_1/search.jsonl",
+      "sha256": "6a4e7836cd7f63fb83f3dcd7cfa7c85dd0e25d9428e44761cc0d1159412f86d3"
+    },
+    "subset": {
+      "executed_core_sha256": "51fdd478c0594a70c2aa3969208700affcf4ffcdd7dd104e80598f5953a53192",
+      "path": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/subset/round_1/search.jsonl",
+      "sha256": "e4606b084d3ac2ebca9d6131233469ca7511f0cc6627c91ac213082b104e78ee"
+    }
+  },
+  "seed": 20260926,
+  "status": "passed",
+  "vertical_dotted_line": "End of the common 500-instance initial prior"
+}

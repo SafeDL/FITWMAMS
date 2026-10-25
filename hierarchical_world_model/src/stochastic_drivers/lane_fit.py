@@ -15,7 +15,7 @@ def training_parameters(events, observations):
             observations["offsets"][event.trajectory_index] : observations["offsets"][
                 event.trajectory_index + 1
             ]
-        ][25 : 25 + int(round(event.duration_s / 0.04))]
+        ][25 : 25 + round(event.duration_s / 0.04)]
         x = np.r_[0, np.cumsum(data[:-1, 1] * 0.04)]
         target = event.target_y_m - event.source_y_m
         state = torch.tensor([0, data[0, 0], data[0, 1], data[0, 2], 0, data[0, 3]])

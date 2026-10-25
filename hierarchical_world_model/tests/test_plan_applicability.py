@@ -1,25 +1,27 @@
 """Plan forecasts, empirical conflicts and physical interaction contracts."""
 
 from dataclasses import replace
+
 import numpy as np
 import torch
 from highway_env.utils import are_polygons_intersecting
+
 from hierarchical_world_model.src.error_trajectories import ErrorTrajectoryBank
-from hierarchical_world_model.src.plan_applicability import conflict_scores
 from hierarchical_world_model.src.motion import motion_forecast
+from hierarchical_world_model.src.plan_applicability import conflict_scores
 from hierarchical_world_model.src.scene_geometry import (
-    rectangle_separation,
     paired_rectangle_separation,
+    rectangle_separation,
 )
 from hierarchical_world_model.src.stochastic_drivers.driver_policy import (
     anticipated_entry_features,
     physical_leader_observation,
 )
-from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverController
+from hierarchical_world_model.src.takeover import TakeoverController
 from hierarchical_world_model.tests.traffic_context import (
     THETA,
-    context,
     change_context,
+    context,
 )
 
 
@@ -251,6 +253,7 @@ def test_snapshot_before_first_controller_call_restores_empty_execution_latch():
 
 def test_public_generated_rollout_can_continue_after_plan_expiration():
     from types import SimpleNamespace
+
     from hierarchical_world_model.src.execution import _rollout_sample
     from hierarchical_world_model.src.highway import HighwayEnvClosedLoopWorld
     from hierarchical_world_model.src.randomness import WorldExogenousState

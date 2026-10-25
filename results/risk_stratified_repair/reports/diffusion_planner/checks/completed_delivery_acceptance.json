@@ -1,0 +1,157 @@
+{
+  "actual_new_world_executions_by_this_audit": 0,
+  "archived_formal_python_files_verified": 424,
+  "canonical_python_files_matching_reviewed_carl_implementation": 434,
+  "conclusions": {
+    "carl": "Two-round pilot completed; no accepted enhancement; no formal campaign started",
+    "coverage": "No exhaustive multi-failure-domain claim",
+    "method_superiority": "Improved first-round collision discovery; repair superiority over MC or SS is not established",
+    "natural_empirical_guided_vs_initial": "76 to 80 collisions; +0.20 pp; recording-cluster CI covers zero; progress retained 99.62%",
+    "natural_generated_guided_vs_initial": "41 to 37 collisions; -0.20 pp; CI covers zero; one additional offroad instance",
+    "tail_guided_vs_initial": "61 to 40 collisions; -1.05 pp; conservative paired 95% CI [-1.98968666233, -0.097495181129] pp",
+    "two_rounds": "All second-round candidates rejected; final three policies retain their first-round accepted parameters"
+  },
+  "consumed_gradient_updates": 6000,
+  "cost_excludes": "Earlier pilots and retention-library preparation; nuPlan manual evaluation",
+  "evidence_sha256": {
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/guided/round_1/after.json": "8c80873c95d6fa6bbc0ab56f00ed0f19549546eaca6994d0098532e4bb5299d8",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/guided/round_1/before.json": "bf0f78d30858310be58738fd57ca2747003c4296ea6dd3a427ce6530319648f0",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/guided/round_2/after.json": "6bf1a49e7f2fd2c6ff8d07fddca7949b8601cfd0c8c3ef3bdee35840b8a092ec",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/guided/round_2/before.json": "6bf1a49e7f2fd2c6ff8d07fddca7949b8601cfd0c8c3ef3bdee35840b8a092ec",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/monte_carlo/round_1/after.json": "10dfb66a3feb544202fb989b0450abe5a8b79e067b945a530abdf180219f30e5",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/monte_carlo/round_1/before.json": "4790d844d99c0e4b279a4e653c7c9375d8de801473bbda5ab479995375026c80",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/monte_carlo/round_2/after.json": "4f161219003fff9abe7c837ba01c232ff669aa7972a17dde178c948ae22923cf",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/monte_carlo/round_2/before.json": "4f161219003fff9abe7c837ba01c232ff669aa7972a17dde178c948ae22923cf",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/subset/round_1/after.json": "6215bdf9d060dd83c8217c39c0eddcaf0d2203da00b31bc2bd95f74b2e5366b5",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/subset/round_1/before.json": "4623b16fd813966676dc00a9af6c401e1d47bfc9fddedeadb87c53e1e84b8d51",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/subset/round_2/after.json": "d3e0fe66a4e37cd5688a69610bb354351ade4fdbd68a215cf3d91b7fc5941a2e",
+    "results/risk_stratified_repair/formal/diffusion_planner/diagnostic/diffusion_planner/20260926/subset/round_2/before.json": "d3e0fe66a4e37cd5688a69610bb354351ade4fdbd68a215cf3d91b7fc5941a2e",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/guided.attempts/1792890152407227237.jsonl": "3375347d7884fdcf1ae0230cd4d6eace157bd548273b16231ee212924d8131e2",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/guided.json": "b556f8014a3d88067c7200fb14929623a7f1b4b258ec587f308aaf1abb344360",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/initial.attempts/1792890172306160959.jsonl": "c0df97693f0a427d714fc1c67860c4838ef8a32efb354ebb0aff2a2acb64ec23",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/initial.json": "52d31c680eb2d071d3133d37e7f410f7bf248a213b19483c370648ffc3069309",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/monte_carlo.attempts/1792890149250052453.jsonl": "728356859cfec344c82da21fb0143fb696b7e788ee20c8a87571883f8efa134c",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/monte_carlo.json": "9f70d30807f22010054b586d27c94fe6329f6a6efedf8d56ca7dfe503549affb",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/subset.attempts/1792890206835506150.jsonl": "110075b1e2e0bc86ea293971a94c414ea2d23bfdbdffe146f30086ff2d324c68",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/empirical_natural/diffusion_planner/20260926/subset.json": "982f9a115ee9b969862ab7a47ecf7726bb0e30c4a84ea7fde020d8a51817c974",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/guided.attempts/1792894246655544855.jsonl": "a1102fa41745cf95f4c5e3fd9176cca7d0fce632d237a299515e1eb46210132c",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/guided.json": "b1a34835efdeb09d076a2215c92b45a413ffa0bbeadc4ec5f7b526c0eab1a82a",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/initial.attempts/1792894273007779603.jsonl": "8d3df490a1dc1d3226c974209e8e4b2ab7d8c3da23fefd22b38070a1131a5956",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/initial.json": "8f00ae455db7197db540d0edb2a3de3dac7de137e6a7b0bc1b650e00125926e4",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/monte_carlo.attempts/1792894235630435225.jsonl": "7f3abbf46a37b9cbfbe8d5f80c7e85afc2dd7157b346f36e7813af22ef051cc9",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/monte_carlo.json": "947bf37f12cf2f35f7264ce0a9e3572b642da099efe1586013d31685606cbe51",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/subset.attempts/1792894298670954453.jsonl": "e66b68c5adcc85c69a3af1258485abe73c69d3724c0b826fdc4151fc75840325",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/natural_generated/diffusion_planner/20260926/subset.json": "83baf6d89723af0e4ee33ffa63e995a5b18436157732108219125bcedc690a62",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/guided.attempts/1792885971709910681.jsonl": "61e0f45ade13a1b48bc3f0671c06d404d34321531f57c8d467f7cd5d154ea38a",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/guided.json": "3e1450d6e378d86495dcf3057f433b65974d7e56664541cefc69c6bc8d145870",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/initial.attempts/1792885977452831760.jsonl": "eccb04de0984755fecd91c19f2fba121c39c6427e8db3d5aa67ba1f62ffc6e60",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/initial.json": "adce368033b0f5eb3b310edf0bf20ea54cd9a629e0113ce2d679ce995346080d",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/monte_carlo.attempts/1792885974716512869.jsonl": "daed2c35bb87acc1f0ce4622493a86dd1178e80bee0775b8c040283128e1da22",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/monte_carlo.json": "ae860266799e96ba0e3066c51e240db23f38102dcfc28e39cc9f82a66a7e90e0",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/subset.attempts/1792886032467799986.jsonl": "f0a14bde98cedf1ef3d0ce9e4d1e72c44a66ecf078e6573174c2c5d34e933fe6",
+    "results/risk_stratified_repair/formal/diffusion_planner/evaluation/tail_generated/diffusion_planner/20260926/subset.json": "ac5250fb99b0cffcd43dd9695d88f107ba4ae7fc96df076aac40397819f9323a",
+    "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/guided.json": "0617e699d1e8d9dd39406eecd505376ca869b99c464b00a09e55648fe43c0773",
+    "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/initial.json": "766c68085f2a8eef886e3360e4a16b35e3a5b577148378e7d181b7c643ed1622",
+    "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/monte_carlo.json": "97aef2e3c7cac33b7edc56321c43dbc8dcc6c3aefe6e607d5cfc6bc95ca14058",
+    "results/risk_stratified_repair/formal/diffusion_planner/native_acceptance/subset.json": "a5ba5bb21244b6cbc260da0f45e8c0a05fc54bf0b92019dc26d5b28a323ab137",
+    "results/risk_stratified_repair/formal/diffusion_planner/preparation/empirical_natural_evaluation_acceptance.json": "8d72685d6bbb213bcee510afda5c0c087add0138578ba2ae3ec7946a18fb56d3",
+    "results/risk_stratified_repair/formal/diffusion_planner/preparation/natural_generated_evaluation_acceptance.json": "c1b62ee0ab1b09b50621d484de8882b1cec0741b7ec16ee10e67be6b6f084df4",
+    "results/risk_stratified_repair/formal/diffusion_planner/preparation/tail_generated_evaluation_acceptance.json": "074788bfdd0d5a0174912f63738f66481de6b8b3d09a7d387d781d2286814951",
+    "results/risk_stratified_repair/formal/diffusion_planner/reports/final_empirical_natural.csv": "577cf3fb3105183b68487c23f3714d34a2da0d58d86888a532952b7de324156e",
+    "results/risk_stratified_repair/formal/diffusion_planner/reports/final_natural_generated.csv": "2ef2a424844adad114b0b09c28b8d633ad9aa58fb3252e39f53dd8e9e5bb130c",
+    "results/risk_stratified_repair/formal/diffusion_planner/reports/final_tail_generated.csv": "525893e6be1922ab242737d7482af680f561a0618f7d298ebb7fe4908f96d123",
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/guided/20260926/handoff.json": "6f49a6b0e9487f9bc0d91a05e4219e3f44ea34deaff4e56c08330bf4f2eedfa5",
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/monte_carlo/20260926/handoff.json": "d6112da79fc02dd160c73f37cbc62309fb8c3b516f2a99ece20c1890da033961",
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/subset/20260926/handoff.json": "d6c141016a5c6fae079e92a3d2f5303edfbec70a9da310477e759aabf2e9ee28"
+  },
+  "final_archive_diagnostic_records": 808,
+  "final_archive_new_executions": 0,
+  "final_archive_outcomes": [
+    {
+      "endpoints": 16,
+      "method": "monte_carlo",
+      "regressed_successes": 0,
+      "repaired_safety_failures": 9,
+      "round": 1
+    },
+    {
+      "endpoints": 28,
+      "method": "monte_carlo",
+      "regressed_successes": 0,
+      "repaired_safety_failures": 0,
+      "round": 2
+    },
+    {
+      "endpoints": 16,
+      "method": "subset",
+      "regressed_successes": 0,
+      "repaired_safety_failures": 8,
+      "round": 1
+    },
+    {
+      "endpoints": 30,
+      "method": "subset",
+      "regressed_successes": 0,
+      "repaired_safety_failures": 0,
+      "round": 2
+    },
+    {
+      "endpoints": 115,
+      "method": "guided",
+      "regressed_successes": 1,
+      "repaired_safety_failures": 43,
+      "round": 1
+    },
+    {
+      "endpoints": 199,
+      "method": "guided",
+      "regressed_successes": 0,
+      "repaired_safety_failures": 0,
+      "round": 2
+    }
+  ],
+  "final_execution_seconds_summed": 49784.467470436124,
+  "final_policy_scenario_executions": 24000,
+  "formal_and_direct_preparation_world_executions": 87259,
+  "formal_search_executions": 30000,
+  "manual_handoffs": [
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/monte_carlo/20260926/handoff.json",
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/subset/20260926/handoff.json",
+    "results/risk_stratified_repair_manual_nuplan/diffusion_planner/guided/20260926/handoff.json"
+  ],
+  "model_selection_or_training_from_final_results": false,
+  "nuplan_city_simulation_performed": false,
+  "official_native_exports": {
+    "guided": {
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/guided/model.pth",
+      "native_checkpoint_sha256": "8c1e4b5e664f91f6bb00926533cd6c953a1301f8a7568faf7d4760ec11d44383",
+      "source_policy_sha256": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603"
+    },
+    "initial": {
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/initial/model.pth",
+      "native_checkpoint_sha256": "33b04d5a4eac837b6c441dbcb72afe99dbfbd8b638e484ba48b25bf96170555e",
+      "source_policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764"
+    },
+    "monte_carlo": {
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/monte_carlo/model.pth",
+      "native_checkpoint_sha256": "d8257e68b1aa8461d60a2517b456f58753f37b650d918e570307f90a60cdbef3",
+      "source_policy_sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db"
+    },
+    "subset": {
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/subset/model.pth",
+      "native_checkpoint_sha256": "397fd3e84b97a5b36543958447c67b09dc973ce1ad31e415946266ef382ae722",
+      "source_policy_sha256": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83"
+    }
+  },
+  "official_native_output_max_difference": 0.0,
+  "official_native_parameter_equality": true,
+  "post_integration_regression_tests_passed": 101,
+  "recorded_utc": "2026-10-25T03:29:45.742969+00:00",
+  "ruff_passed": true,
+  "scope": "DP completed highway formal experiment and native handoff; no new model or scene executions",
+  "status": "passed",
+  "unchanged_history_archives": 5,
+  "unchanged_history_initial_weights": 3,
+  "unchanged_history_reports": 17,
+  "unique_final_instances": 6000
+}

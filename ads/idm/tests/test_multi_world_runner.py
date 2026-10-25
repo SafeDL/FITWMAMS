@@ -18,7 +18,11 @@ from ads.idm.src.multi_world_runner import (
 )
 from ads.idm.src.world_model_registry import get_world_model, world_model_ids
 from hierarchical_world_model.src.core.utils import file_sha256, load_json, save_json
-from hierarchical_world_model.src.randomness import WORLD_RANDOM_BLOCKS
+from hierarchical_world_model.src.empirical_context import EmpiricalKWorldState
+from hierarchical_world_model.src.randomness import (
+    WORLD_RANDOM_BLOCKS,
+    WorldExogenousState,
+)
 
 
 def _config(tmp_path: Path, model_id: str) -> tuple[dict, Path]:
@@ -73,6 +77,27 @@ def test_registry_exposes_only_canonical_world_model_ids() -> None:
         get_world_model("HiQR")
     with pytest.raises(ValueError, match="unknown IDM world model"):
         get_world_model("unknown")
+
+
+@pytest.mark.parametrize("state_class", [WorldExogenousState, EmpiricalKWorldState])
+def test_registry_loads_declared_randomness_schema(tmp_path, state_class):
+    state = state_class.sample(2, seed=17, response_steps=3)
+    path = tmp_path / "world.npz"
+    state.save(path)
+    loaded = get_world_model("tracking_npc").load_exogenous(path)
+    assert type(loaded) is state_class
+    for name, values in state.as_dict().items():
+        np.testing.assert_array_equal(loaded.as_dict()[name], values)
+
+
+def test_registry_preserves_validation_error_for_corrupt_world(tmp_path):
+    state = WorldExogenousState.sample(1, seed=17, response_steps=3)
+    values = state.as_dict()
+    values["diffusion_noise"][:] = np.nan
+    path = tmp_path / "world.npz"
+    np.savez(path, **values, schema_name="world_rng", schema_version=10)
+    with pytest.raises(ValueError, match="diffusion_noise must be finite"):
+        get_world_model("tracking_npc").load_exogenous(path)
 
 
 def test_comparison_contract_accepts_model_specific_latent_spaces(

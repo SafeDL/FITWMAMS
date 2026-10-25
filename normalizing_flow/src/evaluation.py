@@ -22,13 +22,13 @@ from .constraints import KNOT_FEATURE_NAMES, KNOT_TIMES_S
 from .data import dataset_dir_from_config, evt_tail_indices, output_dir_from_config
 from .features import SLOT_NAMES, feature_index, feature_valid_from_slot_mask
 from .metrics import physical_validity_flags
+from .sampling import inverse_normalize_features, load_checkpoint_and_dataset
 from .scenario import (
     ScenarioBatch,
     inverse_constraint,
     project_constraint,
     project_physical_c0,
 )
-from .sampling import inverse_normalize_features, load_checkpoint_and_dataset
 from .utils import ensure_dir, load_json, save_json, select_device
 
 
@@ -510,7 +510,7 @@ def evaluate_tail_flow(
     }
     report = {
         "population": "evt_tail",
-        "target_events": int(len(rows)),
+        "target_events": len(rows),
         "final_fit_events": int(payload["metrics"]["num_fit_events"]),
         "evaluation_role": (
             "goodness_of_fit_to_the_target_tail_distribution; generalization is "

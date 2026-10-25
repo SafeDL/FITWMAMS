@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-24",
+  "user_confirmed": "前案刚刚提交，本案准备提交；实际申请日、优先权及公开信息未提供",
+  "sources": [
+    {
+      "path": "/home/hp/FITWMAMS/external_resources/patents/revision_20261023/技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法_修订稿.docx",
+      "sha256": "c000ab29e22288ce14bd0402b1d0dc54b8d1ae8890ceb83da6414187e73a0acf"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/external_resources/patents/revision_20261023/XJYZL20260889-ZS2612700-1-II-一种面向安全关键事件的自动驾驶长尾测试方法-篇幅缩减版.docx",
+      "sha256": "d2fac18d76f62a966f17492773dbad2b48faf6ec1ed4836ab6c388150651743a"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/ads/common/instances.py",
+      "sha256": "9b610cf5a7115166b484c8b9b8f64e829d9e3b28f7509c5625f1e6996d3ae2eb"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/ads/search/engine.py",
+      "sha256": "0efad57bb9a9a8445c75c678107d3e4898fbad66fd452df8c76fefe95b3d723f"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/ads/search/archive.py",
+      "sha256": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/hierarchical_world_model/src/takeover.py",
+      "sha256": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/hierarchical_world_model/src/randomness.py",
+      "sha256": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/hierarchical_world_model/src/composition.py",
+      "sha256": "5d8efd1c427b7dc163b7ea625c3982c2ca0f4ef89a96799c5a8ab2f649b714ef"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/normalizing_flow/src/scenario.py",
+      "sha256": "a9da768af9edf2f899b62766d336687e3cccab45fc3a5d6db2711ec4d4d20039"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/bridge/test_report.json",
+      "sha256": "39df69436820d5719efc67609a5c9d2d29e9af2f1b74a16038cdae8c488d52af"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/bridge/interventions.json",
+      "sha256": "dc1c0e6af4b4364b1efc8a6389f6b58f4f91e961cb375164d0d7ecca91513441"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/bridge/latency.json",
+      "sha256": "5ecefc8b77ec0b169c714e25c70264cd54fba558911d38793e0f0c6569507729"
+    },
+    {
+      "path": "/home/hp/FITWMAMS/doc/risk_stratified_repair.md",
+      "sha256": "6d6248c5e8bb9955aef99f61da5438e1ee2d46935d395ad56d5004b7fb61216f"
+    }
+  ],
+  "experiments_started": false,
+  "external_disclosure": "仅中性关键词与公开文献标题、公开号；未上传未公开材料"
+}

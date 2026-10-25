@@ -1,0 +1,16 @@
+{
+  "all_parameters_and_buffers_identical": true,
+  "loader": "Official PPOPlanner.initialize with strict state_dict loading",
+  "maximum_action_difference": 0.0,
+  "native_checkpoint": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/preparation/carl_repair_review/runtime/results/risk_stratified_repair/development/carl/handoff/model_best.pth",
+  "native_checkpoint_sha256": "e186919343415341bd00f9090061a4670d6978d8c487aa1154c0c73e0ea0ecac",
+  "native_observation_examples": 8,
+  "new_independent_scenes": 0,
+  "nuplan_simulation_performed": false,
+  "observation_manifest_sha256": "e838edf8624522a3a4458ac52e5867a70a6facc38ebe444ef3a402004d8ff97d",
+  "official_loader_sha256": "7e5db29e2510625f2ae0f3257f9ef897a05206049eaae105cbf3283676272f65",
+  "source_policy": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/preparation/carl_repair_review/runtime/results/risk_stratified_repair/development/carl/carl/20260926/guided/round_2/policy.pth",
+  "source_policy_sha256": "7f8db6237d20077aa19871e06977a7a13ef42cba29db0b266ba67504ba7440ab",
+  "state_tensors": 71,
+  "status": "passed"
+}

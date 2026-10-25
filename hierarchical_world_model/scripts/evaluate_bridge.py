@@ -1,14 +1,13 @@
-#!/usr/bin/env python3
 """Frozen full-Test natural replay, with three paired NPC realizations."""
 
-from collections import Counter
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from multiprocessing import get_context
-from pathlib import Path
 import gzip
 import json
 import shutil
 import sys
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import get_context
+from pathlib import Path
 
 import numpy as np
 
@@ -17,15 +16,15 @@ sys.path.insert(0, str(ROOT))
 
 from hierarchical_world_model.src import bridge_evaluation as experiment
 from hierarchical_world_model.src.bridge_evaluation import (
-    AuditedTakeover,
     REASONS,
+    AuditedTakeover,
     records_from_trace,
 )
 from hierarchical_world_model.src.core.utils import (
+    file_sha256,
     load_json,
     load_yaml,
     save_json,
-    file_sha256,
 )
 from hierarchical_world_model.src.shared_evaluation import (
     highway_rollout,
@@ -101,7 +100,7 @@ def evaluate_batch(offset):
                     plan=plans[selected[k]],
                 )
     experiment.save_compact_json(
-        dict(records=records), OUTPUT / ".cache" / "natural" / f"{offset}.json"
+        {"records": records}, OUTPUT / ".cache" / "natural" / f"{offset}.json"
     )
     return offset, len(chosen), sum(r["takeovers"] for r in records)
 
@@ -111,24 +110,24 @@ def aggregate(records):
     scene_errors = [r["ADE_m"] for r in records if r["ADE_m"] is not None]
     NPC_runs = sum(r["valid_NPCs"] > 0 for r in records)
     admitted_runs = sum(r["takeovers"] > 0 for r in records)
-    return dict(
-        runs=len(records),
-        unique_scenes=len({r["row"] for r in records}),
-        vehicle_episodes=sum(r["valid_NPCs"] for r in records),
-        admitted_scenes=len({r["row"] for r in records if r["takeovers"]}),
-        admitted_runs=admitted_runs,
-        scenes_with_NPCs=len({r["row"] for r in records if r["valid_NPCs"]}),
-        no_NPC_runs=len(records) - NPC_runs,
-        scene_takeover_rate_with_NPCs=admitted_runs / NPC_runs if NPC_runs else None,
-        scene_takeover_rate=float(np.mean([r["takeovers"] > 0 for r in records])),
-        vehicle_takeovers=sum(r["takeovers"] for r in records),
-        vehicle_takeover_rate=sum(r["takeovers"] for r in records)
+    return {
+        "runs": len(records),
+        "unique_scenes": len({r["row"] for r in records}),
+        "vehicle_episodes": sum(r["valid_NPCs"] for r in records),
+        "admitted_scenes": len({r["row"] for r in records if r["takeovers"]}),
+        "admitted_runs": admitted_runs,
+        "scenes_with_NPCs": len({r["row"] for r in records if r["valid_NPCs"]}),
+        "no_NPC_runs": len(records) - NPC_runs,
+        "scene_takeover_rate_with_NPCs": admitted_runs / NPC_runs if NPC_runs else None,
+        "scene_takeover_rate": float(np.mean([r["takeovers"] > 0 for r in records])),
+        "vehicle_takeovers": sum(r["takeovers"] for r in records),
+        "vehicle_takeover_rate": sum(r["takeovers"] for r in records)
         / sum(r["valid_NPCs"] for r in records),
-        reasons={
+        "reasons": {
             name: sum(e["reason"] == code for r in records for e in r["events"])
             for code, name in REASONS.items()
         },
-        reason_scene_counts={
+        "reason_scene_counts": {
             name: len(
                 {
                     r["row"]
@@ -138,22 +137,22 @@ def aggregate(records):
             )
             for code, name in REASONS.items()
         },
-        ADE_actor_frame_weighted_m=sum(r["position_error_sum_m"] for r in records)
+        "ADE_actor_frame_weighted_m": sum(r["position_error_sum_m"] for r in records)
         / actor_frames,
-        ADE_defined_runs=len(scene_errors),
-        ADE_scene_mean_m=float(np.mean(scene_errors)) if scene_errors else None,
-        ADE_scene_quantiles_m=(
+        "ADE_defined_runs": len(scene_errors),
+        "ADE_scene_mean_m": float(np.mean(scene_errors)) if scene_errors else None,
+        "ADE_scene_quantiles_m": (
             np.quantile(scene_errors, [0.5, 0.95, 0.99, 1]).tolist()
             if scene_errors
             else None
         ),
-        actor_frames=actor_frames,
-        ego_collision_runs=sum(r["ego_collision"] for r in records),
-        any_collision_runs=sum(r["any_collision"] for r in records),
-        NPC_offroad_runs=sum(r["NPC_offroad"] for r in records),
-        repeated_takeovers=sum(r["repeated_takeovers"] for r in records),
-        ownership_releases=sum(r["ownership_releases"] for r in records),
-    )
+        "actor_frames": actor_frames,
+        "ego_collision_runs": sum(r["ego_collision"] for r in records),
+        "any_collision_runs": sum(r["any_collision"] for r in records),
+        "NPC_offroad_runs": sum(r["NPC_offroad"] for r in records),
+        "repeated_takeovers": sum(r["repeated_takeovers"] for r in records),
+        "ownership_releases": sum(r["ownership_releases"] for r in records),
+    }
 
 
 def summarize(records):
@@ -181,30 +180,30 @@ def summarize(records):
     for r in response:
         base = tracker[r["row"]]
         pairs.append(
-            dict(
-                row=r["row"],
-                seed=r["seed"],
-                recording_id=r["recording"],
-                admitted=int(r["takeovers"] > 0),
-                actor_frames=r["actor_frames"],
-                delta_error_sum_m=r["position_error_sum_m"]
+            {
+                "row": r["row"],
+                "seed": r["seed"],
+                "recording_id": r["recording"],
+                "admitted": int(r["takeovers"] > 0),
+                "actor_frames": r["actor_frames"],
+                "delta_error_sum_m": r["position_error_sum_m"]
                 - base["position_error_sum_m"],
-                introduced_any_collision=int(
+                "introduced_any_collision": int(
                     r["any_collision"] and not base["any_collision"]
                 ),
-                resolved_any_collision=int(
+                "resolved_any_collision": int(
                     base["any_collision"] and not r["any_collision"]
                 ),
-                introduced_ego_collision=int(
+                "introduced_ego_collision": int(
                     r["ego_collision"] and not base["ego_collision"]
                 ),
-                resolved_ego_collision=int(
+                "resolved_ego_collision": int(
                     base["ego_collision"] and not r["ego_collision"]
                 ),
-                introduced_NPC_offroad=int(
+                "introduced_NPC_offroad": int(
                     r["NPC_offroad"] and not base["NPC_offroad"]
                 ),
-            )
+            }
         )
     recording_ids = sorted({r["recording"] for r in response})
     by_recording = []
@@ -212,56 +211,58 @@ def summarize(records):
         base = [r for r in tracker.values() if r["recording"] == recording]
         new = [r for r in response if r["recording"] == recording]
         by_recording.append(
-            dict(
-                recording_id=recording, tracker=aggregate(base), takeover=aggregate(new)
-            )
+            {
+                "recording_id": recording,
+                "tracker": aggregate(base),
+                "takeover": aggregate(new),
+            }
         )
     from hierarchical_world_model.src.shared_evaluation import (
         recording_interval,
         recording_ratio_interval,
     )
 
-    report = dict(
-        complete=True,
-        split="test",
-        unique_scenes=len(tracker),
-        recordings=recording_ids,
-        behavior_seeds=list(SEEDS),
-        executed_rollouts=len(records),
-        physical_steps=len(records) * 149,
-        evaluation="Natural no-intervention replay with logged ego controls; not generated scenarios or a new ADS evaluation",
-        test_role="Frozen diagnostic evaluation; these Test recordings have been inspected in earlier development, not a new blind test",
-        parameters_frozen=True,
-        parameters_selected_on_test=False,
-        execution="Every Test scene executed once with tracking and three times with the current bridge; no old conflict-only screening",
-        summary=groups,
-        by_recording=by_recording,
-        paired_outcomes={
+    report = {
+        "complete": True,
+        "split": "test",
+        "unique_scenes": len(tracker),
+        "recordings": recording_ids,
+        "behavior_seeds": list(SEEDS),
+        "executed_rollouts": len(records),
+        "physical_steps": len(records) * 149,
+        "evaluation": "Natural no-intervention replay with logged ego controls; not generated scenarios or a new ADS evaluation",
+        "test_role": "Frozen diagnostic evaluation; these Test recordings have been inspected in earlier development, not a new blind test",
+        "parameters_frozen": True,
+        "parameters_selected_on_test": False,
+        "execution": "Every Test scene executed once with tracking and three times with the current bridge; no old conflict-only screening",
+        "summary": groups,
+        "by_recording": by_recording,
+        "paired_outcomes": {
             key: sum(r[key] for r in pairs)
             for key in pairs[0]
             if key.startswith(("introduced_", "resolved_"))
         },
-        paired_ADE_delta_m=sum(r["delta_error_sum_m"] for r in pairs)
+        "paired_ADE_delta_m": sum(r["delta_error_sum_m"] for r in pairs)
         / sum(r["actor_frames"] for r in pairs),
-        recording_bootstrap_95_percent=dict(
-            takeover_scene_rate=recording_interval(pairs, "admitted"),
-            paired_ADE_delta_m=recording_ratio_interval(
+        "recording_bootstrap_95_percent": {
+            "takeover_scene_rate": recording_interval(pairs, "admitted"),
+            "paired_ADE_delta_m": recording_ratio_interval(
                 pairs, "delta_error_sum_m", "actor_frames"
             ),
-            note="2000 whole-recording resamples; only nine recordings, repeated seeds are not independent scenes",
-        ),
-        unadmitted_runs=sum(r["takeovers"] == 0 for r in response),
-        unadmitted_exact_tracker_runs=sum(
+            "note": "2000 whole-recording resamples; only nine recordings, repeated seeds are not independent scenes",
+        },
+        "unadmitted_runs": sum(r["takeovers"] == 0 for r in response),
+        "unadmitted_exact_tracker_runs": sum(
             r["takeovers"] == 0
             and r["exact_tracker_states"]
             and r["exact_tracker_actions"]
             for r in response
         ),
-        adequacy="Low admission rate and absence of collisions do not establish that each handover is necessary or behaviorally reasonable",
-        intervention_and_generated_ADS_evaluation_included=False,
-    )
-    review = dict(
-        records=[
+        "adequacy": "Low admission rate and absence of collisions do not establish that each handover is necessary or behaviorally reasonable",
+        "intervention_and_generated_ADS_evaluation_included": False,
+    }
+    review = {
+        "records": [
             dict(
                 r,
                 tracker_ADE_m=tracker[r["row"]]["ADE_m"],
@@ -270,11 +271,11 @@ def summarize(records):
             for r in response
             if r["takeovers"] or r["any_collision"]
         ],
-        reason_counts=dict(
+        "reason_counts": dict(
             Counter(REASONS[e["reason"]] for r in response for e in r["events"])
         ),
-        interpretation="Observed conditions and plan trends support mechanism inspection, not causal necessity labels. No new ADS was used.",
-    )
+        "interpretation": "Observed conditions and plan trends support mechanism inspection, not causal necessity labels. No new ADS was used.",
+    }
     save_json(review, OUTPUT / "test_admissions.json")
     save_json(report, OUTPUT / "test_report.json")
     return report
@@ -283,7 +284,7 @@ def summarize(records):
 def main():
     config = load_yaml(ROOT / "hierarchical_world_model/config.yaml")
     experiment.initialize_worker(config, "test")
-    _, arrays, rows, plans, _, _ = experiment._DATA
+    _, _arrays, rows, _plans, _, _ = experiment._DATA
     sources = [
         Path(__file__),
         ROOT / "hierarchical_world_model/src/bridge_evaluation.py",
@@ -303,18 +304,18 @@ def main():
         for name in ("mobil.json", "idm_population.npz", "lane_trajectory.json")
     )
     hashes = {str(p.relative_to(ROOT)): file_sha256(p) for p in sources}
-    protocol = dict(
-        split="test",
-        scenes=len(rows),
-        seeds=list(SEEDS),
-        steps=149,
-        dt_s=0.04,
-        parameters=config["takeover"],
-        tracking=config["tracking"],
-        source_sha256=hashes,
-        evaluation="Full natural replay; logged ego controls; pure tracker and current bridge; no artificial intervention",
-        test_used_to_fit_or_select_parameters=False,
-    )
+    protocol = {
+        "split": "test",
+        "scenes": len(rows),
+        "seeds": list(SEEDS),
+        "steps": 149,
+        "dt_s": 0.04,
+        "parameters": config["takeover"],
+        "tracking": config["tracking"],
+        "source_sha256": hashes,
+        "evaluation": "Full natural replay; logged ego controls; pure tracker and current bridge; no artificial intervention",
+        "test_used_to_fit_or_select_parameters": False,
+    }
     path = OUTPUT / "evaluation_protocol.json"
     if path.exists() and load_json(path) != protocol:
         raise ValueError(
@@ -338,9 +339,9 @@ def main():
                 f"Test {number}/{len(jobs)} batch={offset} scenes={count} admissions={admissions}",
                 flush=True,
             )
-    assert all(
-        file_sha256(ROOT / name) == digest for name, digest in hashes.items()
-    ), "Frozen inputs changed during evaluation"
+    assert all(file_sha256(ROOT / name) == digest for name, digest in hashes.items()), (
+        "Frozen inputs changed during evaluation"
+    )
     records = [
         r
         for offset in offsets

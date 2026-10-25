@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """EVT-style paired GIFs of the intervention cases."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
+from matplotlib.collections import LineCollection, PolyCollection
 from PIL import Image
-from matplotlib.collections import PolyCollection, LineCollection
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -14,10 +13,10 @@ sys.path.insert(0, str(ROOT))
 from hierarchical_world_model.src.core.utils import load_json, save_json
 from hierarchical_world_model.src.npc_experiments.animations import vehicle_polygons
 from process_highD.src.natural_event_playback import (
-    ROAD_COLOR,
     EGO_COLOR,
-    TARGET_COLOR,
+    ROAD_COLOR,
     SLOT_COLOR,
+    TARGET_COLOR,
 )
 from tools.plot_style import get_pyplot
 
@@ -77,23 +76,23 @@ def read_case(spec, seed, records):
         np.concatenate((t["initial_states"][None], t["states"])) for t in (base, new)
     ]
     lateral = np.concatenate([s[:, base["valid"], 1].ravel() for s in states])
-    return dict(
-        spec=spec,
-        seed=seed,
-        baseline=base,
-        bridge=new,
-        states=states,
-        edges=edges,
-        lane_bands=np.stack(
+    return {
+        "spec": spec,
+        "seed": seed,
+        "baseline": base,
+        "bridge": new,
+        "states": states,
+        "edges": edges,
+        "lane_bands": np.stack(
             (
                 centers[present] - widths[present] / 2,
                 centers[present] + widths[present] / 2,
             ),
             axis=-1,
         ),
-        lateral_bounds=[float(lateral.min() - 2.7), float(lateral.max() + 2.7)],
-        result=result,
-    )
+        "lateral_bounds": [float(lateral.min() - 2.7), float(lateral.max() + 2.7)],
+        "result": result,
+    }
 
 
 def render_gif(case, destination):
@@ -152,7 +151,12 @@ def render_gif(case, destination):
                     fontsize=7,
                     clip_on=True,
                     zorder=7,
-                    bbox=dict(facecolor="white", alpha=0.8, edgecolor="none", pad=1.2),
+                    bbox={
+                        "facecolor": "white",
+                        "alpha": 0.8,
+                        "edgecolor": "none",
+                        "pad": 1.2,
+                    },
                 )
                 for _ in range(7)
             ]
@@ -211,10 +215,10 @@ def render_gif(case, destination):
         status = (
             "no handover"
             if event is None
-            else f"handover {first*.04:.2f}s: {REASONS[event['reason']]}"
+            else f"handover {first * 0.04:.2f}s: {REASONS[event['reason']]}"
         )
         title.set_text(
-            f"{TITLES[spec['kind']]} | Test rec {spec['recording']:02d}, row {spec['row']} | t={frame*.04:.2f}s\n{status}"
+            f"{TITLES[spec['kind']]} | Test rec {spec['recording']:02d}, row {spec['row']} | t={frame * 0.04:.2f}s\n{status}"
         )
         for arm, ax in enumerate(roads):
             s = states[arm][frame]
@@ -230,7 +234,9 @@ def render_gif(case, destination):
                     else (
                         SLOT_COLOR
                         if owned[j]
-                        else TARGET_COLOR if j == target else "#bdbdbd"
+                        else TARGET_COLOR
+                        if j == target
+                        else "#bdbdbd"
                     )
                 )
                 for j in range(7)
@@ -280,19 +286,19 @@ def render_gif(case, destination):
         optimize=False,
     )
     plt.close(fig)
-    return dict(
-        file=destination.name,
-        case=spec["case"],
-        row=spec["row"],
-        seed=case["seed"],
-        kind=spec["kind"],
-        focus_actor=spec["actor"],
-        first_target_handover_s=None if first is None else first * 0.04,
-        collision=bool(new["crashed"].any()),
-        frames=150,
-        fps=25,
-        playback_speed=1,
-    )
+    return {
+        "file": destination.name,
+        "case": spec["case"],
+        "row": spec["row"],
+        "seed": case["seed"],
+        "kind": spec["kind"],
+        "focus_actor": spec["actor"],
+        "first_target_handover_s": None if first is None else first * 0.04,
+        "collision": bool(new["crashed"].any()),
+        "frames": 150,
+        "fps": 25,
+        "playback_speed": 1,
+    }
 
 
 def main():
@@ -354,12 +360,12 @@ def main():
         )
     )
     save_json(
-        dict(
-            movies=movies,
-            format_reference="results/evt/playbacks",
-            scope="Scripted Test interventions, not ADS algorithm performance",
-            selection="First case with a target handover in each kind, otherwise first assigned case. Lateral conflict shows the first other-lane conflict admission in a corridor-release case. All cases and three seeds remain in the experiment report.",
-        ),
+        {
+            "movies": movies,
+            "format_reference": "results/evt/playbacks",
+            "scope": "Scripted Test interventions, not ADS algorithm performance",
+            "selection": "First case with a target handover in each kind, otherwise first assigned case. Lateral conflict shows the first other-lane conflict admission in a corridor-release case. All cases and three seeds remain in the experiment report.",
+        },
         OUTPUT / "manifest.json",
     )
 

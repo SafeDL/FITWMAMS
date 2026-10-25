@@ -29,6 +29,8 @@ python -m ads.idm.scripts.run_world_models_idm
 python -m ads.idm.scripts.run_empirical_test_sweep
 ```
 
+其余脚本也使用 `python -m ads.idm.scripts.<脚本名>` 调用，统一通过包导入，不修改 `sys.path`。
+
 前者默认运行配置中启用的模型及两种估计器；后者遍历固定 Test 条件。
 完成运行后，可用 `compare_world_models_idm` 汇总、`render_world_models_idm` 生成 GIF，
 `audit_subset_replays` 检查保存案例能否精确重放。

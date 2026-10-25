@@ -137,6 +137,7 @@ def test_demographic_metrics_use_saved_recording_counts_and_keep_empty_groups():
 
 def test_completed_road_shards_are_consolidated_without_losing_failures(tmp_path):
     import pandas as pd
+
     from hierarchical_world_model.src.core.utils import load_json
     from hierarchical_world_model.src.npc_experiments.search import (
         consolidate_road_results,
@@ -176,6 +177,7 @@ def test_completed_road_shards_are_consolidated_without_losing_failures(tmp_path
 
 def test_missing_road_shard_does_not_delete_available_results(tmp_path):
     import pytest
+
     from hierarchical_world_model.src.npc_experiments.search import (
         consolidate_road_results,
     )

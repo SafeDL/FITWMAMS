@@ -1,0 +1,5 @@
+policy,instances,collision_count,collision_rate_pct,offroad_count,stalled_count,mean_progress_m,initial_collision_count,statistical_inference_units,collision_repaired_vs_initial,collision_regressed_vs_initial,collision_difference_pp,ci95_lower_pp,ci95_upper_pp
+initial,2000,61,3.05,1,0,100.49231266188622,1,2000,,,,,
+monte_carlo,2000,38,1.9,1,0,106.49348914361,1,2000,29,6,-1.15,-2.0777520717061186,-0.20760770660354946
+subset,2000,33,1.65,1,0,108.59830001378059,1,2000,34,6,-1.4000000000000001,-2.3753334707901477,-0.40836633070164957
+guided,2000,40,2.0,1,0,106.37016933178901,1,2000,28,7,-1.05,-1.989686662330032,-0.09749518112879309

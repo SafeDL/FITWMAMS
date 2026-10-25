@@ -1,0 +1,29 @@
+{
+  "algorithm": "str2",
+  "files": [
+    {
+      "path": "str_open.tar.gz",
+      "official_url": "https://huggingface.co/JohnZhan/StateTransformer2/resolve/main/str_open.tar.gz",
+      "sha256": "0d346779bb1910f2cfd82c265237a45fb318ae0956c4cf323bb684a08ce0a849",
+      "bytes": 18971238186
+    },
+    {
+      "path": "checkpoint-297000/kmeans_traj_8s_512.csv",
+      "official_url": "https://raw.githubusercontent.com/Tsinghua-MARS-Lab/StateTransformer/b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5/kmeans_traj_8s_512.csv",
+      "sha256": "4fef7267cd8ce31b07f27effaaed3d530de8384f4b50c438fb16d3d97ea686b2"
+    }
+  ],
+  "source": {
+    "repository": "https://github.com/Tsinghua-MARS-Lab/StateTransformer",
+    "commit": "b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5",
+    "archive_sha256": "d3d9f5f8c5d2a9e0eadc2efc966d17793cb12af03f0fd39d3456671117c774a4",
+    "local_changes": [
+      "Python imports namespaced under ads.str2.vendor; original model parameter names retained.",
+      "Optional observed-future masks for native raster encoder proposal labels and teacher-forced tokens; inference unchanged.",
+      "Use PyTorch attention and explicit original head_dim=16 with Transformers 4.49.",
+      "Native STR/PDM postprocessing retained through causal highway map objects.",
+      "Native build_models also restores head_dim after selecting backbone width for Transformers 4.49; checkpoint parameters unchanged."
+    ]
+  },
+  "checkpoint_sha256": "dee84e8c4d54cd357d2a5befaee16d91c14c0cf1d37342bde6d44602217a3831"
+}

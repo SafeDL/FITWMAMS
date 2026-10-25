@@ -20,11 +20,9 @@ class DynamicInteractionRelations:
     lane_index: torch.Tensor
     leader_index: torch.Tensor
     leader_gap_m: torch.Tensor
-    leader_ttc_s: torch.Tensor
     adjacent_front_index: torch.Tensor
     adjacent_rear_index: torch.Tensor
     adjacent_lane_index: torch.Tensor
-    crossing_conflict: torch.Tensor
 
 
 def build_dynamic_interaction_relations(
@@ -85,12 +83,6 @@ def build_dynamic_interaction_relations(
     )
     has_leader = candidate.any(dim=-1)
     selected_gap = torch.gather(gap, 2, leader_index[..., None]).squeeze(-1)
-    selected_closing = torch.gather(closing, 2, leader_index[..., None]).squeeze(-1)
-    selected_ttc = torch.where(
-        has_leader & selected_gap.gt(0.0) & selected_closing.gt(1.0e-4),
-        selected_gap / selected_closing.clamp_min(1.0e-4),
-        torch.full_like(selected_gap, float("inf")),
-    )
     leader_index = torch.where(
         has_leader, leader_index, torch.full_like(leader_index, -1)
     )
@@ -134,20 +126,11 @@ def build_dynamic_interaction_relations(
         adjacent_rear[..., side_index] = torch.where(
             torch.isfinite(rear_score.amin(dim=-1)), rear, torch.full_like(rear, -1)
         )
-    crossing = (
-        valid[:, :, None]
-        & valid[:, None, :]
-        & ~identity
-        & ~(dy.abs() < actor_half_width[..., None])
-        & overlap
-    )
     return DynamicInteractionRelations(
         lane_index=lane_index,
         leader_index=leader_index,
         leader_gap_m=selected_gap,
-        leader_ttc_s=selected_ttc,
         adjacent_front_index=adjacent_front,
         adjacent_rear_index=adjacent_rear,
         adjacent_lane_index=adjacent_lane,
-        crossing_conflict=crossing,
     )

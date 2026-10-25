@@ -42,6 +42,7 @@ def test_vehicle_render_preserves_physical_dimensions_and_heading():
 
 def test_lane_example_uses_all_roads_and_only_complete_autonomous_maneuvers(tmp_path):
     import pandas as pd
+
     from hierarchical_world_model.src.core.utils import save_json
 
     events, execution = [], {}
@@ -109,7 +110,7 @@ def test_gif_uses_executed_frames_and_declares_playback_time(tmp_path):
     assert result["fps"] == 25
     assert result["frame_count"] == 26
     assert result["format_reference"] == "results/evt/playbacks/"
-    assert set(path.name for path in tmp_path.iterdir()) == {"traffic.gif"}
+    assert {path.name for path in tmp_path.iterdir()} == {"traffic.gif"}
     assert "preview" not in result
     with Image.open(tmp_path / "traffic.gif") as movie:
         assert movie.size == (1440, 360)

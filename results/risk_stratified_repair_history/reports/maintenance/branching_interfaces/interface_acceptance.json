@@ -1,0 +1,300 @@
+{
+  "additions_in_completion_audit": [
+    "retained historical archive endpoints",
+    "native objective backward checks without updates",
+    "two-round persisted campaigns for eight policies and three methods",
+    "three temporary synthetic cohorts",
+    "official artifact directory export protection",
+    "separate manual nuPlan handoff",
+    "archive journal audit integration and post-hoc annotation handling",
+    "common post-hoc generation cost accounting"
+  ],
+  "algorithms": [
+    "dqn",
+    "ppo",
+    "carl",
+    "plant2",
+    "diffusion_planner",
+    "dtpp",
+    "flow_planner",
+    "str2"
+  ],
+  "analytic_checks": "analytic_checks.json",
+  "carl_official_sha256": "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d",
+  "completion_audit": "completion_audit.json",
+  "coverage_limit": "Both methods missed the known rare left region in the weak-early-branch analytic problem. No exhaustive coverage claim.",
+  "entrypoints": {
+    "config": "ads/configs/method_c.yaml",
+    "documentation": "ads/README.md"
+  },
+  "formal_ads_search_executions": 0,
+  "formal_evaluation_executions": 0,
+  "formal_final_cohorts_generated": false,
+  "frozen_tail_assets": {
+    "diffusion_checkpoint": {
+      "path": "results/diffusion/checkpoints/best_background_diffusion.pt",
+      "sha256": "7239fac05e6484746cb4a789d6e1eb55458a8cf8ca1a5a6dcea1d48a47ef388c",
+      "unchanged_from_historical_freeze": true
+    },
+    "diffusion_contract": {
+      "path": "results/diffusion/dataset_contract.json",
+      "sha256": "baf194f3f21f2602d9fe0ea350932559b1fc69bef10d880cc345e06652e7e59c",
+      "unchanged_from_historical_freeze": true
+    },
+    "driver_model": {
+      "path": "results/hierarchical_world_model/model_assets/idm_population.npz",
+      "sha256": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+      "unchanged_from_historical_freeze": true
+    },
+    "evt_model": {
+      "path": "results/evt/evt_model.json",
+      "sha256": "fba21455a71703a225109d6a1d6ba5fa7630c88cc48c3f80948cc73b126f436c",
+      "unchanged_from_historical_freeze": true
+    },
+    "flow_checkpoint": {
+      "path": "results/flow/checkpoints/scenario_flow.pt",
+      "sha256": "7fb8c5f03d1383a127cf8b08214e56d8702257fec57bc9b03ced7157e1a51586",
+      "unchanged_from_historical_freeze": true
+    },
+    "interaction_errors": {
+      "path": "results/hierarchical_world_model/model_assets/interaction_errors.npz",
+      "sha256": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+      "unchanged_from_historical_freeze": true
+    },
+    "lane_model": {
+      "path": "results/hierarchical_world_model/model_assets/lane_trajectory.json",
+      "sha256": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f",
+      "unchanged_from_historical_freeze": true
+    },
+    "world_config": {
+      "path": "hierarchical_world_model/config.yaml",
+      "sha256": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9",
+      "unchanged_from_historical_freeze": true
+    },
+    "world_selection": {
+      "path": "results/hierarchical_world_model/model_assets/selection.json",
+      "sha256": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5",
+      "unchanged_from_historical_freeze": true
+    }
+  },
+  "future_task_units": 114,
+  "git_diff_check": "passed",
+  "historical_results_preserved": true,
+  "implementation_sha256": {
+    "ads/README.md": "72e6e6b50713c3bc084bd0a7cfbe12cb2cdd76d6d028252493dcbd37806818bb",
+    "ads/audit.py": "2ce7f2dc603c4b6cc7405928048df97659838eceba75b0702c6ba889576e6a1d",
+    "ads/carl/export.py": "d7a8ff8ce2ebdc096c4dd5560ccbdfe27687559cab9972eb50fc5ff01e085e2c",
+    "ads/carl/policy.py": "914a0dc485099806041c30020c2208c1738f8d710ff75a14406c460abc2b04ab",
+    "ads/carl/train.py": "53f56e4e4dc0ae139b561b8232a694d71107853e14fb65c3485c97434596f11a",
+    "ads/common/archive_diagnostics.py": "42b22568e2fa1ae1d517e690b9429f5a6b2178c15e93bb32a1cadb6bdece8ab9",
+    "ads/common/cohorts.py": "148864f9b3d334439aec79dbd891f7defd6e49a73f458b1a360a46c057414a0d",
+    "ads/common/control.py": "05c7b21f4a4e674280f8ae6f399fade79c8681b6b77f16b70bf9df4eb63822c1",
+    "ads/common/curriculum.py": "1419397b961d682b726acfc5d6ee8635bab931acf43a48d77b05b1bde8fb02df",
+    "ads/common/demonstrations.py": "6c620e41c77262ee06602a8ad9742ea7d6dd1103a4a8d75f92fb5ad88560f14c",
+    "ads/common/environment.py": "b6113c90d36fd30f28277dd4a2dce809bba594c68eae54d98a08dabc965f865b",
+    "ads/common/evaluation.py": "316e18872445d9159560a0614239bfb13a0637858ec65211fe3a880b13db9d09",
+    "ads/common/evaluation_sampling.py": "b64c981771a6bd92edbff4f1e442e2a3d9cd9298e208ad7bbcd78ef1e3c2141d",
+    "ads/common/instances.py": "4aca46072e6c38e451bd51c7637b748ca45b1e97dd6a78d27de6b686714cb328",
+    "ads/common/natural.py": "4ab5dea3cdc1ad82598b08bcf3a1cf7d09ba079215fbaa5c4f11ddc81a24c9a3",
+    "ads/common/observations.py": "1fa32eb64478e8e6c5f145e1af39b38c54f12c93e4b9eb8d72d0937ecd525237",
+    "ads/common/randomness.py": "d068594d432d943c710f0c6dba91585e4ed03161dbff7ce916e9b68da4826ba2",
+    "ads/common/repair.py": "7d9330e4b9c8b762bb520847bad782d7c5609555db0cbc4256e1466586de3959",
+    "ads/common/reporting.py": "70c3452299de62870cdb8612024e22628dd45e98da94499323bafe8495de9b68",
+    "ads/common/setup.py": "4081a5271db3ba29374f4f38860918a979beeeed0697f5b8edaa8f0b7304bbb8",
+    "ads/common/teacher_costs.py": "4b65033599c9d505eea39488f07bff1ba1d4dc57f9f18c55e2df4069572f88c0",
+    "ads/common/teacher_coverage.py": "808c00d020cf3a92218d2dda9bd15cb94455a720a1247acd1ab91366e0eb4164",
+    "ads/configs/method_c.yaml": "d65b56b5881687334ca961261a950c3bb6fde371df8801b19a8f7edbec491b31",
+    "ads/diffusion_planner/policy.py": "031fe7413e2890dad6fc4a8b6cf779c9dfee5d66a96ab7450c688b1204351d3f",
+    "ads/dtpp/policy.py": "d05d3dbee1c7cddc4a0257e46e3fd350ec0ac86f50cc0d8b822172923ac7e961",
+    "ads/flow_planner/policy.py": "c7e7cae736293eefcdaa385d720a08c2dce90f75442ec95fe5e979af8ce9d639",
+    "ads/method_c.py": "6bcde6521c1f47db488d09282e24f87e0ad1eb5ced5e7556b5070f7c497e5444",
+    "ads/nuplan/assets.py": "f9a1b237b4a1a40a1b1a41a0b2d3cb9f5481acb054e67ea59c6be52b131b5428",
+    "ads/nuplan/export.py": "7dd2781e09184e21ab1b442d7e22ea811e46af420f2102cddb9656fbcf5c98c2",
+    "ads/nuplan/features.py": "545d515273e01efe4379667f1610bbcf5930833ba23d6d3eb6faa8c5a7d41239",
+    "ads/nuplan/handoff.py": "d81fbef91bbfca59f2b94d7ac81d9dc2be3a92b6e8a37af60480ead270576297",
+    "ads/nuplan/losses.py": "93c8cedf60d87597429480163df8355f13cd15a5ab58509ca4ea2815943d7a08",
+    "ads/nuplan/policy.py": "f7d1094672adeeb197086322fdc3a5ad87bea6055c1fb225e9883a718da5564d",
+    "ads/nuplan/scene.py": "94903a607e2ebfa33b125fa2d33cc05bdca81ef01aee4baa3e4fc3d857651b3a",
+    "ads/nuplan/teacher.py": "49602d836f686a2634b72ff14ab3207cdf0fe3636b4aeba11738aa6b7f8ad39b",
+    "ads/nuplan/train.py": "2d301cc0482a5054a0ab1b05e136c3f91768580d5f0696a93c3c8488dbcb9649",
+    "ads/plant2/teacher.py": "ff0bc35154a9ca19c10fa24a346afc2d47d1cd13d6634ffdf92862ecd9433a6f",
+    "ads/plant2/train.py": "16e7b827b72850750f4c01eb14d6bbfc0986b179330d0aabc2dfbe16b29fc19c",
+    "ads/report.py": "3ce7ea36cb320b862a6b4aa3df74f01b254273c2b638f949446ae4c6be5aef09",
+    "ads/search/analytic.py": "6abc8f00ed13236eaa92fe5a3afd1032014f7ba85a707498cbfad2060375161b",
+    "ads/search/archive.py": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5",
+    "ads/search/branches.py": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733",
+    "ads/search/comparison.py": "f7b86c0bd5a3c97d50292c648790c806ca9cb9e374741d76c6fdd3ffcbd85431",
+    "ads/search/engine.py": "61760b6af4a4d8b4aa45624f2d859969bf23a61e176f5b658bc93f06500ecbf7",
+    "ads/str2/policy.py": "e43f6596eae79cfb6b1c21daa8fffeedff0e570bc3b0b58f0cb647a30dfe1766",
+    "ads/tasks.py": "63c99c2553cabc19fcb80f08d871d1f508fa1e978ee593a8e07c00f49634641e",
+    "normalizing_flow/natural_config.yaml": "82a27e99b7572e87dec55403a84dec2d180017ca10d75936913cfc3337002299",
+    "normalizing_flow/scripts/train_natural.py": "b8d08de0985d4c57093fcc1364302896e4547d14eb3d9b54e7351ebaab4e8053",
+    "normalizing_flow/src/train.py": "4acdb1a1fc4544a58762c0e424a56fd1603fd843ea988d02828ce50f99ccc31f"
+  },
+  "lint": "passed; Python 3.10 target",
+  "native_str2_builder_exact_parameter_check": {
+    "builder_sha256": "aef6a106fdf4fe33855e731b20910d6a0c4a480912421445ef71e4999b1b9056",
+    "checkpoint_sha256": "dee84e8c4d54cd357d2a5befaee16d91c14c0cf1d37342bde6d44602217a3831",
+    "native_entrypoint": "transformer4planning.models.backbone.str_base.build_model_from_path",
+    "passed": true,
+    "runtime_fix": "head_dim restored after backbone width selection for Transformers 4.49",
+    "tensors": 1222
+  },
+  "natural_flow_fits": 0,
+  "new_official_models": {
+    "diffusion_planner": {
+      "algorithm": "diffusion_planner",
+      "checkpoint_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "files": [
+        {
+          "bytes": 48549085,
+          "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/model.pth",
+          "path": "model.pth",
+          "sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45"
+        },
+        {
+          "bytes": 7404,
+          "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/args.json",
+          "path": "args.json",
+          "sha256": "7e62b89a50953f133d55484777e54490f7f24e58feec1efcf696bcc7b91bdf10"
+        }
+      ],
+      "source": {
+        "archive_sha256": "3b4ce406a489167b9aca2498ea7a01366bdbe816d95a44e34e87f1bead0c1615",
+        "commit": "a3a621f0b724c5fa6447f7a2fbaf9e0387bd35df",
+        "local_changes": [
+          "Python imports namespaced under ads.diffusion_planner.vendor; original model parameter names retained."
+        ],
+        "repository": "https://github.com/ZhengYinan-AIR/Diffusion-Planner"
+      }
+    },
+    "dtpp": {
+      "algorithm": "dtpp",
+      "checkpoint_sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073",
+      "files": [
+        {
+          "bytes": 23952592,
+          "official_url": "https://raw.githubusercontent.com/MCZhi/DTPP/4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7/base_model.pth",
+          "path": "base_model.pth",
+          "sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073"
+        }
+      ],
+      "source": {
+        "archive_sha256": "39350be726da09de413a12d6ffc1355790adec7ca4ede9c8a0a135f263667401",
+        "commit": "4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7",
+        "local_changes": [
+          "Python imports namespaced under ads.dtpp.vendor; original model parameter names retained.",
+          "Expose first- and second-stage candidate lists for offline supervised labels; native tree selection unchanged."
+        ],
+        "repository": "https://github.com/MCZhi/DTPP"
+      }
+    },
+    "flow_planner": {
+      "algorithm": "flow_planner",
+      "checkpoint_sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e",
+      "files": [
+        {
+          "bytes": 57244066,
+          "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model.pth",
+          "path": "model.pth",
+          "sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e"
+        },
+        {
+          "bytes": 7036,
+          "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model_config.yaml",
+          "path": "model_config.yaml",
+          "sha256": "2914c4f174e7fba8baf9ee7d42300c640a285f9d6fa13d36b78f0a3cbb9a03fe"
+        }
+      ],
+      "source": {
+        "archive_sha256": "a223d0d95c922b4d8c824cbba513fb341191a8ae4fad8d163362af2891759694",
+        "commit": "366df7654d7b7fa77f9d2577279da63127c6d2f8",
+        "local_changes": [
+          "Python imports namespaced under ads.flow_planner.vendor; original model parameter names retained."
+        ],
+        "repository": "https://github.com/DiffusionAD/Flow-Planner"
+      }
+    },
+    "str2": {
+      "algorithm": "str2",
+      "checkpoint_sha256": "dee84e8c4d54cd357d2a5befaee16d91c14c0cf1d37342bde6d44602217a3831",
+      "files": [
+        {
+          "bytes": 18971238186,
+          "official_url": "https://huggingface.co/JohnZhan/StateTransformer2/resolve/main/str_open.tar.gz",
+          "path": "str_open.tar.gz",
+          "sha256": "0d346779bb1910f2cfd82c265237a45fb318ae0956c4cf323bb684a08ce0a849"
+        },
+        {
+          "official_url": "https://raw.githubusercontent.com/Tsinghua-MARS-Lab/StateTransformer/b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5/kmeans_traj_8s_512.csv",
+          "path": "checkpoint-297000/kmeans_traj_8s_512.csv",
+          "sha256": "4fef7267cd8ce31b07f27effaaed3d530de8384f4b50c438fb16d3d97ea686b2"
+        }
+      ],
+      "source": {
+        "archive_sha256": "d3d9f5f8c5d2a9e0eadc2efc966d17793cb12af03f0fd39d3456671117c774a4",
+        "commit": "b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5",
+        "local_changes": [
+          "Python imports namespaced under ads.str2.vendor; original model parameter names retained.",
+          "Optional observed-future masks for native raster encoder proposal labels and teacher-forced tokens; inference unchanged.",
+          "Use PyTorch attention and explicit original head_dim=16 with Transformers 4.49.",
+          "Native STR/PDM postprocessing retained through causal highway map objects.",
+          "Native build_models also restores head_dim after selecting backbone width for Transformers 4.49; checkpoint parameters unchanged."
+        ],
+        "repository": "https://github.com/Tsinghua-MARS-Lab/StateTransformer"
+      }
+    }
+  },
+  "phase": "interfaces_and_synthetic_checks_only",
+  "published_ads_training_runs": 0,
+  "python": "/home/hp/anaconda3/envs/tread/bin/python",
+  "repair": {
+    "micro_batch_sizes": {
+      "str2": 1
+    },
+    "normal_instances": 512,
+    "plant_batch_size": 64,
+    "plant_learning_rate": 1e-05,
+    "plant_micro_batch_size": 8,
+    "plant_new_teacher_instances": 32,
+    "plant_normal_teacher_instances": 32,
+    "plant_updates": 1000,
+    "rl_steps": 20480
+  },
+  "rounds": 2,
+  "search": {
+    "archive_capacity": 16,
+    "archive_root_limit": 4,
+    "batch_size": 250,
+    "beta": 0.2,
+    "branch_check_budget": 500,
+    "budget": 5000,
+    "elite_fraction": 0.1,
+    "fresh_samples": 500,
+    "generation_batch_size": 32,
+    "graph_size": 12,
+    "initial_samples": 500,
+    "joint_fraction": 0.2,
+    "replay_limit": 256,
+    "subset_max_levels": 8,
+    "terminal_proposals": 250
+  },
+  "seed": 20260926,
+  "status": "interface_acceptance_passed",
+  "strict_state_tensor_counts": {
+    "diffusion_planner": 276,
+    "dtpp": 117,
+    "flow_planner": 338,
+    "str2": 1222
+  },
+  "tests": {
+    "command": "USE_TF=0 HF_HUB_OFFLINE=1 python -m pytest ads/tests ads/dqn/tests hierarchical_world_model/tests normalizing_flow/tests -q",
+    "failed": 0,
+    "junit": "pytest.xml",
+    "junit_sha256": "8b16f3ac8e5d8f6026485075abe271d9a7f48600d2091066fcaf9b37c730d829",
+    "passed": 375,
+    "raw_log": "pytest.log",
+    "skipped": 0
+  },
+  "torch": "2.6.0+cu124"
+}

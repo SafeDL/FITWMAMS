@@ -1,0 +1,17 @@
+{
+  "additional_training_or_scene_evaluations": 0,
+  "canonical_matches_reviewed_carl_snapshot": true,
+  "carl_pilot_already_audited": true,
+  "carl_pilot_status": "no_accepted_enhancement",
+  "dp_experiment_already_complete": true,
+  "integrated_python_files": 434,
+  "new_carl_formal_started": false,
+  "patch_sha256": "0f48ed6d713b14fd20d2f9b4a0a8f7cef984f3f53e46a9aea0a1770aa7e88cfa",
+  "purpose": "Integrate the audited implementation after DP has ended, independent of the negative CaRL pilot effectiveness result",
+  "recorded_utc": "2026-10-25T03:24:23.245391+00:00",
+  "regression_tests_passed": 101,
+  "regression_xml_sha256": "28c5bcdb5925b666fd6067f2a9a42aa4c2a4f58209c95e39a3311fe818eb2f3f",
+  "related_regression_tests_pending": false,
+  "ruff": "passed; ads excluding vendor; target py310; no cache",
+  "status": "passed"
+}

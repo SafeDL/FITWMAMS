@@ -1,21 +1,17 @@
-#!/usr/bin/env python3
 """Render separate, visually matched AMS playbacks for enabled world models."""
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from ads.idm.scripts.render_subset_playbacks import (  # noqa: E402
+from ads.idm.scripts.render_subset_playbacks import (
     render_subset_playbacks,
 )
-from ads.idm.src.multi_world_runner import load_model_configs  # noqa: E402
-from hierarchical_world_model.src.core.utils import load_yaml  # noqa: E402
+from ads.idm.src.multi_world_runner import load_model_configs
+from hierarchical_world_model.src.core.utils import load_yaml
+
+ROOT = Path(__file__).resolve().parents[3]
 
 CONFIG = ROOT / "ads/idm/configs/world_models_idm.yaml"
 

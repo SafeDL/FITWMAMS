@@ -1,0 +1,112 @@
+{
+  "ads_implementation": "4f28d950f8dfcfedd6f850fde159c5fb86eed220b11cf8b3a20e7712c446e9b4",
+  "assets": {
+    "diffusion_checkpoint": "7239fac05e6484746cb4a789d6e1eb55458a8cf8ca1a5a6dcea1d48a47ef388c",
+    "diffusion_contract": "baf194f3f21f2602d9fe0ea350932559b1fc69bef10d880cc345e06652e7e59c",
+    "driver_model": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+    "evt_model": "fba21455a71703a225109d6a1d6ba5fa7630c88cc48c3f80948cc73b126f436c",
+    "flow_checkpoint": "7fb8c5f03d1383a127cf8b08214e56d8702257fec57bc9b03ced7157e1a51586",
+    "generation_contract": "d2e15724d99e9675d487c0ac16186a4d9b13c3b43241dc5e5dafe35627fa1bde",
+    "interaction_errors": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+    "lane_model": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f",
+    "world_config": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9",
+    "world_implementation": "a285054c7bbde69ddda492eecf56233f5bb054bf4bc0301dba0e5f469189e9ea",
+    "world_selection": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5"
+  },
+  "schema": "method_c_branching_v2",
+  "settings": {
+    "algorithms": [
+      "diffusion_planner"
+    ],
+    "baseline": {},
+    "capability_preserving_repair": {
+      "development_natural": 500,
+      "development_tail": 500,
+      "keep_candidates": 512,
+      "minimum_progress_ratio": 0.98,
+      "native_materials": "/media/hp/DATA/nuplan_workspace/preparation/retention/diffusion_planner/materials.json",
+      "nuplan_validation": "manual_by_user",
+      "retention_coefficient": 1.0
+    },
+    "carl": {
+      "batch_size": 1024,
+      "clip_range": 0.1,
+      "entropy_coefficient": 0.01,
+      "epochs": 4,
+      "gae_lambda": 0.95,
+      "gamma": 0.99,
+      "learning_rate": 2.5e-05,
+      "micro_batch_size": 128,
+      "rollout_steps": 4096,
+      "value_coefficient": 0.5
+    },
+    "ddim_steps": 20,
+    "evaluation": {
+      "bootstrap_replicates": 10000,
+      "instances": 2000,
+      "natural_dataset": "results/highd_shared_training_data/scenario_conditions/dataset.npz",
+      "natural_flow_checkpoint": "results/natural_flow/checkpoints/scenario_flow.pt",
+      "natural_segments": "results/evt/natural_segments.csv",
+      "sequence_cache": "results/highd_shared_training_data/highd_sequence_cache/sequence_cache"
+    },
+    "evt_model": "results/evt/evt_model.json",
+    "manual_nuplan": {
+      "automatic_evaluation": false,
+      "output_dir": "results/risk_stratified_repair_manual_nuplan"
+    },
+    "master_seed": 20260926,
+    "methods": [
+      "monte_carlo",
+      "subset",
+      "guided"
+    ],
+    "output_dir": "results/risk_stratified_repair/formal/diffusion_planner",
+    "repair": {
+      "micro_batch_sizes": {
+        "str2": 1
+      },
+      "normal_instances": 512,
+      "plant_batch_size": 64,
+      "plant_learning_rate": 1e-05,
+      "plant_micro_batch_size": 8,
+      "plant_new_teacher_instances": 32,
+      "plant_normal_teacher_instances": 32,
+      "plant_updates": 1000,
+      "rl_steps": 20480
+    },
+    "rounds": 2,
+    "run_kind": "formal",
+    "runtime": {
+      "device": "cuda",
+      "generation_batch_size": 32,
+      "torch_threads": 1,
+      "world_device": "cpu"
+    },
+    "search": {
+      "archive_capacity": 16,
+      "archive_root_limit": 4,
+      "batch_size": 250,
+      "beta": 0.2,
+      "branch_check_budget": 500,
+      "budget": 5000,
+      "elite_fraction": 0.1,
+      "fixed_budget": true,
+      "fresh_samples": 500,
+      "generation_batch_size": 32,
+      "graph_size": 12,
+      "initial_samples": 500,
+      "joint_fraction": 0.2,
+      "replay_limit": 256,
+      "subset_max_levels": 8,
+      "terminal_proposals": 250
+    },
+    "seeds": [
+      20260926
+    ],
+    "teacher": {
+      "candidate_budget": 128
+    },
+    "world_config": "hierarchical_world_model/config.yaml"
+  },
+  "torch": "2.6.0+cu124"
+}

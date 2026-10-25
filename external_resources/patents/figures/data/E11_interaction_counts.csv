@@ -1,0 +1,8 @@
+interaction_type,label_zh,unique_instances
+front_tracking,前方·跟踪,2753
+rear_owned,后方·接管,2061
+rear_tracking,后方·跟踪,131
+adjacent_tracking,邻侧·跟踪,45
+offroad_right,右侧驶出道路,6
+adjacent_owned,邻侧·接管,3
+front_owned,前方·接管,1

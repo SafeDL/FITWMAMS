@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-25",
+  "scope": "自动驾驶交互仿真测试至扩散规划器修正；一般持续学习仅作机制依据",
+  "privacy": "仅中性词及已公开标题、公开号，无私有文稿、权利要求、代码、数据上传",
+  "queries": [
+    "autonomous driving model repair counterexample successful scenarios preserving performance diffusion planner safety fine tuning",
+    "autonomous driving scenario repair label consistency closed loop expert trajectory distillation catastrophic forgetting",
+    "autonomous driving testing failure scenarios repair SERA scenario curriculum fine tuning",
+    "From Failures to Fixes SERA",
+    "autonomous driving scenario repair continual learning catastrophic forgetting patent expert simulation",
+    "autonomous driving repair counterexample imitation learning",
+    "autonomous driving snapshot expert DAgger",
+    "自动驾驶 测试 失效 修复 训练 专利 场景 模型 保持",
+    "autonomous driving repair distillation scenario",
+    "autonomous driving GEM repair",
+    "autonomous recovery scenarios reactive",
+    "autonomous driving corrective distillation simulation planner",
+    "autonomous driving successful repair teacher",
+    "自动驾驶 修复 知识蒸馏 专利",
+    "自动驾驶 反例 修正 训练 专利",
+    "diffusion planning short horizon mask distillation",
+    "autonomous driving success denoising distillation fine-tuning",
+    "diffusion planner forgetting fine tuning",
+    "autonomous driving mixed teacher failures fine-tuning",
+    "diffusion driving invalid noise mask fine-tuning",
+    "planner repair successful distillation autonomous",
+    "自动驾驶 轨迹 扩散 蒸馏 微调 保持 训练 site:patents.google.com/patent/",
+    "autonomous denoising fine-tuning teacher site:patents.google.com/patent/",
+    "driving repair successful trajectories expert",
+    "autonomous driving counterexample-guided repair",
+    "diffusion planner knowledge distillation fine-tuning",
+    "autonomous driving denoising retention",
+    "diffusion planning partial trajectories loss",
+    "自动驾驶 扩散 有效性掩码 训练",
+    "Diffusion Planner Diffusion-Based Planning for Autonomous Driving ICLR 2025",
+    "GRID-Planner self-distillation",
+    "Unleashing VLA Potentials Explicit Learning from Failures arxiv"
+  ],
+  "sources": [
+    {
+      "name": "KING",
+      "url": "https://arxiv.org/html/2204.13683",
+      "public_date_or_year": "2022-04-28",
+      "checked": "第3节及4.4节：专家可纠正过滤、原任务和危险样本混合微调",
+      "role": "main"
+    },
+    {
+      "name": "SERA",
+      "url": "https://arxiv.org/html/2505.22067v1",
+      "public_date_or_year": "2025-05-28",
+      "checked": "第3.4、3.5节和算法1：失效分析、场景推荐、适配",
+      "role": "main"
+    },
+    {
+      "name": "Reflect-VLA",
+      "url": "https://arxiv.org/html/2610.13453v1",
+      "public_date_or_year": "2026-10-09",
+      "checked": "第3.4节式7至10：可靠行为保持、风险行为纠正",
+      "role": "main"
+    },
+    {
+      "name": "GRID-Planner",
+      "url": "https://arxiv.org/html/2610.21984v1",
+      "public_date_or_year": "2026-10-15",
+      "checked": "第3.5节式23至25：优势加权扩散和自蒸馏",
+      "role": "main"
+    },
+    {
+      "name": "CN121404308A",
+      "url": "https://patents.google.com/patent/CN121404308A/zh",
+      "public_date_or_year": "2026-01-27",
+      "checked": "权利要求1、11和恢复轨迹说明",
+      "role": "main"
+    },
+    {
+      "name": "US20260118838A1",
+      "url": "https://patents.google.com/patent/US20260118838A1/en",
+      "public_date_or_year": "2026-04-30",
+      "checked": "权利要求1及恢复区段说明；与中国案相关",
+      "role": "main"
+    },
+    {
+      "name": "US20230227069A1",
+      "url": "https://patents.google.com/patent/US20230227069A1/en",
+      "public_date_or_year": "2023-07-20",
+      "checked": "权利要求1、2及图6：重要场景测试与更新",
+      "role": "main"
+    },
+    {
+      "name": "WO2019232335A1",
+      "url": "https://patents.google.com/patent/WO2019232335A1/en",
+      "public_date_or_year": "2019-12-05",
+      "checked": "摘要和持续学习说明：新数据及旧数据子集",
+      "role": "main"
+    },
+    {
+      "name": "LoRD",
+      "url": "https://arxiv.org/html/2410.09681v3",
+      "public_date_or_year": "2024-10",
+      "checked": "第IV节：局部残差及多任务微调；日期为首版月份",
+      "role": "main"
+    },
+    {
+      "name": "LwF",
+      "url": "https://arxiv.org/abs/1606.09282",
+      "public_date_or_year": "2016-06-29",
+      "checked": "原模型输出保持",
+      "role": "main"
+    },
+    {
+      "name": "Diffusion Planner",
+      "url": "https://proceedings.iclr.cc/paper_files/paper/2025/hash/5c0cd43063f087eb32e572d040a19cd2-Abstract-Conference.html",
+      "public_date_or_year": "2025",
+      "checked": "ICLR原文入口；另核对arxiv2501.15564v1及本地官方实现",
+      "role": "main"
+    },
+    {
+      "name": "Nexus",
+      "url": "https://arxiv.org/html/2504.10485v1",
+      "public_date_or_year": "2025-04-14",
+      "checked": "第3.1节：有效性、噪声掩码和交通生成",
+      "role": "main"
+    },
+    {
+      "name": "WO2025255804A1",
+      "url": "https://patents.google.com/patent/WO2025255804A1/en",
+      "public_date_or_year": "2025-12-18",
+      "checked": "权利要求和Hydra多目标蒸馏说明",
+      "role": "main"
+    },
+    {
+      "name": "ELF-VLA",
+      "url": "https://arxiv.org/abs/2603.01063",
+      "public_date_or_year": "2026-03-01",
+      "checked": "失败反馈和纠正样本学习，CVPR2026作者论文补充",
+      "role": "supplement"
+    },
+    {
+      "name": "DAgger",
+      "url": "https://proceedings.mlr.press/v15/ross11a.html",
+      "public_date_or_year": "2011",
+      "checked": "策略访问状态的数据聚合；可选后续设计依据",
+      "role": "supplement"
+    },
+    {
+      "name": "GEM",
+      "url": "https://proceedings.neurips.cc/paper/2017/hash/f87522788a2be2d171666752f97ddebb-Abstract.html",
+      "public_date_or_year": "2017",
+      "checked": "保持约束；可选后续设计依据",
+      "role": "supplement"
+    },
+    {
+      "name": "A-GEM",
+      "url": "https://arxiv.org/abs/1812.00420",
+      "public_date_or_year": "2018",
+      "checked": "简化保持梯度约束；可选后续设计依据",
+      "role": "supplement"
+    },
+    {
+      "name": "CNIPA局令第84号",
+      "url": "https://www.cnipa.gov.cn/art/2025/11/14/art_99_202568.html",
+      "public_date_or_year": "2025-11-14",
+      "checked": "整体创造性评价及贡献特征写入权利要求；2026-01-01施行",
+      "role": "legal"
+    }
+  ],
+  "retained_previous_context": [
+    "GENBO arxiv2307.10590v2",
+    "GUARD https://waabi.ai/research/guard"
+  ],
+  "limitations": [
+    "针对性查新而非穷尽检索",
+    "未取得拟申请日及前案最终递交文件",
+    "新近公开文献按实际公开日期记载，不以会议日期代替",
+    "检索出现但不相关的维修、感知和一般软件条目不作为本案技术依据"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "additional_ads_executions": 0,
+  "all_archive_members_hash_verified": true,
+  "archive": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair/preparation/carl_repair_review/runtime/results/risk_stratified_repair/development/carl/ads_source.tar.gz",
+  "archive_bytes": 3009478,
+  "archive_sha256": "b7a52d674e39fdaec2b5adf5f1040351052d5b7e344d75604a45f8cea61d3112",
+  "model_weights_copied": false,
+  "python_files": 434,
+  "registered_config_sha256": "249b9673e2a6b31f11f15882b5fa5e2b9cdb016ded3027eec72dfa606aaed3a3",
+  "status": "passed",
+  "total_files": 562
+}

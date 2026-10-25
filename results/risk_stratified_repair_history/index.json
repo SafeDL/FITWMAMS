@@ -1,0 +1,416 @@
+{
+  "recorded_utc": "2026-10-24T04:29:14.963786+00:00",
+  "purpose": "Relocate preserved historical ADS experiments and version compact evidence; no training or scenario execution.",
+  "current_config": "ads/configs/risk_stratified_repair.yaml",
+  "historical_config": "results/risk_stratified_repair_history/reports/original_config.yaml",
+  "original_config": {
+    "path": "reports/original_config.yaml",
+    "sha256": "d65b56b5881687334ca961261a950c3bb6fde371df8801b19a8f7edbec491b31"
+  },
+  "path_mappings": [
+    {
+      "old_path": "/home/hp/FITWMAMS/results/method_c",
+      "new_path": "/home/hp/FITWMAMS/results/risk_stratified_repair_history",
+      "files": 466760,
+      "bytes": 24536417843,
+      "metadata_sha256": "c951e985556d4949c035f90c4d18df98cb014ba6c8eaf0cdebad76847a1f664a",
+      "unchanged": true
+    },
+    {
+      "old_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/method_c",
+      "new_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history",
+      "files": 215517,
+      "bytes": 24619077317,
+      "metadata_sha256": "69d881876b3779c2a4e8a5ef9b70631c52a240f18b8ba095f38949a21397064c",
+      "unchanged": true
+    }
+  ],
+  "links": [
+    {
+      "path": "branching",
+      "old_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/method_c/branching",
+      "new_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/branching"
+    },
+    {
+      "path": "manual_nuplan",
+      "old_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/method_c/manual_nuplan",
+      "new_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/manual_nuplan"
+    },
+    {
+      "path": "risk_repair_manual_nuplan",
+      "old_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/method_c/risk_repair_manual_nuplan",
+      "new_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/risk_repair_manual_nuplan"
+    },
+    {
+      "path": "risk_repair",
+      "old_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/method_c/risk_repair",
+      "new_target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/risk_repair"
+    }
+  ],
+  "baseline_weights": [
+    {
+      "algorithm": "dqn",
+      "path": "formal/dqn/20260926/baseline/policy.zip",
+      "sha256": "3db1add636a353c215f3d598af255996d7229ebaf86f4206912eccfcdb4c9342",
+      "unchanged": true
+    },
+    {
+      "algorithm": "ppo",
+      "path": "formal/ppo/20260926/baseline/policy.zip",
+      "sha256": "6fe9d1a2625e4b13ce75cfaa36607f149ff3d78d9232b7c2133061624d584b6c",
+      "unchanged": true
+    },
+    {
+      "algorithm": "plant2",
+      "path": "formal/plant2/20260926/baseline/policy.ckpt",
+      "sha256": "95acbdc7b1eabe795ca9b91c325729b1e092f1bb88b1021730c9f3836254b275",
+      "unchanged": true
+    }
+  ],
+  "report_snapshots": [
+    {
+      "source": "runtime_check.json",
+      "versioned_snapshot": "reports/runtime_check.json",
+      "bytes": 1646,
+      "sha256": "95ebdb00e159cc4058ca912b9cc6ed357e52e1492eaa2fca393b792c140bde43"
+    },
+    {
+      "source": "formal/protocol.json",
+      "versioned_snapshot": "reports/formal/protocol.json",
+      "bytes": 3342,
+      "sha256": "e740f58322d1cb41d37f1506cae29e9409a65b1cec8a5c982d06fd7292384328"
+    },
+    {
+      "source": "formal/implementation_acceptance.json",
+      "versioned_snapshot": "reports/formal/implementation_acceptance.json",
+      "bytes": 8948,
+      "sha256": "9846b5a463ae12b4bf18943980c385b7bf2cd00f0907b68d5b5c6ec698c68cbc"
+    },
+    {
+      "source": "formal/reports/costs.csv",
+      "versioned_snapshot": "reports/formal/reports/costs.csv",
+      "bytes": 12930,
+      "sha256": "688564c92f09de47b685dc0f25320c9e14297a4febc2b9e3f97e4888517fce88"
+    },
+    {
+      "source": "formal/reports/repair_comparisons.csv",
+      "versioned_snapshot": "reports/formal/reports/repair_comparisons.csv",
+      "bytes": 2403,
+      "sha256": "f5aebe29826a26426b5296b35302e43ebbd0e0e79937fdb47e333a650cbe4833"
+    },
+    {
+      "source": "formal/reports/repair_per_seed.csv",
+      "versioned_snapshot": "reports/formal/reports/repair_per_seed.csv",
+      "bytes": 23263,
+      "sha256": "ebf50127c460c91fbf3b7fd8a1eb243d6c5c9e14447d1945cb266b3a6e8556f6"
+    },
+    {
+      "source": "maintenance/branching_interfaces/completion_audit.json",
+      "versioned_snapshot": "reports/maintenance/branching_interfaces/completion_audit.json",
+      "bytes": 49477,
+      "sha256": "f356603293775b319ce47f87608bcc3f6f0db4bc2e6f4e8d2fdacf784bb370cf"
+    },
+    {
+      "source": "maintenance/branching_interfaces/analytic_checks.json",
+      "versioned_snapshot": "reports/maintenance/branching_interfaces/analytic_checks.json",
+      "bytes": 6341,
+      "sha256": "b46e28e44befd46b6a536629869c68a1ecebab74af264d7c58727a6c50d0907a"
+    },
+    {
+      "source": "maintenance/branching_interfaces/interface_acceptance.json",
+      "versioned_snapshot": "reports/maintenance/branching_interfaces/interface_acceptance.json",
+      "bytes": 15142,
+      "sha256": "8ff163d6798be5e08d3cb4c6da99175d8aa3dfd99b7bcb7eec512a0a1accddf2"
+    },
+    {
+      "source": "branching/protocol.json",
+      "versioned_snapshot": "reports/branching/protocol.json",
+      "bytes": 3994,
+      "sha256": "ad10f646e1a0fb8990599a64bfae171ccb95f40b6ee9673d78ccf7963ac76c73"
+    },
+    {
+      "source": "branching/pause_state.json",
+      "versioned_snapshot": "reports/branching/pause_state.json",
+      "bytes": 1271,
+      "sha256": "e089f9391a3a0e972ce9cf1df4e689dff0bd869c8de1bd53345f58962fead50d"
+    },
+    {
+      "source": "branching/preparation/paused_result_analysis.json",
+      "versioned_snapshot": "reports/branching/preparation/paused_result_analysis.json",
+      "bytes": 13184,
+      "sha256": "a86ed36ecf32f4e499035570c5984848059458243822986378624a6cad914ab2"
+    },
+    {
+      "source": "branching/preparation/paused_search_accounting.csv",
+      "versioned_snapshot": "reports/branching/preparation/paused_search_accounting.csv",
+      "bytes": 8768,
+      "sha256": "3ff73c2fd33f13639b6e183d1737c0643ebeca847e183a20cea5c783ae5fe867"
+    },
+    {
+      "source": "branching/preparation/paused_equal_budget_counts.csv",
+      "versioned_snapshot": "reports/branching/preparation/paused_equal_budget_counts.csv",
+      "bytes": 1260,
+      "sha256": "5d719d759ae931170c3e6409255da08194e2e536247f1671d64daccb0cfcb024"
+    },
+    {
+      "source": "branching/preparation/paused_prior_diagnostics.json",
+      "versioned_snapshot": "reports/branching/preparation/paused_prior_diagnostics.json",
+      "bytes": 841,
+      "sha256": "3d093848805274c0ce40cea02c661d3239f31de434b1c9db0add58df41ee27a6"
+    },
+    {
+      "source": "branching/preparation/paused_prior_diagnostics.csv",
+      "versioned_snapshot": "reports/branching/preparation/paused_prior_diagnostics.csv",
+      "bytes": 7334,
+      "sha256": "0a486e8cf8bc65359fb8391d4d208b7afb2db8e02500ba971419bc7cb2dc8228"
+    },
+    {
+      "source": "branching/preparation/repair_regression_audit/audit_summary.json",
+      "versioned_snapshot": "reports/branching/preparation/repair_regression_audit/audit_summary.json",
+      "bytes": 5644,
+      "sha256": "bd7e706ed72514ac65f1f072c97248f6cffd2ee4d68772c5f231e8d5104232dd"
+    }
+  ],
+  "paused_processes_left_stopped": [
+    3175566,
+    3592706,
+    3757469,
+    3809131
+  ],
+  "old_path_aliases_created": false,
+  "historical_report_paths_and_protocol_identifiers_rewritten": false,
+  "final_evaluation_performed": false,
+  "cleanup": {
+    "recorded_utc": "2026-10-24T05:26:47.893493+00:00",
+    "removed_empty_outputs": [
+      {
+        "link": "risk_repair",
+        "target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/risk_repair"
+      },
+      {
+        "link": "risk_repair_manual_nuplan",
+        "target": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_history/risk_repair_manual_nuplan"
+      }
+    ],
+    "historical_reports_unchanged": true,
+    "experimental_assets_removed": false,
+    "note": "Path mappings, inventories and link records above describe the completed migration before this empty-directory cleanup.",
+    "organization": {
+      "recorded_utc": "2026-10-24T07:34:14.174093+00:00",
+      "removed_duplicate_config": {
+        "path": "ads/configs/risk_stratified_repair_history.yaml",
+        "sha256": "f3e530d5b81c6b5ee94f46d49d6336234554d9254ef929b9a49d141844297910",
+        "preserved_original": "results/risk_stratified_repair_history/reports/original_config.yaml",
+        "differences": "Only comments and relocated output paths; all experiment settings match the original."
+      },
+      "moved_process_records": [
+        {
+          "old_path": "formal_process.json",
+          "new_path": "maintenance/processes/formal_process.json",
+          "sha256": "0db381e8bab8fb46cc368f61d2c0d1206f093836c332f6714e5f4f22677b87db"
+        },
+        {
+          "old_path": "formal_process_history.jsonl",
+          "new_path": "maintenance/processes/formal_process_history.jsonl",
+          "sha256": "0b77f3a932c131e7ea3df0023e501ee72041357885308bd32a9a7cc0605d1e0f"
+        },
+        {
+          "old_path": "formal_run.log",
+          "new_path": "maintenance/processes/formal_run.log",
+          "sha256": "444a777c7020ee8efe7a8318aa59921fe51e02a0c091d71313ce8a4507c8dc08"
+        }
+      ],
+      "historical_reports_unchanged": true,
+      "experimental_assets_removed": false
+    },
+    "retired_tools": {
+      "recorded_utc": "2026-10-24T10:35:26.357238+00:00",
+      "reason": "PlanT-only background prefetch tools are not used by current pilot, scheduler or training; shared expert and cost accounting remain active.",
+      "archive": "maintenance/retired_plant_prefetch.tar.gz",
+      "archive_sha256": "1a3c3efd2d792f566129941fc24a10e6cd9c73037060af50aa7681bce8492b09",
+      "removed_sources": [
+        {
+          "path": "ads/plant2/prefetch.py",
+          "sha256": "f76fc740e3b1f7689acb6e3c7882f06bb33abe43b4e1d060e8c46c1a5fda4590",
+          "lines": 412
+        },
+        {
+          "path": "ads/plant2/prefetch_campaign.py",
+          "sha256": "ab6789c52dcd088b42a1308a45acf12c6ea752fc0f502ea017309fdb8f14caac",
+          "lines": 193
+        },
+        {
+          "path": "ads/tests/test_teacher_prefetch.py",
+          "sha256": "aa343076ac364c9c21990fb8a41a537ea6ff93a654555684e755390ffad46d18",
+          "lines": 275
+        },
+        {
+          "path": "ads/tests/test_teacher_prefetch_campaign.py",
+          "sha256": "8186a3737847036b1159316dd173cb322c88a973ea6a75cf141eeddb483993fd",
+          "lines": 61
+        }
+      ],
+      "retained_test": "ads/tests/test_teacher_costs.py",
+      "experimental_assets_removed": false,
+      "removed_cache_directories": 11,
+      "removed_cache_bytes": 368358
+    },
+    "maintenance_bundle": {
+      "recorded_utc": "2026-10-24T12:21:48.068071+00:00",
+      "archive": "maintenance/development_history.tar.gz",
+      "archive_sha256": "e7a658a3751fb580e6ba5d1feed9246cf81506479ca9bda2829508f2e99fa05d",
+      "files": 52,
+      "original_bytes": 9593393,
+      "archive_bytes": 8148867,
+      "inventory_member": "ARCHIVE_INDEX.json",
+      "removed_loose_entries": [
+        "ads_environment_before.txt",
+        "audit.json",
+        "audit.log",
+        "before_replays.json",
+        "before_replays.log",
+        "before_replays.npz",
+        "carl_native",
+        "cleanup.json",
+        "entrypoints.log",
+        "formal_audit_before.json",
+        "install.log",
+        "install_plan.json",
+        "install_plan.log",
+        "install_result.json",
+        "nuplan_planners",
+        "preserved_formal_files.json",
+        "pytest.log",
+        "results_review.json",
+        "ruff_after.txt",
+        "ruff_before.txt",
+        "ruff_remaining.txt",
+        "runtime_check.log",
+        "source_before.json",
+        "source_before.tar.gz",
+        "source_changes.json",
+        "summary.json",
+        "tread_after.txt",
+        "tread_before.txt",
+        "tread_before_conda.txt",
+        "tread_replays.json",
+        "tread_replays.log",
+        "tread_replays.npz",
+        "tread_runtime.json",
+        "unused_before.txt",
+        "verify_policy_replay.py"
+      ],
+      "all_members_hash_verified": true,
+      "report_snapshots_unchanged": true,
+      "baseline_weights_unchanged": true,
+      "active_ads_source_changed": false,
+      "verification": {
+        "related_tests_passed": 56,
+        "test_scope": [
+          "test_diffusion_repair",
+          "test_selective_supervision",
+          "test_curriculum",
+          "test_campaign_protocol",
+          "test_reporting"
+        ],
+        "ruff": "passed",
+        "frozen_ads_python_files_unchanged": 424,
+        "documentation_links": "passed"
+      }
+    },
+    "validation_tools": {
+      "recorded_utc": "2026-10-24T14:23:36.244943+00:00",
+      "archive": "maintenance/validation_tools.tar.gz",
+      "archive_sha256": "63a4d00255439aaddfb5147974209340c56a535c6d3928cb158365179cf6048a",
+      "files": 11,
+      "original_bytes": 131711,
+      "archive_bytes": 28487,
+      "inventory_member": "ARCHIVE_INDEX.json",
+      "all_members_hash_verified": true,
+      "report_snapshots_unchanged": true,
+      "baseline_weights_unchanged": true,
+      "frozen_ads_python_files_unchanged": 424,
+      "removed_loose_sources": [
+        "validation/check_dqn_complete.py",
+        "validation/check_ppo_complete.py",
+        "validation/check_teacher_trajectories.py",
+        "validation/export_discovery_round1.py",
+        "validation/finalize_acceptance.py",
+        "validation/pre_final_sampling_fix/audit.py",
+        "validation/pre_final_sampling_fix/method_c.py",
+        "validation/prefetch_sources/3b478db5f59cd3c9b43ff9b01f4e65cb34ff6a05511e2c05da195142ab50f10d.py",
+        "validation/prefetch_sources/44e9798d1575924d98a5c08be9bf8ee4c37bf88a7a4341d39e9f0dadc2801123.py",
+        "validation/prefetch_sources/f2b952214b1a934667fcb38c3c407bd6009e12a59d1b49525437e259a6dfe67b.py",
+        "validation/resize_expert_dispatcher.py"
+      ],
+      "verification": {
+        "related_tests_passed": 38,
+        "test_scope": [
+          "test_curriculum",
+          "test_campaign_protocol",
+          "test_reporting"
+        ],
+        "ruff": "passed",
+        "documentation_links": "passed",
+        "active_registered_python_files_unchanged": 424
+      }
+    },
+    "validation_reports": {
+      "recorded_utc": "2026-10-24T16:26:54.993164+00:00",
+      "archive": "maintenance/validation_reports.tar.gz",
+      "archive_sha256": "9f37044aa62bf0841d2a600f139e7f2319ea496f58f81bc3234eb0dde06badf7",
+      "files": 58,
+      "original_bytes": 8645456,
+      "archive_bytes": 2996966,
+      "inventory_member": "ARCHIVE_INDEX.json",
+      "all_members_hash_verified": true,
+      "removed_loose_directory": "validation/",
+      "restore_from_history_root": "tar -xzf maintenance/validation_reports.tar.gz validation/",
+      "report_snapshots_unchanged": true,
+      "baseline_weights_unchanged": true,
+      "frozen_ads_python_files_unchanged": 424,
+      "experimental_assets_removed": false,
+      "removed_regenerable_cache_bytes": 8198,
+      "verification": {
+        "related_tests_passed": 90,
+        "test_scope": [
+          "test_curriculum",
+          "test_campaign_protocol",
+          "test_reporting",
+          "test_fixed_search_budget",
+          "test_holdouts_and_randomness",
+          "test_scheduling"
+        ],
+        "ruff": "passed",
+        "documentation_links": "passed",
+        "local_links_checked": 74,
+        "active_registered_python_files_unchanged": 424,
+        "formal_configuration_unchanged": true,
+        "formal_highd_or_nuplan_evaluation_started_by_cleanup": false,
+        "carl_registered_python_files_unchanged": 434
+      }
+    },
+    "historical_logs": {
+      "recorded_utc": "2026-10-24T18:24:31.492317+00:00",
+      "archive": "maintenance/historical_run_logs.tar.gz",
+      "archive_sha256": "a574ddaf99398cca9f0edf021f8905c8a8dbb7a4d8effe4961ad86322b84c919",
+      "files": 181,
+      "original_bytes": 617570,
+      "archive_bytes": 51874,
+      "inventory_member": "ARCHIVE_INDEX.json",
+      "all_members_hash_verified": true,
+      "open_file_handles": 0,
+      "removed_empty_directories": [
+        "formal/unit_logs"
+      ],
+      "restore_from_history_root": "tar -xzf maintenance/historical_run_logs.tar.gz formal/",
+      "report_snapshots_unchanged": true,
+      "baseline_weights_unchanged": true,
+      "frozen_ads_python_files_unchanged": 424,
+      "experimental_arrays_or_weights_removed": false,
+      "removed_regenerable_cache_directories": 2,
+      "removed_regenerable_cache_bytes": 22399,
+      "additional_ads_executions": 0
+    }
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "actual_policy_scenario_executions": 8000,
+  "additional_world_executions": 0,
+  "all_final_cohorts_complete": false,
+  "ci_method": "paired_discordance_clopper_pearson_bonferroni",
+  "freeze_sha256": "3d3b9b243197baecb96af2933ebac4c7f30b90d93febd32fb90da3b21c030867",
+  "guided_versus_other_methods": {
+    "monte_carlo": {
+      "bootstrap_unit": "instance_hash",
+      "cohort_kind": "tail_generated",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+      "collision_discordant_instances": 4,
+      "collision_rate_after": 0.02,
+      "collision_rate_before": 0.019,
+      "collision_rate_difference_after_minus_before": 0.001,
+      "collision_rate_difference_bootstrap_ci95": [
+        -0.001,
+        0.003
+      ],
+      "collision_rate_difference_ci95": [
+        -0.0029490344336766208,
+        0.004855127326177288
+      ],
+      "failure_rate_difference_after_minus_before": 0.001,
+      "failure_rate_difference_ci95": [
+        -0.0029490344336766208,
+        0.004855127326177288
+      ],
+      "independent_units": 2000,
+      "instances": 2000,
+      "mean_progress_after_m": 106.37016933178901,
+      "mean_progress_before_m": 106.49348914361,
+      "offroad_rate_after": 0.0005,
+      "offroad_rate_before": 0.0005,
+      "regressed": 3,
+      "repaired": 1,
+      "safety_failure_rate_after": 0.0205,
+      "safety_failure_rate_before": 0.0195,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    },
+    "subset": {
+      "bootstrap_unit": "instance_hash",
+      "cohort_kind": "tail_generated",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+      "collision_discordant_instances": 9,
+      "collision_rate_after": 0.02,
+      "collision_rate_before": 0.0165,
+      "collision_rate_difference_after_minus_before": 0.0035,
+      "collision_rate_difference_bootstrap_ci95": [
+        0.001,
+        0.0065
+      ],
+      "collision_rate_difference_ci95": [
+        -0.0016711323782508875,
+        0.008481244822468011
+      ],
+      "failure_rate_difference_after_minus_before": 0.0035,
+      "failure_rate_difference_ci95": [
+        -0.0016711323782508875,
+        0.008481244822468011
+      ],
+      "independent_units": 2000,
+      "instances": 2000,
+      "mean_progress_after_m": 106.37016933178901,
+      "mean_progress_before_m": 108.59830001378059,
+      "offroad_rate_after": 0.0005,
+      "offroad_rate_before": 0.0005,
+      "regressed": 8,
+      "repaired": 1,
+      "safety_failure_rate_after": 0.0205,
+      "safety_failure_rate_before": 0.017,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    }
+  },
+  "independent_statistical_units": 2000,
+  "initial_safety_failure_instances_common_to_all_policies": 1,
+  "instances": 2000,
+  "nuplan_simulation_performed": false,
+  "per_policy": [
+    {
+      "ci95_lower_pp": "",
+      "ci95_upper_pp": "",
+      "collision_count": 61,
+      "collision_difference_pp": "",
+      "collision_rate_pct": 3.05,
+      "collision_regressed_vs_initial": "",
+      "collision_repaired_vs_initial": "",
+      "initial_collision_count": 1,
+      "instances": 2000,
+      "mean_progress_m": 100.49231266188622,
+      "offroad_count": 1,
+      "policy": "initial",
+      "stalled_count": 0,
+      "statistical_inference_units": 2000
+    },
+    {
+      "ci95_lower_pp": -2.0777520717061186,
+      "ci95_upper_pp": -0.20760770660354946,
+      "collision_count": 38,
+      "collision_difference_pp": -1.15,
+      "collision_rate_pct": 1.9,
+      "collision_regressed_vs_initial": 6,
+      "collision_repaired_vs_initial": 29,
+      "initial_collision_count": 1,
+      "instances": 2000,
+      "mean_progress_m": 106.49348914361,
+      "offroad_count": 1,
+      "policy": "monte_carlo",
+      "stalled_count": 0,
+      "statistical_inference_units": 2000
+    },
+    {
+      "ci95_lower_pp": -2.3753334707901477,
+      "ci95_upper_pp": -0.40836633070164957,
+      "collision_count": 33,
+      "collision_difference_pp": -1.4000000000000001,
+      "collision_rate_pct": 1.65,
+      "collision_regressed_vs_initial": 6,
+      "collision_repaired_vs_initial": 34,
+      "initial_collision_count": 1,
+      "instances": 2000,
+      "mean_progress_m": 108.59830001378059,
+      "offroad_count": 1,
+      "policy": "subset",
+      "stalled_count": 0,
+      "statistical_inference_units": 2000
+    },
+    {
+      "ci95_lower_pp": -1.989686662330032,
+      "ci95_upper_pp": -0.09749518112879309,
+      "collision_count": 40,
+      "collision_difference_pp": -1.05,
+      "collision_rate_pct": 2.0,
+      "collision_regressed_vs_initial": 7,
+      "collision_repaired_vs_initial": 28,
+      "initial_collision_count": 1,
+      "instances": 2000,
+      "mean_progress_m": 106.37016933178901,
+      "offroad_count": 1,
+      "policy": "guided",
+      "stalled_count": 0,
+      "statistical_inference_units": 2000
+    }
+  ],
+  "policy_sampling_streams_paired_by_instance": true,
+  "recorded_utc": "2026-10-25T01:05:42.299283+00:00",
+  "scope": "Completed final tail-generated cohort, fixed policies; natural cohorts still running and no further model selection",
+  "sources": {
+    "guided": {
+      "actual_executions": 2000,
+      "execution_journal": "evaluation/tail_generated/diffusion_planner/20260926/guided.attempts/1792885971709910681.jsonl",
+      "execution_journal_sha256": "61e0f45ade13a1b48bc3f0671c06d404d34321531f57c8d467f7cd5d154ea38a",
+      "policy_sha256": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603",
+      "result": "evaluation/tail_generated/diffusion_planner/20260926/guided.json",
+      "result_sha256": "3e1450d6e378d86495dcf3057f433b65974d7e56664541cefc69c6bc8d145870"
+    },
+    "initial": {
+      "actual_executions": 2000,
+      "execution_journal": "evaluation/tail_generated/diffusion_planner/20260926/initial.attempts/1792885977452831760.jsonl",
+      "execution_journal_sha256": "eccb04de0984755fecd91c19f2fba121c39c6427e8db3d5aa67ba1f62ffc6e60",
+      "policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+      "result": "evaluation/tail_generated/diffusion_planner/20260926/initial.json",
+      "result_sha256": "adce368033b0f5eb3b310edf0bf20ea54cd9a629e0113ce2d679ce995346080d"
+    },
+    "monte_carlo": {
+      "actual_executions": 2000,
+      "execution_journal": "evaluation/tail_generated/diffusion_planner/20260926/monte_carlo.attempts/1792885974716512869.jsonl",
+      "execution_journal_sha256": "daed2c35bb87acc1f0ce4622493a86dd1178e80bee0775b8c040283128e1da22",
+      "policy_sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db",
+      "result": "evaluation/tail_generated/diffusion_planner/20260926/monte_carlo.json",
+      "result_sha256": "ae860266799e96ba0e3066c51e240db23f38102dcfc28e39cc9f82a66a7e90e0"
+    },
+    "subset": {
+      "actual_executions": 2000,
+      "execution_journal": "evaluation/tail_generated/diffusion_planner/20260926/subset.attempts/1792886032467799986.jsonl",
+      "execution_journal_sha256": "f0a14bde98cedf1ef3d0ce9e4d1e72c44a66ecf078e6573174c2c5d34e933fe6",
+      "policy_sha256": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83",
+      "result": "evaluation/tail_generated/diffusion_planner/20260926/subset.json",
+      "result_sha256": "ac5250fb99b0cffcd43dd9695d88f107ba4ae7fc96df076aac40397819f9323a"
+    }
+  },
+  "status": "passed",
+  "versus_initial": {
+    "guided": {
+      "bootstrap_unit": "instance_hash",
+      "cohort_kind": "tail_generated",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+      "collision_discordant_instances": 35,
+      "collision_rate_after": 0.02,
+      "collision_rate_before": 0.0305,
+      "collision_rate_difference_after_minus_before": -0.0105,
+      "collision_rate_difference_bootstrap_ci95": [
+        -0.0165,
+        -0.005
+      ],
+      "collision_rate_difference_ci95": [
+        -0.01989686662330032,
+        -0.0009749518112879309
+      ],
+      "collision_regressed": 7,
+      "collision_repaired": 28,
+      "failure_rate_difference_after_minus_before": -0.0105,
+      "failure_rate_difference_ci95": [
+        -0.01989686662330032,
+        -0.0009749518112879309
+      ],
+      "independent_units": 2000,
+      "instances": 2000,
+      "mean_progress_after_m": 106.37016933178901,
+      "mean_progress_before_m": 100.49231266188622,
+      "offroad_rate_after": 0.0005,
+      "offroad_rate_before": 0.0005,
+      "regressed": 7,
+      "repaired": 28,
+      "safety_failure_rate_after": 0.0205,
+      "safety_failure_rate_before": 0.031,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    },
+    "monte_carlo": {
+      "bootstrap_unit": "instance_hash",
+      "cohort_kind": "tail_generated",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+      "collision_discordant_instances": 35,
+      "collision_rate_after": 0.019,
+      "collision_rate_before": 0.0305,
+      "collision_rate_difference_after_minus_before": -0.0115,
+      "collision_rate_difference_bootstrap_ci95": [
+        -0.0175,
+        -0.006
+      ],
+      "collision_rate_difference_ci95": [
+        -0.020777520717061185,
+        -0.0020760770660354947
+      ],
+      "collision_regressed": 6,
+      "collision_repaired": 29,
+      "failure_rate_difference_after_minus_before": -0.0115,
+      "failure_rate_difference_ci95": [
+        -0.020777520717061185,
+        -0.0020760770660354947
+      ],
+      "independent_units": 2000,
+      "instances": 2000,
+      "mean_progress_after_m": 106.49348914361,
+      "mean_progress_before_m": 100.49231266188622,
+      "offroad_rate_after": 0.0005,
+      "offroad_rate_before": 0.0005,
+      "regressed": 6,
+      "repaired": 29,
+      "safety_failure_rate_after": 0.0195,
+      "safety_failure_rate_before": 0.031,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    },
+    "subset": {
+      "bootstrap_unit": "instance_hash",
+      "cohort_kind": "tail_generated",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+      "collision_discordant_instances": 40,
+      "collision_rate_after": 0.0165,
+      "collision_rate_before": 0.0305,
+      "collision_rate_difference_after_minus_before": -0.014,
+      "collision_rate_difference_bootstrap_ci95": [
+        -0.0205,
+        -0.008
+      ],
+      "collision_rate_difference_ci95": [
+        -0.023753334707901478,
+        -0.004083663307016496
+      ],
+      "collision_regressed": 6,
+      "collision_repaired": 34,
+      "failure_rate_difference_after_minus_before": -0.014,
+      "failure_rate_difference_ci95": [
+        -0.023753334707901478,
+        -0.004083663307016496
+      ],
+      "independent_units": 2000,
+      "instances": 2000,
+      "mean_progress_after_m": 108.59830001378059,
+      "mean_progress_before_m": 100.49231266188622,
+      "offroad_rate_after": 0.0005,
+      "offroad_rate_before": 0.0005,
+      "regressed": 6,
+      "repaired": 34,
+      "safety_failure_rate_after": 0.017,
+      "safety_failure_rate_before": 0.031,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    }
+  }
+}

@@ -96,6 +96,20 @@ results/hierarchical_world_model/npc_response/autonomous_traffic/runs.csv
 results/hierarchical_world_model/npc_response/autonomous_traffic/*/events.csv
 results/hierarchical_world_model/npc_response/autonomous_traffic/*/runs.json
 results/idm_ams/
+# ADS results: version curated evidence, not full runs or external storage links.
+results/risk_stratified_repair
+!results/risk_stratified_repair/
+results/risk_stratified_repair/*
+!results/risk_stratified_repair/README.md
+!results/risk_stratified_repair/reports/
+!results/risk_stratified_repair/reports/**
+results/risk_stratified_repair_history/*
+!results/risk_stratified_repair_history/README.md
+!results/risk_stratified_repair_history/index.json
+!results/risk_stratified_repair_history/reports/
+!results/risk_stratified_repair_history/reports/**
+results/risk_stratified_repair_manual_nuplan
+results/natural_flow
 
 # Large generated output media (usually recreated by scripts)
 results/**/*.png
@@ -108,3 +122,7 @@ results/**/*.webm
 # Current bridge: regenerable execution caches and compact runtime bank.
 results/hierarchical_world_model/bridge/.cache/
 !results/hierarchical_world_model/model_assets/interaction_errors.npz
+
+# Published model packages; source manifests remain versioned.
+ads/*/artifacts/*.tar.gz
+ads/*/artifacts/*.part

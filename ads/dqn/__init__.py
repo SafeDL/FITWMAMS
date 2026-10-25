@@ -1,6 +1,1 @@
-"""DQN ADS environment, training and repair utilities."""
-
-from .env import ADSHighwayEnv, WorldEvent
-
-__all__ = ["ADSHighwayEnv", "WorldEvent"]
-
+"""DQN training and fixed-event evaluation on the shared highway environment."""

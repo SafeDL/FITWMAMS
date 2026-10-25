@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-25",
+  "scope": "有限预算的自动驾驶自然长尾交互测试、分散失效发现及测试修复反馈；通用算法只作直接采用依据",
+  "privacy": "使用中性查询与已公开标题、公开号；未上传未公开交底书、代码、权利要求或实验记录",
+  "screened_context": [
+    {
+      "name": "InterSim",
+      "url": "https://arxiv.org/html/2210.14413",
+      "checked": "主车计划条件及显式交互关系；同类背景不增加正文来源"
+    },
+    {
+      "name": "GENBO",
+      "url": "https://arxiv.org/html/2307.10590v2",
+      "checked": "边界状态对及再训练；不把相反端点本身当作新机制"
+    },
+    {
+      "name": "US20230222267A1",
+      "url": "https://patents.google.com/patent/US20230222267A1/en",
+      "checked": "场景不确定性优先；相同系列的参数变体专利作为正文代表"
+    }
+  ],
+  "prior_filing_comparison": "support/source_0.txt为用户提供前案正文提取，非公开检索文件；实际递交文本及日期待代理师核对",
+  "limitations": "针对性有限检索；不保证没有其他公开，不量化授权概率，单一文件的区别与多文件组合启示分别评价",
+  "refinement_round": {
+    "date": "2026-10-25",
+    "main_sources": 8,
+    "task_comparison_sources": 5,
+    "direct_testing_patent": 1,
+    "expert_repair_reference": 1,
+    "adopted_algorithm_basis": 1,
+    "new_primary_sources_checked": [
+      "CAT",
+      "Evaluation as Evolution"
+    ],
+    "new_theoretical_description": "分支条件目标；固定可逆混合提议与区域阈值门控的条件不变性；新策略下当前区域的两类档案经验转移",
+    "implementation_change": false,
+    "new_experiments": 0,
+    "privacy": "仅中性技术查询和公开标题、URL，未发送未公开文本或数据"
+  },
+  "history_queries": [
+    "autonomous driving multimodal failure scenario testing repair world model subset simulation",
+    "LitSim InterSim reactive traffic simulation trajectory replay",
+    "Niching Subset Simulation hill valley graph failure modes",
+    "GUARD autonomous driving adaptive regression testing generative world models",
+    "autonomous driving diffusion interactive scenario generation adaptive noise controllable safety critical",
+    "autonomous driving multimodal failure modes subset simulation scenario testing",
+    "\"Optimization-Guided Diffusion\" \"Interactive Scene Generation\"",
+    "autonomous driving simulation replay selective reactive actors continuity maneuver patent"
+  ],
+  "queries": [
+    "autonomous driving testing multiple failure regions scenario generation adaptive sampling repair",
+    "autonomous driving safety critical scenario testing closed loop adversarial training failure coverage"
+  ],
+  "previous_sources": [
+    {
+      "name": "World Engine",
+      "url": "https://arxiv.org/html/2606.19836v1",
+      "public_date": "2026-06-18",
+      "checked": "第3.4节难例课程；附录B.1.2按车辆、时间、去噪维度的解耦噪声及B.1.4结点扰动、意图攻击；整体框架及生成控制均作直接对照",
+      "role": "main",
+      "metadata_url": "https://arxiv.org/abs/2606.19836v1",
+      "project_url": "https://github.com/OpenDriveLab/WorldEngine",
+      "date_note": "论文首版为6月18日，项目新闻写6月19日，以arXiv版本记录为准"
+    },
+    {
+      "name": "LitSim",
+      "url": "https://arxiv.org/html/2403.04299",
+      "checked_version": "v2 2024-05-01",
+      "checked": "第III、IV节；冲突、接管、冲突解除返回日志",
+      "role": "main"
+    },
+    {
+      "name": "WO2025090341A1",
+      "url": "https://patents.google.com/patent/WO2025090341A1/en",
+      "public_date": "2025-05-01",
+      "checked": "权利要求1至6；选择性行为切换及连锁响应",
+      "role": "main"
+    },
+    {
+      "name": "Niching subset simulation",
+      "url": "https://discovery.ucl.ac.uk/id/eprint/10204007/",
+      "year": "2025",
+      "checked": "作者原文第3、4节；输入分区、性能谷图、社区及SVM",
+      "fulltext_url": "https://discovery.ucl.ac.uk/id/eprint/10204007/7/Diaz%20De%20La%20O_Niching%20subset%20simulation_VoR.pdf",
+      "role": "direct_algorithm_basis",
+      "public_date": "2025-01-20",
+      "date_note": "出版社原文载Available online 20 January 2025"
+    },
+    {
+      "name": "GUARD",
+      "url": "https://waabi.ai/research/guard",
+      "year": "2023",
+      "checked": "作者项目页及原文；概率区域、安全边界、主动查询和版本回归展示",
+      "fulltext_url": "https://www.datocms-assets.com/163962/1755336558-paper.pdf",
+      "role": "main"
+    },
+    {
+      "name": "US20230222268A1",
+      "url": "https://patents.google.com/patent/US20230222268A1/en",
+      "public_date": "2023-07-13",
+      "checked": "权利要求1至9；参数变体、边界选择；说明书software changes处重复测试及边界更新",
+      "role": "main"
+    },
+    {
+      "name": "KING",
+      "url": "https://arxiv.org/html/2204.13683",
+      "public_date": "2022-04-28",
+      "checked": "第3、4.4节；专家可解场景及原数据混合微调",
+      "role": "main"
+    },
+    {
+      "name": "Safe-Sim",
+      "url": "https://arxiv.org/html/2401.00391",
+      "checked_version": "v3 2024-08-06",
+      "checked": "第3至5.2节：反应式闭环扩散，去噪中可微碰撞、相对速度等引导，部分扩散控制碰撞类型",
+      "role": "direct_generation_comparison",
+      "comparison": "区分去噪内目标引导和固定生成映射之外的实际执行风险差、分组条件搜索及版本复测"
+    },
+    {
+      "name": "OMEGA",
+      "url": "https://arxiv.org/html/2512.07661v1",
+      "public_date": "2025-12-08",
+      "checked": "第3.2至3.4节：约束优化重锚每个扩散反向步骤；SE-IBR使用主车最优值对对抗轨迹的敏感性，基于活跃约束KKT乘子的一阶项",
+      "role": "direct_generation_comparison",
+      "comparison": "区分优化值敏感性与实际父子执行风险差，区分每去噪步重锚与下一条件层固定选组、掩码和时段"
+    }
+  ],
+  "sources": [
+    {
+      "name": "World Engine",
+      "url": "https://arxiv.org/html/2606.19836v1",
+      "public_date": "2026-06-18",
+      "checked": "第3.4节难例课程；附录B.1.2按车辆、时间、去噪维度的解耦噪声及B.1.4结点扰动、意图攻击；整体框架及生成控制均作直接对照",
+      "role": "task_comparison",
+      "metadata_url": "https://arxiv.org/abs/2606.19836v1",
+      "project_url": "https://github.com/OpenDriveLab/WorldEngine",
+      "date_note": "论文首版为6月18日，项目新闻写6月19日，以arXiv版本记录为准"
+    },
+    {
+      "name": "CAT",
+      "url": "https://arxiv.org/html/2310.12432",
+      "public_date": "2023-10-19",
+      "checked": "第3.1至3.3节，交通先验、主车响应和碰撞关系的因子化安全关键重采样，以及算法1交替生成和策略训练",
+      "role": "task_comparison"
+    },
+    {
+      "name": "Evaluation as Evolution",
+      "url": "https://arxiv.org/html/2604.07378v1",
+      "public_date": "2026-04-08",
+      "checked": "第III、IV-B及IV-C节：反向时间SDE先验、稀疏漂移控制、拓扑锚定及策略表现驱动的迭代课程；明确不把闭环课程本身当作区别",
+      "role": "task_comparison"
+    },
+    {
+      "name": "Safe-Sim",
+      "url": "https://arxiv.org/html/2401.00391",
+      "checked_version": "v3 2024-08-06",
+      "checked": "第3至5.2节：反应式闭环扩散，去噪中可微碰撞、相对速度等引导，部分扩散控制碰撞类型",
+      "role": "task_comparison",
+      "comparison": "区分去噪内目标引导和固定生成映射之外的实际执行风险差、分组条件搜索及版本复测"
+    },
+    {
+      "name": "GUARD",
+      "url": "https://waabi.ai/research/guard",
+      "year": "2023",
+      "checked": "作者项目页及原文；概率区域、安全边界、主动查询和版本回归展示",
+      "fulltext_url": "https://www.datocms-assets.com/163962/1755336558-paper.pdf",
+      "role": "task_comparison"
+    },
+    {
+      "name": "WO2025090341A1",
+      "url": "https://patents.google.com/patent/WO2025090341A1/en",
+      "public_date": "2025-05-01",
+      "checked": "权利要求1至6；选择性行为切换及连锁响应",
+      "role": "direct_testing_patent"
+    },
+    {
+      "name": "KING",
+      "url": "https://arxiv.org/html/2204.13683",
+      "public_date": "2022-04-28",
+      "checked": "第3、4.4节；专家可解场景及原数据混合微调",
+      "role": "expert_repair_implementation_reference"
+    },
+    {
+      "name": "Niching subset simulation",
+      "url": "https://discovery.ucl.ac.uk/id/eprint/10204007/",
+      "year": "2025",
+      "checked": "作者原文第3、4节；输入分区、性能谷图、社区及SVM",
+      "fulltext_url": "https://discovery.ucl.ac.uk/id/eprint/10204007/7/Diaz%20De%20La%20O_Niching%20subset%20simulation_VoR.pdf",
+      "role": "adopted_algorithm_basis",
+      "public_date": "2025-01-20",
+      "date_note": "出版社原文载Available online 20 January 2025"
+    }
+  ],
+  "screening_policy": "优先核对同一测试任务及直接方法环节；没有泛化检索通用扩散、图像生成或优化理论。保留历史记录，不把未纳入正文理解为法律排除。两条查询中其他场景覆盖分类、语义LLM场景生成等结果不展开。"
+}

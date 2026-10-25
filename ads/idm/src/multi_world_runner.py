@@ -3,32 +3,28 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageDraw
 
+from hierarchical_world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    require_evaluation_scope,
+)
 from hierarchical_world_model.src.core.utils import (
     file_sha256,
     load_json,
     load_yaml,
     save_json,
 )
-from hierarchical_world_model.src.core.evaluation_scope import (
-    evaluation_scope_contract,
-    require_evaluation_scope,
-)
 
 from .world_model_registry import WorldModelSpec, get_world_model
 
 ESTIMATORS = ("subset", "monte_carlo")
 _CONFIG_SECTION = {"subset": "subset_simulation", "monte_carlo": "monte_carlo"}
-
-
-def _resolve_path(value: str | Path, base: Path) -> Path:
-    path = Path(value)
-    return path.resolve() if path.is_absolute() else (base / path).resolve()
 
 
 def load_model_configs(
@@ -45,7 +41,7 @@ def load_model_configs(
         spec = get_world_model(entry["id"])
         if requested is not None and spec.model_id not in requested:
             continue
-        config_path = _resolve_path(entry.get("config", spec.default_config), suite_dir)
+        config_path = (suite_dir / entry.get("config", spec.default_config)).resolve()
         if spec.model_id in loaded:
             raise ValueError(f"duplicate world model in suite: {spec.model_id}")
         loaded[spec.model_id] = (spec, load_yaml(config_path), config_path)
@@ -69,14 +65,14 @@ def validate_comparison_contract(
     for model_id, (_, config, path) in models.items():
         require_evaluation_scope(config)
         config_dir = path.parent
-        evt_path = _resolve_path(config["paths"]["evt_model"], config_dir)
-        idm_path = _resolve_path(config["paths"]["idm_ego_config"], config_dir)
+        evt_path = (config_dir / config["paths"]["evt_model"]).resolve()
+        idm_path = (config_dir / config["paths"]["idm_ego_config"]).resolve()
         common_key = (
             "world_model_config"
             if model_id == "tracking_npc"
             else "common_world_config"
         )
-        common_path = _resolve_path(config["paths"][common_key], config_dir)
+        common_path = (config_dir / config["paths"][common_key]).resolve()
         subset = config["subset_simulation"]
         monte_carlo = config["monte_carlo"]
         contracts[model_id] = {
@@ -99,7 +95,7 @@ def validate_comparison_contract(
         }
         for estimator in ESTIMATORS:
             section = _CONFIG_SECTION[estimator]
-            output_dir = _resolve_path(config[section]["output_dir"], config_dir)
+            output_dir = (config_dir / config[section]["output_dir"]).resolve()
             if output_dir in output_dirs:
                 raise ValueError(
                     f"world models must not share result directories: {output_dir}"
@@ -133,9 +129,9 @@ def validate_comparison_contract(
 
 
 def _summary_path(config: dict[str, Any], config_path: Path, estimator: str) -> Path:
-    output = _resolve_path(
-        config[_CONFIG_SECTION[estimator]]["output_dir"], config_path.parent
-    )
+    output = (
+        config_path.parent / config[_CONFIG_SECTION[estimator]]["output_dir"]
+    ).resolve()
     filename = (
         "world_subset_summary.json"
         if estimator == "subset"
@@ -376,7 +372,7 @@ def build_comparison_report(
     if not records:
         raise FileNotFoundError("no completed IDM world-model results are available")
     _verify_result_contract(summaries, contract)
-    output_dir = _resolve_path(suite["output"]["comparison_dir"], suite_dir)
+    output_dir = (suite_dir / suite["output"]["comparison_dir"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "world_model_comparison.csv"
     figure_path = output_dir / "world_model_comparison.png"
@@ -416,10 +412,10 @@ def run_model_suite(
     # This prevents a suite from writing one model and only then discovering
     # that another model is dirty, missing, or points at a stale checkpoint.
     if formal:
-        for _, (spec, config, config_path) in models.items():
+        for spec, config, config_path in models.values():
             spec.validate_formal_provenance(config, config_path.parent)
     results: list[Path] = []
-    for _, (spec, config, config_path) in models.items():
+    for spec, config, config_path in models.values():
         if "subset" in requested:
             results.append(spec.run_subset(config, config_path.parent, formal=formal))
         if "monte_carlo" in requested:
@@ -608,8 +604,10 @@ def build_explicit_subset_comparison(
         "interpretation_limits": [
             "Reported AMS intervals use the existing final-level binomial approximation and do not account for MCMC correlation.",
             "Final-population collision fractions and top-case playback statistics are tail-conditioned diagnostics, not unconditional probabilities.",
-            "The two models share the EVT-tail p(M,C0) distribution but these "
-            "runs are independent rather than sample-wise paired.",
+            (
+                "The two models share the EVT-tail p(M,C0) distribution but these "
+                "runs are independent rather than sample-wise paired."
+            ),
         ],
         "artifacts": {
             "table_csv": str(csv_path),

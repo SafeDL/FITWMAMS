@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-23",
+  "source_files": {
+    "external_resources/patents/技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法_正式稿.docx": "d4521dd4e93fd38c7f4bb80504baae97d37b3dad82ddc8629d4438367f09fb84",
+    "ads/common/instances.py": "4aca46072e6c38e451bd51c7637b748ca45b1e97dd6a78d27de6b686714cb328",
+    "ads/common/evaluation.py": "316e18872445d9159560a0614239bfb13a0637858ec65211fe3a880b13db9d09",
+    "ads/search/engine.py": "2466b72a14072b32bacd68523db862f6091b094f94571ad58195bc064af0df4a",
+    "ads/search/branches.py": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733",
+    "ads/search/archive.py": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5",
+    "hierarchical_world_model/src/randomness.py": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767",
+    "hierarchical_world_model/src/composition.py": "5d8efd1c427b7dc163b7ea625c3982c2ca0f4ef89a96799c5a8ab2f649b714ef",
+    "hierarchical_world_model/src/takeover.py": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94",
+    "hierarchical_world_model/src/plan_applicability.py": "1fd0f84a57961c0b205346d03bfb0b444407bdf48d1cfe48e1dbfb663a710d06",
+    "normalizing_flow/src/scenario.py": "a9da768af9edf2f899b62766d336687e3cccab45fc3a5d6db2711ec4d4d20039",
+    "process_highD/config.yaml": "a6ba389de707e1a5d9d81ce8ac5c7e8ecab4653b5de6aa3d5dbb9daa8f656bf0",
+    "process_highD/src/safety_envelope_risk.py": "e6426d76b5f7c2439f66ae701f2cb90c53d9c6913c280ea8743efbf6cd0664df",
+    "doc/method_c_experiments.md": "0b3f39ef955022050f98ea05e59ac3230e8e29c02d61a7d95a708fecb5e77970",
+    "results/hierarchical_world_model/bridge/latency.json": "5ecefc8b77ec0b169c714e25c70264cd54fba558911d38793e0f0c6569507729",
+    "results/evt/event_bank/summary.json": "931f96c2792c01fc8f687c5a1a941832aeedb1f97d4e6fd14c881d92e202bc5b"
+  },
+  "references": [
+    {
+      "id": "1",
+      "description": "Mendoza J P, Unnikrishnan R, Wahal S, Zhang L. Selectively intelligent actors in simulations. WO2025090341A1，公开日：2025-05-01。",
+      "url": "https://patents.google.com/patent/WO2025090341A1/en"
+    },
+    {
+      "id": "2",
+      "description": "Suo S, Wong K, Xu J, et al. MixSim: A Hierarchical Framework for Mixed Reality Traffic Simulation. CVPR，2023。",
+      "url": "https://waabi.ai/research/mixsim"
+    },
+    {
+      "id": "3",
+      "description": "Lin H, Chen H, Wolff E. System and method of causal composition diffusion for closed loop traffic generation. US20260134173A1，公开日：2026-05-14。",
+      "url": "https://patents.google.com/patent/US20260134173A1/en"
+    },
+    {
+      "id": "4",
+      "description": "Huang P, Ding W, Stoler B, et al. CaDRE: Controllable and Diverse Generation of Safety-Critical Driving Scenarios Using Real-World Trajectories. ICRA，2025。预印本：arXiv:2403.13208。",
+      "url": "https://arxiv.org/html/2403.13208v2"
+    },
+    {
+      "id": "5",
+      "description": "Kinnear H J, DiazDelaO F A. Niching subset simulation. Probabilistic Engineering Mechanics，2025，79：103729。DOI：10.1016/j.probengmech.2025.103729。",
+      "url": "https://discovery.ucl.ac.uk/id/eprint/10204007/"
+    },
+    {
+      "id": "6",
+      "description": "白先旭，李亲，李维汉，石琴。一种自动驾驶车辆在不同安全域的测试场景创建方法。CN116361175A，公开日：2023-06-30。",
+      "url": "https://patents.google.com/patent/CN116361175A/zh"
+    },
+    {
+      "id": "7",
+      "description": "祝亚运，单文君，余福珍。基于混合专家模型的自动驾驶测试场景生成方法和系统。CN121743096A，公开日：2026-03-27。",
+      "url": "https://patents.google.com/patent/CN121743096A/zh"
+    },
+    {
+      "id": "8",
+      "description": "Rempe D, Philion J, Guibas L, et al. Generating Useful Accident-Prone Driving Scenarios via a Learned Traffic Prior. CVPR，2022。",
+      "url": "https://research.nvidia.com/labs/toronto-ai/STRIVE/"
+    },
+    {
+      "id": "9",
+      "description": "Krajewski R, Bock J, Kloeker L, Eckstein L. The highD Dataset: A Drone Dataset of Naturalistic Vehicle Trajectories on German Highways for Validation of Highly Automated Driving Systems. ITSC，2018：2118—2125。",
+      "url": "https://arxiv.org/abs/1810.05642"
+    },
+    {
+      "id": "10",
+      "description": "Lin H, Huang X, Phan-Minh T, et al. Causal Composition Diffusion Model for Closed-loop Traffic Generation. CVPR，2025。预印本：arXiv:2412.17920。",
+      "url": "https://arxiv.org/html/2412.17920v3"
+    }
+  ],
+  "assumption": "保留原稿核心设计，区分代码已实现内容与未接通的联合设计；未收到更改此取向的确认。"
+}

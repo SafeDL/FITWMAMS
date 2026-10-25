@@ -1,0 +1,26 @@
+{
+  "algorithm": "diffusion_planner",
+  "files": [
+    {
+      "path": "model.pth",
+      "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/model.pth",
+      "sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "bytes": 48549085
+    },
+    {
+      "path": "args.json",
+      "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/args.json",
+      "sha256": "7e62b89a50953f133d55484777e54490f7f24e58feec1efcf696bcc7b91bdf10",
+      "bytes": 7404
+    }
+  ],
+  "source": {
+    "repository": "https://github.com/ZhengYinan-AIR/Diffusion-Planner",
+    "commit": "a3a621f0b724c5fa6447f7a2fbaf9e0387bd35df",
+    "archive_sha256": "3b4ce406a489167b9aca2498ea7a01366bdbe816d95a44e34e87f1bead0c1615",
+    "local_changes": [
+      "Python imports namespaced under ads.diffusion_planner.vendor; original model parameter names retained."
+    ]
+  },
+  "checkpoint_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45"
+}

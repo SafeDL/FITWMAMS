@@ -11,26 +11,28 @@ import torch
 
 from diffusion.src.data import decode_residual_trajectory, prepare_flow_condition
 from diffusion.src.train import load_checkpoint as load_diffusion_checkpoint
-from normalizing_flow.src.scenario import load_checkpoint as load_flow_checkpoint
-from normalizing_flow.src.features import feature_valid_from_slot_mask
 from hierarchical_world_model.src.core.evaluation_scope import (
     EXCLUDED_EVALUATION_SLOTS,
     evaluation_scope_contract,
     scoped_slot_mask,
 )
 from hierarchical_world_model.src.core.utils import load_json, load_yaml
+from normalizing_flow.src.features import feature_valid_from_slot_mask
+from normalizing_flow.src.scenario import load_checkpoint as load_flow_checkpoint
 
-from .highway import HighwayEnvClosedLoopWorld
-from .takeover import TakeoverConfig, TakeoverController
-from .tracking import TrackingConfig
 from .config import WorldModelConfig
 from .data import artifact_identity
+from .highway import HighwayEnvClosedLoopWorld
 from .randomness import WorldExogenousState
 from .stochastic_drivers.idm_population import (
     MODEL_PATH as DRIVER_MODEL_PATH,
+)
+from .stochastic_drivers.idm_population import (
     sample_theta,
 )
 from .stochastic_drivers.lane_trajectory import MODEL_PATH as LANE_MODEL_PATH
+from .takeover import TakeoverConfig, TakeoverController
+from .tracking import TrackingConfig
 
 DEFAULT_WORLD_SELECTION = (
     Path(__file__).resolve().parents[2]
@@ -97,6 +99,7 @@ class HierarchicalWorldSampler:
         device: str | torch.device = "cpu",
         ddim_steps: int = 20,
         excluded_slots: tuple[str, ...] = EXCLUDED_EVALUATION_SLOTS,
+        flow_population: str = "evt_tail",
     ) -> None:
         self.device = torch.device(device)
         world_config = load_yaml(
@@ -110,8 +113,12 @@ class HierarchicalWorldSampler:
             repo_root=repo_root,
             device=self.device,
         )
-        if flow_payload.get("metrics", {}).get("population") != "evt_tail":
-            raise ValueError("generated worlds require an EVT-tail Flow checkpoint")
+        if flow_population not in ("evt_tail", "natural"):
+            raise ValueError(f"unsupported Flow population: {flow_population}")
+        if flow_payload.get("metrics", {}).get("population") != flow_population:
+            raise ValueError(
+                f"generated worlds require a {flow_population} Flow checkpoint"
+            )
         self.flow_schema = self.flow.schema
         self.diffusion, diffusion_payload = load_diffusion_checkpoint(
             diffusion_checkpoint, device=self.device

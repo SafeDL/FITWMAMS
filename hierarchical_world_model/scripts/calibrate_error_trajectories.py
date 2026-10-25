@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """Full-Train signed pose-error trajectories and weighted empirical representatives."""
 
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 import json
 import shutil
 import sys
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -16,40 +15,40 @@ from threadpoolctl import threadpool_limits
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from process_highD.src.io_utils import load_config, resolve_data_path
-from process_highD.src.lane_utils import parse_lane_markings
-from process_highD.src.preprocess import prepare_recording
-from hierarchical_world_model.src.stochastic_drivers.raw_data import (
-    canonical_lateral,
-    recording_splits,
+from hierarchical_world_model.src.core.dynamics import (
+    DynamicsConfig,
+    KinematicTrafficDynamics,
 )
+from hierarchical_world_model.src.core.utils import file_sha256, load_yaml, save_json
+from hierarchical_world_model.src.data import prepare_experiment_data
 from hierarchical_world_model.src.error_trajectories import (
-    GROUPS,
     DT,
-    STEPS,
-    REPRESENTATIVES,
+    GROUPS,
     MODEL_PATH,
+    REPRESENTATIVES,
+    STEPS,
 )
 from hierarchical_world_model.src.motion import (
+    lateral_direction,
     motion_forecast,
     observed_acceleration,
-    lateral_direction,
-)
-from hierarchical_world_model.src.core.utils import load_yaml, save_json, file_sha256
-from hierarchical_world_model.src.data import prepare_experiment_data
-from hierarchical_world_model.src.tracking import (
-    TrackingConfig,
-    tracking_reference,
-    tracking_actions,
-)
-from hierarchical_world_model.src.core.dynamics import (
-    KinematicTrafficDynamics,
-    DynamicsConfig,
 )
 from hierarchical_world_model.src.scene_geometry import (
     torch_map_lane_geometry,
     torch_nearest_lane_geometry,
 )
+from hierarchical_world_model.src.stochastic_drivers.raw_data import (
+    canonical_lateral,
+    recording_splits,
+)
+from hierarchical_world_model.src.tracking import (
+    TrackingConfig,
+    tracking_actions,
+    tracking_reference,
+)
+from process_highD.src.io_utils import load_config, resolve_data_path
+from process_highD.src.lane_utils import parse_lane_markings
+from process_highD.src.preprocess import prepare_recording
 
 OUTPUT = ROOT / "results/hierarchical_world_model/bridge"
 CACHE = OUTPUT / ".cache" / "error_trajectories"
@@ -149,12 +148,12 @@ def raw_errors(recording_id):
         )
         np.save(directory / f"{GROUPS[group]}.npy", values)
         counts[GROUPS[group]] = len(values)
-    report = dict(
-        recording=recording_id,
-        vehicles=vehicles,
-        unique_physical_windows=windows,
-        counts=counts,
-    )
+    report = {
+        "recording": recording_id,
+        "vehicles": vehicles,
+        "unique_physical_windows": windows,
+        "counts": counts,
+    }
     save_json(report, report_path)
     print("Forecast trajectories", report, flush=True)
     return report
@@ -259,10 +258,10 @@ def tracking_errors(config):
         local = []
         for k, blocks in enumerate(groups):
             values = np.concatenate(blocks)
-            np.save(directory / f"{GROUPS[6+k]}.npy", values)
+            np.save(directory / f"{GROUPS[6 + k]}.npy", values)
             local.append(len(values))
         actors = int(valid_np.sum())
-        save_json(dict(counts=local, actor_windows=actors), partial)
+        save_json({"counts": local, "actor_windows": actors}, partial)
         counts += local
         actor_windows += actors
         print(
@@ -273,13 +272,13 @@ def tracking_errors(config):
             local,
             flush=True,
         )
-    report = dict(
-        scenes=len(rows),
-        actor_windows=actor_windows,
-        counts=counts.tolist(),
-        all_valid_anchor_prefixes=True,
-        definition="future pose error minus current observed error",
-    )
+    report = {
+        "scenes": len(rows),
+        "actor_windows": actor_windows,
+        "counts": counts.tolist(),
+        "all_valid_anchor_prefixes": True,
+        "definition": "future pose error minus current observed error",
+    }
     save_json(report, report_path)
     return report
 
@@ -379,27 +378,27 @@ def main():
         protocol="observed_lateral_trend_direction_normalized",
     )
     save_json(
-        dict(
-            complete=True,
-            fit_split="train",
-            test_used=False,
-            split_recordings=recordings,
-            unique_physical_forecast_windows=sum(
+        {
+            "complete": True,
+            "fit_split": "train",
+            "test_used": False,
+            "split_recordings": recordings,
+            "unique_physical_forecast_windows": sum(
                 r["unique_physical_windows"] for r in reports
             ),
-            groups={g: int(b["count"]) for g, b in zip(GROUPS, blocks)},
-            representative_sources={
+            "groups": {g: int(b["count"]) for g, b in zip(GROUPS, blocks)},
+            "representative_sources": {
                 g: json.loads(str(b["source_identity"])) for g, b in zip(GROUPS, blocks)
             },
-            tracking=tracking,
-            temporal_sampling="whole x/y/heading error; lateral and heading signs normalized by observed or own-plan lateral direction",
-            representatives_per_group=32,
-            pair_combinations=16,
-            horizon_s=1.5,
-            dt_s=DT,
-            source_sha256=file_sha256(__file__),
-            recordings=reports,
-        ),
+            "tracking": tracking,
+            "temporal_sampling": "whole x/y/heading error; lateral and heading signs normalized by observed or own-plan lateral direction",
+            "representatives_per_group": 32,
+            "pair_combinations": 16,
+            "horizon_s": 1.5,
+            "dt_s": DT,
+            "source_sha256": file_sha256(__file__),
+            "recordings": reports,
+        },
         OUTPUT / "calibration.json",
     )
     shutil.rmtree(CACHE)

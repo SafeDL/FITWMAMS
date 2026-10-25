@@ -2,11 +2,14 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-import numpy as np
 from typing import Any
-from normalizing_flow.src.scenario import ScenarioBatch
+
+import numpy as np
+
 from hierarchical_world_model.src.core.evaluation_scope import scoped_slot_mask
-from .randomness import named_generator
+from normalizing_flow.src.scenario import ScenarioBatch
+
+from .randomness import DIFFUSION_HORIZON_STEPS, named_generator
 
 EMPIRICAL_K_RNG_SCHEMA_NAME = "empirical_fixed_k_world"
 EMPIRICAL_K_RNG_SCHEMA_VERSION = 6
@@ -50,7 +53,7 @@ class EmpiricalKWorldState:
         n, steps = self.batch_size, self.response_steps
         expected = {
             "test_row_uniform": (n,),
-            "diffusion_noise": (n, 149, 12),
+            "diffusion_noise": (n, DIFFUSION_HORIZON_STEPS, 12),
             "driver_latent": (n, 6, 5),
             "maneuver_latent": (n, 6, 4),
             "policy_response_innovations": (n, steps, 6, 2),
@@ -66,7 +69,7 @@ class EmpiricalKWorldState:
             raise ValueError("invalid response horizon or categorical uniform")
 
     @classmethod
-    def sample(cls, n, *, seed, response_steps=149):
+    def sample(cls, n, *, seed, response_steps=DIFFUSION_HORIZON_STEPS):
         n, steps = int(n), int(response_steps)
         if n < 1 or steps < 1:
             raise ValueError("batch and response horizon must be positive")
@@ -83,7 +86,7 @@ class EmpiricalKWorldState:
         return cls(
             test_row_uniform=rng("test_row_uniform").random((n,), dtype=np.float64),
             diffusion_noise=rng("diffusion_noise").standard_normal(
-                (n, 149, 12), dtype=np.float32
+                (n, DIFFUSION_HORIZON_STEPS, 12), dtype=np.float32
             ),
             driver_latent=rng("driver_latent").standard_normal(
                 (n, 6, 5), dtype=np.float32
@@ -151,9 +154,7 @@ class EmpiricalKWorldState:
         state.validate()
         return state
 
-    def pcn_mutate(
-        self, block: str, *, beta: float, seed: int
-    ) -> "EmpiricalKWorldState":
+    def mutate(self, block: str, *, beta: float, seed: int) -> "EmpiricalKWorldState":
         if not 0.0 < float(beta) <= 1.0:
             raise ValueError("beta must lie in (0, 1]")
         values = self.as_dict()
@@ -215,7 +216,7 @@ class EmpiricalKContextSampler:
                 "policy_response_innovations",
                 "policy_calibration_innovations",
             ],
-            "test_sequences": int(len(self.rows)),
+            "test_sequences": len(self.rows),
         }
 
     def sample_world_exogenous(

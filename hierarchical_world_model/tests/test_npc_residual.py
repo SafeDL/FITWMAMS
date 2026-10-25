@@ -1,6 +1,6 @@
 import numpy as np
-import torch
 import pytest
+import torch
 
 from hierarchical_world_model.src.npc_experiments.residual import (
     autoregression_parameters,

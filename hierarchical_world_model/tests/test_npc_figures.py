@@ -1,13 +1,13 @@
 import numpy as np
 from matplotlib.patches import Patch, StepPatch
 
-from tools.plot_style import get_pyplot
 from hierarchical_world_model.src.npc_experiments.figures import (
     STAGES,
     canvas,
     clustered_ratio,
     density_histogram,
 )
+from tools.plot_style import get_pyplot
 
 
 def test_histogram_preserves_physical_bins_and_tail_mass_without_zoom_renormalizing():
@@ -28,8 +28,8 @@ def test_histogram_preserves_physical_bins_and_tail_mass_without_zoom_renormaliz
         np.testing.assert_allclose(step.get_data().values, [0.2, 0.2])
         np.testing.assert_allclose(step.get_data().edges, [0, 1, 3])
         assert not step.get_fill()
-    for name in counts:
-        np.testing.assert_array_equal(counts[name], original[name])
+    for name, values in counts.items():
+        np.testing.assert_array_equal(values, original[name])
     assert axis.get_xlim() == (1, 2)
     plt.close(figure)
 
@@ -47,7 +47,7 @@ def test_histogram_legend_identifies_observed_bars_not_a_smooth_density_fit():
     plt, figure, _ = canvas("Distributions", "Fixed bins", histogram=True)
     handles = figure.legends[0].legend_handles
     assert isinstance(handles[0], Patch)
-    assert [text.get_text() for text in figure.legends[0].texts][0] == "Observed highD"
+    assert next(text.get_text() for text in figure.legends[0].texts) == "Observed highD"
     assert len(handles) == 1 + len(STAGES)
     plt.close(figure)
 

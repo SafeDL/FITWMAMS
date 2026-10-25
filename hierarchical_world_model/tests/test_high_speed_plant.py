@@ -3,12 +3,12 @@
 import numpy as np
 import torch
 
-from hierarchical_world_model.src.highway import HighwayEnvTraffic
 from hierarchical_world_model.src.core.dynamics import (
     HIGHD_INTEGRATION_SPEED_MAX_MPS,
     DynamicsConfig,
     KinematicTrafficDynamics,
 )
+from hierarchical_world_model.src.highway import HighwayEnvTraffic
 
 
 def test_unicycle_plant_preserves_highd_speed_above_50_mps() -> None:

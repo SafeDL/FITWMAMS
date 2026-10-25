@@ -1,0 +1,21 @@
+{
+  "algorithm": "dtpp",
+  "files": [
+    {
+      "path": "base_model.pth",
+      "official_url": "https://raw.githubusercontent.com/MCZhi/DTPP/4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7/base_model.pth",
+      "sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073",
+      "bytes": 23952592
+    }
+  ],
+  "source": {
+    "repository": "https://github.com/MCZhi/DTPP",
+    "commit": "4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7",
+    "archive_sha256": "39350be726da09de413a12d6ffc1355790adec7ca4ede9c8a0a135f263667401",
+    "local_changes": [
+      "Python imports namespaced under ads.dtpp.vendor; original model parameter names retained.",
+      "Expose first- and second-stage candidate lists for offline supervised labels; native tree selection unchanged."
+    ]
+  },
+  "checkpoint_sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073"
+}

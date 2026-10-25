@@ -1,0 +1,152 @@
+{
+  "checks_passed": true,
+  "date": "2026-10-25",
+  "formats": [
+    "png_300dpi"
+  ],
+  "figures": [
+    {
+      "stem": "E01_natural_event",
+      "png_size": [
+        3214,
+        1618
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E02_reference_execution",
+      "png_size": [
+        3214,
+        1828
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E03_natural_replay",
+      "png_size": [
+        3214,
+        1174
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E04_reference_retention",
+      "png_size": [
+        3214,
+        1684
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E05_braking_response",
+      "png_size": [
+        3544,
+        1498
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E06_leader_release",
+      "png_size": [
+        3544,
+        1498
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E07_lateral_response",
+      "png_size": [
+        3544,
+        1498
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E08_maneuver_handover",
+      "png_size": [
+        3544,
+        1498
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E09_handover_timing",
+      "png_size": [
+        2464,
+        2014
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E11_interaction_sources",
+      "png_size": [
+        3544,
+        1354
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    },
+    {
+      "stem": "E14_runtime",
+      "png_size": [
+        3214,
+        1204
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "png_integrity_verified": true
+    }
+  ],
+  "skipped": [
+    "E10",
+    "E12",
+    "E13",
+    "E15",
+    "E16"
+  ],
+  "data_checks": "Source risk array, paired executed controls, timing flags and scene-level statistical unit verified.",
+  "font_warnings": 0,
+  "models_or_simulations_executed": false,
+  "visual_review": "Existing PNGs preserved; previously reviewed all-figure contact sheets and enlarged snapshots, timing markers, Chinese labels, legends and residual panels."
+}

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "recorded_utc": "2026-10-25T03:34:15.026659+00:00",
+  "command": "final_configuration_check.sh",
+  "command_sha256": "60aa9331e56c2313173746a3a1d3013a0abcdaf7cb135f8efdc8d9a57399096c",
+  "resolved_configuration": "final_configuration.yaml",
+  "resolved_configuration_sha256": "6f56b9d5d7e1d36d3306d1433ba11b8abb7af710ee7bbb9650d6249340cef7ec",
+  "interpreter": "/home/hp/anaconda3/envs/tread/bin/python",
+  "official_cli_mode": "--cfg job",
+  "nuplan_city_simulation_performed": false,
+  "actual_scene_executions": 0,
+  "final_guided_handoff_path_verified": true,
+  "ema": true,
+  "seed": 20260926,
+  "scenario_tokens": 1118,
+  "native_metrics_output": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/risk_stratified_repair_manual_nuplan/diffusion_planner/guided/20260926/native_metrics/repaired"
+}

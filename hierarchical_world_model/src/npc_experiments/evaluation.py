@@ -1,20 +1,21 @@
 """Frozen natural-behavior, road-execution and complete Test response reports."""
 
-from ..stochastic_drivers.response_data import load_response
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from .metrics import (
-    FEATURE_EDGES,
-    hellinger,
-)
 from ..core.utils import (
     load_json,
     save_json,
 )
 from ..data import artifact_identity
+from ..stochastic_drivers.raw_data import (
+    DRIVER_DATA_DIR,
+    SPLITS,
+    load_lane_opportunities,
+)
+from ..stochastic_drivers.response_data import load_response
 from .calibration import (
     SEED,
     conditional_metrics,
@@ -22,15 +23,14 @@ from .calibration import (
     group_histograms,
     sampled_lane_probabilities,
 )
+from .metrics import (
+    FEATURE_EDGES,
+    hellinger,
+)
 from .search import (
     closed_summary,
     load_cohorts,
     run_cohorts,
-)
-from ..stochastic_drivers.raw_data import (
-    DRIVER_DATA_DIR,
-    SPLITS,
-    load_lane_opportunities,
 )
 
 SUBGROUPS = (
@@ -80,7 +80,7 @@ def convergence_subset(data, fraction, *, lane=False):
             order[
                 start
                 + np.floor(
-                    np.arange(max(1, int(round((stop - start) * fraction)))) / fraction
+                    np.arange(max(1, round((stop - start) * fraction))) / fraction
                 )
                 .astype(int)
                 .clip(max=stop - start - 1)
@@ -609,9 +609,9 @@ def _closed_rows(section, stage, result, duration):
                     "experiment": section,
                     "model": stage,
                     "metric": feature + "_cumulative_60s_Hellinger",
-                    "value": result[feature]["cumulative_60s_Hellinger"],
-                    "CI_low": result[feature]["cumulative_60s_CI95"][0],
-                    "CI_high": result[feature]["cumulative_60s_CI95"][1],
+                    "value": value["cumulative_60s_Hellinger"],
+                    "CI_low": value["cumulative_60s_CI95"][0],
+                    "CI_high": value["cumulative_60s_CI95"][1],
                     "horizon_s": 60,
                 }
             )
@@ -1017,8 +1017,8 @@ def closed_evaluation(output, settings):
 
 def conditional_process_evaluation(output, settings):
     from .lateral import (
-        conditional_lane_statistics,
         PROCESS_FEATURES,
+        conditional_lane_statistics,
         distance,
     )
 
@@ -1148,14 +1148,17 @@ def conditional_process_evaluation(output, settings):
     pd.concat(
         [pd.read_csv(table_path), pd.DataFrame(rows), pd.DataFrame(calibration_rows)],
         ignore_index=True,
-    ).assign(phase="evaluation", fit_split="train",).to_csv(table_path, index=False)
+    ).assign(
+        phase="evaluation",
+        fit_split="train",
+    ).to_csv(table_path, index=False)
     return summary
 
 
 def verify_npc_results(output, settings):
     """Recompute current NPC statistics and check complete physical-run coverage."""
-    from .figures import FIGURE_FILES
     from ..stochastic_drivers.raw_data import BEHAVIOR_PROTOCOL
+    from .figures import FIGURE_FILES
 
     output = Path(output)
     raw = load_json(DRIVER_DATA_DIR / "manifest.json")

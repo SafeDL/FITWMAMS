@@ -7,23 +7,24 @@ from typing import Any
 
 import numpy as np
 
-from tools.evt import load_evt_model
-from tools.idm_ego import load_idm_ego_config
-from hierarchical_world_model.src.core.utils import (
-    file_sha256,
-    load_json,
-    load_yaml,
-    save_json,
-    select_device,
+from external_model_baselines.models.trafficbots.config import (
+    load_config as load_trafficbots_config,
 )
 from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
     require_scoped_evt_model,
 )
-from external_model_baselines.models.trafficbots.config import (
-    load_config as load_trafficbots_config,
+from hierarchical_world_model.src.core.utils import (
+    file_sha256,
+    load_json,
+    load_yaml,
+    resolve_path,
+    save_json,
+    select_device,
 )
+from tools.evt import load_evt_model
+from tools.idm_ego import load_idm_ego_config
 
 from .trafficbots_evaluator import TrafficBotsIDMWorldEvaluator
 from .trafficbots_randomness import TrafficBotsExogenousState
@@ -37,7 +38,6 @@ from .world_subset_runner import (
     _failure_target,
     _level_rows,
     _monte_carlo_uncertainty,
-    _resolve_path,
     _require_tail_flow_quality,
     _run_provenance,
     _save_final_population,
@@ -51,18 +51,22 @@ from .world_subset_simulation import run_world_subset_simulation
 def _require_trafficbots_provenance(
     config: dict[str, Any], config_dir: Path
 ) -> dict[str, Any]:
-    run = _run_provenance(config)
+    run = _run_provenance()
     if run["worktree_dirty"]:
         raise RuntimeError(
             "formal TrafficBots IDM evaluation requires a clean worktree"
         )
-    traffic_config_path = _resolve_path(
-        config["paths"]["trafficbots_config"], config_dir
+    traffic_config_path = resolve_path(
+        config["paths"]["trafficbots_config"], base=config_dir
     )
     require_evaluation_scope(load_trafficbots_config(traffic_config_path))
-    checkpoint = _resolve_path(config["paths"]["trafficbots_checkpoint"], config_dir)
-    acceptance = _resolve_path(config["paths"]["trafficbots_acceptance"], config_dir)
-    audit = _resolve_path(config["paths"]["trafficbots_audit"], config_dir)
+    checkpoint = resolve_path(
+        config["paths"]["trafficbots_checkpoint"], base=config_dir
+    )
+    acceptance = resolve_path(
+        config["paths"]["trafficbots_acceptance"], base=config_dir
+    )
+    audit = resolve_path(config["paths"]["trafficbots_audit"], base=config_dir)
     if not checkpoint.is_file() or not acceptance.is_file() or not audit.is_file():
         raise FileNotFoundError(
             "TrafficBots checkpoint, acceptance and audit are required"
@@ -78,7 +82,7 @@ def _require_trafficbots_provenance(
     if declared != actual:
         raise RuntimeError("TrafficBots audit does not match the selected checkpoint")
     repo_root = Path(__file__).resolve().parents[3]
-    common_path = _resolve_path(config["paths"]["common_world_config"], config_dir)
+    common_path = resolve_path(config["paths"]["common_world_config"], base=config_dir)
     tail_flow_quality = _require_tail_flow_quality(load_yaml(common_path), repo_root)
     return {
         **run,
@@ -98,18 +102,20 @@ def _build_evaluator(
         raise ValueError("TrafficBots IDM evaluation requires local_highway_env")
     repo_root = Path(__file__).resolve().parents[3]
     device = select_device(str(config.get("runtime", {}).get("device", "auto")))
-    common_path = _resolve_path(config["paths"]["common_world_config"], config_dir)
+    common_path = resolve_path(config["paths"]["common_world_config"], base=config_dir)
     common = load_yaml(common_path)
-    traffic_config_path = _resolve_path(
-        config["paths"]["trafficbots_config"], config_dir
+    traffic_config_path = resolve_path(
+        config["paths"]["trafficbots_config"], base=config_dir
     )
     traffic_config = load_trafficbots_config(traffic_config_path)
     require_evaluation_scope(traffic_config)
-    checkpoint = _resolve_path(config["paths"]["trafficbots_checkpoint"], config_dir)
-    idm_path = _resolve_path(config["paths"]["idm_ego_config"], config_dir)
-    evt_path = _resolve_path(config["paths"]["evt_model"], config_dir)
+    checkpoint = resolve_path(
+        config["paths"]["trafficbots_checkpoint"], base=config_dir
+    )
+    idm_path = resolve_path(config["paths"]["idm_ego_config"], base=config_dir)
+    evt_path = resolve_path(config["paths"]["evt_model"], base=config_dir)
     require_scoped_evt_model(evt_path)
-    flow_checkpoint = _resolve_path(common["paths"]["flow_checkpoint"], repo_root)
+    flow_checkpoint = resolve_path(common["paths"]["flow_checkpoint"], base=repo_root)
     initial_sampler = TrafficBotsInitialSampler(
         flow_checkpoint=flow_checkpoint,
         repo_root=repo_root,
@@ -163,9 +169,11 @@ def run_trafficbots_subset_from_config(
     formal_provenance = (
         _require_trafficbots_provenance(config, config_dir)
         if formal
-        else _run_provenance(config)
+        else _run_provenance()
     )
-    output_dir = _resolve_path(config["subset_simulation"]["output_dir"], config_dir)
+    output_dir = resolve_path(
+        config["subset_simulation"]["output_dir"], base=config_dir
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
     target = _failure_target(evaluator.evt_model, config)
@@ -246,7 +254,7 @@ def run_trafficbots_monte_carlo_from_config(
     formal_provenance = (
         _require_trafficbots_provenance(config, config_dir) if formal else {}
     )
-    output_dir = _resolve_path(config["monte_carlo"]["output_dir"], config_dir)
+    output_dir = resolve_path(config["monte_carlo"]["output_dir"], base=config_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     evaluator, provenance = _build_evaluator(config, config_dir)
     target = _failure_target(evaluator.evt_model, config)

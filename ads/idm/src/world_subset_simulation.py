@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -63,8 +64,9 @@ def _replace_accepted(
     accepted: np.ndarray,
 ) -> Any:
     values: dict[str, np.ndarray] = {}
+    proposal_values = proposal.as_dict()
     for name, current_value in current.as_dict().items():
-        proposal_value = proposal.as_dict()[name]
+        proposal_value = proposal_values[name]
         mask = np.asarray(accepted, bool).reshape(
             (len(accepted),) + (1,) * (current_value.ndim - 1)
         )
@@ -115,7 +117,7 @@ def _mutated_world(
     """
     proposal = world
     for block_index in rng.permutation(len(blocks)):
-        proposal = proposal.pcn_mutate(
+        proposal = proposal.mutate(
             blocks[int(block_index)],
             beta=beta,
             seed=int(rng.integers(0, np.iinfo(np.int64).max)),
@@ -156,7 +158,7 @@ def run_world_subset_simulation(
         raise ValueError("pcn_beta must lie in (0, 1]")
 
     rng = np.random.default_rng(int(seed))
-    elite_count = max(1, int(round(int(num_samples) * float(p0))))
+    elite_count = max(1, round(int(num_samples) * float(p0)))
     if elite_count >= int(num_samples):
         raise ValueError("p0 leaves no non-elite samples")
     initial_seed = int(rng.integers(0, np.iinfo(np.int64).max))

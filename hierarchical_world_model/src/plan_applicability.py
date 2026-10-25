@@ -1,11 +1,12 @@
 """Shared forecasts and applicability scores for an existing NPC plan."""
 
 import torch
-from .motion import motion_forecast, observed_acceleration, lateral_direction
+
+from .motion import lateral_direction, motion_forecast, observed_acceleration
 from .scene_geometry import (
+    paired_rectangle_separation,
     torch_map_lane_geometry,
     torch_nearest_lane_geometry,
-    paired_rectangle_separation,
 )
 from .stochastic_drivers.driver_policy import physical_leader_observation
 

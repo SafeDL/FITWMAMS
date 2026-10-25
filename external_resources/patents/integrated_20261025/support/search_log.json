@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-25",
+  "scope": "自动驾驶测试中的局部边界、版本差分及后续测试调度；DAST为相邻领域补充",
+  "queries": [
+    "autonomous driving regression testing failure success boundary pairs simulation prioritization versions",
+    "site.proceedings.mlr.press/v139/jiang21b Prioritized Level Replay",
+    "site.github.com/cetinkaya/detour regression testing autonomous driving"
+  ],
+  "privacy": "仅中性关键词及已公开标题、公开号；未上传未公开文稿、代码或实验",
+  "limitations": "针对性公开检索，非穷尽查新；有效申请基准日和前案正式文件尚待核对",
+  "sources": [
+    {
+      "name": "US20230222267A1",
+      "url": "https://patents.google.com/patent/US20230222267A1/en",
+      "checked": "边界两侧保留、参数变体和系统更新后的重新评估"
+    },
+    {
+      "name": "US20230222268A1",
+      "url": "https://patents.google.com/patent/US20230222268A1/en",
+      "checked": "基础场景与参数变体细化及边界再评估"
+    },
+    {
+      "name": "GENBO",
+      "url": "https://arxiv.org/html/2307.10590v2",
+      "checked": "第II节，状态变异、相反端点及二分细化"
+    },
+    {
+      "name": "GUARD",
+      "url": "https://waabi.ai/research/guard",
+      "checked": "测试选择以及GUARD In Practice中的版本回归"
+    },
+    {
+      "name": "GUARD paper",
+      "url": "https://www.datocms-assets.com/163962/1755336558-paper.pdf",
+      "checked": "作者论文，CoRL 2023"
+    },
+    {
+      "name": "CoCoMagic",
+      "url": "https://arxiv.org/html/2509.16478v2",
+      "checked": "第5.1至5.3节，源场景、扰动及两版本违反程度差异"
+    },
+    {
+      "name": "DAST",
+      "url": "https://ntrs.nasa.gov/citations/20190002185",
+      "checked": "NASA原文入口及差分测试摘要"
+    },
+    {
+      "name": "CaDRE",
+      "url": "https://arxiv.org/html/2403.13208v2",
+      "checked": "第III节，真实轨迹扰动和质量多样性搜索"
+    },
+    {
+      "name": "WO2025090341A1",
+      "url": "https://patents.google.com/patent/WO2025090341A1/en",
+      "checked": "选择性日志偏离及交互响应"
+    },
+    {
+      "name": "PLR",
+      "url": "https://proceedings.mlr.press/v139/jiang21b.html",
+      "checked": "反馈与重放选择"
+    },
+    {
+      "name": "DETOUR",
+      "url": "https://github.com/cetinkaya/detour",
+      "checked": "作者工具说明"
+    },
+    {
+      "name": "局令第84号",
+      "url": "https://www.cnipa.gov.cn/art/2025/11/14/art_99_202568.html",
+      "checked": "整体创造性评价及贡献特征进入权利要求，2026-01-01施行"
+    }
+  ]
+}

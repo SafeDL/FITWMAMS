@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 """Execute the existing Flow bank through Diffusion and the published NPC world."""
 
+import sys
 from dataclasses import fields
 from pathlib import Path
-import sys
 
 import numpy as np
 import pandas as pd
@@ -13,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from ads.idm.src.world_subset_runner import _build_evaluator
 from diffusion.src.data import states_from_smooth_positions
 from hierarchical_world_model.src.composition import DEFAULT_WORLD_SELECTION
 from hierarchical_world_model.src.core.utils import load_json, load_yaml, save_json
@@ -20,7 +20,6 @@ from hierarchical_world_model.src.execution import (
     _rollout_sample,
     trajectory_event_risk,
 )
-from ads.idm.src.world_subset_runner import _build_evaluator
 from normalizing_flow.src.metrics import physical_validity_flags
 from normalizing_flow.src.scenario import (
     ScenarioBatch,

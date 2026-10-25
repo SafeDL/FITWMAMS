@@ -12,8 +12,8 @@ from hierarchical_world_model.src.takeover import TakeoverConfig, TakeoverContro
 from hierarchical_world_model.src.tracking import TrackingConfig
 from hierarchical_world_model.tests.traffic_context import (
     THETA,
-    context,
     change_context,
+    context,
 )
 
 
@@ -76,7 +76,6 @@ def test_owned_actions_ignore_old_timetable_and_old_lateral_goal():
         response_index=1,
         base_actions=torch.full_like(original.base_actions, 3),
         planned_path_xy=original.planned_path_xy + 20,
-        planned_terminal_xy=original.planned_terminal_xy + 20,
     )
     actual = policy(changed)
     mask = snapshot["owned"][:, None, :, None].expand_as(actual.actions)
@@ -90,13 +89,10 @@ def test_mid_maneuver_is_adopted_without_a_second_switch():
     states = original.current.clone()
     states[:, 1, 1] = 0.8
     states[:, 1, 3] = 0.5
-    target = original.planned_terminal_xy.clone()
-    target[:, 0, 1] = 3.6
     plan = original.planned_path_xy.clone()
     plan[:, :, 0, 1] = torch.linspace(0.82, 3.6, plan.shape[1])
     actual = replace(
         change_context(original, states),
-        planned_terminal_xy=target,
         planned_current_xy=states[:, 1:, :2],
         planned_path_xy=plan,
     )
@@ -201,7 +197,8 @@ def test_reference_end_hands_over_once_and_continues_without_hiqr():
 
 def test_default_ads_factory_uses_shared_population_without_hiqr(monkeypatch):
     from types import SimpleNamespace
-    import ads.dqn.runtime as runtime
+
+    import ads.common.world as runtime
     from hierarchical_world_model.src.stochastic_drivers.idm_population import (
         sample_theta,
     )

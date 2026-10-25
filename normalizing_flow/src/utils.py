@@ -90,7 +90,12 @@ def add_local_nflows_to_path(repo_root: str | Path) -> Path:
     """Make the bundled nflows reference implementation importable."""
     import sys
 
-    nflows_root = Path(repo_root).resolve() / "external_resources" / "upstream_code" / "nflows-master"
+    nflows_root = (
+        Path(repo_root).resolve()
+        / "external_resources"
+        / "upstream_code"
+        / "nflows-master"
+    )
     if not nflows_root.exists():
         raise FileNotFoundError(f"Bundled nflows tree not found: {nflows_root}")
     if str(nflows_root) not in sys.path:

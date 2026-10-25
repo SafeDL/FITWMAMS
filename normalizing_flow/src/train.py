@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .constraints import constraint_to_model_coordinates
 from .data import (
     _normalize_masked_array,
     add_inactive_reference_noise,
@@ -20,7 +21,6 @@ from .data import (
     load_scenario_dataset,
     output_dir_from_config,
 )
-from .constraints import constraint_to_model_coordinates
 from .scenario import build_direct_model, save_checkpoint
 from .utils import save_json, select_device, set_seed
 
@@ -66,8 +66,7 @@ def _mask_log_prob(arrays: dict[str, np.ndarray], rows: np.ndarray):
     import torch
 
     counts = np.bincount(arrays["mask_pattern"][rows], minlength=64).astype(np.float64)
-    tail = np.asarray(arrays["is_evt_tail"], bool)
-    support = np.bincount(arrays["mask_pattern"][tail], minlength=64) > 0
+    support = counts > 0
     smoothed = counts + 0.5 * support
     probability = np.zeros(64, np.float64)
     probability[support] = smoothed[support] / smoothed[support].sum()
@@ -263,11 +262,11 @@ def _cross_validate(
         reports.append(
             {
                 "fold": fold,
-                "fit_events": int(len(fit_rows)),
-                "held_out_events": int(len(held_out_rows)),
-                "fit_recordings": int(len(np.unique(arrays["recording_id"][fit_rows]))),
-                "held_out_recordings": int(
-                    len(np.unique(arrays["recording_id"][held_out_rows]))
+                "fit_events": len(fit_rows),
+                "held_out_events": len(held_out_rows),
+                "fit_recordings": len(np.unique(arrays["recording_id"][fit_rows])),
+                "held_out_recordings": len(
+                    np.unique(arrays["recording_id"][held_out_rows])
                 ),
                 **held_out,
                 **baselines,
@@ -342,7 +341,7 @@ def train_tail_flow(
     metrics = {
         "population": "evt_tail",
         "fit_scope": "all_evt_tail_events",
-        "num_fit_events": int(len(rows)),
+        "num_fit_events": len(rows),
         "epochs": int(training["epochs"]),
         "cross_validation": "results/flow/cross_validation.json",
     }
@@ -351,9 +350,9 @@ def train_tail_flow(
         "model": "tail_scenario_flow",
         "checkpoint": "results/flow/checkpoints/scenario_flow.pt",
         "dataset": str(Path(schema["dataset_npz"]).resolve().relative_to(repo_root)),
-        "evt_tail_events": int(len(rows)),
-        "fit_events": int(len(rows)),
-        "fit_recordings": int(len(np.unique(arrays["recording_id"][rows]))),
+        "evt_tail_events": len(rows),
+        "fit_events": len(rows),
+        "fit_recordings": len(np.unique(arrays["recording_id"][rows])),
         "final_epoch_nll": history[-1],
         "parameter_count": int(sum(value.numel() for value in model.parameters())),
         **metrics,
@@ -361,3 +360,58 @@ def train_tail_flow(
     save_json(summary, output / "training_summary.json")
     LOGGER.info("Wrote all-tail Flow checkpoint: %s", checkpoint)
     return summary
+
+
+def natural_fit_population(arrays, schema):
+    """Build every natural statistic on Train+Val, including mask/size support."""
+    split = np.asarray(arrays["split_index"])
+    rows = np.flatnonzero(np.isin(split, (0, 1)))
+    if not len(rows):
+        raise ValueError("natural Flow requires nonempty Train+Val data")
+    natural_arrays, natural_schema = _fold_coordinates(arrays, schema, rows)
+    natural_schema["normalization"]["fit_population"] = "natural_train_val"
+    natural_schema["fit_population"] = "natural_train_val"
+    natural_schema["fit_event_ids"] = np.asarray(arrays["segment_id"])[rows].tolist()
+    return natural_arrays, natural_schema, rows
+
+
+def train_natural_flow(config, *, config_dir, repo_root):
+    """Explicit opt-in entrypoint; never overwrites the released tail checkpoint."""
+    config_dir, repo_root = Path(config_dir).resolve(), Path(repo_root).resolve()
+    output = output_dir_from_config(config, config_dir)
+    tail_output = (repo_root / "results/flow").resolve()
+    if output.resolve() == tail_output or tail_output in output.resolve().parents:
+        raise ValueError("natural Flow output must be separate from tail assets")
+    arrays, schema = load_scenario_dataset(dataset_dir_from_config(config, config_dir))
+    arrays, schema, rows = natural_fit_population(arrays, schema)
+    training = config["training"]
+    model, history = _fit(
+        arrays,
+        schema,
+        rows,
+        config["model"],
+        training,
+        repo_root,
+        select_device(str(config["device"])),
+        seed=int(config["seed"]),
+    )
+    metrics = {
+        "population": "natural",
+        "fit_scope": "natural_train_val",
+        "num_fit_events": len(rows),
+        "epochs": int(training["epochs"]),
+        "fit_recordings": np.unique(arrays["recording_id"][rows]).tolist(),
+    }
+    checkpoint = output / "checkpoints/scenario_flow.pt"
+    save_checkpoint(checkpoint, model, config["model"], metrics)
+    save_json(schema, output / "dataset_schema.json")
+    pd.DataFrame(history).to_csv(output / "training_history.csv", index=False)
+    save_json(
+        {
+            **metrics,
+            "checkpoint": str(checkpoint),
+            "fit_event_ids": schema["fit_event_ids"],
+        },
+        output / "training_summary.json",
+    )
+    return metrics

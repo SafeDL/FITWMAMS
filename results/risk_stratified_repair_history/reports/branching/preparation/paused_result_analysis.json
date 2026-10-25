@@ -1,0 +1,354 @@
+{
+  "observed_utc": "2026-10-23T01:46:29.109096+00:00",
+  "scope": "analysis of existing saved results while experiments are suspended; no new rollouts or training",
+  "search_policy": "common initial pi0",
+  "archive_replay_policies": "pi0 versus first-repair pi1; not second-repair pi2",
+  "completed_repairs": 42,
+  "registered_repairs": 48,
+  "final_iid_result_files": 0,
+  "search": [
+    {
+      "algorithm": "dqn",
+      "equal_execution_prefix": 1099,
+      "distinct_collisions": {
+        "monte_carlo": 225,
+        "subset": 204,
+        "guided": 196
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 225,
+        "subset": 204,
+        "guided": 196
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 3,
+        "subset": 3,
+        "guided": 3
+      }
+    },
+    {
+      "algorithm": "ppo",
+      "equal_execution_prefix": 2099,
+      "distinct_collisions": {
+        "monte_carlo": 90,
+        "subset": 83,
+        "guided": 263
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 90,
+        "subset": 49,
+        "guided": 45
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 1,
+        "subset": 1,
+        "guided": 1
+      }
+    },
+    {
+      "algorithm": "carl",
+      "equal_execution_prefix": 1849,
+      "distinct_collisions": {
+        "monte_carlo": 11,
+        "subset": 26,
+        "guided": 62
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 11,
+        "subset": 19,
+        "guided": 10
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 1,
+        "subset": 1,
+        "guided": 1
+      }
+    },
+    {
+      "algorithm": "plant2",
+      "equal_execution_prefix": 1099,
+      "distinct_collisions": {
+        "monte_carlo": 151,
+        "subset": 138,
+        "guided": 133
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 151,
+        "subset": 138,
+        "guided": 133
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 2,
+        "subset": 2,
+        "guided": 2
+      }
+    },
+    {
+      "algorithm": "diffusion_planner",
+      "equal_execution_prefix": 1849,
+      "distinct_collisions": {
+        "monte_carlo": 74,
+        "subset": 116,
+        "guided": 189
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 74,
+        "subset": 51,
+        "guided": 46
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 1,
+        "subset": 1,
+        "guided": 1
+      }
+    },
+    {
+      "algorithm": "dtpp",
+      "equal_execution_prefix": 1849,
+      "distinct_collisions": {
+        "monte_carlo": 92,
+        "subset": 320,
+        "guided": 280
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 92,
+        "subset": 68,
+        "guided": 58
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 1,
+        "subset": 1,
+        "guided": 1
+      }
+    },
+    {
+      "algorithm": "flow_planner",
+      "equal_execution_prefix": 1849,
+      "distinct_collisions": {
+        "monte_carlo": 87,
+        "subset": 119,
+        "guided": 230
+      },
+      "independent_collision_ancestors": {
+        "monte_carlo": 87,
+        "subset": 60,
+        "guided": 53
+      },
+      "common_empirical_branches": {
+        "monte_carlo": 1,
+        "subset": 1,
+        "guided": 1
+      }
+    }
+  ],
+  "guided_archive_repair": [
+    {
+      "algorithm": "dqn",
+      "old_failure_cases": 48,
+      "collision_before": 48,
+      "collision_after": 35,
+      "offroad_before": 0,
+      "offroad_after": 0,
+      "repaired_safety_failures": 13,
+      "old_collisions_repaired_without_other_safety_failure": 13,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 0,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    },
+    {
+      "algorithm": "ppo",
+      "old_failure_cases": 48,
+      "collision_before": 48,
+      "collision_after": 3,
+      "offroad_before": 0,
+      "offroad_after": 0,
+      "repaired_safety_failures": 45,
+      "old_collisions_repaired_without_other_safety_failure": 45,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 7,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    },
+    {
+      "algorithm": "carl",
+      "old_failure_cases": 64,
+      "collision_before": 22,
+      "collision_after": 16,
+      "offroad_before": 43,
+      "offroad_after": 15,
+      "repaired_safety_failures": 33,
+      "old_collisions_repaired_without_other_safety_failure": 7,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 13,
+      "regressed_success_neighbours": 2,
+      "regression_to_collision": 1,
+      "regression_to_offroad": 1
+    },
+    {
+      "algorithm": "plant2",
+      "old_failure_cases": 48,
+      "collision_before": 46,
+      "collision_after": 12,
+      "offroad_before": 2,
+      "offroad_after": 0,
+      "repaired_safety_failures": 36,
+      "old_collisions_repaired_without_other_safety_failure": 34,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 0,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    },
+    {
+      "algorithm": "diffusion_planner",
+      "old_failure_cases": 48,
+      "collision_before": 46,
+      "collision_after": 14,
+      "offroad_before": 2,
+      "offroad_after": 8,
+      "repaired_safety_failures": 26,
+      "old_collisions_repaired_without_other_safety_failure": 25,
+      "old_collisions_converted_to_offroad": 7,
+      "success_neighbours": 0,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    },
+    {
+      "algorithm": "dtpp",
+      "old_failure_cases": 48,
+      "collision_before": 48,
+      "collision_after": 48,
+      "offroad_before": 0,
+      "offroad_after": 0,
+      "repaired_safety_failures": 0,
+      "old_collisions_repaired_without_other_safety_failure": 0,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 4,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    },
+    {
+      "algorithm": "flow_planner",
+      "old_failure_cases": 48,
+      "collision_before": 48,
+      "collision_after": 11,
+      "offroad_before": 0,
+      "offroad_after": 0,
+      "repaired_safety_failures": 37,
+      "old_collisions_repaired_without_other_safety_failure": 37,
+      "old_collisions_converted_to_offroad": 0,
+      "success_neighbours": 4,
+      "regressed_success_neighbours": 0,
+      "regression_to_collision": 0,
+      "regression_to_offroad": 0
+    }
+  ],
+  "source_files_sha256": {
+    "common_discovery/dqn/first_round_summary.csv": "7cfd964a86d96d01843771d97957b36f719e81af5fb6ab04014d6383f02b8ebd",
+    "dqn/20260926/guided/round_1/archive/archive.json": "5756974488a31fc5594a12d9720ee7645a6a8512c15165982dec917776f155bb",
+    "dqn/20260926/guided/round_2/search.jsonl": "158e2e9a286b97e727ad8c2348427ad57ece778183ab37d47592e200ff4a9d5e",
+    "common_discovery/ppo/first_round_summary.csv": "938c4a5210d01cdc8939450ba37b3428ee2d667e5326307852d74456d3aabd17",
+    "ppo/20260926/guided/round_1/archive/archive.json": "0ca990ce75e7ae1ca98b50453600df6bb4456aa32b6b8c9efc0744a90e37d1b2",
+    "ppo/20260926/guided/round_2/search.jsonl": "6f3425279cbf68563bfcb936f82a94b470f3994b2d50d1c6cd463a9a8adaeef0",
+    "common_discovery/carl/first_round_summary.csv": "d7f023c849a8b5531bcc483a38be9cd0e799c47b4715d135453d42edcc566dc7",
+    "carl/20260926/guided/round_1/archive/archive.json": "91935948e40b525ab8305a5ff6162975fdf4bad8ead891bdc5f4ac64719fbc68",
+    "carl/20260926/guided/round_2/search.jsonl": "1d03509b391a753e0e96dcb276fb27eee55f1d77ef9f221cbd52a29bfa136069",
+    "common_discovery/plant2/first_round_summary.csv": "f2794a9d9be1f78e15cd3335b20cd0c5900b25af92d63805598a49f15ce8c3df",
+    "plant2/20260926/guided/round_1/archive/archive.json": "580941f098d994aebeccdcb1a2fe471bb8c405b63cd54bcb62d03e18e30ca521",
+    "plant2/20260926/guided/round_2/search.jsonl": "93a67067aa3ed10f116132a79ce55f9a001600db4ead7ed0ccb37628d27e3957",
+    "common_discovery/diffusion_planner/first_round_summary.csv": "ee2ea26b93d68dd71265a1f936252058214f807af4140015b05bbf9b74d919d8",
+    "diffusion_planner/20260926/guided/round_1/archive/archive.json": "fcd6e97ba5a6f8c7e9e1095f35d4538dbdc36f53f7c23066a86b594500eaba69",
+    "diffusion_planner/20260926/guided/round_2/search.jsonl": "59b8a9f4ca59b5e6b8e41ad26748007f2886a106c8edb84d3111af2f83652280",
+    "common_discovery/dtpp/first_round_summary.csv": "a25a171c97e8dbc8b9aaa5e837d93c4eb580b6f24110c49f1ea90029c0a4c73f",
+    "dtpp/20260926/guided/round_1/archive/archive.json": "6cc86285fbf4575c60e9275090f437eb31c5913265993819010914e83bf6cd11",
+    "dtpp/20260926/guided/round_2/search.jsonl": "fb3f90d1c48600f8c8bbea3eb045ecf71634c432fe2d834029219b286ba0f7ac",
+    "common_discovery/flow_planner/first_round_summary.csv": "d9f21796937a7aabff5969fc1806c722c8e8e9baf473bfea925edb9c7587a58c",
+    "flow_planner/20260926/guided/round_1/archive/archive.json": "153b5b0fabb45f853d465d0a754cc28120a0e212937ccdfb3f7b0cc94e62d564",
+    "flow_planner/20260926/guided/round_2/search.jsonl": "61ecce413b34bb04b9778552d901bdbec0e9c0cf8e304ff453ea09cda45ac225",
+    "preparation/search_mechanism/summary.json": "ff1131d926996c89dfb3d2476a1f39e2b58675e9ac18f9e9427cbc338d056786",
+    "preparation/carl_guided_round2_feedback_allocation_check.json": "deaa7ad99a5b2780321d205819edc318a3b7b9e8a99704f25b57f627824039c7",
+    "preparation/checkpoint_progress_check.json": "624bbfb47632c93a32e69d71e77496c1d84ebc012f94400dcf56af8d59c5d14d",
+    "pause_state.json": "e089f9391a3a0e972ce9cf1df4e689dff0bd869c8de1bd53345f58962fead50d",
+    "preparation/search_execution_counts.csv": "0d18cad3dde11dae9e1bba828f4541a6001d91c4634c44bc1026f172673043e8",
+    "preparation/common_1066_execution_comparison.csv": "2c6b850d5e47aa737c23dce3e4308935a8bf447ae63b17bd8cc5f650064fe672",
+    "preparation/prior_sampling_development_diagnostic.csv": "b908cb9051c29c6bcd514770b572329cf274018c3dff740653b0a8eb9bb340a2"
+  },
+  "guided_search_wins_vs_monte_carlo": 5,
+  "guided_search_wins_vs_subset": 4,
+  "algorithms_with_additional_common_empirical_branch_coverage": 0,
+  "additional_prior_diagnostic_evidence": "paused_prior_diagnostics.json",
+  "actual_search_costs_and_discoveries": "paused_search_accounting.csv",
+  "common_fixed_budget_descriptive_counts": "paused_equal_budget_counts.csv",
+  "additional_prior_sampling_development_evidence": [
+    {
+      "algorithm": "dqn",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 204,
+      "pi1_collision_cases": 139,
+      "pi0_offroad_cases": 0,
+      "pi1_offroad_cases": 0,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "ppo",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 39,
+      "pi1_collision_cases": 9,
+      "pi0_offroad_cases": 0,
+      "pi1_offroad_cases": 0,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "carl",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 9,
+      "pi1_collision_cases": 7,
+      "pi0_offroad_cases": 12,
+      "pi1_offroad_cases": 8,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "plant2",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 138,
+      "pi1_collision_cases": 34,
+      "pi0_offroad_cases": 2,
+      "pi1_offroad_cases": 0,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "diffusion_planner",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 43,
+      "pi1_collision_cases": 368,
+      "pi0_offroad_cases": 0,
+      "pi1_offroad_cases": 17,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "dtpp",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 44,
+      "pi1_collision_cases": 46,
+      "pi0_offroad_cases": 0,
+      "pi1_offroad_cases": 0,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    },
+    {
+      "algorithm": "flow_planner",
+      "cases_per_policy": 1000,
+      "pi0_collision_cases": 49,
+      "pi1_collision_cases": 514,
+      "pi0_offroad_cases": 0,
+      "pi1_offroad_cases": 0,
+      "scope": "separate unsearched P_tail development samples across rounds; not paired and not final evaluation"
+    }
+  ],
+  "analysis_updated_utc": "2026-10-23T02:30:33.694514+00:00",
+  "interpretation_limit": "Archive repair does not establish distribution-wide safety improvement. DP and Flow pi1 show substantial increases in collision frequency on unsearched P_tail development samples in all three repair arms."
+}

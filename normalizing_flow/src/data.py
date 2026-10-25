@@ -17,18 +17,18 @@ from process_highD.src.natural_segments import (
 )
 from process_highD.src.preprocess import prepare_recording
 
-from .features import (
-    SLOT_NAMES,
-    build_feature_schema,
-    extract_c0_features_for_segment,
-    mask_pattern_from_slot_mask,
-)
 from .constraints import (
     KNOT_FEATURE_NAMES,
     KNOT_INDICES,
     KNOT_TIMES_S,
     constraint_to_model_coordinates,
     extract_constraint_for_segment,
+)
+from .features import (
+    SLOT_NAMES,
+    build_feature_schema,
+    extract_c0_features_for_segment,
+    mask_pattern_from_slot_mask,
 )
 from .transforms import (
     feature_transform_kinds,
@@ -114,8 +114,8 @@ def split_indices_by_recording(
     n = len(shuffled)
     if n < 3:
         raise RuntimeError("Need at least three split groups for train/val/test")
-    n_train = max(1, int(round(n * ratios[0])))
-    n_val = max(1, int(round(n * ratios[1])))
+    n_train = max(1, round(n * ratios[0]))
+    n_val = max(1, round(n * ratios[1]))
     if n_train + n_val >= n:
         n_train = max(1, n - 2)
         n_val = 1
@@ -318,9 +318,7 @@ def build_scenario_dataset(
     raw_features = np.stack(features).astype(np.float32)
     feature_valid = np.stack(valids).astype(bool)
     slot_mask = np.stack(slot_masks).astype(bool)
-    split_index = split_indices_by_recording(
-        metadata, dict(config["dataset_split"])
-    )
+    split_index = split_indices_by_recording(metadata, dict(config["dataset_split"]))
     dimensions_array = np.stack(vehicle_dimensions).astype(np.float32)
     present = np.column_stack((np.ones(len(slot_mask), bool), slot_mask))
     recorded_dimensions = dimensions_array[present]

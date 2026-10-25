@@ -1,0 +1,21 @@
+{
+  "actual_new_world_executions_by_this_audit": 0,
+  "counts": {
+    "archive_candidates": 436,
+    "archive_references": 436,
+    "candidate_development": 12000,
+    "expert_candidates": 20084,
+    "oracle_label_diagnostics": 168,
+    "search": 30000,
+    "shared_prior_ADS_references": 32,
+    "worker_ADS_references": 103
+  },
+  "gradient_updates_consumed": 6000,
+  "round_one_source_sha256": "3fb7151e4d6755f6e85fbc1308329b86b66f2998ab9d713537fc46b0d527e634",
+  "round_one_world_executions": 31177,
+  "round_two_source_sha256": "5d713fb74ae8b503d7f6c43c1a84596a7874f27953583e1a605a9f67ce9bfcdd",
+  "round_two_world_executions": 32082,
+  "scope": "Completed two-round formal training and its direct shared preparation; excludes prior pilot/development preparation, final evaluation and final archive diagnostics",
+  "status": "passed",
+  "world_rollout_executions_total": 63259
+}

@@ -1,0 +1,13 @@
+{
+  "all_parameters_identical": true,
+  "inference_max_abs_difference": 0.0,
+  "loader": "Official DiffusionPlanner.initialize with EMA",
+  "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/initial/model.pth",
+  "native_checkpoint_sha256": "33b04d5a4eac837b6c441dbcb72afe99dbfbd8b638e484ba48b25bf96170555e",
+  "nuplan_simulation_performed": false,
+  "parameter_tensors": 276,
+  "scope": "Frozen formal highway policy; nuPlan metrics pending manual evaluation",
+  "source_policy": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/baseline/policy.pth",
+  "source_policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+  "status": "passed"
+}

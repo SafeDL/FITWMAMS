@@ -1,0 +1,4 @@
+# Historical evidence must retain the bytes recorded in its SHA256 index.
+results/risk_stratified_repair_history/reports/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
+# Current report snapshots use the same byte-preserving rule.
+results/risk_stratified_repair/reports/** -text whitespace=trailing-space,space-before-tab,cr-at-eol

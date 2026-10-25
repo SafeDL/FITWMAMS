@@ -33,4 +33,6 @@ python normalizing_flow/scripts/evaluate.py
 python normalizing_flow/scripts/verify.py
 ```
 
+自然分布使用 [natural_config.yaml](natural_config.yaml)，运行 `python normalizing_flow/scripts/train_natural.py`。预处理、车辆模式与尺寸支持均使用 Train＋Val，训练轮数取自配置的 `training.epochs`，权重和训练报告保存到 `results/natural_flow/`。
+
 `prepare.py` 生成[全量共享场景条件](../results/highd_shared_training_data/README.md)，训练时只选择 EVT 尾部。当前正式权重、固定种子样本、拟合与五折评测见[结果说明](../results/flow/README.md)，数值以原始报告为准。

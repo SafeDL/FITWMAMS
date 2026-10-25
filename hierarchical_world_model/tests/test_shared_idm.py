@@ -65,9 +65,7 @@ def test_leader_assignment_uses_lane_and_actual_vehicle_lengths():
     valid = np.ones((1, 7), bool)
     dimensions = np.tile([4.8, 1.8], (1, 7, 1)).astype(np.float32)
     dimensions[0, 2, 0] = 10.0
-    _, leader, gap, _, _ = neighbors(
-        states, valid, dimensions[0], np.array([0.0, 3.6])
-    )
+    _, leader, gap, _, _ = neighbors(states, valid, dimensions[0], np.array([0.0, 3.6]))
     assert leader[0, 1] == 2
     np.testing.assert_allclose(gap[0, 1], 12.6)
     assert leader[0, 3] == -1

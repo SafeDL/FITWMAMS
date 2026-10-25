@@ -1,0 +1,29 @@
+{
+  "annotation_fields": [
+    "common_partition_resolved",
+    "common_branch_id"
+  ],
+  "common_partition_resolved": false,
+  "methods": {
+    "guided": {
+      "current_annotated_journal_sha256": "2ce7adbf2510a0db75257ef9fd767bb8b8ca759ff41ba684f3524a1e35f96e69",
+      "pre_annotation_journal_sha256_reconstructed": "5c96d3d76cf6d78a3eeb65bb9fb189c2179e4370117c5f07b960ea327b167cb3",
+      "unchanged_executed_core_records": 5000
+    },
+    "monte_carlo": {
+      "current_annotated_journal_sha256": "6a4e7836cd7f63fb83f3dcd7cfa7c85dd0e25d9428e44761cc0d1159412f86d3",
+      "pre_annotation_journal_sha256_reconstructed": "bd943c12d8a01fd5d97e24d37b178b5e2c6a98e894df3749e15bb025961aa70e",
+      "unchanged_executed_core_records": 5000
+    },
+    "subset": {
+      "current_annotated_journal_sha256": "e4606b084d3ac2ebca9d6131233469ca7511f0cc6627c91ac213082b104e78ee",
+      "pre_annotation_journal_sha256_reconstructed": "51fdd478c0594a70c2aa3969208700affcf4ffcdd7dd104e80598f5953a53192",
+      "unchanged_executed_core_records": 5000
+    }
+  },
+  "new_search_executions": 0,
+  "original_search_counts_and_outcomes_unchanged": true,
+  "recorded_utc": "2026-10-24T23:58:40.229786+00:00",
+  "scope": "Freeze adds common-analysis annotations to first-round journals; all pre-existing execution records reconstructed byte-for-byte",
+  "status": "passed"
+}

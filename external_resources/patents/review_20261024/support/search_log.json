@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-24",
+  "scope": "自动驾驶闭环仿真测试；中性关键词及公开文献检索",
+  "queries": [
+    {
+      "date": "2026-10-24",
+      "q": "autonomous driving testing scenario generation \"lineage\" diversity"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "autonomous driving scenario generation \"resampling\" \"diversity\""
+    },
+    {
+      "date": "2026-10-24",
+      "q": "autonomous driving \"diffusion\" \"failure sampling\" DiFS"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "site.patents.google.com autonomous vehicle testing scenario diversity parent offspring selection"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "site.patents.google.com/patent/US20260134173A1"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "\"SaFeR\" \"Feasibility-Constrained Token Resampling\" arxiv"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "\"自动驾驶\" \"场景\" \"谱系\" 测试 专利"
+    },
+    {
+      "date": "2026-10-24",
+      "q": "\"autonomous\" \"scenario\" \"ancestry\" testing"
+    }
+  ],
+  "additional_keyword_groups": [
+    "autonomous driving testing quality diversity scenario generation failure modes",
+    "autonomous driving adaptive importance sampling multiple failure modes",
+    "site.cnipa.gov.cn 专利法 第二十二条 第九条 抵触申请",
+    "site.cnipa.gov.cn 2025 专利审查指南 创造性 算法 技术特征 整体",
+    "Selectively intelligent actors in simulations",
+    "Realistic test scenario variation and test coverage generation for testing of autonomous vehicles",
+    "US20260134173A1",
+    "CN122053616A"
+  ],
+  "sources": "见references.json及分析报告中的逐项链接；中国同族中文全文回读未完成",
+  "limitation": "限定领域聚焦检索，未作穷尽检索或法律状态意见；未外传用户未公开文本、代码及数据"
+}

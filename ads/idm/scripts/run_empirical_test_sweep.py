@@ -1,32 +1,27 @@
-#!/usr/bin/env python3
 """Run every held-out highD context once under fixed ``K_GT`` and IDM."""
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from ads.idm.src.world_subset_runner import (  # noqa: E402
+from ads.idm.src.world_subset_runner import (
     _build_evaluator,
     _failure_target,
-    _resolve_path,
     _run_provenance,
 )
 from hierarchical_world_model.src.core.evaluation_scope import (
     scoped_canonical_trajectory,
-)  # noqa: E402
-from hierarchical_world_model.src.core.highd_metrics import semantic_cutin_agents  # noqa: E402
+)
+from hierarchical_world_model.src.core.highd_metrics import semantic_cutin_agents
 from hierarchical_world_model.src.core.sequential_dataset import (
     load_sequential_dataset,
-)  # noqa: E402
-from hierarchical_world_model.src.core.utils import load_yaml, save_json  # noqa: E402
+)
+from hierarchical_world_model.src.core.utils import load_yaml, resolve_path, save_json
+
+ROOT = Path(__file__).resolve().parents[3]
 
 CONFIG = ROOT / "ads/idm/configs/world_factual_k_gt.yaml"
 
@@ -69,7 +64,7 @@ def run(config: dict, config_path: Path) -> Path:
         if max_contexts <= 0
         else min(max_contexts, available_contexts)
     )
-    output = _resolve_path(settings["output_dir"], config_path.parent)
+    output = resolve_path(settings["output_dir"], base=config_path.parent)
     output.mkdir(parents=True, exist_ok=True)
     failure_dir = output / "failure_cases"
     failure_dir.mkdir(parents=True, exist_ok=True)
@@ -155,7 +150,7 @@ def run(config: dict, config_path: Path) -> Path:
         "collision_count": int(collision.sum()),
         "numerical_valid_fraction": float(valid.mean()),
         "failure_cases": str(output / "test_sweep_failure_cases.json"),
-        "provenance": {**provenance, **_run_provenance(config)},
+        "provenance": {**provenance, **_run_provenance()},
         "interpretation": (
             "exhaustive empirical test-context sweep; not a Monte-Carlo or AMS "
             "probability estimator because each context has one fixed response draw"

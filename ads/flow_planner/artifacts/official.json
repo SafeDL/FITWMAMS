@@ -1,0 +1,26 @@
+{
+  "algorithm": "flow_planner",
+  "files": [
+    {
+      "path": "model.pth",
+      "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model.pth",
+      "sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e",
+      "bytes": 57244066
+    },
+    {
+      "path": "model_config.yaml",
+      "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model_config.yaml",
+      "sha256": "2914c4f174e7fba8baf9ee7d42300c640a285f9d6fa13d36b78f0a3cbb9a03fe",
+      "bytes": 7036
+    }
+  ],
+  "source": {
+    "repository": "https://github.com/DiffusionAD/Flow-Planner",
+    "commit": "366df7654d7b7fa77f9d2577279da63127c6d2f8",
+    "archive_sha256": "a223d0d95c922b4d8c824cbba513fb341191a8ae4fad8d163362af2891759694",
+    "local_changes": [
+      "Python imports namespaced under ads.flow_planner.vendor; original model parameter names retained."
+    ]
+  },
+  "checkpoint_sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e"
+}

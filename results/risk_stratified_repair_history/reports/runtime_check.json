@@ -1,0 +1,42 @@
+{
+  "assets": {
+    "diffusion_checkpoint": "7239fac05e6484746cb4a789d6e1eb55458a8cf8ca1a5a6dcea1d48a47ef388c",
+    "diffusion_contract": "baf194f3f21f2602d9fe0ea350932559b1fc69bef10d880cc345e06652e7e59c",
+    "driver_model": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+    "evt_model": "fba21455a71703a225109d6a1d6ba5fa7630c88cc48c3f80948cc73b126f436c",
+    "flow_checkpoint": "7fb8c5f03d1383a127cf8b08214e56d8702257fec57bc9b03ced7157e1a51586",
+    "generation_contract": "d2e15724d99e9675d487c0ac16186a4d9b13c3b43241dc5e5dafe35627fa1bde",
+    "interaction_errors": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+    "lane_model": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f",
+    "world_config": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9",
+    "world_implementation": "a285054c7bbde69ddda492eecf56233f5bb054bf4bc0301dba0e5f469189e9ea",
+    "world_selection": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5"
+  },
+  "cases": [
+    {
+      "case": 0,
+      "max_soft_plan_difference": 6.866455078125e-05,
+      "max_state_difference": 0.0
+    },
+    {
+      "case": 1,
+      "max_soft_plan_difference": 8.392333984375e-05,
+      "max_state_difference": 0.0
+    },
+    {
+      "case": 2,
+      "max_soft_plan_difference": 6.103515625e-05,
+      "max_state_difference": 0.0
+    },
+    {
+      "case": 3,
+      "max_soft_plan_difference": 6.103515625e-05,
+      "max_state_difference": 0.0
+    }
+  ],
+  "soft_plan_atol": 0.01,
+  "source_torch": "1.13.1+cu117",
+  "state_atol": 0.001,
+  "status": "passed",
+  "target_torch": "2.6.0+cu124"
+}

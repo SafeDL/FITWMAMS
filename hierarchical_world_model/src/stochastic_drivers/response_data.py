@@ -1,10 +1,10 @@
 """Full-recording causal response observations, including short gaps and entries."""
 
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 import ast
 import hashlib
 import json
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -13,11 +13,12 @@ import torch
 from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.lane_utils import parse_lane_markings
 from process_highD.src.preprocess import prepare_recording
-from ..scene_geometry import rectangle_separation
-from ..motion import observed_acceleration
+
 from ..core.utils import file_sha256, save_json
-from .raw_data import ROOT, DRIVER_DATA_DIR, canonical_lateral, recording_splits
-from .driver_policy import physical_leader_observation, anticipated_entry_features
+from ..motion import observed_acceleration
+from ..scene_geometry import rectangle_separation
+from .driver_policy import anticipated_entry_features, physical_leader_observation
+from .raw_data import DRIVER_DATA_DIR, ROOT, canonical_lateral, recording_splits
 
 RESPONSE_DATA_DIR = DRIVER_DATA_DIR / "interaction_response"
 PROTOCOL = "positive_body_gap_and_observed_lateral_trend"
@@ -231,16 +232,16 @@ def extract_response(recording_id, split, output):
     path = Path(output) / "recordings" / f"{recording_id:02d}.npz"
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path, **payload)
-    report = dict(
-        recording=recording_id,
-        split=split,
-        physical_vehicles=len(recording.vehicle_ids()),
-        sampled_states=len(rows),
-        response_states=int(keep.sum()),
-        short_gap_states=int((keep & (gap <= 2)).sum()),
-        anticipated_entries=int((entry[keep, 0] > 0).sum()),
-        actual_overlap_excluded=int(collision.sum()),
-    )
+    report = {
+        "recording": recording_id,
+        "split": split,
+        "physical_vehicles": len(recording.vehicle_ids()),
+        "sampled_states": len(rows),
+        "response_states": int(keep.sum()),
+        "short_gap_states": int((keep & (gap <= 2)).sum()),
+        "anticipated_entries": int((entry[keep, 0] > 0).sum()),
+        "actual_overlap_excluded": int(collision.sum()),
+    }
     save_json(report, path.with_suffix(".json"))
     print("Physical response", report, flush=True)
     return report
@@ -309,17 +310,17 @@ def prepare_response_data(workers=8):
         for r, _, _ in jobs
     ]
     save_json(
-        dict(
-            protocol=PROTOCOL,
-            source_sha256=signature,
-            definition_sha256=observation_signature(),
-            split_recordings=recording_splits(),
-            fps=25,
-            state_sampling_hz=5,
-            entry_horizon_s=1.5,
-            complete=True,
-            recordings=reports,
-        ),
+        {
+            "protocol": PROTOCOL,
+            "source_sha256": signature,
+            "definition_sha256": observation_signature(),
+            "split_recordings": recording_splits(),
+            "fps": 25,
+            "state_sampling_hz": 5,
+            "entry_horizon_s": 1.5,
+            "complete": True,
+            "recordings": reports,
+        },
         manifest,
     )
     return reports

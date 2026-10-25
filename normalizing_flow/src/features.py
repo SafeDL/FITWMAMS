@@ -25,12 +25,6 @@ SLOT_FEATURES: tuple[str, ...] = (
     "rel_vy_left_mps",
 )
 
-DEFAULT_EGO_LENGTH_M = 4.8
-DEFAULT_EGO_WIDTH_M = 1.9
-DEFAULT_OTHER_LENGTH_M = 4.8
-DEFAULT_OTHER_WIDTH_M = 1.9
-DEFAULT_LANE_WIDTH_M = 3.6
-
 
 @dataclass(frozen=True)
 class C0FeatureSchema:

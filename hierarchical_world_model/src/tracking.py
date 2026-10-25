@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.signal import savgol_filter
 import torch
+from scipy.signal import savgol_filter
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ def tracking_actions(
     *,
     min_acceleration=-8.0,
     max_acceleration=4.0,
-    max_yaw_rate=0.6
+    max_yaw_rate=0.6,
 ):
     """Critically damped position/speed and cross-track/heading feedback."""
     speed = torch.linalg.vector_norm(current[..., 2:4], dim=-1)

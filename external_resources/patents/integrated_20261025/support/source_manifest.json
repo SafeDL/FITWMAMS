@@ -1,0 +1,62 @@
+[
+  {
+    "path": "external_resources/patents/技术交底书-一种基于失效邻域的自动驾驶测试调度方法.docx",
+    "sha256": "3d8585e04c5044fe5f2a866bbecebe3e59a4a58350485977e6ca777672ad6b68"
+  },
+  {
+    "path": "external_resources/patents/revision_20261025/技术交底书_自然驾驶事件约束的自动驾驶多失效域测试方法.docx",
+    "sha256": "3de9a7ba5863232c7e364c3098aaff1728a3cb36b9819a15185ad2d67534a9bf"
+  },
+  {
+    "path": "external_resources/patents/revision_20261023/XJYZL20260889-ZS2612700-1-II-一种面向安全关键事件的自动驾驶长尾测试方法-篇幅缩减版.docx",
+    "sha256": "d2fac18d76f62a966f17492773dbad2b48faf6ec1ed4836ab6c388150651743a"
+  },
+  {
+    "path": "ads/search/engine.py",
+    "sha256": "0efad57bb9a9a8445c75c678107d3e4898fbad66fd452df8c76fefe95b3d723f"
+  },
+  {
+    "path": "ads/search/archive.py",
+    "sha256": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5"
+  },
+  {
+    "path": "ads/search/branches.py",
+    "sha256": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733"
+  },
+  {
+    "path": "ads/common/instances.py",
+    "sha256": "9b610cf5a7115166b484c8b9b8f64e829d9e3b28f7509c5625f1e6996d3ae2eb"
+  },
+  {
+    "path": "hierarchical_world_model/src/randomness.py",
+    "sha256": "adbac3f27c59e05da259e4bf7d6f1a0021f889c289c34e3544d1de932f8dd767"
+  },
+  {
+    "path": "hierarchical_world_model/src/composition.py",
+    "sha256": "5d8efd1c427b7dc163b7ea625c3982c2ca0f4ef89a96799c5a8ab2f649b714ef"
+  },
+  {
+    "path": "hierarchical_world_model/src/takeover.py",
+    "sha256": "aec16579b916d782a33460813a8de3fb45fc3474f2df134c0c733739e48fce94"
+  },
+  {
+    "path": "normalizing_flow/src/scenario.py",
+    "sha256": "a9da768af9edf2f899b62766d336687e3cccab45fc3a5d6db2711ec4d4d20039"
+  },
+  {
+    "path": "doc/risk_stratified_repair.md",
+    "sha256": "e42c6ef5530853985dcb51814d45e209691bd660fadb07c3b630056e7075ccbc"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/round_one_search_comparison.json",
+    "sha256": "78fda225e687c96141d9985d75420c13011a5ba4490009a5e0edb1cd48b9560a"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/guided_round_two_replay_acceptance.json",
+    "sha256": "a9f44211f4a7e3e813875a73f481b697760fc41c5a08aebb935b4ae84bddf06e"
+  },
+  {
+    "path": "results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_delivery_acceptance.json",
+    "sha256": "fd3e1426915db3239a7246419de61edec52944f8664f35e0614935a1cc51b4c7"
+  }
+]

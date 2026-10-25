@@ -1,26 +1,26 @@
 """Shared data, event records and timing for current bridge experiments."""
 
-from pathlib import Path
 import json
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
 from threadpoolctl import threadpool_limits
 
 from .core.utils import save_json
-from .data import prepare_experiment_data, ego_controls
-from .shared_evaluation import load_shared_components, scene_randomness
-from .takeover import TakeoverConfig, TakeoverController
-from .tracking import TrackingConfig
+from .data import ego_controls, prepare_experiment_data
 from .highway import HighwayEnvClosedLoopWorld
 from .motion import observed_acceleration
+from .shared_evaluation import load_shared_components, scene_randomness
 from .stochastic_drivers.driver_policy import (
-    physical_leader_observation,
     anticipated_entry_features,
+    physical_leader_observation,
 )
 from .stochastic_drivers.idm_population import sample_theta
 from .stochastic_drivers.online import calibrated_mobil_parameters
+from .takeover import TakeoverConfig, TakeoverController
+from .tracking import TrackingConfig
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "results/hierarchical_world_model/bridge"
@@ -116,58 +116,58 @@ def trace_records(trace, arrays, rows, *, arm, kind, seed, doses, starts):
             for actor in range(6)
         ]
         events = [
-            dict(
-                actor=int(actor),
-                frame=int(frame),
-                reason=int(reasons[frame, actor]),
-                support=float(trace["takeover_score"][k, frame, actor]),
-                predicted_conflict_s=float(
+            {
+                "actor": int(actor),
+                "frame": int(frame),
+                "reason": int(reasons[frame, actor]),
+                "support": float(trace["takeover_score"][k, frame, actor]),
+                "predicted_conflict_s": float(
                     trace["takeover_conflict_time_s"][k, frame, actor]
                 ),
-                influencer=int(trace["takeover_influencer"][k, frame, actor]),
-            )
+                "influencer": int(trace["takeover_influencer"][k, frame, actor]),
+            }
             for frame, actor in np.argwhere(entered)
         ]
         result.append(
-            dict(
-                row=int(row),
-                recording=int(str(arrays["sequence_id"][row]).split("_")[1]),
-                arm=arm,
-                stimulus=kind,
-                seed=seed,
-                dose=int(doses[k]),
-                start_frame=int(starts[k]),
-                actor_frames=int(valid.sum()),
-                position_error_sum_m=float(error[valid].sum(dtype=np.float64)),
-                ADE_m=float(error[valid].mean()) if valid.any() else None,
-                any_collision=bool(trace["crashed"][k].any()),
-                ego_collision=bool(trace["crashed"][k, :, 0].any()),
-                NPC_offroad=bool((trace["offroad"][k, :, 1:] & valid).any()),
-                takeovers=int(entered.sum()),
-                initial_takeovers=int((reasons == 1).sum()),
-                interaction_takeovers=int(np.isin(reasons, [2, 4, 5]).sum()),
-                following_takeovers=int((reasons == 4).sum()),
-                release_takeovers=int((reasons == 5).sum()),
-                expiry_takeovers=int((reasons == 3).sum()),
-                repeated_takeovers=int((entered.sum(0) > 1).sum()),
-                ownership_releases=int((owned[:-1] & ~owned[1:]).sum()),
-                first_collision_frame=first,
-                target_actor=target,
-                admission_frames=entry_frames.tolist(),
-                events=events,
-                precontact_actor_frames=int(valid[:end].sum()),
-                precontact_reference_error_sum_m=float(
+            {
+                "row": int(row),
+                "recording": int(str(arrays["sequence_id"][row]).split("_")[1]),
+                "arm": arm,
+                "stimulus": kind,
+                "seed": seed,
+                "dose": int(doses[k]),
+                "start_frame": int(starts[k]),
+                "actor_frames": int(valid.sum()),
+                "position_error_sum_m": float(error[valid].sum(dtype=np.float64)),
+                "ADE_m": float(error[valid].mean()) if valid.any() else None,
+                "any_collision": bool(trace["crashed"][k].any()),
+                "ego_collision": bool(trace["crashed"][k, :, 0].any()),
+                "NPC_offroad": bool((trace["offroad"][k, :, 1:] & valid).any()),
+                "takeovers": int(entered.sum()),
+                "initial_takeovers": int((reasons == 1).sum()),
+                "interaction_takeovers": int(np.isin(reasons, [2, 4, 5]).sum()),
+                "following_takeovers": int((reasons == 4).sum()),
+                "release_takeovers": int((reasons == 5).sum()),
+                "expiry_takeovers": int((reasons == 3).sum()),
+                "repeated_takeovers": int((entered.sum(0) > 1).sum()),
+                "ownership_releases": int((owned[:-1] & ~owned[1:]).sum()),
+                "first_collision_frame": first,
+                "target_actor": target,
+                "admission_frames": entry_frames.tolist(),
+                "events": events,
+                "precontact_actor_frames": int(valid[:end].sum()),
+                "precontact_reference_error_sum_m": float(
                     error[:end][valid[:end]].sum(dtype=np.float64)
                 ),
-                response_delay_frames=delays,
-                response_duration_frames=changed.sum(0).astype(int).tolist(),
-                response_peak_ax_delta_mps2=(
+                "response_delay_frames": delays,
+                "response_duration_frames": changed.sum(0).astype(int).tolist(),
+                "response_peak_ax_delta_mps2": (
                     np.abs(delta[..., 0]).max(0).tolist() if end else [0.0] * 6
                 ),
-                response_peak_yaw_delta_rps=(
+                "response_peak_yaw_delta_rps": (
                     np.abs(delta[..., 1]).max(0).tolist() if end else [0.0] * 6
                 ),
-            )
+            }
         )
     return result
 
@@ -221,50 +221,50 @@ class AuditedTakeover(TakeoverController):
                 ) / 0.04
                 plan_acceleration = float((later_v - initial_v) / (end * 0.04))
             self.events.append(
-                dict(
-                    batch=batch,
-                    actor=slot,
-                    frame=context.response_index,
-                    reason=int(result.takeover_reason[batch, slot]),
-                    influencer=influencer,
-                    support=float(result.takeover_score[batch, slot]),
-                    interaction_score=float(
+                {
+                    "batch": batch,
+                    "actor": slot,
+                    "frame": context.response_index,
+                    "reason": int(result.takeover_reason[batch, slot]),
+                    "influencer": influencer,
+                    "support": float(result.takeover_score[batch, slot]),
+                    "interaction_score": float(
                         result.takeover_interaction_score[batch, slot]
                     ),
-                    following_growth_s=float(
+                    "following_growth_s": float(
                         result.takeover_following_score_s[batch, slot]
                     ),
-                    release_importance_per_s=float(
+                    "release_importance_per_s": float(
                         result.takeover_release_score_per_s[batch, slot]
                     ),
-                    predicted_interaction_s=float(
+                    "predicted_interaction_s": float(
                         result.takeover_interaction_time_s[batch, slot]
                     ),
-                    current_leader=int(leader[batch, actor]),
-                    previous_leader=int(old_leader[batch, actor]),
-                    current_gap_m=(
+                    "current_leader": int(leader[batch, actor]),
+                    "previous_leader": int(old_leader[batch, actor]),
+                    "current_gap_m": (
                         float(gap[batch, actor]) if leader[batch, actor] >= 0 else None
                     ),
-                    previous_gap_m=(
+                    "previous_gap_m": (
                         float(old_gap[batch, actor])
                         if old_leader[batch, actor] >= 0
                         else None
                     ),
-                    speed_mps=float(speed[batch, actor]),
-                    previous_speed_mps=float(old_speed[batch, actor]),
-                    leader_speed_mps=float(leader_speed[batch, actor]),
-                    influencer_ax_mps2=(
+                    "speed_mps": float(speed[batch, actor]),
+                    "previous_speed_mps": float(old_speed[batch, actor]),
+                    "leader_speed_mps": float(leader_speed[batch, actor]),
+                    "influencer_ax_mps2": (
                         float(acceleration[batch, influencer, 0])
                         if influencer >= 0
                         else None
                     ),
-                    plan_initial_acceleration_mps2=plan_acceleration,
-                    plan_maneuver_started=bool(self.plan_started[batch, slot]),
-                    plan_source_y=float(self.plan_source_y[batch, slot]),
-                    plan_target_y=float(self.plan_target_y[batch, slot]),
-                    plan_progress=float(self.plan_progress[batch, slot]),
-                    anticipated_entry=entries[batch, actor].tolist(),
-                )
+                    "plan_initial_acceleration_mps2": plan_acceleration,
+                    "plan_maneuver_started": bool(self.plan_started[batch, slot]),
+                    "plan_source_y": float(self.plan_source_y[batch, slot]),
+                    "plan_target_y": float(self.plan_target_y[batch, slot]),
+                    "plan_progress": float(self.plan_progress[batch, slot]),
+                    "anticipated_entry": entries[batch, actor].tolist(),
+                }
             )
         return result
 
@@ -414,23 +414,23 @@ def latency_report(config):
                     if len(controller.admission_ms) > before
                     else 0.0
                 )
-        report[str(forced)] = dict(
-            world_ms_quantiles=np.quantile(durations, [0.5, 0.95, 0.99, 1]).tolist(),
-            bridge_ms_quantiles=np.quantile(bridge, [0.5, 0.95, 0.99, 1]).tolist(),
-            steps=len(durations),
-            steps_over_40ms=int((np.asarray(durations) > 40).sum()),
-        )
+        report[str(forced)] = {
+            "world_ms_quantiles": np.quantile(durations, [0.5, 0.95, 0.99, 1]).tolist(),
+            "bridge_ms_quantiles": np.quantile(bridge, [0.5, 0.95, 0.99, 1]).tolist(),
+            "steps": len(durations),
+            "steps_over_40ms": int((np.asarray(durations) > 40).sum()),
+        }
     p99 = max(r["world_ms_quantiles"][2] for r in report.values())
     save_json(
-        dict(
-            cpu=report,
-            P99_ms=p99,
-            passed=p99 < 40,
-            ADS_compute_included=False,
-            physical_step_ms=40,
-            maximum_active_entities=int(counts[selected].max()),
-            torch_threads=torch.get_num_threads(),
-            bridge_timing="plan commitment update plus shared prediction and admission scoring",
-        ),
+        {
+            "cpu": report,
+            "P99_ms": p99,
+            "passed": p99 < 40,
+            "ADS_compute_included": False,
+            "physical_step_ms": 40,
+            "maximum_active_entities": int(counts[selected].max()),
+            "torch_threads": torch.get_num_threads(),
+            "bridge_timing": "plan commitment update plus shared prediction and admission scoring",
+        },
         OUTPUT / "latency.json",
     )

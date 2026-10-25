@@ -1,0 +1,85 @@
+{
+  "analysis": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/reports/analysis.md",
+  "analysis_acceptance": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/preparation/completed_delivery_acceptance.json",
+  "analysis_sha256": "e7d679bd37aa1026ef14e31e61c975870962fe71c8f5ef0c2e5fa9bdec0c4ce9",
+  "empirical_inference_unit": "recording_id",
+  "exports": {
+    "guided": {
+      "all_parameters_identical": true,
+      "inference_max_abs_difference": 0.0,
+      "loader": "Official DiffusionPlanner.initialize with EMA",
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/guided/model.pth",
+      "native_checkpoint_sha256": "8c1e4b5e664f91f6bb00926533cd6c953a1301f8a7568faf7d4760ec11d44383",
+      "nuplan_simulation_performed": false,
+      "parameter_tensors": 276,
+      "scope": "Frozen formal highway policy; nuPlan metrics pending manual evaluation",
+      "source_policy": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/guided/round_2/policy.pth",
+      "source_policy_sha256": "70196d9d5c8dc54fae27b28b0745ca9a8d392d5ca408a7fbf1a87f0d80ebb603",
+      "status": "passed"
+    },
+    "initial": {
+      "all_parameters_identical": true,
+      "inference_max_abs_difference": 0.0,
+      "loader": "Official DiffusionPlanner.initialize with EMA",
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/initial/model.pth",
+      "native_checkpoint_sha256": "33b04d5a4eac837b6c441dbcb72afe99dbfbd8b638e484ba48b25bf96170555e",
+      "nuplan_simulation_performed": false,
+      "parameter_tensors": 276,
+      "scope": "Frozen formal highway policy; nuPlan metrics pending manual evaluation",
+      "source_policy": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/baseline/policy.pth",
+      "source_policy_sha256": "ec45f95cbf96d3778f038dd4419fccdd6f02dae11fbe4b427fb5174ee5fc6764",
+      "status": "passed"
+    },
+    "monte_carlo": {
+      "all_parameters_identical": true,
+      "inference_max_abs_difference": 0.0,
+      "loader": "Official DiffusionPlanner.initialize with EMA",
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/monte_carlo/model.pth",
+      "native_checkpoint_sha256": "d8257e68b1aa8461d60a2517b456f58753f37b650d918e570307f90a60cdbef3",
+      "nuplan_simulation_performed": false,
+      "parameter_tensors": 276,
+      "scope": "Frozen formal highway policy; nuPlan metrics pending manual evaluation",
+      "source_policy": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/monte_carlo/round_2/policy.pth",
+      "source_policy_sha256": "d27bcd7422518a360d6deda5ba28c826695e34c4adc49ca062e0ab05896288db",
+      "status": "passed"
+    },
+    "subset": {
+      "all_parameters_identical": true,
+      "inference_max_abs_difference": 0.0,
+      "loader": "Official DiffusionPlanner.initialize with EMA",
+      "native_checkpoint": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/native/subset/model.pth",
+      "native_checkpoint_sha256": "397fd3e84b97a5b36543958447c67b09dc973ce1ad31e415946266ef382ae722",
+      "nuplan_simulation_performed": false,
+      "parameter_tensors": 276,
+      "scope": "Frozen formal highway policy; nuPlan metrics pending manual evaluation",
+      "source_policy": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/diffusion_planner/20260926/subset/round_2/policy.pth",
+      "source_policy_sha256": "483d841b39d7a6cb4a32b586e163b6a980f447a85e5addb88bbd81455418df83",
+      "status": "passed"
+    }
+  },
+  "final_results_require_analysis": false,
+  "inference_units_by_cohort": {
+    "empirical_natural": 9,
+    "natural_generated": 2000,
+    "tail_generated": 2000
+  },
+  "manual_handoffs": [
+    "/home/hp/FITWMAMS/results/risk_stratified_repair_manual_nuplan/diffusion_planner/monte_carlo/20260926/handoff.json",
+    "/home/hp/FITWMAMS/results/risk_stratified_repair_manual_nuplan/diffusion_planner/subset/20260926/handoff.json",
+    "/home/hp/FITWMAMS/results/risk_stratified_repair_manual_nuplan/diffusion_planner/guided/20260926/handoff.json"
+  ],
+  "nuplan_manual_guide": "/home/hp/FITWMAMS/results/risk_stratified_repair_manual_nuplan/README.md",
+  "nuplan_simulation_performed": false,
+  "recorded_final_policy_scenario_runs": 24000,
+  "search_executions": 30000,
+  "source_archive": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/ads_source.tar.gz",
+  "source_archive_record": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/source_archive.json",
+  "status": "highway_experiments_complete_manual_nuplan_pending",
+  "summary": "/home/hp/FITWMAMS/results/risk_stratified_repair/formal/diffusion_planner/evaluation/summary.json",
+  "unique_final_instances": 6000,
+  "unique_instances_by_cohort": {
+    "empirical_natural": 2000,
+    "natural_generated": 2000,
+    "tail_generated": 2000
+  }
+}

@@ -1,0 +1,28 @@
+# Train+Val natural-scene distribution for ADS evaluation.
+seed: 20260926
+device: auto
+paths:
+  highd_preprocessing_config: ../process_highD/config.yaml
+  dataset_dir: ../results/highd_shared_training_data/scenario_conditions
+  output_dir: ../results/natural_flow
+model:
+  c0_flow:
+    num_bins: 8
+    tail_bound: 4.0
+    num_layers: 4
+    hidden_features: 96
+    num_blocks: 2
+    dropout_probability: 0.02
+  constraint_flow:
+    num_bins: 8
+    tail_bound: 5.0
+    num_layers: 5
+    hidden_features: 128
+    num_blocks: 2
+    dropout_probability: 0.02
+training:
+  epochs: 20
+  batch_size: 256
+  learning_rate: 0.0003
+  weight_decay: 0.000005
+  grad_clip: 5.0

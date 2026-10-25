@@ -1,0 +1,9 @@
+{
+  "ads_source_archive_sha256": "57a72f65ff11128ea7ef740d3ec8c4576ac5ae29aa9936447aa1b73fa59f03de",
+  "common_curriculum_patch_sha256": "91009403f8e220d2b3933dae793435a1d3d62965681127ed1b660a2e7a08c533",
+  "configuration_sha256": "a91616c3ad8bccd90fd84ab516eb9ae0c5875387e1a55eb698a8127d9b0f1d99",
+  "independent_final_cohorts_not_opened": true,
+  "pilot_final_sha256": "0fcaa029c094eabe49cbeb9da418cbcc1378c7089608d5d5927ef624aac1e0d9",
+  "pilot_summary": "/home/hp/FITWMAMS/results/risk_stratified_repair/development/diffusion_planner_functional/pilot_summary.json",
+  "pilot_weights_used_for_formal_initialization": false
+}

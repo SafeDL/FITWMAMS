@@ -14,6 +14,7 @@ from tools.plot_style import (
     get_pyplot,
     style_axes,
 )
+
 from ..core.utils import load_json
 from ..stochastic_drivers.raw_data import DRIVER_DATA_DIR
 from .metrics import (
@@ -231,8 +232,8 @@ def aggregate(numeric, cohorts, owner, field):
 
 
 def plot_npc_results(output):
-    from .evaluation import ROLLOUT_DIRECTORIES, stage_models
     from ..stochastic_drivers.idm_population import sample_theta
+    from .evaluation import ROLLOUT_DIRECTORIES, stage_models
 
     output = Path(output)
     selected, models = stage_models(output)

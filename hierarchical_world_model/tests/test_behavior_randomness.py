@@ -39,7 +39,7 @@ def test_randomness_concatenation_preserves_blocks() -> None:
     ]
     combined = WorldExogenousState.concatenate(worlds)
     combined.validate()
-    for name, value in worlds[0].as_dict().items():
+    for name in worlds[0].as_dict():
         np.testing.assert_array_equal(
             getattr(combined, name),
             np.concatenate([getattr(world, name) for world in worlds]),
@@ -50,7 +50,7 @@ def test_randomness_concatenation_preserves_blocks() -> None:
     ]
     combined_context = EmpiricalKWorldState.concatenate(contexts)
     combined_context.validate()
-    for name, value in contexts[0].as_dict().items():
+    for name in contexts[0].as_dict():
         np.testing.assert_array_equal(
             getattr(combined_context, name),
             np.concatenate([getattr(context, name) for context in contexts]),
@@ -70,7 +70,7 @@ def test_actor_local_driver_mutation_changes_only_selected_driver() -> None:
     world = WorldExogenousState.sample(2, seed=4, response_steps=8)
     mask = np.zeros((2, 6), bool)
     mask[0, 3] = True
-    proposal = world.mutate("driver", beta=0.25, seed=9, actor_mask=mask)
+    proposal = world.mutate("driver_latent", beta=0.25, seed=9, actor_mask=mask)
     changed = np.any(proposal.driver_latent != world.driver_latent, axis=-1)
     assert np.array_equal(changed, mask)
     assert np.array_equal(proposal.maneuver_latent, world.maneuver_latent)
@@ -83,7 +83,11 @@ def test_future_response_mutation_preserves_prefix_and_other_actors() -> None:
     world = WorldExogenousState.sample(1, seed=5, response_steps=12)
     mask = np.asarray((False, True, False, False, False, False))
     proposal = world.mutate(
-        "policy", beta=0.4, seed=10, actor_mask=mask, time_range=(7, 12)
+        "policy_response_innovations",
+        beta=0.4,
+        seed=10,
+        actor_mask=mask,
+        time_range=(7, 12),
     )
     assert np.array_equal(
         proposal.policy_response_innovations[:, :7],
@@ -111,7 +115,7 @@ def test_actor_local_maneuver_mutation_changes_only_selected_traits() -> None:
     world = WorldExogenousState.sample(1, seed=12, response_steps=2)
     mask = np.zeros((1, 6), bool)
     mask[0, 2] = True
-    proposal = world.mutate("maneuver", beta=0.2, seed=13, actor_mask=mask)
+    proposal = world.mutate("maneuver_latent", beta=0.2, seed=13, actor_mask=mask)
     before = mobil_parameters_from_maneuver_latent(world.maneuver_latent)
     after = mobil_parameters_from_maneuver_latent(proposal.maneuver_latent)
     for name in before:

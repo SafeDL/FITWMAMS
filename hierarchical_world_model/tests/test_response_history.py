@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 
+from hierarchical_world_model.src.stochastic_drivers import raw_data
 from hierarchical_world_model.src.stochastic_drivers.driver_policy import (
     response_history_features,
 )
-from hierarchical_world_model.src.stochastic_drivers import raw_data
 
 
 def test_own_acceleration_cannot_reenter_the_driver_correction():

@@ -1,0 +1,7 @@
+method,round,actual_executions,primary_collision_hit_calls,primary_distinct_collision_instances,primary_collision_sampling_roots,branch_check_calls,branch_check_collision_calls,archive_replay_calls,archive_replay_collision_calls,all_collision_hit_calls
+monte_carlo,1,5000,160,160,160,0,0,0,0,160
+monte_carlo,2,5000,102,102,102,0,0,16,7,109
+subset,1,5000,215,215,112,0,0,0,0,215
+subset,2,5000,190,190,57,0,0,16,8,198
+guided,1,5000,450,450,98,500,19,0,0,469
+guided,2,5000,828,828,47,500,14,115,64,906

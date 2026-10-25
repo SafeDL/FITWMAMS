@@ -1,0 +1,920 @@
+{
+  "algorithms": [
+    "dqn",
+    "ppo",
+    "carl",
+    "plant2",
+    "diffusion_planner",
+    "dtpp",
+    "flow_planner",
+    "str2"
+  ],
+  "carl_official_sha256": "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d",
+  "created_utc": "2026-10-21T03:22:06.100025+00:00",
+  "frozen_assets": {
+    "diffusion_checkpoint": {
+      "path": "results/diffusion/checkpoints/best_background_diffusion.pt",
+      "sha256": "7239fac05e6484746cb4a789d6e1eb55458a8cf8ca1a5a6dcea1d48a47ef388c",
+      "unchanged_from_historical_freeze": true
+    },
+    "diffusion_contract": {
+      "path": "results/diffusion/dataset_contract.json",
+      "sha256": "baf194f3f21f2602d9fe0ea350932559b1fc69bef10d880cc345e06652e7e59c",
+      "unchanged_from_historical_freeze": true
+    },
+    "driver_model": {
+      "path": "results/hierarchical_world_model/model_assets/idm_population.npz",
+      "sha256": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+      "unchanged_from_historical_freeze": true
+    },
+    "evt_model": {
+      "path": "results/evt/evt_model.json",
+      "sha256": "fba21455a71703a225109d6a1d6ba5fa7630c88cc48c3f80948cc73b126f436c",
+      "unchanged_from_historical_freeze": true
+    },
+    "flow_checkpoint": {
+      "path": "results/flow/checkpoints/scenario_flow.pt",
+      "sha256": "7fb8c5f03d1383a127cf8b08214e56d8702257fec57bc9b03ced7157e1a51586",
+      "unchanged_from_historical_freeze": true
+    },
+    "interaction_errors": {
+      "path": "results/hierarchical_world_model/model_assets/interaction_errors.npz",
+      "sha256": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d",
+      "unchanged_from_historical_freeze": true
+    },
+    "lane_model": {
+      "path": "results/hierarchical_world_model/model_assets/lane_trajectory.json",
+      "sha256": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f",
+      "unchanged_from_historical_freeze": true
+    },
+    "world_config": {
+      "path": "hierarchical_world_model/config.yaml",
+      "sha256": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9",
+      "unchanged_from_historical_freeze": true
+    },
+    "world_selection": {
+      "path": "results/hierarchical_world_model/model_assets/selection.json",
+      "sha256": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5",
+      "unchanged_from_historical_freeze": true
+    }
+  },
+  "future_final_executions": 192000,
+  "future_search_cap": 240000,
+  "implementation_sha256": {
+    "ads/README.md": "72e6e6b50713c3bc084bd0a7cfbe12cb2cdd76d6d028252493dcbd37806818bb",
+    "ads/audit.py": "2ce7f2dc603c4b6cc7405928048df97659838eceba75b0702c6ba889576e6a1d",
+    "ads/carl/export.py": "d7a8ff8ce2ebdc096c4dd5560ccbdfe27687559cab9972eb50fc5ff01e085e2c",
+    "ads/carl/policy.py": "914a0dc485099806041c30020c2208c1738f8d710ff75a14406c460abc2b04ab",
+    "ads/carl/train.py": "53f56e4e4dc0ae139b561b8232a694d71107853e14fb65c3485c97434596f11a",
+    "ads/common/archive_diagnostics.py": "42b22568e2fa1ae1d517e690b9429f5a6b2178c15e93bb32a1cadb6bdece8ab9",
+    "ads/common/cohorts.py": "148864f9b3d334439aec79dbd891f7defd6e49a73f458b1a360a46c057414a0d",
+    "ads/common/control.py": "05c7b21f4a4e674280f8ae6f399fade79c8681b6b77f16b70bf9df4eb63822c1",
+    "ads/common/curriculum.py": "1419397b961d682b726acfc5d6ee8635bab931acf43a48d77b05b1bde8fb02df",
+    "ads/common/demonstrations.py": "6c620e41c77262ee06602a8ad9742ea7d6dd1103a4a8d75f92fb5ad88560f14c",
+    "ads/common/environment.py": "b6113c90d36fd30f28277dd4a2dce809bba594c68eae54d98a08dabc965f865b",
+    "ads/common/evaluation.py": "316e18872445d9159560a0614239bfb13a0637858ec65211fe3a880b13db9d09",
+    "ads/common/evaluation_sampling.py": "b64c981771a6bd92edbff4f1e442e2a3d9cd9298e208ad7bbcd78ef1e3c2141d",
+    "ads/common/instances.py": "4aca46072e6c38e451bd51c7637b748ca45b1e97dd6a78d27de6b686714cb328",
+    "ads/common/natural.py": "4ab5dea3cdc1ad82598b08bcf3a1cf7d09ba079215fbaa5c4f11ddc81a24c9a3",
+    "ads/common/observations.py": "1fa32eb64478e8e6c5f145e1af39b38c54f12c93e4b9eb8d72d0937ecd525237",
+    "ads/common/randomness.py": "d068594d432d943c710f0c6dba91585e4ed03161dbff7ce916e9b68da4826ba2",
+    "ads/common/repair.py": "7d9330e4b9c8b762bb520847bad782d7c5609555db0cbc4256e1466586de3959",
+    "ads/common/reporting.py": "70c3452299de62870cdb8612024e22628dd45e98da94499323bafe8495de9b68",
+    "ads/common/setup.py": "4081a5271db3ba29374f4f38860918a979beeeed0697f5b8edaa8f0b7304bbb8",
+    "ads/common/teacher_costs.py": "4b65033599c9d505eea39488f07bff1ba1d4dc57f9f18c55e2df4069572f88c0",
+    "ads/common/teacher_coverage.py": "808c00d020cf3a92218d2dda9bd15cb94455a720a1247acd1ab91366e0eb4164",
+    "ads/configs/method_c.yaml": "d65b56b5881687334ca961261a950c3bb6fde371df8801b19a8f7edbec491b31",
+    "ads/diffusion_planner/policy.py": "031fe7413e2890dad6fc4a8b6cf779c9dfee5d66a96ab7450c688b1204351d3f",
+    "ads/dtpp/policy.py": "d05d3dbee1c7cddc4a0257e46e3fd350ec0ac86f50cc0d8b822172923ac7e961",
+    "ads/flow_planner/policy.py": "c7e7cae736293eefcdaa385d720a08c2dce90f75442ec95fe5e979af8ce9d639",
+    "ads/method_c.py": "6bcde6521c1f47db488d09282e24f87e0ad1eb5ced5e7556b5070f7c497e5444",
+    "ads/nuplan/assets.py": "f9a1b237b4a1a40a1b1a41a0b2d3cb9f5481acb054e67ea59c6be52b131b5428",
+    "ads/nuplan/export.py": "7dd2781e09184e21ab1b442d7e22ea811e46af420f2102cddb9656fbcf5c98c2",
+    "ads/nuplan/features.py": "545d515273e01efe4379667f1610bbcf5930833ba23d6d3eb6faa8c5a7d41239",
+    "ads/nuplan/handoff.py": "d81fbef91bbfca59f2b94d7ac81d9dc2be3a92b6e8a37af60480ead270576297",
+    "ads/nuplan/losses.py": "93c8cedf60d87597429480163df8355f13cd15a5ab58509ca4ea2815943d7a08",
+    "ads/nuplan/policy.py": "f7d1094672adeeb197086322fdc3a5ad87bea6055c1fb225e9883a718da5564d",
+    "ads/nuplan/scene.py": "94903a607e2ebfa33b125fa2d33cc05bdca81ef01aee4baa3e4fc3d857651b3a",
+    "ads/nuplan/teacher.py": "49602d836f686a2634b72ff14ab3207cdf0fe3636b4aeba11738aa6b7f8ad39b",
+    "ads/nuplan/train.py": "2d301cc0482a5054a0ab1b05e136c3f91768580d5f0696a93c3c8488dbcb9649",
+    "ads/plant2/teacher.py": "ff0bc35154a9ca19c10fa24a346afc2d47d1cd13d6634ffdf92862ecd9433a6f",
+    "ads/plant2/train.py": "16e7b827b72850750f4c01eb14d6bbfc0986b179330d0aabc2dfbe16b29fc19c",
+    "ads/report.py": "3ce7ea36cb320b862a6b4aa3df74f01b254273c2b638f949446ae4c6be5aef09",
+    "ads/search/analytic.py": "6abc8f00ed13236eaa92fe5a3afd1032014f7ba85a707498cbfad2060375161b",
+    "ads/search/archive.py": "2ee5ef5437246d187bd9675d278065228e551d6c49cc001f6682418fb03aacf5",
+    "ads/search/branches.py": "64ba928068b603a82c35fec9836de86b76efe93d13b64489b6f7075ec227f733",
+    "ads/search/comparison.py": "f7b86c0bd5a3c97d50292c648790c806ca9cb9e374741d76c6fdd3ffcbd85431",
+    "ads/search/engine.py": "61760b6af4a4d8b4aa45624f2d859969bf23a61e176f5b658bc93f06500ecbf7",
+    "ads/str2/policy.py": "e43f6596eae79cfb6b1c21daa8fffeedff0e570bc3b0b58f0cb647a30dfe1766",
+    "ads/tasks.py": "63c99c2553cabc19fcb80f08d871d1f508fa1e978ee593a8e07c00f49634641e",
+    "normalizing_flow/natural_config.yaml": "82a27e99b7572e87dec55403a84dec2d180017ca10d75936913cfc3337002299",
+    "normalizing_flow/scripts/train_natural.py": "b8d08de0985d4c57093fcc1364302896e4547d14eb3d9b54e7351ebaab4e8053",
+    "normalizing_flow/src/train.py": "4acdb1a1fc4544a58762c0e424a56fd1603fd843ea988d02828ce50f99ccc31f"
+  },
+  "initial_policy_sources": {
+    "dqn": {
+      "path": "results/method_c/formal/dqn/20260926/baseline/policy.zip",
+      "sha256": "3db1add636a353c215f3d598af255996d7229ebaf86f4206912eccfcdb4c9342"
+    },
+    "plant2": {
+      "path": "results/method_c/formal/plant2/20260926/baseline/policy.ckpt",
+      "sha256": "95acbdc7b1eabe795ca9b91c325729b1e092f1bb88b1021730c9f3836254b275"
+    },
+    "ppo": {
+      "path": "results/method_c/formal/ppo/20260926/baseline/policy.zip",
+      "sha256": "6fe9d1a2625e4b13ce75cfaa36607f149ff3d78d9232b7c2133061624d584b6c"
+    }
+  },
+  "known_limitations": [
+    "Both subset and guided search missed the known rare left region of the weak-early-branch analytic problem under the frozen defaults. Finite-budget branches do not certify exhaustive failure-domain coverage.",
+    "Two natural cohorts are ADS-stage holdouts. 330 Test tail source events participated in full-tail Flow fitting; no full-pipeline source independence is claimed.",
+    "One small synthetic campaign emits a LinearSVC convergence warning. Test outputs and warning remain in pytest.log; no formal search was run."
+  ],
+  "natural_population_counts": {
+    "0": 72771,
+    "1": 13133,
+    "2": 10151
+  },
+  "objective_attachment_sha256": "30cab314916dbee3eea147148d030a22d64632e791787b5213fe01ba407e10f5",
+  "official_models": {
+    "diffusion_planner": {
+      "algorithm": "diffusion_planner",
+      "checkpoint_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+      "files": [
+        {
+          "bytes": 48549085,
+          "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/model.pth",
+          "path": "model.pth",
+          "sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45"
+        },
+        {
+          "bytes": 7404,
+          "official_url": "https://huggingface.co/ZhengYinan2001/Diffusion-Planner/resolve/main/args.json",
+          "path": "args.json",
+          "sha256": "7e62b89a50953f133d55484777e54490f7f24e58feec1efcf696bcc7b91bdf10"
+        }
+      ],
+      "source": {
+        "archive_sha256": "3b4ce406a489167b9aca2498ea7a01366bdbe816d95a44e34e87f1bead0c1615",
+        "commit": "a3a621f0b724c5fa6447f7a2fbaf9e0387bd35df",
+        "local_changes": [
+          "Python imports namespaced under ads.diffusion_planner.vendor; original model parameter names retained."
+        ],
+        "repository": "https://github.com/ZhengYinan-AIR/Diffusion-Planner"
+      }
+    },
+    "dtpp": {
+      "algorithm": "dtpp",
+      "checkpoint_sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073",
+      "files": [
+        {
+          "bytes": 23952592,
+          "official_url": "https://raw.githubusercontent.com/MCZhi/DTPP/4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7/base_model.pth",
+          "path": "base_model.pth",
+          "sha256": "aba84322e6e26ca4a3f33133a4feb43901e7c666d2db17234255cc832a49c073"
+        }
+      ],
+      "source": {
+        "archive_sha256": "39350be726da09de413a12d6ffc1355790adec7ca4ede9c8a0a135f263667401",
+        "commit": "4d721b634c7e0e5b6c6be867c1f8cc456d5d11b7",
+        "local_changes": [
+          "Python imports namespaced under ads.dtpp.vendor; original model parameter names retained.",
+          "Expose first- and second-stage candidate lists for offline supervised labels; native tree selection unchanged."
+        ],
+        "repository": "https://github.com/MCZhi/DTPP"
+      }
+    },
+    "flow_planner": {
+      "algorithm": "flow_planner",
+      "checkpoint_sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e",
+      "files": [
+        {
+          "bytes": 57244066,
+          "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model.pth",
+          "path": "model.pth",
+          "sha256": "9231b4c02968c9e42dd2881ad3e7dd4bd362796f7b2c0158e0458c4ab3bde88e"
+        },
+        {
+          "bytes": 7036,
+          "official_url": "https://huggingface.co/ttwhy/flow-planner/resolve/main/model_config.yaml",
+          "path": "model_config.yaml",
+          "sha256": "2914c4f174e7fba8baf9ee7d42300c640a285f9d6fa13d36b78f0a3cbb9a03fe"
+        }
+      ],
+      "source": {
+        "archive_sha256": "a223d0d95c922b4d8c824cbba513fb341191a8ae4fad8d163362af2891759694",
+        "commit": "366df7654d7b7fa77f9d2577279da63127c6d2f8",
+        "local_changes": [
+          "Python imports namespaced under ads.flow_planner.vendor; original model parameter names retained."
+        ],
+        "repository": "https://github.com/DiffusionAD/Flow-Planner"
+      }
+    },
+    "str2": {
+      "algorithm": "str2",
+      "checkpoint_sha256": "dee84e8c4d54cd357d2a5befaee16d91c14c0cf1d37342bde6d44602217a3831",
+      "files": [
+        {
+          "bytes": 18971238186,
+          "official_url": "https://huggingface.co/JohnZhan/StateTransformer2/resolve/main/str_open.tar.gz",
+          "path": "str_open.tar.gz",
+          "sha256": "0d346779bb1910f2cfd82c265237a45fb318ae0956c4cf323bb684a08ce0a849"
+        },
+        {
+          "official_url": "https://raw.githubusercontent.com/Tsinghua-MARS-Lab/StateTransformer/b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5/kmeans_traj_8s_512.csv",
+          "path": "checkpoint-297000/kmeans_traj_8s_512.csv",
+          "sha256": "4fef7267cd8ce31b07f27effaaed3d530de8384f4b50c438fb16d3d97ea686b2"
+        }
+      ],
+      "source": {
+        "archive_sha256": "d3d9f5f8c5d2a9e0eadc2efc966d17793cb12af03f0fd39d3456671117c774a4",
+        "commit": "b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5",
+        "local_changes": [
+          "Python imports namespaced under ads.str2.vendor; original model parameter names retained.",
+          "Optional observed-future masks for native raster encoder proposal labels and teacher-forced tokens; inference unchanged.",
+          "Use PyTorch attention and explicit original head_dim=16 with Transformers 4.49.",
+          "Native STR/PDM postprocessing retained through causal highway map objects.",
+          "Native build_models also restores head_dim after selecting backbone width for Transformers 4.49; checkpoint parameters unchanged."
+        ],
+        "repository": "https://github.com/Tsinghua-MARS-Lab/StateTransformer"
+      }
+    }
+  },
+  "phase_boundaries": {
+    "formal_final_cohorts": 0,
+    "formal_output_directory_absent": true,
+    "native_gradient_checks_optimizer_steps": 0,
+    "natural_flow_checkpoint_absent": true,
+    "new_formal_runs": 0
+  },
+  "planned_units": 114,
+  "python": "/home/hp/anaconda3/envs/tread/bin/python",
+  "requirements": [
+    {
+      "additional_evidence": [
+        "frozen_assets",
+        "tail_event_counts"
+      ],
+      "id": "1.freeze",
+      "implementation": [
+        "ads/common/setup.py"
+      ],
+      "passed_test_cases": [],
+      "requirement": "Retain all 2,964 tail events and all frozen model, road, NPC and takeover assets.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "algorithms",
+        "python",
+        "planned_units"
+      ],
+      "id": "1.registry",
+      "implementation": [
+        "ads/tasks.py",
+        "ads/configs/method_c.yaml"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_carl_interface::test_new_protocol_has_one_seed_and_no_carl_adaptation"
+      ],
+      "requirement": "Eight policies under ads; remove PlanTF/PLUTO; reuse existing tread, seed 20260926, two rounds.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "phase_boundaries",
+        "initial_policy_sources"
+      ],
+      "id": "1.phase",
+      "implementation": [
+        "ads/README.md",
+        "ads/configs/method_c.yaml"
+      ],
+      "passed_test_cases": [],
+      "requirement": "No natural Flow fit, ADS formal training, formal search, formal cohorts or scenario evaluation in this phase; preserve historical results.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "initial_policy_sources"
+      ],
+      "id": "2.initial",
+      "implementation": [
+        "ads/method_c.py",
+        "ads/common/setup.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_execution::test_agreed_existing_initial_policies_run_on_the_shared_synthetic_interface",
+        "ads.tests.test_carl_interface::test_carl_initialization_cannot_call_optimizer_or_world"
+      ],
+      "requirement": "Reuse existing DQN/PPO/PlanT2 pi0; import CaRL and four new planners without initial adaptation training.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "official_models"
+      ],
+      "id": "2.official",
+      "implementation": [
+        "ads/nuplan/assets.py",
+        "ads/diffusion_planner/policy.py",
+        "ads/dtpp/policy.py",
+        "ads/flow_planner/policy.py",
+        "ads/str2/policy.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[dtpp]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[str2]",
+        "ads.tests.test_nuplan_planners::test_missing_checkpoint_is_never_replaced_with_random_weights[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_missing_checkpoint_is_never_replaced_with_random_weights[dtpp]",
+        "ads.tests.test_nuplan_planners::test_missing_checkpoint_is_never_replaced_with_random_weights[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_missing_checkpoint_is_never_replaced_with_random_weights[str2]"
+      ],
+      "requirement": "Pinned official source/config/weights; strict full loading, no random fallback.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "carl_official_sha256"
+      ],
+      "id": "2.carl",
+      "implementation": [
+        "ads/carl/policy.py",
+        "ads/common/observations.py",
+        "ads/common/control.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_carl_interface::test_selected_official_carl_checkpoint_matches_source_and_loads",
+        "ads.tests.test_carl_interface::test_carl_raster_matches_official_forward_right_and_route_roadblock",
+        "ads.tests.test_carl_interface::test_carl_default_action_scaling[action0-0.1-20-0-2.4]",
+        "ads.tests.test_carl_interface::test_carl_default_action_scaling[action1--0.1-20-0--3.2]",
+        "ads.tests.test_carl_interface::test_carl_default_action_scaling[action2-0-0.1--0.4-0.2]",
+        "ads.tests.test_carl_interface::test_carl_actuator_filters_limits_and_stationary_steering"
+      ],
+      "requirement": "CaRL uses nuplan_51892_1B and retains BEV origin/orientation, official action scaling and actuator filters.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.execution",
+      "implementation": [
+        "ads/common/environment.py",
+        "ads/common/control.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_execution::test_shared_execution_replays_all_149_physics_steps",
+        "ads.tests.test_execution::test_causal_encoders_and_native_action_spaces",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[dtpp]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[str2]",
+        "ads.tests.test_nuplan_planners::test_trajectory_tracking_immediate_speed"
+      ],
+      "requirement": "5 Hz decisions / 25 Hz physical execution, eight native action interfaces and deterministic trajectory tracking.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.coordinates",
+      "implementation": [
+        "ads/nuplan/scene.py",
+        "ads/nuplan/features.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_nuplan_ego_dynamics_are_longitudinal_lateral_not_world_xy",
+        "ads.tests.test_nuplan_planners::test_divided_road_geometry_does_not_fill_the_median",
+        "ads.tests.test_nuplan_planners::test_straight_road_continues_past_the_cached_polyline_endpoint[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_straight_road_continues_past_the_cached_polyline_endpoint[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_straight_road_continues_past_the_cached_polyline_endpoint[dtpp]"
+      ],
+      "requirement": "Correct native coordinate frames, units, road connectivity and continuous road window.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.causal_history",
+      "implementation": [
+        "ads/common/environment.py",
+        "ads/nuplan/features.py",
+        "ads/common/natural.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_causal_features_ignore_soft_future[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_causal_features_ignore_soft_future[dtpp]",
+        "ads.tests.test_nuplan_planners::test_causal_features_ignore_soft_future[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_causal_features_ignore_soft_future[str2]",
+        "ads.tests.test_nuplan_planners::test_history_is_causal_and_interpolates_25_to_10_hz",
+        "ads.tests.test_holdouts_and_randomness::test_real_history_survives_hash_and_serialization",
+        "ads.tests.test_holdouts_and_randomness::test_three_cohorts_materialize_from_their_frozen_synthetic_sources"
+      ],
+      "requirement": "Causal observations; generated cold start; real empirical history with validity and native missing-history encoding.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.instances",
+      "implementation": [
+        "ads/common/instances.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_instances::test_complete_roundtrip_and_tamper_detection",
+        "ads.tests.test_instances::test_generation_is_independent_of_materialisation_batch_size",
+        "hierarchical_world_model.tests.test_shared_evaluation::test_world_randomness_is_stable_across_batches_and_order",
+        "hierarchical_world_model.tests.test_takeover::test_world_snapshot_restores_ownership_and_random_policy"
+      ],
+      "requirement": "Complete concrete instances hash every execution array/asset, retain source metadata and lineage, replay unchanged randomness.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.randomness",
+      "implementation": [
+        "ads/common/randomness.py",
+        "ads/common/evaluation.py",
+        "ads/method_c.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_holdouts_and_randomness::test_policy_streams_do_not_depend_on_scenario_during_search",
+        "ads.tests.test_reporting::test_policy_stream_mismatch_and_recording_cluster"
+      ],
+      "requirement": "Search/check/retest common decision/use-indexed policy stream; training separate; final per-instance paired streams.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "2.export",
+      "implementation": [
+        "ads/nuplan/policy.py",
+        "ads/nuplan/export.py",
+        "ads/carl/export.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[dtpp]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[str2]",
+        "ads.tests.test_carl_interface::test_native_export_preserves_parameters_and_actions",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[dtpp]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[str2]"
+      ],
+      "requirement": "Native checkpoint/config/EMA export and strict readback; protect initial weights and adjacent configs.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.score",
+      "implementation": [
+        "ads/common/evaluation.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_original_risk_orders_beyond_evt_saturation_and_failure_is_terminal",
+        "ads.tests.test_execution::test_initial_collision_is_retained_and_never_labelled_success",
+        "ads.tests.test_execution::test_stalling_is_not_safety_failure",
+        "ads.tests.test_execution::test_ego_npc_collision_is_not_reported_as_npc_npc_collision"
+      ],
+      "requirement": "Reuse raw physical-step envelope risk and original lambda .15; EVT descriptive; H=1 only for collision/offroad; all metrics separate.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.partition",
+      "implementation": [
+        "ads/search/branches.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_hill_valley_detects_separated_failures_without_semantic_labels",
+        "ads.tests.test_search::test_partition_protects_a_branch_with_weaker_early_risk",
+        "ads.tests.test_search::test_partition_roundtrip_preserves_membership"
+      ],
+      "requirement": "Input-space branches via <=12 ancestor/chain-balanced representatives, hill-valley midpoint replay, seeded 100 LPA, standardized PCA and C=1 L1 SVM; semantic labels explanatory only.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.unknown",
+      "implementation": [
+        "ads/search/branches.py",
+        "ads/search/engine.py",
+        "ads/common/curriculum.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_unknown_pairs_do_not_create_false_disconnection",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[monte_carlo]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[subset]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[guided]",
+        "ads.tests.test_discovery_comparison::test_common_partition_charges_checks_and_does_not_create_repair_samples"
+      ],
+      "requirement": "Unchecked graph relations remain unknown, singleton evidence unconfirmed; diagnostics excluded from particle/repair pools and roots.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.conditions",
+      "implementation": [
+        "ads/search/engine.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_safe_search_stops_at_depth_after_all_prior_quotas",
+        "ads.tests.test_search::test_default_full_execution_cap_truncates_remaining_analytic_work",
+        "ads.tests.test_search::test_partition_protects_a_branch_with_weaker_early_risk"
+      ],
+      "requirement": "Per-branch inclusive quantile thresholds and independent chains, retained rejected/tied states, max8 levels; no prior risk estimator.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.proposals",
+      "implementation": [
+        "ads/search/engine.py",
+        "ads/search/branches.py"
+      ],
+      "passed_test_cases": [
+        "hierarchical_world_model.tests.test_behavior_randomness::test_actor_local_driver_mutation_changes_only_selected_driver",
+        "hierarchical_world_model.tests.test_behavior_randomness::test_future_response_mutation_preserves_prefix_and_other_actors",
+        "hierarchical_world_model.tests.test_behavior_randomness::test_actor_local_maneuver_mutation_changes_only_selected_traits"
+      ],
+      "requirement": "Existing pCN/discrete kernels, 20% joint / 80% group, layer-frozen weights and actor/time masks, only consumed calibration dimensions, full regeneration.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.refresh",
+      "implementation": [
+        "ads/search/engine.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_default_full_execution_cap_truncates_remaining_analytic_work",
+        "ads.tests.test_search::test_safe_search_stops_at_depth_after_all_prior_quotas"
+      ],
+      "requirement": "500 initial plus two 250 prior refreshes at batches2/4; broad exploration roots stay separate from deep particles.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.archive",
+      "implementation": [
+        "ads/search/archive.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_archive_diversity_and_root_limits",
+        "ads.tests.test_search::test_partial_success_retests_use_actual_denominator",
+        "ads.tests.test_teacher_coverage::test_neighbour_requires_executed_success_under_search_policy[outcomes0]",
+        "ads.tests.test_teacher_coverage::test_neighbour_requires_executed_success_under_search_policy[outcomes1]"
+      ],
+      "requirement": "16 failures per branch,4 per root, highest raw risk then farthest descriptors; retain real same-structure one-variable parent-child successful neighbours.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.feedback",
+      "implementation": [
+        "ads/search/engine.py",
+        "ads/search/archive.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_two_round_replay_is_separate_from_new_conditional_particles",
+        "ads.tests.test_search::test_unretested_and_repaired_endpoints_survive_the_second_archive",
+        "ads.tests.test_search::test_partial_success_retests_use_actual_denominator",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dqn]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[ppo]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[carl]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[plant2]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[diffusion_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dtpp]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[flow_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[str2]"
+      ],
+      "requirement": "Round2 <=256 archive endpoints, fresh current tree, old/new anchor matching and 1+u+2g weighted fair allocation; retain repaired/untested endpoints without treating old data as new particles.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "3.stop",
+      "implementation": [
+        "ads/search/engine.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[monte_carlo]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[subset]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[guided]",
+        "ads.tests.test_search::test_safe_search_stops_at_depth_after_all_prior_quotas",
+        "ads.tests.test_search::test_protocol_rejects_caps_above_the_agreed_limits",
+        "ads.tests.test_search::test_default_full_execution_cap_truncates_remaining_analytic_work"
+      ],
+      "requirement": "End branch at terminal quota/representatives or depth limit; early round completion only after prior/task completion, otherwise truncate <=5000 including checks/rejections/replays.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "4.curriculum",
+      "implementation": [
+        "ads/common/repair.py",
+        "ads/common/curriculum.py",
+        "ads/nuplan/train.py",
+        "ads/plant2/train.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_execution::test_empty_history_and_no_new_failures_transfer_to_normal",
+        "ads.tests.test_curriculum::test_curriculum_preserves_exact_order_and_rejects_changes",
+        "ads.tests.test_instances::test_test_usage_rejected_by_identity_and_root"
+      ],
+      "requirement": "50/50/0 then50/30/20 prior/new/history, domain-first repair selection, empty classes to prior; no final natural data in repair.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "4.rl",
+      "implementation": [
+        "ads/common/repair.py",
+        "ads/carl/train.py",
+        "ads/method_c.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_ads_training::test_dqn_continuation_warms_new_buffer_against_cumulative_steps",
+        "ads.tests.test_audit::test_dqn_audit_rejects_old_replay_or_missing_second_round_experience",
+        "ads.tests.test_audit::test_dqn_audit_rejects_warmup_without_cumulative_offset",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dqn]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[ppo]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[carl]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[plant2]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[diffusion_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dtpp]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[flow_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[str2]"
+      ],
+      "requirement": "20480 decisions per round, new first DQN replay including warmup, second replay continuation, current-policy PPO/CaRL rollout collection.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "4.supervision",
+      "implementation": [
+        "ads/nuplan/losses.py",
+        "ads/nuplan/train.py",
+        "ads/plant2/train.py",
+        "ads/configs/method_c.yaml"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_native_supervision_has_finite_nonzero_gradients[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_native_supervision_has_finite_nonzero_gradients[dtpp]",
+        "ads.tests.test_nuplan_planners::test_native_supervision_has_finite_nonzero_gradients[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_native_supervision_has_finite_nonzero_gradients[str2]",
+        "ads.tests.test_holdouts_and_randomness::test_entirely_empty_supervision_skips_update",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[dtpp]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_official_weights_inference_export_and_reload[str2]"
+      ],
+      "requirement": "Five native supervised objectives,1000 updates/effective batch64/lr1e-5, EMA/native state preservation, STR micro1 accumulation; no-label skip unchanged policy.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "4.expert",
+      "implementation": [
+        "ads/plant2/teacher.py",
+        "ads/common/demonstrations.py",
+        "ads/common/teacher_costs.py",
+        "ads/common/teacher_coverage.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_teacher_neighbours_share_scene_budget",
+        "ads.tests.test_execution::test_expert_parameter_budget_and_real_future_labels",
+        "ads.tests.test_scheduling::test_five_supervised_planners_share_the_physical_expert_cache",
+        "ads.tests.test_teacher_coverage::test_unsuccessful_teacher_cannot_contribute_positive_labels",
+        "ads.tests.test_teacher_prefetch::test_teacher_costs_count_shared_generation_once_and_reject_wrong_cache"
+      ],
+      "requirement": "Shared actual expert cache;32 defect+neighbour inputs and32 prior;<=64coarse+64single-coordinate refinements; fixed world randomness, success-only labels, coverage/cost reporting.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "4.future_masks",
+      "implementation": [
+        "ads/nuplan/losses.py",
+        "ads/nuplan/teacher.py",
+        "ads/plant2/teacher.py",
+        "ads/README.md"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_planners::test_masks_apply_to_native_training_inputs_and_objectives[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_masks_apply_to_native_training_inputs_and_objectives[dtpp]",
+        "ads.tests.test_nuplan_planners::test_masks_apply_to_native_training_inputs_and_objectives[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_masks_apply_to_native_training_inputs_and_objectives[str2]",
+        "ads.tests.test_execution::test_planT_spatial_labels_do_not_extend_past_executed_future"
+      ],
+      "requirement": "Unobserved future invalid in native inputs and losses, PlanT spatial path validity; no fabricated successful labels or guaranteed forgetting claim.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "natural_population_counts",
+        "frozen_assets"
+      ],
+      "id": "5.natural_flow",
+      "implementation": [
+        "normalizing_flow/src/train.py",
+        "normalizing_flow/natural_config.yaml",
+        "normalizing_flow/scripts/train_natural.py",
+        "ads/common/setup.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_holdouts_and_randomness::test_natural_flow_statistics_exclude_test_without_fitting"
+      ],
+      "requirement": "Separate unfiltered Train+Val natural Flow entry, own feature/node normalization, support/frequencies and size bank; fixed20epochs; frozen Diffusion/world reused.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "natural_population_counts",
+        "tail_event_counts"
+      ],
+      "id": "5.cohorts",
+      "implementation": [
+        "ads/common/natural.py",
+        "ads/common/cohorts.py",
+        "ads/common/evaluation_sampling.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_holdouts_and_randomness::test_empirical_sampling_keeps_natural_strata_and_tail_overlap",
+        "ads.tests.test_holdouts_and_randomness::test_three_cohorts_materialize_from_their_frozen_synthetic_sources",
+        "ads.tests.test_evaluation_sampling::test_final_cohort_namespaces_are_distinct_and_sealed"
+      ],
+      "requirement": "Three sealed2000 cohorts; empirical natural Test proportional recording/direction without replacement, true history/NPC reference, retain natural hazards and source overlap metadata.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.freeze",
+      "implementation": [
+        "ads/method_c.py",
+        "ads/common/instances.py",
+        "ads/common/demonstrations.py",
+        "ads/common/evaluation_sampling.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_scheduling::test_final_iid_gate_depends_on_all_registered_training",
+        "ads.tests.test_scheduling::test_incomplete_freeze_cannot_open_the_formal_evaluation_gate",
+        "ads.tests.test_holdouts_and_randomness::test_final_lineage_is_rejected_even_if_child_changes_its_purpose",
+        "ads.tests.test_holdouts_and_randomness::test_modified_descendant_root_does_not_bypass_final_parent",
+        "ads.tests.test_evaluation_sampling::test_final_roots_and_source_purpose_are_checked"
+      ],
+      "requirement": "All config/policy/source assets frozen before final materialization; separate namespaces; reject final content and descendants from search/expert/training.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.comparisons",
+      "implementation": [
+        "ads/method_c.py",
+        "ads/search/engine.py",
+        "ads/search/comparison.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dqn]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[ppo]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[carl]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[plant2]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[diffusion_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dtpp]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[flow_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[str2]",
+        "ads.tests.test_discovery_comparison::test_common_partition_charges_checks_and_does_not_create_repair_samples"
+      ],
+      "requirement": "Random/global subset/guided discovery share pi0 and initial prior; genuine failure terminal; baseline post-hoc diagnostics charged with no search/repair feedback.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.fair_coverage",
+      "implementation": [
+        "ads/search/comparison.py",
+        "ads/report.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_discovery_comparison::test_common_partition_charges_checks_and_does_not_create_repair_samples",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[monte_carlo]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[subset]",
+        "ads.tests.test_search::test_execution_cap_includes_rejections_checks_and_replay[guided]"
+      ],
+      "requirement": "Method-blind common partition and actual-cost unique collision/root curves; unresolved coverage explicit; no curve extrapolation or search probability claim.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.paired_statistics",
+      "implementation": [
+        "ads/common/reporting.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_reporting::test_policy_stream_mismatch_and_recording_cluster",
+        "ads.tests.test_reporting::test_training_seeds_do_not_multiply_independent_world_count",
+        "ads.tests.test_reporting::test_repair_comparison_uses_shared_instances_and_correct_difference_sign"
+      ],
+      "requirement": "Paired collision difference/95%CI primary, offroad/parking/progress secondary; generated-instance, empirical-recording and archive-root clusters; repeat policies do not increase N.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.diagnostics",
+      "implementation": [
+        "ads/method_c.py",
+        "ads/common/archive_diagnostics.py",
+        "ads/audit.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_archive_diagnostics::test_diagnostic_reuses_only_the_exact_pre_or_post_policy",
+        "ads.tests.test_archive_diagnostics::test_round_diagnostic_does_not_treat_old_labels_as_current_failures",
+        "ads.tests.test_audit::test_common_partition_annotations_do_not_invalidate_executed_archives"
+      ],
+      "requirement": "Final archive diagnostics separately billed after two repairs, exact-policy evidence reuse, distinguish repaired/persistent/regressed outcomes and historical labels.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [
+        "analytic_checks.json"
+      ],
+      "id": "5.analytic",
+      "implementation": [
+        "ads/search/analytic.py",
+        "ads/README.md"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_search::test_high_dimensional_analytic_search_comparison[unbalanced]",
+        "ads.tests.test_search::test_high_dimensional_analytic_search_comparison[weak_early_branch]",
+        "ads.tests.test_search::test_hill_valley_detects_separated_failures_without_semantic_labels",
+        "ads.tests.test_search::test_partition_protects_a_branch_with_weaker_early_risk"
+      ],
+      "requirement": "Two cheap high-dimensional analytic comparisons validate discovered branches, retention, stopping and budget; record missed known modes without an exhaustive discovery claim.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.manual_nuplan",
+      "implementation": [
+        "ads/nuplan/handoff.py",
+        "ads/nuplan/export.py",
+        "ads/carl/export.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_nuplan_handoff::test_manual_pair_has_shared_scenarios_native_weights_and_separate_metrics[carl]",
+        "ads.tests.test_nuplan_handoff::test_manual_pair_has_shared_scenarios_native_weights_and_separate_metrics[diffusion_planner]",
+        "ads.tests.test_nuplan_handoff::test_manual_pair_has_shared_scenarios_native_weights_and_separate_metrics[dtpp]",
+        "ads.tests.test_nuplan_handoff::test_manual_pair_has_shared_scenarios_native_weights_and_separate_metrics[flow_planner]",
+        "ads.tests.test_nuplan_handoff::test_manual_pair_has_shared_scenarios_native_weights_and_separate_metrics[str2]"
+      ],
+      "requirement": "Separate shared-scenario manifest, native initial/repaired weights+hashes and native metric folders, no automatic nuPlan eval or highD/model-selection feedback.",
+      "status": "implemented_and_verified_for_this_phase"
+    },
+    {
+      "additional_evidence": [],
+      "id": "5.persistence_audit",
+      "implementation": [
+        "ads/method_c.py",
+        "ads/audit.py",
+        "ads/search/comparison.py"
+      ],
+      "passed_test_cases": [
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dqn]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[ppo]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[carl]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[plant2]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[diffusion_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[dtpp]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[flow_planner]",
+        "ads.tests.test_campaign_protocol::test_two_round_campaign_resume_preserves_protocol[str2]",
+        "ads.tests.test_audit::test_common_partition_annotations_do_not_invalidate_executed_archives",
+        "ads.tests.test_audit::test_archive_audit_rejects_fabricated_historical_roles[domain]",
+        "ads.tests.test_audit::test_archive_audit_rejects_fabricated_historical_roles[duplicate]",
+        "ads.tests.test_audit::test_archive_audit_rejects_fabricated_historical_roles[unexecuted]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[diffusion_planner]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[dtpp]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[flow_planner]",
+        "ads.tests.test_nuplan_planners::test_export_entrypoint_preserves_official_configuration[str2]"
+      ],
+      "requirement": "Complete two-round persistence/resume, archive historical evidence retained, actual execution cost accounting and original artifact protection.",
+      "status": "implemented_and_verified_for_this_phase"
+    }
+  ],
+  "scope": "All requested implementation interfaces/configuration/protocols and synthetic acceptance; formal model fitting/search/repair/evaluation intentionally not executed.",
+  "seed": 20260926,
+  "status": "complete_for_interface_and_synthetic_acceptance_phase",
+  "tail_event_counts": {
+    "0": 2194,
+    "1": 440,
+    "2": 330
+  },
+  "tests": {
+    "failed": 0,
+    "junit": "pytest.xml",
+    "junit_sha256": "8b16f3ac8e5d8f6026485075abe271d9a7f48600d2091066fcaf9b37c730d829",
+    "passed": 375,
+    "raw_log": "pytest.log",
+    "skipped": 0
+  },
+  "torch": "2.6.0+cu124"
+}
