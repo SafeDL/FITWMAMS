@@ -16,9 +16,6 @@ PLANNERS = ("carl", *PUBLISHED)
 FILENAMES = {
     "carl": "model_best.pth",
     "diffusion_planner": "model.pth",
-    "dtpp": "base_model.pth",
-    "flow_planner": "model.pth",
-    "str2": "checkpoint-297000",
 }
 
 
@@ -80,7 +77,7 @@ def prepare_handoff(campaign, algorithm, method, scenarios):
             path = directory / "handoff.json"
             if path.exists():
                 saved = json.loads(path.read_text())
-                for role, entry in pair.items():
+                for entry in pair.values():
                     entry["native_sha256"] = file_hash(root / entry["native_path"])
                 if saved != record:
                     raise ValueError(
@@ -109,7 +106,7 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "ads/configs/risk_stratified_repair.yaml",
+        default=REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml",
     )
     args = parser.parse_args()
     from ads.risk_stratified_repair import Campaign

@@ -1,5 +1,6 @@
 """Two cheap high-dimensional search checks; no ADS or traffic model is run."""
 
+from collections import Counter
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -60,13 +61,13 @@ def performance(instance, problem):
             "elapsed_s": 0.0,
             "analytic_region": "left" if left else "right" if right else "safe",
         },
-        np.empty((0, 7, 6)),
+        np.tile(np.array([x, y, 0, 0, 0, 0], np.float32), (1, 7, 1)),
         np.empty((0, 2)),
         [],
     )
 
 
-def compare(problem, *, config=None):
+def compare(problem, *, config=None, engine=SearchEngine):
     config = config or SearchConfig()
     result = {}
     for method in ("subset", "guided"):
@@ -76,12 +77,20 @@ def compare(problem, *, config=None):
             master_seed=20260926,
             purpose="search",
         )
-        run = SearchEngine(
+        run = engine(
             source, lambda instance: performance(instance, problem), config=config
         ).run(method)
         regular = [
             r for r in run.records if r.record["execution_kind"] != "branch_check"
         ]
+        physical = {}
+        regions = Counter()
+        for row in regular:
+            if row.failure:
+                physical.setdefault(row.record["trajectory_hash"], row)
+                regions[row.record["analytic_region"]] += 1
+        roots = Counter(r.instance.root_sample_id for r in physical.values())
+        total = len(physical)
         result[method] = {
             **run.summary(),
             "known_regions_found": sorted(
@@ -94,6 +103,15 @@ def compare(problem, *, config=None):
                 .values()
             ),
             "active_dimensions": 2,
+            "physical_collision_trajectories": total,
+            "physical_collision_ancestors": len(roots),
+            "effective_collision_ancestors": (
+                total * total / sum(n * n for n in roots.values()) if total else 0
+            ),
+            "maximum_collision_ancestor_fraction": (
+                max(roots.values(), default=0) / total if total else 0
+            ),
+            "collision_inputs_by_known_region": dict(regions),
         }
     return result
 

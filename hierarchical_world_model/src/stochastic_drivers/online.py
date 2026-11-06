@@ -500,9 +500,8 @@ class NPCPolicy(nn.Module):
         different = torch.arange(6, device=npc.device)[:, None].ne(
             torch.arange(6, device=npc.device)[None, :]
         )
-        lower_slot = (
-            torch.arange(6, device=npc.device)[None, :]
-            < (torch.arange(6, device=npc.device)[:, None])
+        lower_slot = torch.arange(6, device=npc.device)[None, :] < (
+            torch.arange(6, device=npc.device)[:, None]
         )
         active_target_index, _, _, _ = torch_nearest_lane_geometry(
             self._autonomous_lane_target_y,

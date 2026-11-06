@@ -1,0 +1,62 @@
+output_dir: results/ads/runs/safety_enhanced
+master_seed: 20260926
+algorithms:
+- diffusion_planner
+methods:
+- guided
+runtime:
+  device: cuda
+  world_device: cpu
+  torch_threads: 1
+  generation_batch_size: 32
+  workers: 12
+  search_workers: 6
+  expert_workers: 16
+world_config: hierarchical_world_model/config.yaml
+evt_model: results/evt/evt_model.json
+ddim_steps: 20
+evaluation:
+  instances: 5000
+  bootstrap_replicates: 10000
+  natural_flow_checkpoint: results/flow/natural/checkpoints/scenario_flow.pt
+  natural_dataset: results/highd_shared_training_data/scenario_conditions/dataset.npz
+  natural_segments: results/evt/natural_segments.csv
+  sequence_cache: results/highd_shared_training_data/highd_sequence_cache/sequence_cache
+run_kind: coverage_weighted_search_repair_bounded
+reuse_search: results/ads/runs/search/search
+native_materials: /media/hp/DATA/nuplan_workspace/preparation/retention/diffusion_planner_full/materials.json
+repair:
+  batch_size: 128
+  quotas:
+    native: 64
+    keep: 32
+    correction: 32
+  micro_batch_size: 8
+  learning_rate: 1.0e-05
+  reference_updates: 250
+  ema_decay: 0.999
+  retention_coefficient: 1.0
+  expert_candidates: 128
+  minimum_phase_updates: 250
+materials:
+  development_instances: 5000
+search:
+  budget: 5000
+  batch_size: 500
+  generation_batch_size: 32
+  initial_samples: 1000
+  replay_limit: 256
+  elite_fraction: 0.1
+  beta: 0.2
+  joint_fraction: 0.2
+  subset_max_levels: 8
+  terminal_proposals: 250
+  archive_capacity: 16
+  archive_root_limit: 4
+  fixed_budget: false
+  terminal_batch_size: 50
+  active_paths: 2
+  stall_batches: 2
+  coverage_delta: 0.05
+search_controls: []
+historical_run: results/ads/runs/comparison

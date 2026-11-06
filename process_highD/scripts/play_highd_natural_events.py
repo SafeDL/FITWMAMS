@@ -15,14 +15,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from process_highD.src.io_utils import load_config  # noqa: E402
 from process_highD.src.natural_event_playback import (  # noqa: E402
     NaturalPlaybackOptions,
     render_natural_tail_event_gif,
     render_natural_tail_events,
 )
-from process_highD.src.preprocessing_pipeline import natural_output_paths  # noqa: E402
-from process_highD.src.io_utils import load_config  # noqa: E402
 from process_highD.src.natural_segments import validate_lateral_integrity  # noqa: E402
+from process_highD.src.preprocessing_pipeline import natural_output_paths  # noqa: E402
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.yaml"
 

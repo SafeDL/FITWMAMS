@@ -1,4 +1,5 @@
 import csv
+import json
 import math
 
 import numpy as np
@@ -53,24 +54,24 @@ def test_training_seeds_do_not_multiply_independent_world_count():
 def test_repair_comparison_uses_shared_instances_and_correct_difference_sign():
     records = {}
     for seed in (1, 2, 3):
-        records[f"dqn/{seed}/monte_carlo"] = rows([True, False, True])
-        records[f"dqn/{seed}/subset"] = rows([True, False, False])
-        records[f"dqn/{seed}/guided"] = rows([False, False, False])
+        records[f"carl/{seed}/monte_carlo"] = rows([True, False, True])
+        records[f"carl/{seed}/subset"] = rows([True, False, False])
+        records[f"carl/{seed}/guided"] = rows([False, False, False])
     result = repair_method_comparisons(
         records,
-        ["dqn"],
+        ["carl"],
         [1, 2, 3],
         ["monte_carlo", "subset", "guided"],
         bootstrap_replicates=50,
     )
-    summary = result["shared_world_aggregate"]["dqn/guided_vs_monte_carlo"]
+    summary = result["shared_world_aggregate"]["carl/guided_vs_monte_carlo"]
     assert summary["independent_units"] == 3
     assert summary["mean_collision_difference"] == pytest.approx(-2 / 3)
-    records["dqn/2/subset"][0]["root_sample_id"] = "wrong"
+    records["carl/2/subset"][0]["root_sample_id"] = "wrong"
     with pytest.raises(ValueError, match="root_sample_id"):
         repair_method_comparisons(
             records,
-            ["dqn"],
+            ["carl"],
             [1, 2, 3],
             ["subset", "guided"],
             bootstrap_replicates=50,
@@ -184,8 +185,8 @@ def test_export_keeps_cluster_interval_method_and_degeneracy(tmp_path):
     summary = {
         "cohorts": {
             "empirical_natural": {
-                "per_seed": {"dqn/20260926/guided": single},
-                "shared_world_aggregate": {"dqn/guided": shared},
+                "per_seed": {"carl/20260926/guided": single},
+                "shared_world_aggregate": {"carl/guided": shared},
                 "between_repair_methods": {
                     "per_seed": {},
                     "shared_world_aggregate": {},
@@ -197,13 +198,14 @@ def test_export_keeps_cluster_interval_method_and_degeneracy(tmp_path):
     write_json(tmp_path / "evaluation/summary.json", summary)
     reports = tmp_path / "reports"
     reports.mkdir()
-    export_evaluation(tmp_path, reports, {})
+    export_evaluation(tmp_path, reports)
     with (reports / "repair_comparisons.csv").open() as stream:
         result = next(csv.DictReader(stream))
     assert result["ci_method"] == "cluster_percentile_bootstrap"
     assert result["ci_is_degenerate"] == "True"
     assert result["independent_units"] == "3"
-    assert (reports / "repair.pdf").exists()
+    assert (reports / "repair.png").exists()
+    assert not list(reports.glob("*.pdf"))
 
 
 def test_discovery_coverage_includes_offroad_only_failure_branches():
@@ -220,3 +222,34 @@ def test_discovery_coverage_includes_offroad_only_failure_branches():
     assert curve[-1]["distinct_collisions"] == 1
     assert curve[-1]["distinct_instance_failures"] == 2
     assert curve[-1]["failure_roots"] == 1
+
+
+def test_execution_costs_survive_evaluation_cache_cleanup(tmp_path):
+    from ads.diffusion_planner.summarize import execution_records
+
+    natural, tail = tmp_path / "natural", tmp_path / "tail"
+    natural.mkdir()
+    tail.mkdir()
+    records = [
+        {"instance_hash": name, "physics_steps": steps, "elapsed_s": steps / 10}
+        for name, steps in (("shared", 10), ("summary_only", 20), ("training", 30))
+    ]
+    (natural / "summary.json").write_text(
+        json.dumps({"policy_sha256": "original", "records": records[:2]})
+    )
+    for record in (records[0], records[2]):
+        (natural / (record["instance_hash"] + ".json")).write_text(
+            json.dumps({"policy_sha256": "original", "record": record})
+        )
+    (tail / "summary.json").write_text(
+        json.dumps({"policy_sha256": "enhanced", "records": [records[0]]})
+    )
+    before = execution_records(tmp_path)
+    assert len(before) == 4
+    assert sum(row["physics_steps"] for row in before) == 70
+    assert sum(row["elapsed_s"] for row in before) == 7
+    (natural / "shared.json").unlink()
+    after = execution_records(tmp_path)
+    assert sorted(after, key=lambda row: row["physics_steps"]) == sorted(
+        before, key=lambda row: row["physics_steps"]
+    )

@@ -86,6 +86,69 @@ class DiffusionPlannerPolicy(NativePlannerPolicy):
         future = output["prediction"][0, 0].cpu().numpy()
         return np.column_stack((future[:, :2], np.arctan2(future[:, 3], future[:, 2])))
 
+    def native_sample(self, samples, contexts, *, track_grad=False):
+        """Native ego (x, y, cos, sin) samples, optionally retaining solver gradients."""
+        from torch.utils.checkpoint import checkpoint
+
+        from ads.diffusion_planner.vendor.diffusion_planner.model.diffusion_utils.sampling import (
+            dpm_sampler,
+        )
+
+        self.network.eval()
+        features = []
+        for sample in samples:
+            values = {k: v.copy() for k, v in sample["features"].items()}
+            values["ego_current_state"] = np.array(
+                (0, 0, 1, 0, 0, 0, 0, 0, 0, 0), np.float32
+            )
+            features.append(values)
+        inputs = self.inputs(features)
+        decoder = self.network.decoder.decoder
+        encoding = self.network.encoder(inputs)["encoding"]
+        neighbors = inputs["neighbor_agents_past"][
+            :, : decoder._predicted_neighbor_num, -1, :4
+        ]
+        missing = (neighbors == 0).all(-1)
+        current = torch.cat((inputs["ego_current_state"][:, None, :4], neighbors), 1)
+        batch, agents, _ = current.shape
+        noise = []
+        for context, decision in contexts:
+            generator = torch.Generator(device="cpu")
+            generator.manual_seed(
+                context.seed_for(decision, use=self.algorithm + "_native_inference")
+            )
+            noise.append(
+                torch.randn(1, agents, decoder._future_len, 4, generator=generator)
+            )
+        initial = torch.cat(
+            (current[:, :, None], torch.cat(noise).to(self.device) * 0.5), 2
+        ).reshape(batch, agents, -1)
+
+        def constrain(value, time, step):
+            value = value.reshape(batch, agents, -1, 4)
+            value = torch.cat((current[:, :, None], value[:, :, 1:]), 2)
+            return value.reshape(batch, agents, -1)
+
+        def checked_dit(value, time, **kwargs):
+            return checkpoint(decoder.dit, value, time, use_reentrant=False, **kwargs)
+
+        checked_dit.model_type = decoder.dit.model_type
+        result = dpm_sampler(
+            checked_dit if track_grad else decoder.dit,
+            initial,
+            other_model_params={
+                "cross_c": encoding,
+                "route_lanes": inputs["route_lanes"],
+                "neighbor_current_mask": missing,
+            },
+            dpm_solver_params={"correcting_xt_fn": constrain},
+            model_wrapper_params={"guidance_type": "uncond", "guidance_scale": 0.5},
+            track_grad=track_grad,
+        )
+        return decoder._state_normalizer.inverse(result.reshape(batch, agents, -1, 4))[
+            :, 0, 1:
+        ]
+
     def save(self, path, *, optimizer=True):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,11 +163,11 @@ class DiffusionPlannerPolicy(NativePlannerPolicy):
         )
         torch.save(
             {
-                "model": raw,
+                "model": raw if optimizer else state,
                 "ema_state_dict": state,
                 "ads_model_config": self.config,
                 "ads_optimizer": self.optimizer_state if optimizer else None,
-                "ads_repair": self.repair_state,
+                "ads_repair": self.repair_state if optimizer else None,
             },
             path,
         )

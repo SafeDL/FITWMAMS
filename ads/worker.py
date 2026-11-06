@@ -29,7 +29,7 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "ads/configs/risk_stratified_repair.yaml",
+        default=REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml",
     )
     args = parser.parse_args()
     if args.training_only and args.stage != "repair":
@@ -121,7 +121,7 @@ def main():
         except Exception as error:
             try:
                 diagnostic = capture_failure(error, campaign.output)
-            except Exception as diagnostic_error:  # noqa: BLE001 -- preserve the original experiment error
+            except Exception as diagnostic_error:  # noqa: BLE001
                 diagnostic = f"capture failed: {diagnostic_error}"
             write_json(
                 directory / "unit_status.json",

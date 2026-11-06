@@ -4,7 +4,10 @@ import json
 
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.scripts.summarize_full_cv import METRICS, summarize
+from external_model_baselines.models.bayesian_ma_idm.scripts.summarize_full_cv import (
+    METRICS,
+    summarize,
+)
 
 
 def test_summary_is_pair_weighted(tmp_path) -> None:

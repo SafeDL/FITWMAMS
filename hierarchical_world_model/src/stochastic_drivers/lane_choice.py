@@ -6,17 +6,6 @@ import torch
 
 from ..influence_graph import DynamicInteractionRelations
 
-LANE_CHOICE_FEATURE_NAMES = (
-    "own_speed_mps",
-    "own_acceleration_mps2",
-    "current_front_gap_m",
-    "current_closing_mps",
-    "candidate_front_gap_m",
-    "candidate_front_speed_advantage_mps",
-    "candidate_rear_gap_m",
-    "candidate_rear_closing_mps",
-)
-
 
 def lane_choice_features(
     states: torch.Tensor,

@@ -28,63 +28,22 @@ class CausalScene:
         return float(np.arctan2(self.states[0, 3], self.states[0, 2]))
 
 
-def to_local(points, ego, *, carla=False):
+def to_local(points, ego):
     heading = np.arctan2(ego[3], ego[2])
     rotation = np.asarray(
         ((np.cos(heading), -np.sin(heading)), (np.sin(heading), np.cos(heading)))
     )
     local = (np.asarray(points) - ego[:2]) @ rotation
-    if carla:
-        local[..., 1] *= -1
     return local
 
 
-def from_local(points, ego, *, carla=False):
+def from_local(points, ego):
     local = np.asarray(points).copy()
-    if carla:
-        local[..., 1] *= -1
     heading = np.arctan2(ego[3], ego[2])
     rotation = np.asarray(
         ((np.cos(heading), -np.sin(heading)), (np.sin(heading), np.cos(heading)))
     )
     return local @ rotation.T + ego[:2]
-
-
-def road_raster(scene: CausalScene, *, size=256, ppm=2.0, ahead=78.0):
-    ego = scene.states[0]
-
-    def pixels(points):
-        local = to_local(points, ego)
-        return np.rint(
-            np.stack(
-                (size / 2 - local[..., 1] * ppm, ahead * ppm - local[..., 0] * ppm), -1
-            )
-        ).astype(np.int32)
-
-    road = np.zeros((size, size), np.uint8)
-    boundary = road.copy()
-    route = road.copy()
-    nearest = scene.geometry.nearest_lane(ego[:2])
-    for lane_id, width in zip(scene.geometry.lane_ids, scene.geometry.lane_widths):
-        center = scene.geometry.center_y(int(lane_id))
-        # Extend the existing straight lanes for the sensor window, without changing topology.
-        xs = (ego[0] - 200, ego[0] + 200)
-        corners = np.asarray(
-            (
-                (xs[0], center - width / 2),
-                (xs[1], center - width / 2),
-                (xs[1], center + width / 2),
-                (xs[0], center + width / 2),
-            )
-        )
-        cv2.fillConvexPoly(road, pixels(corners), 255)
-        for y in (center - width / 2, center + width / 2):
-            cv2.polylines(
-                boundary, [pixels(np.asarray(((xs[0], y), (xs[1], y))))], False, 255, 1
-            )
-        if int(lane_id) == nearest:
-            cv2.fillConvexPoly(route, pixels(corners), 255)
-    return road, boundary, route, pixels
 
 
 def carl_observation(scene: CausalScene):
@@ -184,48 +143,3 @@ def carl_constraints(scene: CausalScene):
         else 1.0
     )
     return lane_factor, speed_factor, comfort_factor, ttc
-
-
-def plant_observation(scene: CausalScene, *, range_m=50.0, front_factor=2.0):
-    ego = scene.states[0]
-    slots = np.flatnonzero(scene.valid[1:]) + 1
-    local = to_local(scene.states[slots, :2], ego, carla=True)
-    objects = np.zeros((len(slots), 7), np.float32)
-    keep = (
-        local[:, 0] ** 2 / np.where(local[:, 0] > 0, front_factor**2, 1)
-        + local[:, 1] ** 2
-        <= range_m**2
-    )
-    objects[:, 0] = 1
-    objects[:, 1:3] = local
-    relative_heading = (
-        np.arctan2(scene.states[slots, 3], scene.states[slots, 2]) - scene.heading
-    )
-    objects[:, 3] = -np.rad2deg(
-        np.arctan2(np.sin(relative_heading), np.cos(relative_heading))
-    )
-    objects[:, 4] = np.linalg.norm(scene.states[slots, 2:4], axis=-1) * 3.6
-    objects[:, 5:7] = scene.dimensions[slots][:, ::-1]
-    nearest = scene.geometry.nearest_lane(ego[:2])
-    route_global = np.stack(
-        (
-            ego[0] + np.arange(20, dtype=np.float32),
-            np.full(20, scene.geometry.center_y(nearest)),
-        ),
-        -1,
-    )
-    road, boundary, _, _ = road_raster(scene, ppm=5, ahead=25.6)
-    colors = np.asarray(
-        ((0.485, 0.456, 0.406), (0.25, 0.25, 0.75), (0.75, 0.25, 0.25)), np.float32
-    )
-    labels = np.where(boundary > 0, 2, np.where(road > 0, 1, 0))
-    return {
-        "objects": objects[keep],
-        "object_slots": slots[keep],
-        "route_original": to_local(route_global, ego, carla=True).astype(np.float32),
-        "speed_limit": np.int64(
-            3
-        ),  # Highest official category; task cap is 45 m/s, not a highD legal limit.
-        "input_ego_speed": np.float32(np.linalg.norm(ego[2:4])),
-        "BEV": colors[labels].transpose(2, 0, 1),
-    }

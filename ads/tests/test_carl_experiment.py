@@ -59,7 +59,6 @@ def test_campaign_runs_new_ppo_and_restores_rejected_base(
         "capability_preserving_repair": {
             "native_materials": str(native),
             "retention_coefficient": 1.0,
-            "minimum_progress_ratio": 0.98,
         },
         "carl": {
             "rollout_steps": 4,

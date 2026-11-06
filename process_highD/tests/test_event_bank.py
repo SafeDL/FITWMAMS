@@ -19,7 +19,7 @@ def _segments() -> pd.DataFrame:
             "max_untracked_pair_risk": 0.0,
             "untracked_risk_exceeds_tracked_peak": False,
         }
-        row.update({name: -1 for name in ACTOR_COLUMNS})
+        row.update(dict.fromkeys(ACTOR_COLUMNS, -1))
         rows.append(row)
     # e0/e1 overlap and share two of three actors, so they form one group.
     rows[0]["same_front_id"] = 99
@@ -41,7 +41,9 @@ def test_event_bank_has_stable_identity_groups_and_equal_role_budgets() -> None:
         seed=7,
     )
     events = result.events.set_index("event_id")
-    assert events.loc["e0", "interaction_group"] == events.loc["e1", "interaction_group"]
+    assert (
+        events.loc["e0", "interaction_group"] == events.loc["e1", "interaction_group"]
+    )
     assert (events["source_event_id"] == events.index).all()
     assert events.groupby("split")["empirical_selected"].sum().to_dict() == {
         "test": 2,
@@ -53,7 +55,9 @@ def test_event_bank_has_stable_identity_groups_and_equal_role_budgets() -> None:
 def test_event_bank_rejects_missing_split_assignment() -> None:
     try:
         build_testing_event_bank(
-            _segments(), evt_threshold=0.5, exceedance_rate=0.2,
+            _segments(),
+            evt_threshold=0.5,
+            exceedance_rate=0.2,
             split_by_event={"e0": "train"},
         )
     except ValueError as error:

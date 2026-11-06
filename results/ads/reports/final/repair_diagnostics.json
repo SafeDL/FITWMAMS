@@ -1,0 +1,41 @@
+{
+  "methods": {
+    "guided": {
+      "bootstrap_unit": "root_sample_id",
+      "cohort_kind": "search_archive_diagnostic",
+      "collision_ci_is_degenerate": false,
+      "collision_ci_method": "cluster_percentile_bootstrap",
+      "collision_discordant_instances": 177,
+      "collision_rate_after": 0.6759259259259259,
+      "collision_rate_before": 0.9021164021164021,
+      "collision_rate_difference_after_minus_before": -0.2261904761904762,
+      "collision_rate_difference_bootstrap_ci95": [
+        -0.42619571295433367,
+        -0.06846648320052577
+      ],
+      "collision_rate_difference_ci95": [
+        -0.42619571295433367,
+        -0.06846648320052577
+      ],
+      "failure_rate_difference_after_minus_before": -0.2261904761904762,
+      "failure_rate_difference_ci95": [
+        -0.42619571295433367,
+        -0.06846648320052577
+      ],
+      "independent_units": 44,
+      "instances": 756,
+      "mean_progress_after_m": 65.3157660380873,
+      "mean_progress_before_m": 61.1782386302948,
+      "offroad_rate_after": 0.0,
+      "offroad_rate_before": 0.0,
+      "regressed": 3,
+      "repaired": 174,
+      "safety_failure_rate_after": 0.6759259259259259,
+      "safety_failure_rate_before": 0.9021164021164021,
+      "stalled_rate_after": 0.0,
+      "stalled_rate_before": 0.0
+    }
+  },
+  "prior_probability_estimate": false,
+  "used_for_model_selection": false
+}

@@ -8,7 +8,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 OUTCOME_NAMES = {
     0: "collision", 1: "left road", 2: "steer before", 3: "steer after",
     4: "brake before", 5: "brake after", 6: "brake then steer",

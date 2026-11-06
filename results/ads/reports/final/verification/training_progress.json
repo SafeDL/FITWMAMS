@@ -1,0 +1,40 @@
+{
+  "time": "2026-10-29T00:36:40",
+  "checkpoint_update": 10050,
+  "planned_updates": 21817,
+  "parameter_distance_from_original": {
+    "raw": 0.6615988652503646,
+    "ema": 0.0368106808152685
+  },
+  "observed_learning_rate_sum": 0.0008895264250954245,
+  "phase_reference_learning_rate_sum": 0.001267,
+  "exposure": {
+    "native": {
+      "visited_entries": 12685,
+      "available_entries": 12685,
+      "unvisited_entries": 0,
+      "visited_instances": 12685,
+      "available_instances": 12685,
+      "minimum_critical_visits": 0
+    },
+    "keep": {
+      "visited_entries": 321600,
+      "available_entries": 698130,
+      "unvisited_entries": 376530,
+      "visited_instances": 15641,
+      "available_instances": 23271,
+      "minimum_critical_visits": 0
+    },
+    "correction": {
+      "visited_entries": 20460,
+      "available_entries": 20460,
+      "unvisited_entries": 0,
+      "visited_instances": 682,
+      "available_instances": 682,
+      "minimum_critical_visits": 5
+    }
+  },
+  "actual_raw_and_ema_constraints_passed": true,
+  "world_executions_added": 0,
+  "policy_forward_calls": 0
+}

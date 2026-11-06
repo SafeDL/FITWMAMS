@@ -14,9 +14,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from external_model_baselines.models.active_inference_driver.config import ActiveInferenceConfig
-from external_model_baselines.models.active_inference_driver.model import ActiveInferenceDriver
-
+from external_model_baselines.models.active_inference_driver.config import (
+    ActiveInferenceConfig,
+)
+from external_model_baselines.models.active_inference_driver.model import (
+    ActiveInferenceDriver,
+)
 
 CONDITIONS = ((1.5, 10.0, 11), (2.0, 10.0, 15), (2.5, 10.0, 19),
               (3.0, 10.0, 23), (3.5, 10.0, 27))

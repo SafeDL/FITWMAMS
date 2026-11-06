@@ -9,7 +9,6 @@ from ..data import artifact_identity
 from ..stochastic_drivers.idm_population import MODEL_PATH
 from ..stochastic_drivers.lane_trajectory import MODEL_PATH as LANE_PATH
 from .calibration import MOBIL_PATH, compact_population
-from .search import load_candidate
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -25,9 +24,10 @@ def publish_npc(config, output):
     ):
         raise ValueError("Flow or Diffusion changed during NPC calibration")
     fit = load_json(output / "policy_calibration/selected_model.json")
-    population, _ = load_candidate(
-        output / "policy_calibration", fit["selected_candidate"]
-    )
+    with np.load(
+        output / "policy_calibration" / (fit["selected_candidate"] + ".npz")
+    ) as saved:
+        population = dict(saved)
     np.savez_compressed(MODEL_PATH, **compact_population(population))
     fit["status"] = "npc_response_verified"
     fit["driver_parameter_source"] = str(MODEL_PATH)

@@ -12,10 +12,11 @@ def dpm_sampler(
         noise_schedule_params: Dict = {},
         model_wrapper_params: Dict = {},
         dpm_solver_params: Dict = {},
-        sample_params: Dict = {}
+        sample_params: Dict = {},
+        track_grad=False,
     ):
     
-    with torch.no_grad():
+    with torch.set_grad_enabled(track_grad):
         noise_schedule = dpm.NoiseScheduleVP(
             schedule='linear',
             **noise_schedule_params
@@ -41,6 +42,7 @@ def dpm_sampler(
             skip_type="logSNR",
             method="multistep",
             denoise_to_zero=True,
+            track_grad=track_grad,
             **sample_params
         )
 

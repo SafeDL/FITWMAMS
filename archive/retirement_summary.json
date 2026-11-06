@@ -1,0 +1,216 @@
+{
+  "scope": "Retired parameter-search iterations; current world-model evidence is under results/hierarchical_world_model.",
+  "records": [
+    {
+      "path": "archive/hierarchical_world_model/npc_response_previous/results/development/initial_maneuver/search/selection.json",
+      "sha256": "785de87b291ee038ef5e50917efef6c1ed321d6e9bc61c0aa1b42cd83b8cbb1d",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 64,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "correction_12",
+          "refined": "lateral_02"
+        },
+        "selected": "calibrated",
+        "selection_split": "val"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/search/selection.json",
+      "sha256": "12158927434a9235aa0232e0dee3310e7856c8be9771fba1d4204b0b8fdac688",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 64,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "correction_12",
+          "refined": "lateral_02"
+        },
+        "selected": "lateral_05",
+        "selection_split": "val"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_feedback_correction/results/search/selection.json",
+      "sha256": "d732da166db73173ebf509b4afaf37bed1e0566cc514d2e9ea917a55161e1f07",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 48,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "joint": "joint_1_03",
+          "local": "local",
+          "longitudinal_only": "longitudinal_only_0_02"
+        },
+        "selected": "calibrated",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "both configured 32-evaluation arm budgets completed"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/search/selection.json",
+      "sha256": "9d4da65531f718643a8c35a721694eaf14f60618da17e703403bd2b5a2f2c30a",
+      "decision": {
+        "Test_used_for_selection": true,
+        "candidates_evaluated": 32,
+        "fit_split": "all",
+        "phase": "deployment",
+        "publishable": false,
+        "representatives": {
+          "deployed": "population_2_02",
+          "reference": "reference"
+        },
+        "selected": "population_2_02",
+        "selected_stage": "deployed",
+        "selection_split": "all",
+        "status": "complete",
+        "unique_candidate_parameter_sets": 29
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/search/selection.json",
+      "sha256": "d9a7f4278b507f4d4a0ed5805d6439e7343d0876114ff79a24fda2a016bb79f9",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 64,
+        "fit_split": "train",
+        "phase": "validation",
+        "publishable": true,
+        "representatives": {
+          "joint": "joint_2_04",
+          "local": "local",
+          "population": "population_2_06",
+          "reference": "reference"
+        },
+        "selected": "reference",
+        "selected_stage": "reference",
+        "selection_split": "val",
+        "status": "complete",
+        "unique_candidate_parameter_sets": 59
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_population_environment/previous_results/search/selection.json",
+      "sha256": "d7e1a115cdf5abd1064cbeac67d397a9e05270ce4963b86f4bc482d8510abb6b",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 48,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "joint": "joint_0_01",
+          "local": "local",
+          "longitudinal_only": "initial_03"
+        },
+        "selected": "joint_0_01",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "both configured 32-evaluation arm budgets completed"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_response_refinement/results/npc_response/search/selection.json",
+      "sha256": "c15ee64944f439efa5120b0abd039e6fe9db1ca047bb67ee1bbb37d249446e66",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 64,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "correction_13",
+          "refined": "lateral_01"
+        },
+        "selected": "lateral_03",
+        "selection_split": "val"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_response_refinement/development/physics_residual_plan_gate/search/selection.json",
+      "sha256": "fe3d06e30571f4ed163fef9b5916082f77bffe28ad9776aa12dd87a5fc0265f0",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 56,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "local_residual",
+          "refined": "longitudinal_06"
+        },
+        "selected": "calibrated",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "two refinement rounds within recording-cluster uncertainty"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_response_refinement/development/raw_acceleration_feedback/results/search/selection.json",
+      "sha256": "b6ed31a92f4557ec01ea3036a3bcc961f22e53a8724aa3bcbdc7fbfe50ad56cd",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 56,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "local_residual",
+          "refined": "longitudinal_01"
+        },
+        "selected": "calibrated",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "two refinement rounds within recording-cluster uncertainty"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_response_refinement/development/residual_time_model/results/search/selection.json",
+      "sha256": "4f7a3e2c8dc66c52d240df2417989fc7bca63388ffbd6c039ad6027e3a28511b",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 64,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "local_residual",
+          "refined": "joint_0_00"
+        },
+        "selected": "calibrated",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "two refinement rounds within recording-cluster uncertainty"
+      },
+      "reason": "superseded_parameter_search"
+    },
+    {
+      "path": "archive/hierarchical_world_model/npc_joint_calibration/previous_results/search/selection.json",
+      "sha256": "3844269547aad39588b4504e53b38c5ef64b53f0fd9c207a6dc2ebf00239ccd2",
+      "decision": {
+        "Test_used_for_selection": false,
+        "candidates_evaluated": 56,
+        "fit_split": "train",
+        "representatives": {
+          "calibrated": "calibrated",
+          "conditional": "local_residual",
+          "refined": "joint_0_03"
+        },
+        "selected": "calibrated",
+        "selection_split": "val",
+        "status": "complete",
+        "stop_reason": "two refinement rounds within recording-cluster uncertainty"
+      },
+      "reason": "superseded_parameter_search"
+    }
+  ]
+}

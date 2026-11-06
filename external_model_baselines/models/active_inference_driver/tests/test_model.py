@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from external_model_baselines.models.active_inference_driver.config import ActiveInferenceConfig
-from external_model_baselines.models.active_inference_driver.model import ActiveInferenceDriver, surprise_step
+from external_model_baselines.models.active_inference_driver.config import (
+    ActiveInferenceConfig,
+)
+from external_model_baselines.models.active_inference_driver.model import (
+    ActiveInferenceDriver,
+    surprise_step,
+)
 
 
 def test_surprise_accumulation_is_deterministic_and_has_no_decay() -> None:

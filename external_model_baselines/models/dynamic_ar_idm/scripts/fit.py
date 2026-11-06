@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import argparse
+
 from external_model_baselines.models.dynamic_ar_idm.fit import fit_dynamic_map, fit_pymc
 
 parser = argparse.ArgumentParser(description="Fit Dynamic-AR IDM to the full highD cohort")

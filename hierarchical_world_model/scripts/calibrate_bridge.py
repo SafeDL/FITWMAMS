@@ -130,10 +130,8 @@ def collect(split):
         initializer=initialize,
         initargs=(split,),
     ) as pool:
-        for number, offset in enumerate(pool.map(score_batch, jobs)):
-            print(
-                "Natural applicability", split, number + 1, "/", len(jobs), flush=True
-            )
+        for number, _ in enumerate(pool.map(score_batch, jobs), 1):
+            print("Natural applicability", split, number, "/", len(jobs), flush=True)
     blocks = [
         dict(np.load(OUTPUT / ".cache" / "scores" / split / f"{offset}.npz"))
         for offset in jobs

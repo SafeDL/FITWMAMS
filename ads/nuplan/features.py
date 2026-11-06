@@ -155,85 +155,10 @@ def vector_features(scene, history, history_valid):
     return features, np.concatenate(([0], slots)), ego
 
 
-def dtpp_features(scene, history, history_valid):
-    ego, position, velocity, acceleration, heading, valid = local_history(
-        scene, history, history_valid
-    )
-    slots = np.flatnonzero(scene.valid[1:]) + 1
-    slots = slots[np.argsort(np.linalg.norm(position[-1, slots], axis=-1))]
-    slots = slots[position[-1, slots, 0] >= -6.0]
-    ego_past = np.concatenate(
-        (position[:, 0], heading[:, 0, None], velocity[:, 0], acceleration[:, 0]), -1
-    ).astype(np.float32)
-    ego_past[~valid[:, 0]] = 0
-    neighbors = np.zeros((20, HISTORY_STEPS, 11), np.float32)
-    for index, slot in enumerate(slots):
-        yaw = np.zeros(HISTORY_STEPS)
-        pairs = valid[1:, slot] & valid[:-1, slot]
-        yaw[1:] = np.where(pairs, np.diff(np.unwrap(heading[:, slot])) / 0.1, 0)
-        values = np.concatenate(
-            (
-                position[:, slot],
-                heading[:, slot, None],
-                velocity[:, slot],
-                yaw[:, None],
-                np.tile(scene.dimensions[slot, ::-1], (HISTORY_STEPS, 1)),
-                np.tile((1, 0, 0), (HISTORY_STEPS, 1)),
-            ),
-            -1,
-        )
-        values[~valid[:, slot]] = 0
-        neighbors[index] = values
-    lanes = np.zeros((40, 50, 7), np.float32)
-    for index, line in enumerate(scene.geometry.centerlines):
-        line = np.asarray(line)
-        xs = np.linspace(ego[0] - 80, ego[0] + 80, 50)
-        points = to_local(
-            np.stack((xs, np.interp(xs, line[:, 0], line[:, 1])), -1), ego
-        )
-        lanes[index, :, :2] = points
-        lanes[index, :, 2] = -scene.heading
-        lanes[index, :, 6] = 1  # unknown traffic light, original one-hot convention
-    return (
-        {
-            "ego_agent_past": ego_past,
-            "neighbor_agents_past": neighbors,
-            "map_lanes": lanes,
-            "map_crosswalks": np.zeros((5, 30, 3), np.float32),
-            "route_lanes": lanes[:10].copy(),
-        },
-        np.concatenate(([0], slots)),
-        ego,
-    )
-
-
 def build_features(scene, history, history_valid, *, algorithm):
-    if algorithm == "dtpp":
-        features, slots, _ = dtpp_features(scene, history, history_valid)
-    elif algorithm in ("diffusion_planner", "flow_planner"):
-        features, slots, _ = vector_features(scene, history, history_valid)
-        if algorithm == "flow_planner":
-            shape_type = np.asarray(
-                (*scene.dimensions[0, ::-1], 1, 0, 0, 0), np.float32
-            )
-            past = np.concatenate(
-                (
-                    features["ego_agent_past"][:, :8],
-                    np.tile(shape_type, (HISTORY_STEPS, 1)),
-                ),
-                -1,
-            )
-            past[~np.asarray(history_valid)[:, 0]] = 0
-            features["ego_agent_past"] = past
-            features["ego_current_state"] = np.concatenate(
-                (features["ego_current_state"], shape_type)
-            )
-    elif algorithm == "str2":
-        from ads.str2.features import build_features as build_str2
-
-        return build_str2(scene, history, history_valid)
-    else:
+    if algorithm != "diffusion_planner":
         raise ValueError(f"unknown native planner {algorithm}")
+    features, slots, _ = vector_features(scene, history, history_valid)
     return features, slots
 
 

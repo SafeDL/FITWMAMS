@@ -53,7 +53,9 @@ class MultiRegimeIDMDriver:
         self.theta = np.asarray(theta_by_regime, float)
         self.sigma = np.asarray(sigma_by_regime, float)
         if self.theta.shape != (model.states, 5) or self.sigma.shape != (model.states,):
-            raise ValueError("posterior parameter dimensions do not match the HSMM states")
+            raise ValueError(
+                "posterior parameter dimensions do not match the HSMM states"
+            )
         self._rng = np.random.default_rng(seed)
         self.state: FilterState | None = None
 
@@ -80,15 +82,23 @@ class MultiRegimeIDMDriver:
 
     def reset(self, prefix_observations: np.ndarray, *, seed: int = 0) -> None:
         observations = np.asarray(prefix_observations, float)
-        if observations.ndim != 2 or observations.shape[1] != 3 or not len(observations):
-            raise ValueError("prefix_observations must have shape [time, gap/speed/closing]")
+        if (
+            observations.ndim != 2
+            or observations.shape[1] != 3
+            or not len(observations)
+        ):
+            raise ValueError(
+                "prefix_observations must have shape [time, gap/speed/closing]"
+            )
         self._rng = np.random.default_rng(seed)
         state = initialize_filter(self.model, observations[0])
         for observation in observations[1:]:
             state = filter_step(self.model, state, observation)
         self.state = state
 
-    def observe(self, *, gap_m: float, speed_mps: float, leader_speed_mps: float) -> None:
+    def observe(
+        self, *, gap_m: float, speed_mps: float, leader_speed_mps: float
+    ) -> None:
         if self.state is None:
             raise RuntimeError("call reset with a causal prefix before observe")
         observation = np.asarray((gap_m, speed_mps, speed_mps - leader_speed_mps))
@@ -106,9 +116,22 @@ class MultiRegimeIDMDriver:
         if self.state is None:
             raise RuntimeError("call reset with a causal prefix before decision")
         probability = regime_posterior(self.state)
-        uniform = float(self._rng.random()) if regime_uniform is None else float(regime_uniform)
-        regime = int(min(np.searchsorted(np.cumsum(probability), uniform, side="right"), len(probability) - 1))
-        z_t = float(self._rng.standard_normal()) if standard_normal is None else float(standard_normal)
+        uniform = (
+            float(self._rng.random())
+            if regime_uniform is None
+            else float(regime_uniform)
+        )
+        regime = int(
+            min(
+                np.searchsorted(np.cumsum(probability), uniform, side="right"),
+                len(probability) - 1,
+            )
+        )
+        z_t = (
+            float(self._rng.standard_normal())
+            if standard_normal is None
+            else float(standard_normal)
+        )
         deterministic = float(
             idm(gap_m, speed_mps, speed_mps - leader_speed_mps, self.theta[regime])
         )

@@ -1,0 +1,682 @@
+{
+  "complete": true,
+  "definition_sha256": "7aada9456f6fe1a26fa637f0c032618eae2319587f644bb013dc1c28231583d3",
+  "entry_horizon_s": 1.5,
+  "fps": 25,
+  "protocol": "positive_body_gap_and_observed_lateral_trend",
+  "recordings": [
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 9427,
+      "physical_vehicles": 1163,
+      "recording": 4,
+      "response_states": 55691,
+      "sampled_states": 78124,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 13070,
+      "physical_vehicles": 1620,
+      "recording": 8,
+      "response_states": 70175,
+      "sampled_states": 96442,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 6,
+      "anticipated_entries": 7214,
+      "physical_vehicles": 856,
+      "recording": 10,
+      "response_states": 37883,
+      "sampled_states": 51665,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 16591,
+      "physical_vehicles": 1776,
+      "recording": 11,
+      "response_states": 115202,
+      "sampled_states": 131730,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 6540,
+      "physical_vehicles": 977,
+      "recording": 17,
+      "response_states": 50505,
+      "sampled_states": 64731,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 6168,
+      "physical_vehicles": 1077,
+      "recording": 21,
+      "response_states": 53922,
+      "sampled_states": 70655,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 3737,
+      "physical_vehicles": 689,
+      "recording": 22,
+      "response_states": 38287,
+      "sampled_states": 47241,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 19218,
+      "physical_vehicles": 2444,
+      "recording": 42,
+      "response_states": 134975,
+      "sampled_states": 164605,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 13588,
+      "physical_vehicles": 2096,
+      "recording": 49,
+      "response_states": 113147,
+      "sampled_states": 141679,
+      "short_gap_states": 0,
+      "split": "test"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7108,
+      "physical_vehicles": 1113,
+      "recording": 2,
+      "response_states": 58661,
+      "sampled_states": 75610,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 10251,
+      "physical_vehicles": 1216,
+      "recording": 5,
+      "response_states": 58088,
+      "sampled_states": 80510,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 11968,
+      "physical_vehicles": 1368,
+      "recording": 6,
+      "response_states": 66008,
+      "sampled_states": 91163,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 6108,
+      "physical_vehicles": 855,
+      "recording": 7,
+      "response_states": 37128,
+      "sampled_states": 51405,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 11788,
+      "physical_vehicles": 1420,
+      "recording": 9,
+      "response_states": 63519,
+      "sampled_states": 87315,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 29554,
+      "physical_vehicles": 2728,
+      "recording": 12,
+      "response_states": 202709,
+      "sampled_states": 226527,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 26975,
+      "physical_vehicles": 2949,
+      "recording": 13,
+      "response_states": 180221,
+      "sampled_states": 208987,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 21221,
+      "physical_vehicles": 2844,
+      "recording": 14,
+      "response_states": 166111,
+      "sampled_states": 196319,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 6466,
+      "physical_vehicles": 922,
+      "recording": 15,
+      "response_states": 49793,
+      "sampled_states": 62207,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 6482,
+      "physical_vehicles": 998,
+      "recording": 16,
+      "response_states": 52241,
+      "sampled_states": 67607,
+      "short_gap_states": 6,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 3248,
+      "physical_vehicles": 607,
+      "recording": 18,
+      "response_states": 28317,
+      "sampled_states": 38153,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7067,
+      "physical_vehicles": 999,
+      "recording": 19,
+      "response_states": 49932,
+      "sampled_states": 65641,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 8945,
+      "physical_vehicles": 1314,
+      "recording": 23,
+      "response_states": 76029,
+      "sampled_states": 93408,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 8745,
+      "physical_vehicles": 1297,
+      "recording": 24,
+      "response_states": 71083,
+      "sampled_states": 88203,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 170,
+      "anticipated_entries": 56689,
+      "physical_vehicles": 2850,
+      "recording": 25,
+      "response_states": 329130,
+      "sampled_states": 403983,
+      "short_gap_states": 23,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 87,
+      "anticipated_entries": 47327,
+      "physical_vehicles": 2708,
+      "recording": 26,
+      "response_states": 279898,
+      "sampled_states": 317166,
+      "short_gap_states": 28,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 17271,
+      "physical_vehicles": 2372,
+      "recording": 28,
+      "response_states": 129637,
+      "sampled_states": 163655,
+      "short_gap_states": 2,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 17070,
+      "physical_vehicles": 2152,
+      "recording": 29,
+      "response_states": 121166,
+      "sampled_states": 151370,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 21477,
+      "physical_vehicles": 2479,
+      "recording": 30,
+      "response_states": 143720,
+      "sampled_states": 176584,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 20220,
+      "physical_vehicles": 2254,
+      "recording": 31,
+      "response_states": 132230,
+      "sampled_states": 161789,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 12473,
+      "physical_vehicles": 1410,
+      "recording": 32,
+      "response_states": 77820,
+      "sampled_states": 98103,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 20707,
+      "physical_vehicles": 2252,
+      "recording": 33,
+      "response_states": 130704,
+      "sampled_states": 160465,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 15463,
+      "physical_vehicles": 1773,
+      "recording": 34,
+      "response_states": 104688,
+      "sampled_states": 127232,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 17344,
+      "physical_vehicles": 1992,
+      "recording": 35,
+      "response_states": 109700,
+      "sampled_states": 138286,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 87,
+      "anticipated_entries": 26405,
+      "physical_vehicles": 2543,
+      "recording": 36,
+      "response_states": 154277,
+      "sampled_states": 190436,
+      "short_gap_states": 7,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 15729,
+      "physical_vehicles": 1984,
+      "recording": 37,
+      "response_states": 110096,
+      "sampled_states": 138407,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 20297,
+      "physical_vehicles": 2380,
+      "recording": 38,
+      "response_states": 135115,
+      "sampled_states": 166250,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18718,
+      "physical_vehicles": 2191,
+      "recording": 39,
+      "response_states": 114722,
+      "sampled_states": 145480,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 19059,
+      "physical_vehicles": 2399,
+      "recording": 40,
+      "response_states": 127129,
+      "sampled_states": 159246,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18315,
+      "physical_vehicles": 2271,
+      "recording": 43,
+      "response_states": 123374,
+      "sampled_states": 151143,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 23040,
+      "physical_vehicles": 2549,
+      "recording": 44,
+      "response_states": 139319,
+      "sampled_states": 170341,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 22722,
+      "physical_vehicles": 2449,
+      "recording": 45,
+      "response_states": 132640,
+      "sampled_states": 163181,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 21971,
+      "physical_vehicles": 2821,
+      "recording": 46,
+      "response_states": 183932,
+      "sampled_states": 218151,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18395,
+      "physical_vehicles": 2544,
+      "recording": 48,
+      "response_states": 142709,
+      "sampled_states": 173967,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18441,
+      "physical_vehicles": 2284,
+      "recording": 51,
+      "response_states": 124039,
+      "sampled_states": 153853,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 19904,
+      "physical_vehicles": 2442,
+      "recording": 53,
+      "response_states": 139420,
+      "sampled_states": 167787,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18595,
+      "physical_vehicles": 2343,
+      "recording": 54,
+      "response_states": 125849,
+      "sampled_states": 154938,
+      "short_gap_states": 1,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 16274,
+      "physical_vehicles": 2190,
+      "recording": 55,
+      "response_states": 118129,
+      "sampled_states": 147464,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 15265,
+      "physical_vehicles": 1919,
+      "recording": 57,
+      "response_states": 98947,
+      "sampled_states": 127990,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7993,
+      "physical_vehicles": 714,
+      "recording": 58,
+      "response_states": 37143,
+      "sampled_states": 46629,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7847,
+      "physical_vehicles": 722,
+      "recording": 59,
+      "response_states": 35317,
+      "sampled_states": 46224,
+      "short_gap_states": 0,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 2,
+      "anticipated_entries": 18135,
+      "physical_vehicles": 1467,
+      "recording": 60,
+      "response_states": 77030,
+      "sampled_states": 100071,
+      "short_gap_states": 1,
+      "split": "train"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7526,
+      "physical_vehicles": 1047,
+      "recording": 1,
+      "response_states": 54502,
+      "sampled_states": 69725,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 5220,
+      "physical_vehicles": 914,
+      "recording": 3,
+      "response_states": 44829,
+      "sampled_states": 60682,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 7663,
+      "physical_vehicles": 1199,
+      "recording": 20,
+      "response_states": 63884,
+      "sampled_states": 81097,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 19691,
+      "physical_vehicles": 2599,
+      "recording": 27,
+      "response_states": 156734,
+      "sampled_states": 190548,
+      "short_gap_states": 1,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 18633,
+      "physical_vehicles": 2363,
+      "recording": 41,
+      "response_states": 125125,
+      "sampled_states": 155699,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 16928,
+      "physical_vehicles": 2462,
+      "recording": 47,
+      "response_states": 141940,
+      "sampled_states": 171008,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 17110,
+      "physical_vehicles": 2234,
+      "recording": 50,
+      "response_states": 120338,
+      "sampled_states": 151115,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 17329,
+      "physical_vehicles": 2121,
+      "recording": 52,
+      "response_states": 114970,
+      "sampled_states": 142494,
+      "short_gap_states": 0,
+      "split": "val"
+    },
+    {
+      "actual_overlap_excluded": 0,
+      "anticipated_entries": 14242,
+      "physical_vehicles": 1795,
+      "recording": 56,
+      "response_states": 96832,
+      "sampled_states": 121987,
+      "short_gap_states": 0,
+      "split": "val"
+    }
+  ],
+  "source_sha256": {
+    "driver_policy.py": "39071c106435b337d16038a97d6efeb116ebe29dd3aa4bfa2c31b9cd62c26578",
+    "response_data.py": "b58ea867c24bfc98d35bb75fa52eeab72b3e652c2642584afadd9e0d1344ea83"
+  },
+  "split_recordings": {
+    "test": [
+      4,
+      8,
+      10,
+      11,
+      17,
+      21,
+      22,
+      42,
+      49
+    ],
+    "train": [
+      2,
+      5,
+      6,
+      7,
+      9,
+      12,
+      13,
+      14,
+      15,
+      16,
+      18,
+      19,
+      23,
+      24,
+      25,
+      26,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      43,
+      44,
+      45,
+      46,
+      48,
+      51,
+      53,
+      54,
+      55,
+      57,
+      58,
+      59,
+      60
+    ],
+    "val": [
+      1,
+      3,
+      20,
+      27,
+      41,
+      47,
+      50,
+      52,
+      56
+    ]
+  },
+  "state_sampling_hz": 5
+}

@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from external_model_baselines.evaluation.driver_reproduction.scorecard import ROOT, write_scorecard
+from external_model_baselines.evaluation.driver_reproduction.scorecard import (
+    ROOT,
+    write_scorecard,
+)
 
 
 def main() -> None:

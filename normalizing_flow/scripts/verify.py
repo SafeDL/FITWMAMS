@@ -32,7 +32,7 @@ def main() -> None:
     output = output_dir_from_config(config, CONFIG.parent)
     arrays, schema = load_scenario_dataset(dataset_dir)
     rows = evt_tail_indices(arrays)
-    report = load_json(output / "evaluation_summary.json")
+    report = load_json(output / "reports/evaluation_summary.json")
     checkpoint = output / "checkpoints/scenario_flow.pt"
     model, _, _, payload = load_checkpoint_and_dataset(
         checkpoint,

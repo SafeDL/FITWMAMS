@@ -1,0 +1,50 @@
+{
+  "checkpoint_update": 850,
+  "phase_one_plan": {
+    "correction_entries": 20460,
+    "critical_quota": 16,
+    "critical_visit_deficit": 6934,
+    "data_policy": "all_valid_entries_no_truncation",
+    "end_update": 21817,
+    "entries": {
+      "critical": 3467,
+      "keep": 698130,
+      "native": 12685,
+      "other_correction": 16993
+    },
+    "other_quota": 16,
+    "other_visit_deficit": 16993,
+    "phase": 1,
+    "schedule": {
+      "ema_decay": 0.999988535378393,
+      "learning_rate": 1.1499328141965105e-07,
+      "physical_updates": 21817,
+      "reference_ema_retention": 0.7787033741169899,
+      "reference_learning_rate_sum": 0.001267,
+      "reference_updates": 250
+    },
+    "start_training_elapsed_s": 0.0,
+    "start_update": 0,
+    "updates": 21817
+  },
+  "actual_learning_rate_and_ema_match_schedule": true,
+  "actual_raw_and_ema_constraints_passed": true,
+  "raw_changed_tensors": 38,
+  "ema_changed_tensors": 33,
+  "frozen_tensor_count": 238,
+  "frozen_parameters_match_original": true,
+  "same_initial_correction_loss_as_rejected_attempt": 7.104941368103027,
+  "training_source_hashes_unchanged": true,
+  "original_development_cache_reused": {
+    "tail_generated": 5000,
+    "natural_generated": 5000
+  },
+  "original_development_records_modified_after_start": 0,
+  "exposures": {
+    "native": 54400,
+    "keep": 27200,
+    "correction": 27200
+  },
+  "new_world_executions_by_audit": 0,
+  "new_policy_forwards_by_audit": 0
+}

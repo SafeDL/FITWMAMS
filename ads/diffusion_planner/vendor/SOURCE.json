@@ -3,6 +3,7 @@
   "commit": "a3a621f0b724c5fa6447f7a2fbaf9e0387bd35df",
   "archive_sha256": "3b4ce406a489167b9aca2498ea7a01366bdbe816d95a44e34e87f1bead0c1615",
   "local_changes": [
-    "Python imports namespaced under ads.diffusion_planner.vendor; original model parameter names retained."
+    "Python imports namespaced under ads.diffusion_planner.vendor; original model parameter names retained.",
+    "Optional track_grad in the sampling wrapper and solver retains autograd for control supervision; the default inference equations and no-grad behavior are unchanged."
   ]
 }

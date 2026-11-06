@@ -1,0 +1,9 @@
+{
+  "prepared_source_hash_matches_experts": true,
+  "eligible_failure_inputs": 682,
+  "search_executions_reused": 5000,
+  "expert_inputs_reused": 682,
+  "protected_roots": 32,
+  "new_world_executions": 0,
+  "new_model_forwards": 0
+}

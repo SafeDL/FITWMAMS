@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import conditional_gp
+from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import (
+    conditional_gp,
+)
 
 
 def test_source_zero_context_has_the_published_2ell_time_support() -> None:

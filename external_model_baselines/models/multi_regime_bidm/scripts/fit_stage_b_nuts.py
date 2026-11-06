@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
 import numpy as np
 
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
@@ -13,7 +14,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from external_model_baselines.models.bayesian_ma_idm.src.data import load_ragged_pairs
-from external_model_baselines.models.multi_regime_bidm.src.pymc_stage_b import fit_style_nuts, fit_style_pooled_nuts
+from external_model_baselines.models.multi_regime_bidm.src.pymc_stage_b import (
+    fit_style_nuts,
+    fit_style_pooled_nuts,
+)
 from external_model_baselines.models.multi_regime_bidm.src.style import decision_grid
 
 

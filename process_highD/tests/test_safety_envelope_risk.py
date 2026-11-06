@@ -34,18 +34,14 @@ def _pair(*, other_x: float, other_y: float, other_vx: float, other_vy: float):
 
 
 def test_longitudinal_closing_creates_longitudinal_risk() -> None:
-    score, components = _pair(
-        other_x=18.0, other_y=0.0, other_vx=10.0, other_vy=0.0
-    )
+    score, components = _pair(other_x=18.0, other_y=0.0, other_vx=10.0, other_vy=0.0)
     index = SEI_COMPONENT_NAMES.index("sei_longitudinal_deficit")
     assert score[0] > 0.0
     assert components[0, index] > 0.0
 
 
 def test_lateral_closing_creates_lateral_risk() -> None:
-    score, components = _pair(
-        other_x=0.0, other_y=4.0, other_vx=25.0, other_vy=-2.0
-    )
+    score, components = _pair(other_x=0.0, other_y=4.0, other_vx=25.0, other_vy=-2.0)
     index = SEI_COMPONENT_NAMES.index("sei_lateral_deficit")
     assert score[0] > 0.0
     assert components[0, index] > 0.0
@@ -72,10 +68,6 @@ def test_larger_vehicle_dimensions_raise_intrusion() -> None:
         "valid": np.ones(1, dtype=bool),
         "options": SafetyEnvelopeRiskOptions(),
     }
-    car, _ = pairwise_safety_envelope_intrusion(
-        **common, other_length=4.8
-    )
-    truck, _ = pairwise_safety_envelope_intrusion(
-        **common, other_length=16.0
-    )
+    car, _ = pairwise_safety_envelope_intrusion(**common, other_length=4.8)
+    truck, _ = pairwise_safety_envelope_intrusion(**common, other_length=16.0)
     assert truck[0] > car[0]

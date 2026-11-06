@@ -7,21 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pandas as pd
 
 from diffusion.src.data import (
     DataBundle,
     load_data_bundle,
     split_rows,
 )
-from hierarchical_world_model.src.core.utils import load_json
-
-
-def event_metadata(cache, arrays):
-    """Align physical event metadata by canonical sequence identity, not row number."""
-    manifest = load_json(Path(cache) / "manifest.json")
-    segments = pd.read_csv(manifest["source_dataset"]).set_index("segment_id")
-    return segments.loc[np.asarray(arrays["sequence_id"]).astype(str)].reset_index()
 
 
 def ego_controls(source: np.ndarray, target: np.ndarray, dt_s: float) -> np.ndarray:

@@ -17,8 +17,10 @@ def export_policy(algorithm, source, destination):
         if algorithm == "carl"
         else official_path(algorithm)
     )
-    initial = initial.resolve()
-    if source == destination or destination.is_relative_to(initial.parent):
+    protected = (initial.parent.resolve(), initial.resolve().parent)
+    if source == destination or any(
+        destination.is_relative_to(parent) for parent in protected
+    ):
         raise ValueError(
             "native export must preserve the training checkpoint and official artifact directory"
         )

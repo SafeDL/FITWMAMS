@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -12,10 +12,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import Rectangle  # noqa: E402
-from matplotlib.transforms import Affine2D  # noqa: E402
 import numpy as np
 import pandas as pd
+from matplotlib.patches import Rectangle  # noqa: E402
+from matplotlib.transforms import Affine2D  # noqa: E402
 
 from process_highD.src.io_utils import load_config, resolve_data_path
 from process_highD.src.loader import HighDRecording
@@ -79,7 +79,7 @@ def _lane_markings(recording: HighDRecording) -> list[float]:
         values = np.asarray(recording.recording_meta[key], dtype=float)
         values = values[np.isfinite(values)]
         lines.extend(float(value) for value in values)
-    return sorted(set(round(value, 6) for value in lines))
+    return sorted({round(value, 6) for value in lines})
 
 
 def _slot_vehicle_ids(row: pd.Series) -> dict[int, str]:
@@ -336,7 +336,7 @@ def _draw_frame(
 
     for (vehicle_id, _frame), vehicle in visible.iterrows():
         vid = int(vehicle_id)
-        if vid == ego_id or vid in slot_ids or vid == focus_vehicle_id:
+        if vid in (ego_id, focus_vehicle_id) or vid in slot_ids:
             continue
         _draw_vehicle(
             ax,

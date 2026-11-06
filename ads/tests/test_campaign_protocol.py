@@ -23,12 +23,12 @@ def test_restart_training_reuses_complete_search_without_world_execution(
     campaign.config = {"search": {"budget": 5000}}
     campaign.assets = instance.assets
     campaign.ledger = UsageLedger(tmp_path / "usage.sqlite")
-    baseline = tmp_path / "dtpp/20260926/baseline"
+    baseline = tmp_path / "diffusion_planner/20260926/baseline"
     baseline.mkdir(parents=True)
     initial = baseline / "policy.pth"
     initial.write_bytes(b"initial policy")
     write_json(baseline / "training.json", {"policy_sha256": file_hash(initial)})
-    directory = tmp_path / "dtpp/20260926/guided/round_1"
+    directory = tmp_path / "diffusion_planner/20260926/guided/round_1"
     persist_curriculum(directory, {"normal": [(instance, "prior")]}, campaign.ledger)
     original = file_hash(directory / "inputs/curriculum.json")
     (directory / "search.jsonl").write_text("{}\n")
@@ -44,9 +44,9 @@ def test_restart_training_reuses_complete_search_without_world_execution(
     calls = []
 
     def train(algorithm, path, banks, **options):
-        assert algorithm == "dtpp" and path == directory
+        assert algorithm == "diffusion_planner" and path == directory
         assert options["base"] == initial and options["round_index"] == 0
-        assert not options["teacher_history"] and options["replay"] is None
+        assert not options["teacher_history"]
         assert banks["normal"][0][0].instance_hash == instance.instance_hash
         assert persist_curriculum(path, banks, campaign.ledger) == original
         calls.append(path)
@@ -54,7 +54,7 @@ def test_restart_training_reuses_complete_search_without_world_execution(
 
     monkeypatch.setattr(campaign, "train", train)
     assert (
-        campaign.train_saved_search("dtpp", 20260926, "guided", 1)
+        campaign.train_saved_search("diffusion_planner", 20260926, "guided", 1)
         == directory / "policy.pth"
     )
     assert calls == [directory]
@@ -63,7 +63,7 @@ def test_restart_training_reuses_complete_search_without_world_execution(
         {"evaluations": 1, "policy_sha256": "another policy"},
     )
     with pytest.raises(ValueError, match="another policy"):
-        campaign.train_saved_search("dtpp", 20260926, "guided", 1)
+        campaign.train_saved_search("diffusion_planner", 20260926, "guided", 1)
 
 
 @pytest.mark.parametrize("algorithm", tuple(POLICY_SUFFIX))
@@ -103,11 +103,7 @@ def test_two_round_campaign_resume_preserves_protocol(
 
     def save(path, contents):
         path.parent.mkdir(parents=True, exist_ok=True)
-        if algorithm == "str2":
-            path.mkdir()
-            (path / "synthetic-weights").write_text(contents)
-        else:
-            path.write_text(contents)
+        path.write_text(contents)
 
     def learner(algorithm, directory, banks, **options):
         persist_curriculum(
@@ -117,11 +113,6 @@ def test_two_round_campaign_resume_preserves_protocol(
             teacher_history=options["teacher_history"],
         )
         round_index = options["round_index"]
-        if algorithm == "dqn":
-            assert (options["replay"] is None) == (round_index == 0)
-            if round_index:
-                assert options["replay"].is_file()
-            (directory / "replay_buffer.pkl").write_bytes(b"synthetic replay")
         if round_index:
             assert options["base"].parent.name == "round_1"
             assert banks["history"] or not previous_archive_ids[directory.parent.name]
@@ -270,7 +261,7 @@ def test_worker_records_search_preparation_separately_from_training(
 
     from ads import worker
 
-    directory = tmp_path / "str2/20260926/guided/round_1"
+    directory = tmp_path / "diffusion_planner/20260926/guided/round_1"
     for name in (
         "search_summary.json",
         "inputs/curriculum.json",
@@ -286,7 +277,7 @@ def test_worker_records_search_preparation_separately_from_training(
         return directory / "policy"
 
     def branch(algorithm, seed, method, initial, **options):
-        assert initial == tmp_path / "str2/20260926/baseline/policy"
+        assert initial == tmp_path / "diffusion_planner/20260926/baseline/policy"
         assert options == {
             "through_round": 1,
             "search_only": operation == "--search-only",
@@ -303,7 +294,7 @@ def test_worker_records_search_preparation_separately_from_training(
 
     campaign = SimpleNamespace(
         output=tmp_path,
-        config={"algorithms": ["str2"], "seeds": [20260926]},
+        config={"algorithms": ["diffusion_planner"], "seeds": [20260926]},
         verify_runtime=lambda: None,
         checkpoint=lambda path, algorithm: path / "policy",
         train_saved_search=resume,
@@ -313,7 +304,7 @@ def test_worker_records_search_preparation_separately_from_training(
     command = [
         "worker",
         "repair",
-        "str2",
+        "diffusion_planner",
         "20260926",
         "--method",
         "guided",
@@ -333,7 +324,7 @@ def test_worker_records_search_preparation_separately_from_training(
     assert called == [
         (
             expected_operation,
-            ("str2", 20260926, "guided", 1),
+            ("diffusion_planner", 20260926, "guided", 1),
         )
     ]
     assert status["status"] == (

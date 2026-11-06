@@ -1,3 +1,0 @@
-_target_: torch.optim.AdamW
-_convert_: all
-lr: 1e-4

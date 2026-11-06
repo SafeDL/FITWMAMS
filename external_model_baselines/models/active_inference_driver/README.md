@@ -33,11 +33,10 @@ pytest -q external_model_baselines/models/active_inference_driver/tests
 - `representative_highd_response.png`：论文 Fig. 3 风格的速度、加速度、间距、证据/重规划轨迹；
 - `ablation_metrics.png`：full / no-evidence / no-pedal 的 highD 比较。
 - `stochastic_response_band.png`：同一 highD 事件的 12 个随机流、10–90% 区间和实测轨迹。
-- `original_vs_adapter.json`、`human_metric_reproduction.json`、`planning_budget.json`、`future_action_firewall.json`：25 Hz 适配边界和必要的可审计证据。
+- `original_vs_adapter.json`、`validation_status.json`、`planning_budget.json`、`future_action_firewall.json`：25 Hz 适配边界和验证证据。作者 Source Data 保留原始 ZIP 及实际使用的后追尾分析数据，不重复保存其他场景的解压图件。
 
 评测以真实 highD 领车作为外部 plant（每一 25 Hz 帧只提供当下观测），模型预测只使用当前 belief 与内部采样的非反应式未来；评测器绝不把领车真实未来输入 planner。
 
 共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。通过原生人因与官方wrapper的能力属于外部锁定源码；独立纵向适配桥接仍失败，不得替代官方模型。
 
-主项目注册表默认只允许官方wrapper；运行时必须提供锁定源码和`Results_following`路径：
-`python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model active_inference_official --official-source-dir PATH --official-following-dir PATH`。
+官方包装器入口为 `official_wrapper.OfficialPOMDP25Hz`，调用时提供锁定源码及 `Results_following` 路径；highD 纵向适配评测使用上面的 `run` 入口。

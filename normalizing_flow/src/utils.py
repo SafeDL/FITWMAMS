@@ -20,7 +20,7 @@ def setup_logging() -> None:
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
-    with open(Path(path), "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -32,18 +32,18 @@ def save_json(data: Any, path: str | Path) -> None:
 
 
 def load_json(path: str | Path) -> Any:
-    with open(Path(path), "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def json_default(value: Any) -> Any:
     if isinstance(value, np.ndarray):
         return value.tolist()
-    if isinstance(value, (np.integer,)):
+    if isinstance(value, np.integer):
         return int(value)
-    if isinstance(value, (np.floating,)):
+    if isinstance(value, np.floating):
         return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_,)):
+    if isinstance(value, np.bool_):
         return bool(value)
     if isinstance(value, Path):
         return str(value)

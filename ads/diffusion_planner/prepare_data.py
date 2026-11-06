@@ -6,6 +6,8 @@ import json
 import sqlite3
 from collections import Counter, defaultdict, deque
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from itertools import chain
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,6 +21,8 @@ from ads.nuplan.verify_data import REPORT
 ROOT = WORKSPACE / "preparation/retention"
 MANIFEST = ROOT / "scenes.json"
 COUNTS = {"replay": 2000, "development": 200}
+FULL_ROOT = ROOT / "diffusion_planner_full"
+FULL_REPORT = FULL_ROOT / "materials.json"
 CONFIG = Path(__file__).resolve().parent / "artifacts/args.json"
 
 
@@ -141,12 +145,12 @@ def native_scenario(row):
     )
 
 
-def encode_scene(row):
+def encode_scene(row, directory=None):
     from ads.diffusion_planner.vendor.diffusion_planner.data_process.data_processor import (
         DataProcessor,
     )
 
-    directory = ROOT / "diffusion_planner" / row["purpose"]
+    directory = Path(directory or FULL_ROOT) / row["purpose"]
     directory.mkdir(parents=True, exist_ok=True)
     identity = json_hash([row["log"], row["token"]])
     path = directory / (identity + ".npz")
@@ -180,7 +184,9 @@ def encode_scene(row):
             "source": row,
             "excluded": type(error).__name__ + ": " + str(error),
         }
-    np.savez_compressed(path, **data)
+    temporary = path.with_suffix(".tmp.npz")
+    np.savez_compressed(temporary, **data)
+    temporary.replace(path)
     return {
         "scene_id": identity,
         "path": str(path),
@@ -189,49 +195,94 @@ def encode_scene(row):
     }
 
 
+def all_candidates(manifest):
+    candidates = {}
+    for purpose in COUNTS:
+        unique = {}
+        for row in chain.from_iterable(
+            manifest["scenes"][purpose][name] for name in ("selected", "reserve")
+        ):
+            if row["purpose"] != purpose:
+                raise ValueError("Native candidate has a different data purpose")
+            unique.setdefault((row["log"], row["token"]), row)
+        candidates[purpose] = list(unique.values())
+    sessions = [{row["session"] for row in rows} for rows in candidates.values()]
+    if sessions[0] & sessions[1]:
+        raise ValueError("Native training and development sessions overlap")
+    return candidates
+
+
 def prepare(workers=4):
     manifest = select_scenes()
-    report_path = ROOT / "diffusion_planner/materials.json"
+    candidates = all_candidates(manifest)
+    FULL_ROOT.mkdir(parents=True, exist_ok=True)
+    identity = {
+        "manifest_sha256": file_hash(MANIFEST),
+        "model_config_sha256": file_hash(CONFIG),
+    }
+    identity_path = FULL_ROOT / "identity.json"
+    if identity_path.exists() and json.loads(identity_path.read_text()) != identity:
+        raise ValueError("Native source or official feature configuration changed")
+    write_json(identity_path, identity)
+    outcomes_path = FULL_ROOT / "outcomes.jsonl"
+    outcomes = {}
+    if outcomes_path.exists():
+        for line in outcomes_path.read_text().splitlines():
+            result = json.loads(line)
+            outcomes[result["scene_id"]] = result
+    previous_path = ROOT / "diffusion_planner/materials.json"
+    if previous_path.exists():
+        previous = json.loads(previous_path.read_text())
+        if any(previous[key] != value for key, value in identity.items()):
+            raise ValueError(
+                "Existing native features use another source/configuration"
+            )
+        for result in previous["excluded"] + [
+            row for rows in previous["scenes"].values() for row in rows
+        ]:
+            if "path" not in result or file_hash(result["path"]) == result["sha256"]:
+                outcomes.setdefault(result["scene_id"], result)
     completed = {purpose: [] for purpose in COUNTS}
     excluded = []
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        for purpose, count in COUNTS.items():
-            chosen = manifest["scenes"][purpose]["selected"]
-            for index, result in enumerate(
-                executor.map(encode_scene, chosen, chunksize=1), 1
-            ):
-                if "excluded" in result:
-                    excluded.append(result)
-                else:
-                    completed[purpose].append(result)
-                if index % 25 == 0 or index == len(chosen):
-                    print(
-                        f"Native DP {purpose}: {index}/{count}, valid {len(completed[purpose])}",
-                        flush=True,
-                    )
-            needs = Counter(
-                row["source"]["city"]
-                for row in excluded
-                if row["source"]["purpose"] == purpose
-            )
-            for row in manifest["scenes"][purpose]["reserve"]:
-                if not needs[row["city"]]:
-                    continue
-                result = executor.submit(encode_scene, row).result()
-                if "excluded" in result:
-                    excluded.append(result)
-                else:
-                    completed[purpose].append(result)
-                    needs[row["city"]] -= 1
-                if len(completed[purpose]) == count:
-                    break
-            if len(completed[purpose]) != count:
-                raise ValueError(
-                    f"Not enough qualified {purpose} scenes: {len(completed[purpose])}"
+    pending = [
+        row
+        for rows in candidates.values()
+        for row in rows
+        if json_hash([row["log"], row["token"]]) not in outcomes
+    ]
+    with outcomes_path.open("w") as stream:
+        for result in outcomes.values():
+            stream.write(json.dumps(result) + "\n")
+    with (
+        ProcessPoolExecutor(max_workers=workers) as executor,
+        outcomes_path.open("a") as stream,
+    ):
+        for index, result in enumerate(
+            executor.map(
+                partial(encode_scene, directory=FULL_ROOT), pending, chunksize=1
+            ),
+            1,
+        ):
+            outcomes[result["scene_id"]] = result
+            stream.write(json.dumps(result) + "\n")
+            stream.flush()
+            if index % 25 == 0 or index == len(pending):
+                print(
+                    f"Native DP full pool: {index}/{len(pending)} newly processed",
+                    flush=True,
                 )
+    for purpose, rows in candidates.items():
+        for row in rows:
+            result = outcomes[json_hash([row["log"], row["token"]])]
+            if "excluded" in result:
+                excluded.append(result)
+            else:
+                completed[purpose].append(result)
     coverage = {}
     for purpose, rows in completed.items():
         coverage[purpose] = {
+            "candidates": len(candidates[purpose]),
+            "excluded": sum(r["source"]["purpose"] == purpose for r in excluded),
             "scenes": len(rows),
             "logs": len({r["source"]["log"] for r in rows}),
             "cities": dict(Counter(r["source"]["city"] for r in rows)),
@@ -246,12 +297,12 @@ def prepare(workers=4):
         "excluded": excluded,
         "nuplan_simulation_performed": False,
     }
-    write_json(report_path, report)
-    print(f"Native material preparation complete: {report_path}", flush=True)
+    write_json(FULL_REPORT, report)
+    print(f"Native material preparation complete: {FULL_REPORT}", flush=True)
     return report
 
 
-def load_training_samples(report_path=ROOT / "diffusion_planner/materials.json"):
+def load_training_samples(report_path=FULL_REPORT, *, purpose="replay"):
     report = json.loads(Path(report_path).read_text())
     if (
         report["status"] != "passed"
@@ -271,9 +322,9 @@ def load_training_samples(report_path=ROOT / "diffusion_planner/materials.json")
         "route_lanes_speed_limit",
         "route_lanes_has_speed_limit",
     )
-    for row in report["scenes"]["replay"]:
+    for row in report["scenes"][purpose]:
         if (
-            row["source"]["purpose"] != "replay"
+            row["source"]["purpose"] != purpose
             or file_hash(row["path"]) != row["sha256"]
         ):
             raise ValueError("Native retention material identity mismatch")
@@ -293,6 +344,10 @@ def load_training_samples(report_path=ROOT / "diffusion_planner/materials.json")
                     "scene_id": row["scene_id"],
                     "domain": "native",
                     "source": "nuplan_train",
+                    "purpose": "repair" if purpose == "replay" else "development",
+                    "label_source": "native",
+                    "instance_id": row["scene_id"],
+                    "frame_id": 0,
                 }
             )
     return samples

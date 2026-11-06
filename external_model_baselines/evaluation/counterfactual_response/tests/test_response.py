@@ -1,8 +1,13 @@
-import numpy as np
 from types import SimpleNamespace
 
+import numpy as np
+
 from external_model_baselines.evaluation.counterfactual_response.experiment import (
-    ROOT, Scenario, frozen_action_branch, leader_trajectory, load_highd_anchor,
+    ROOT,
+    Scenario,
+    frozen_action_branch,
+    leader_trajectory,
+    load_highd_anchor,
     select_common_support_anchor_row,
 )
 
@@ -13,7 +18,8 @@ def test_counterfactual_leader_brakes_only_in_declared_window():
     factual = leader_trajectory(scenario, 0.0, anchor)
     counterfactual = leader_trajectory(scenario, 3.0, anchor)
     active = (np.arange(scenario.frames) * scenario.dt_s >= scenario.brake_start_s) & (
-        np.arange(scenario.frames) * scenario.dt_s < scenario.brake_start_s + scenario.brake_duration_s
+        np.arange(scenario.frames) * scenario.dt_s
+        < scenario.brake_start_s + scenario.brake_duration_s
     )
     difference = counterfactual["a"] - factual["a"]
     assert np.allclose(difference[active], -3.0)
@@ -34,7 +40,9 @@ def test_frozen_baseline_uses_same_braking_leader_and_preserves_actions():
         "residual": np.zeros(scenario.frames),
         "regime": np.full(scenario.frames, -1),
     }
-    frozen = frozen_action_branch(natural, leader, scenario, SimpleNamespace(anchor=anchor))
+    frozen = frozen_action_branch(
+        natural, leader, scenario, SimpleNamespace(anchor=anchor)
+    )
     assert np.array_equal(frozen["acceleration"], action)
     expected_gap = leader["x"] - frozen["position"] - scenario.vehicle_length_m
     assert np.allclose(frozen["gap"], expected_gap)
@@ -51,8 +59,7 @@ def test_highd_anchor_matches_frozen_reaction_event(monkeypatch):
 
     monkeypatch.setattr(np, "load", load_frozen_only)
     evidence = (
-        ROOT
-        / "external_model_baselines/evaluation/counterfactual_response/evidence/"
+        ROOT / "external_model_baselines/evaluation/counterfactual_response/evidence/"
         "reaction_events/validation/reaction_events.npz"
     )
     assert select_common_support_anchor_row(evidence) == 55398

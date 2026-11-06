@@ -1,1 +1,0 @@
-"""Official dtpp highway adapter."""

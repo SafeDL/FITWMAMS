@@ -14,8 +14,12 @@ if str(ROOT) not in sys.path:
 import numpy as np
 
 from external_model_baselines.models.bayesian_ma_idm.src.data import load_ragged_pairs
-from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import evaluate_full_population
-from external_model_baselines.models.bayesian_ma_idm.src.full_model import fit_full_population
+from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import (
+    evaluate_full_population,
+)
+from external_model_baselines.models.bayesian_ma_idm.src.full_model import (
+    fit_full_population,
+)
 
 
 def gap_specs(path: Path, bins: int, quantile: float) -> dict[str, dict[str, list[float]]]:

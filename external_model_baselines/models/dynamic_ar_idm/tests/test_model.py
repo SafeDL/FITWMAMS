@@ -1,7 +1,14 @@
 from __future__ import annotations
+
 import numpy as np
-from external_model_baselines.models.dynamic_ar_idm.model import DynamicIDMDriver, ar_innovation, ar_spectral_radius, idm
+
 from external_model_baselines.models.dynamic_ar_idm.evaluate import rollout_25hz
+from external_model_baselines.models.dynamic_ar_idm.model import (
+    DynamicIDMDriver,
+    ar_innovation,
+    ar_spectral_radius,
+    idm,
+)
 
 
 def test_lag_order_is_newest_first() -> None:

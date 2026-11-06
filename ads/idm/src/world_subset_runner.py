@@ -33,7 +33,7 @@ from hierarchical_world_model.src.empirical_context import EmpiricalKContextSamp
 from hierarchical_world_model.src.highway import (
     HIGHWAY_ENV_DYNAMICS_CONTRACT,
 )
-from tools.evt import GPDTailModel, load_evt_model
+from tools.evt import GPDTailModel
 from tools.idm_ego import load_idm_ego_config
 
 from .idm_policy import HighwayEnvIDMPolicy
@@ -169,7 +169,7 @@ def _build_evaluator(
     evaluator = CurrentWorldEvaluator(
         sampler,
         policy,
-        load_evt_model(evt_path),
+        GPDTailModel.from_json(evt_path),
         steps=int(config["simulation"].get("steps", 149)),
         batch_size=int(config["runtime"].get("batch_size", 32)),
     )

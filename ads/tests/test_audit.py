@@ -1,12 +1,8 @@
-import json
-import pickle
 from copy import deepcopy
-from zipfile import ZipFile
 
-import numpy as np
 import pytest
 
-from ads.audit import check_archive_execution_labels, check_dqn_replay, check_records
+from ads.audit import check_archive_execution_labels, check_records
 from ads.common.instances import json_hash
 
 
@@ -69,48 +65,6 @@ def test_archive_audit_rejects_boundary_observed_only_across_different_policies(
     snapshots[1]["old_success"] = [archive["entries"]["old_success"]]
     with pytest.raises(ValueError, match="one policy snapshot"):
         check_archive_execution_labels(archive, snapshots)
-
-
-def write_replay(directory, *, experiences, warmup=102):
-    from gymnasium import spaces
-    from stable_baselines3.common.buffers import ReplayBuffer
-
-    replay = ReplayBuffer(
-        32, spaces.Box(-1, 1, (49,), dtype=np.float32), spaces.Discrete(5), device="cpu"
-    )
-    for index in range(experiences):
-        replay.add(
-            np.zeros((1, 49), np.float32),
-            np.ones((1, 49), np.float32),
-            np.asarray([index % 5]),
-            np.asarray([1.0]),
-            np.asarray([False]),
-            [{}],
-        )
-    with ZipFile(directory / "policy.zip", "w") as archive:
-        archive.writestr(
-            "data", json.dumps({"learning_starts": warmup, "buffer_size": 32})
-        )
-    with (directory / "replay_buffer.pkl").open("wb") as stream:
-        pickle.dump(replay, stream)
-
-
-def test_dqn_audit_rejects_old_replay_or_missing_second_round_experience(tmp_path):
-    write_replay(tmp_path, experiences=8)
-    check_dqn_replay(tmp_path, baseline_steps=100, round_index=1, steps=8)
-    with pytest.raises(ValueError, match="new-world repair experience"):
-        check_dqn_replay(tmp_path, baseline_steps=100, round_index=2, steps=8)
-    write_replay(tmp_path, experiences=16)
-    check_dqn_replay(tmp_path, baseline_steps=100, round_index=2, steps=8)
-    write_replay(tmp_path, experiences=32)
-    with pytest.raises(ValueError, match="new-world repair experience"):
-        check_dqn_replay(tmp_path, baseline_steps=100, round_index=1, steps=8)
-
-
-def test_dqn_audit_rejects_warmup_without_cumulative_offset(tmp_path):
-    write_replay(tmp_path, experiences=8, warmup=2)
-    with pytest.raises(ValueError, match="cumulative baseline"):
-        check_dqn_replay(tmp_path, baseline_steps=100, round_index=1, steps=8)
 
 
 def test_audit_rejects_changed_world_pairing_and_unsafe_label(instance):

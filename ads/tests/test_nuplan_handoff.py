@@ -1,12 +1,27 @@
 """The manual handoff packages frozen files without calling either simulator."""
 
 import json
+import re
 from types import SimpleNamespace
 
 import pytest
 
 from ads.common.instances import file_hash
 from ads.nuplan.handoff import PLANNERS, prepare_handoff
+from ads.nuplan.prepare_data import WORKSPACE
+from ads.tasks import POLICY_SUFFIX
+
+
+def test_selected_policies_match_native_workspace():
+    launcher = (WORKSPACE / "run_closed_loop.sh").read_text()
+    native_algorithms = set(re.findall(r"^    ([a-z_0-9]+)\)", launcher, re.MULTILINE))
+    model_algorithms = {
+        path.name
+        for path in (WORKSPACE / "FITWMAMS_models/ads").iterdir()
+        if path.is_dir()
+    }
+    assert set(POLICY_SUFFIX) == set(PLANNERS) == native_algorithms == model_algorithms
+    assert native_algorithms == {"carl", "diffusion_planner"}
 
 
 @pytest.mark.parametrize("algorithm", PLANNERS)

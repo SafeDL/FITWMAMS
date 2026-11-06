@@ -1,8 +1,4 @@
-"""
-io_utils.py — I/O 工具
-=======================
-YAML 配置加载、路径管理等通用 I/O 辅助函数。
-"""
+"""YAML 配置、JSON 序列化及 highD 数据路径。"""
 
 from __future__ import annotations
 
@@ -15,18 +11,6 @@ import yaml
 
 
 def load_config(config_path: str | Path) -> dict[str, Any]:
-    """加载 YAML 配置文件并返回字典。
-
-    Parameters
-    ----------
-    config_path : str
-        YAML 文件的路径。
-
-    Returns
-    -------
-    dict
-        解析后的配置字典。
-    """
     return yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
 
 

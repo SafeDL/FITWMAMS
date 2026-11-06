@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import argparse
 
-from external_model_baselines.models.dynamic_ar_idm.nuts_audit import audit_chainwise_predictions
-
+from external_model_baselines.models.dynamic_ar_idm.nuts_audit import (
+                                  audit_chainwise_predictions,
+)
 
 parser = argparse.ArgumentParser(description="Chain-separated predictive audit for AR(0)/AR(5) NUTS fits")
 parser.add_argument("--dataset", default="external_model_baselines/models/dynamic_ar_idm/artifacts/data/paper_highd_20pairs_25hz.npz")

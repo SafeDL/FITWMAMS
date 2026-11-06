@@ -10,11 +10,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from diffusion.src.evaluation import evaluate_background_diffusion  # noqa: E402
 from hierarchical_world_model.src.core.utils import (
     load_yaml,
     setup_logging,
 )  # noqa: E402
-from diffusion.src.evaluation import evaluate_background_diffusion  # noqa: E402
 
 CONFIG = ROOT / "diffusion/config.yaml"
 

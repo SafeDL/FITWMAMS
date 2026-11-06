@@ -1,0 +1,89 @@
+{
+  "all_exogenous_arrays_match_fresh_iid_prior": true,
+  "all_generated_after_freeze": true,
+  "cohorts": {
+    "natural_generated": {
+      "assets_hash": "1e14c2b95305ed448b402a223029adea965e6be9861eeb2a3817d2e32ae624a6",
+      "independent_roots": 5000,
+      "instances": 5000
+    },
+    "tail_generated": {
+      "assets_hash": "f412836440e63e0f7c3a92a9fdffebbd71d2235af8cf477ef79f9295ad3199f3",
+      "independent_roots": 5000,
+      "instances": 5000
+    }
+  },
+  "different_instances": 10000,
+  "final_policy_outcomes_read": false,
+  "final_usage_only": true,
+  "freeze_sha256": "d6044d990c0bd729a98ccf9341ea36236e691fb469edbefe9c74f5e25b7f010f",
+  "frozen_world_assets": {
+    "file_assets": {
+      "diffusion_checkpoint": {
+        "path": "/home/hp/FITWMAMS/results/diffusion/checkpoints/best_background_diffusion.pt",
+        "sha256": "7239fac05e6484746cb4a789d6e1eb55458a8cf8ca1a5a6dcea1d48a47ef388c"
+      },
+      "diffusion_contract": {
+        "path": "/home/hp/FITWMAMS/results/diffusion/dataset_contract.json",
+        "sha256": "baf194f3f21f2602d9fe0ea350932559b1fc69bef10d880cc345e06652e7e59c"
+      },
+      "driver_model": {
+        "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/idm_population.npz",
+        "sha256": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e"
+      },
+      "evt_model": {
+        "path": "/home/hp/FITWMAMS/results/evt/evt_model.json",
+        "sha256": "fba21455a71703a225109d6a1d6ba5fa7630c88cc48c3f80948cc73b126f436c"
+      },
+      "interaction_errors": {
+        "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/interaction_errors.npz",
+        "sha256": "40d47392e7b8d5401570554a13f88c70332d214afc1b5c6262fa59e9b995335d"
+      },
+      "lane_model": {
+        "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/lane_trajectory.json",
+        "sha256": "9305f29a2af57f2fa492e0dcc1e78f491ba24b2829aabb07619c2a2f5f6b6f7f"
+      },
+      "world_config": {
+        "path": "/home/hp/FITWMAMS/hierarchical_world_model/config.yaml",
+        "sha256": "17d70606a7772eaa368204e29685be00e788c304868b53359f1c187e4c55d4e9"
+      },
+      "world_selection": {
+        "path": "/home/hp/FITWMAMS/results/hierarchical_world_model/model_assets/selection.json",
+        "sha256": "9448cfb8f89bf8e8223ab8c2790c82803347c9cf50a2e1684aea40304aa43df5"
+      }
+    },
+    "model_forward_executions": 0,
+    "passed": true,
+    "populations": {
+      "natural_generated": {
+        "assets_hash": "1e14c2b95305ed448b402a223029adea965e6be9861eeb2a3817d2e32ae624a6",
+        "fit_events": 85904,
+        "flow_checkpoint_path": "/home/hp/FITWMAMS/results/natural_flow/checkpoints/scenario_flow.pt",
+        "flow_checkpoint_sha256": "8715af1f5c358c3a2e8782897cecdb568ce2f5ba121712465307794254096664"
+      },
+      "tail_generated": {
+        "assets_hash": "f412836440e63e0f7c3a92a9fdffebbd71d2235af8cf477ef79f9295ad3199f3",
+        "fit_events": 2964,
+        "flow_checkpoint_path": "/home/hp/FITWMAMS/results/flow/checkpoints/scenario_flow.pt",
+        "flow_checkpoint_sha256": "7fb8c5f03d1383a127cf8b08214e56d8702257fec57bc9b03ced7157e1a51586"
+      }
+    },
+    "source_directories": [
+      "hierarchical_world_model/src",
+      "normalizing_flow/src",
+      "diffusion/src",
+      "process_highD/src",
+      "HighwayEnv/highway_env"
+    ],
+    "world_executions": 0,
+    "world_implementation_sha256": "04ca5d2a2ed004aecad04679816d6bcf6796a9ad5d1c2a230fe83d375965a34d",
+    "world_source_files": 113
+  },
+  "helper_sha256": "0929e8a254a701fc9ca6ecceaccf4cbc58510215a57c3bd856775e14c34880e4",
+  "independent_roots": 10000,
+  "input_manifest_sha256": "64b9a9ed203ee5515422db9c31037a1fc3ccb2fe7b6dd24849b87022618961f8",
+  "model_forward_calls": 0,
+  "no_training_development_search_or_protected_ids_or_roots": true,
+  "passed": true,
+  "world_executions": 0
+}

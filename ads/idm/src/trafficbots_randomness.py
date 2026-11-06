@@ -75,7 +75,7 @@ class TrafficBotsExogenousState:
     ) -> TrafficBotsExogenousState:
         if int(n) < 1 or int(latent_dim) < 1:
             raise ValueError("n and latent_dim must be positive")
-        state = cls(
+        return cls(
             scenario_uniform=_block_rng(seed, "scenario_uniform").random(
                 int(n), dtype=np.float64
             ),
@@ -89,7 +89,6 @@ class TrafficBotsExogenousState:
                 (int(n), 8), dtype=np.float64
             ),
         )
-        return state
 
     def as_dict(self) -> dict[str, np.ndarray]:
         return {

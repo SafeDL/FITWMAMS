@@ -276,17 +276,17 @@ def _diverse_empirical_sweep_cases(
 
     cases = load_json(sweep_dir / "test_sweep_failure_cases.json")
     if not cases or int(count) < 1:
-        return [], {
-            tag: 0
-            for tag in (
+        return [], dict.fromkeys(
+            (
                 "cut_in",
                 "cut_out",
                 "collision",
                 "lateral_activity",
                 "initial_close_front",
                 "longitudinal_tail",
-            )
-        }
+            ),
+            0,
+        )
     spec = get_world_model("tracking_npc")
     records: list[dict[str, Any]] = []
     for case in cases:

@@ -22,13 +22,6 @@ PAPER_SERIF_FONTS = [
 PAPER_PANEL_LABELSIZE = 16.0
 PAPER_SIX_PANEL_FIGSIZE = (14.4, 8.2)
 PAPER_SIX_PANEL_LAYOUT = {"pad": 1.05, "w_pad": 1.35, "h_pad": 1.65}
-PAPER_NOTE_BBOX = {
-    "boxstyle": "round,pad=0.22",
-    "facecolor": "white",
-    "edgecolor": "#BDBDBD",
-    "linewidth": 0.45,
-    "alpha": 0.88,
-}
 PAPER_PANEL_RC = {
     "font.family": "serif",
     "font.serif": PAPER_SERIF_FONTS,

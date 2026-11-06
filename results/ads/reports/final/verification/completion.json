@@ -1,0 +1,114 @@
+{
+  "checked_at": "2026-10-29T02:19:15.852110+00:00",
+  "configuration_sha256": "ddf19238157f30904275e0a007aed51df6351724a757a6e55cdd343b49040580",
+  "evidence": {
+    "costs": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/cost_accounting.json",
+      "sha256": "111fcdf481767c882a744015495c44da30fedb412b9926ef49ff1022fae6d63c"
+    },
+    "final_inputs": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/final_freeze_and_instances.json",
+      "sha256": "b45b72aed88cf4ac25ae1cb127d49ef595d0e6812d51dfd0480185ad3f5d9dd1"
+    },
+    "final_pairing": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/final_pairing.json",
+      "sha256": "b30f6c2f40ba04b863172ea1add8f66dc7c858c7b93434c9d536cc816d1e809e"
+    },
+    "interfaces": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/interface_acceptance.json",
+      "sha256": "7620d717fc4a09255d88a9de40fecfd974e9d5f9e100587b9d779449cb9d1c0d"
+    },
+    "native_configuration": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/native_configuration_acceptance.json",
+      "sha256": "847777aa9478e29e1e6ae4c053d2e65905dcd8681eb9dac72edf4c7b621c4492"
+    },
+    "suffix_labels": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/query_suffix_labels.json",
+      "sha256": "abb61b965ced6a985c16e75bc20b1b471ebab8c5b597af749ffc3856ee370d48"
+    },
+    "training": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/full_training_acceptance.json",
+      "sha256": "e71421bc075f82d8f267707831cbeca47b56e4dfcd66e62b91c44ff9dbee41a5"
+    },
+    "world_assets": {
+      "path": "results/interaction_guided_search_repair/bounded_runtime/verification/frozen_assets.json",
+      "sha256": "1b1342a9f3f7d1feb0d9d81d754054da874bcc726e7851e65f34e8c23bbf4b10"
+    }
+  },
+  "freeze_sha256": "d6044d990c0bd729a98ccf9341ea36236e691fb469edbefe9c74f5e25b7f010f",
+  "interpretation": [
+    "Search coverage and collision quantity are separate; historical subset search still has greater observed coverage/evenness than the new method.",
+    "Analytic weak-early toy retained one observed failure region in the new search; it does not demonstrate complete region discovery.",
+    "The final tail collision interval excludes zero; natural-generated collision interval includes zero.",
+    "Two new tail offroad cases are reported. The fixed final model was not revised on final outcomes.",
+    "Historical repairs are approximate references because data, learning exposure and test instances differ. Full-pipeline costs are not equalized.",
+    "All local valid native materials were used, not the unavailable full official pretraining corpus. Full-data training retains the specified local parameter updates.",
+    "Automatic native offline/city benchmarks remain outside this execution; configuration and loader equivalence are interface checks only."
+  ],
+  "model_forward_calls_by_audit": 0,
+  "passed": true,
+  "requirements": {
+    "actual_gradient_updates": 32726,
+    "all_correction_entries": 29711,
+    "all_keep_entries": 698130,
+    "all_local_valid_native_scenes": 12685,
+    "all_model_and_history_namespaces_preserved": true,
+    "all_native_candidates_processed": 13066,
+    "all_success_instances": 23271,
+    "all_three_pools_unvisited_entries": 0,
+    "development_selection_before_final_freeze": true,
+    "excluded_native_scenes": 381,
+    "final_collision_counts": {
+      "natural_generated": {
+        "ci95": [
+          -0.007102481249105756,
+          0.001125707704655829
+        ],
+        "collision_repaired": 27,
+        "collisions_after": 76,
+        "collisions_before": 91,
+        "difference_after_minus_before": -0.003,
+        "instances": 5000,
+        "new_collision": 12
+      },
+      "tail_generated": {
+        "ci95": [
+          -0.009524727738246171,
+          -0.001622743527646504
+        ],
+        "collision_repaired": 34,
+        "collisions_after": 149,
+        "collisions_before": 177,
+        "difference_after_minus_before": -0.0056,
+        "instances": 5000,
+        "new_collision": 6
+      }
+    },
+    "final_instances": 10000,
+    "final_policy_executions": 20000,
+    "final_results_not_used_for_reselection": true,
+    "final_tail_new_offroad_cases": 2,
+    "frozen_ads_source_files_rehashed": 455,
+    "frozen_tail_fit_events": 2964,
+    "full_costs_including_rejected_attempt_and_reuse_separated": true,
+    "initial_qualified_expert_inputs": 682,
+    "loss_png_and_csv_rows": 32726,
+    "minimum_critical_visits": 4,
+    "native_export_same_deployment_parameters": true,
+    "nuplan_city_and_native_offline_evaluation": "manual_by_user",
+    "only_dp_one_seed_no_historical_formal_reruns": true,
+    "qualified_suffixes": 372,
+    "queries_processed": 385,
+    "reference_updates_per_phase_control_step_size_only": 250,
+    "search_budget": {
+      "new": 4000,
+      "total": 5000,
+      "verified_cached_prior": 1000
+    },
+    "selected_policy_sha256": "3a10d924e97fc830ff3147f28e5a6693a2d9f9eed74ec38043892f052bdb85ed",
+    "selected_stage": 2,
+    "world_source_files_previously_verified": 113
+  },
+  "scope": "Completed Diffusion Planner search, all-valid-data repair, fixed-model generated evaluation and native export. No training, model forward or world execution performed by this audit.",
+  "world_executions_added_by_audit": 0
+}

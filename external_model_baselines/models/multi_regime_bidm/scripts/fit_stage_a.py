@@ -15,7 +15,13 @@ if str(ROOT) not in sys.path:
 
 from external_model_baselines.models.bayesian_ma_idm.src.data import load_ragged_pairs
 from external_model_baselines.models.multi_regime_bidm.src.hsmm import fit_hsmm
-from external_model_baselines.models.multi_regime_bidm.src.style import FEATURE_NAMES, decision_grid, kmeans, standardize_train, style_features
+from external_model_baselines.models.multi_regime_bidm.src.style import (
+    FEATURE_NAMES,
+    decision_grid,
+    kmeans,
+    standardize_train,
+    style_features,
+)
 
 
 def _poisson_tail(lam: float, maximum: int) -> float:

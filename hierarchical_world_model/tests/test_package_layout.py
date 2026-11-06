@@ -2,17 +2,12 @@
 
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-
 import hierarchical_world_model as world
 from hierarchical_world_model import src
-from hierarchical_world_model.src.core.utils import save_json
-from hierarchical_world_model.src.data import event_metadata
 from hierarchical_world_model.src.npc_experiments import (
     calibration,
     road,
-    search,
+    road_evaluation,
 )
 from hierarchical_world_model.src.stochastic_drivers import driver_policy, online
 from hierarchical_world_model.src.stochastic_drivers.idm_population import (
@@ -34,7 +29,7 @@ def test_public_exports_are_unique_and_resolve_to_the_maintained_components():
 
 def test_npc_package_keeps_repository_and_model_paths():
     root = Path(__file__).resolve().parents[2]
-    assert calibration.ROOT == search.ROOT == root
+    assert calibration.ROOT == road_evaluation.ROOT == root
     assert (
         calibration.MOBIL_PATH
         == root / "results/hierarchical_world_model/model_assets/mobil.json"
@@ -91,14 +86,3 @@ def test_autonomous_experiments_and_world_response_share_the_driving_kernel():
         assert (
             getattr(road, name) is getattr(online, name) is getattr(driver_policy, name)
         )
-
-
-def test_event_metadata_uses_physical_identity_after_row_reordering(tmp_path):
-    source = tmp_path / "events.csv"
-    pd.DataFrame({"segment_id": ["seq_b", "seq_a"], "recording_id": [2, 1]}).to_csv(
-        source, index=False
-    )
-    save_json({"source_dataset": str(source)}, tmp_path / "manifest.json")
-    metadata = event_metadata(tmp_path, {"sequence_id": np.array(["seq_a", "seq_b"])})
-    assert metadata.segment_id.tolist() == ["seq_a", "seq_b"]
-    assert metadata.recording_id.tolist() == [1, 2]

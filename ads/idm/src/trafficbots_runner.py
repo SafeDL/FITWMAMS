@@ -23,7 +23,7 @@ from hierarchical_world_model.src.core.utils import (
     save_json,
     select_device,
 )
-from tools.evt import load_evt_model
+from tools.evt import GPDTailModel
 from tools.idm_ego import load_idm_ego_config
 
 from .trafficbots_evaluator import TrafficBotsIDMWorldEvaluator
@@ -131,7 +131,7 @@ def _build_evaluator(
     evaluator = TrafficBotsIDMWorldEvaluator(
         initial_sampler,
         world,
-        load_evt_model(evt_path),
+        GPDTailModel.from_json(evt_path),
         steps=int(config["simulation"].get("steps", 149)),
         batch_size=int(config["runtime"].get("batch_size", 16)),
     )

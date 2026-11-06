@@ -12,7 +12,7 @@ from hierarchical_world_model.src.composition import HierarchicalWorldSampler
 @pytest.mark.parametrize("distribution", ["tail_generated", "natural_generated"])
 def test_registered_generator_loads_its_declared_population(distribution):
     settings = yaml.safe_load(
-        (REPO_ROOT / "ads/configs/risk_stratified_repair.yaml").read_text()
+        (REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml").read_text()
     )
     if (
         distribution == "natural_generated"
@@ -26,7 +26,7 @@ def test_registered_generator_loads_its_declared_population(distribution):
 
 
 def test_natural_checkpoint_cannot_silently_replace_tail_flow():
-    checkpoint = REPO_ROOT / "results/natural_flow/checkpoints/scenario_flow.pt"
+    checkpoint = REPO_ROOT / "results/flow/natural/checkpoints/scenario_flow.pt"
     if not checkpoint.exists():
         pytest.skip("natural Flow has not been fitted")
     with pytest.raises(ValueError, match="evt_tail Flow checkpoint"):

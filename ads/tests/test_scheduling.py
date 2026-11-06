@@ -16,13 +16,15 @@ def test_fresh_campaign_starts_baseline_without_a_policy_freeze(tmp_path, monkey
     import pytest
 
     config = yaml.safe_load(
-        (Path(__file__).parents[1] / "configs/risk_stratified_repair.yaml").read_text()
+        (
+            Path(__file__).parents[1] / "configs/diffusion_planner_experiment.yaml"
+        ).read_text()
     )
     config["output_dir"] = str(tmp_path / "out")
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(config))
     scheduler = Scheduler(path)
-    assert len(scheduler.graph) == 72
+    assert len(scheduler.graph) == 16
     assert all(not scheduler.done(task) for task in scheduler.graph)
 
     def launch(task):
@@ -32,36 +34,6 @@ def test_fresh_campaign_starts_baseline_without_a_policy_freeze(tmp_path, monkey
     monkeypatch.setattr(scheduler, "launch", launch)
     with pytest.raises(RuntimeError, match="initial policy import launched"):
         scheduler.run()
-
-
-def test_str2_repair_has_exclusive_gpu_admission():
-    scheduler = Scheduler.__new__(Scheduler)
-    scheduler.workers = 3
-    ordinary = Task("repair", "diffusion_planner", 20260926, "guided", 1)
-    str2 = Task("repair", "str2", 20260926, "guided", 1)
-    scheduler.running = {}
-    assert scheduler.can_launch(str2)
-    scheduler.running = {ordinary: 1}
-    assert scheduler.can_launch(Task("repair", "dqn", 20260926, "guided", 1))
-    assert not scheduler.can_launch(str2)
-    scheduler.running = {str2: 2}
-    assert not scheduler.can_launch(ordinary)
-
-
-def test_str2_inference_limit_covers_evaluation_and_diagnostics():
-    scheduler = Scheduler.__new__(Scheduler)
-    scheduler.workers = 12
-    initial = Task("iid", "str2", 20260926, "initial")
-    guided = Task("iid", "str2", 20260926, "guided")
-    diagnostic = Task("diagnostic", "str2", 20260926, "monte_carlo")
-    scheduler.running = {initial: 1, guided: 2}
-    assert scheduler.can_launch(diagnostic)
-    scheduler.running[diagnostic] = 3
-    assert not scheduler.can_launch(Task("iid", "str2", 20260926, "subset"))
-    assert not scheduler.can_launch(Task("diagnostic", "str2", 20260926, "subset"))
-    assert scheduler.can_launch(Task("iid", "dtpp", 20260926, "guided"))
-    scheduler.running.pop(initial)
-    assert scheduler.can_launch(Task("iid", "str2", 20260926, "subset"))
 
 
 def test_prepared_search_is_pending_training_not_failed_or_complete(
@@ -74,9 +46,9 @@ def test_prepared_search_is_pending_training_not_failed_or_complete(
 
     scheduler = Scheduler.__new__(Scheduler)
     scheduler.output = tmp_path
-    scheduler.workers = 2
-    prepared = Task("repair", "str2", 20260926, "guided", 1)
-    ordinary = Task("repair", "dtpp", 20260926, "guided", 2)
+    scheduler.workers = 1
+    prepared = Task("repair", "diffusion_planner", 20260926, "guided", 1)
+    ordinary = Task("repair", "carl", 20260926, "guided", 2)
     directory = prepared.directory(tmp_path)
     for name in (
         "search_summary.json",
@@ -104,7 +76,7 @@ def test_prepared_search_is_pending_training_not_failed_or_complete(
     monkeypatch.setattr(scheduler, "done", lambda task: False)
 
     def forbidden(task):
-        raise AssertionError("STR2 optimization must wait for the other worker")
+        raise AssertionError("Prepared repair must wait for the occupied worker")
 
     def tick(seconds):
         raise RuntimeError("one scheduler tick")
@@ -121,15 +93,15 @@ def test_prepared_search_is_pending_training_not_failed_or_complete(
 
 def test_final_iid_gate_depends_on_all_registered_training():
     config = {
-        "algorithms": ["dqn", "ppo", "carl", "plant2"],
+        "algorithms": ["diffusion_planner", "carl"],
         "seeds": [1, 2, 3],
         "methods": ["monte_carlo", "subset", "guided"],
         "rounds": 2,
     }
     graph = experiment_graph(config)
-    assert len(graph) == 170
+    assert len(graph) == 86
     freeze = Task("freeze")
-    assert len(graph[freeze]) == 36
+    assert len(graph[freeze]) == 18
     reached = set()
     pending = list(graph[freeze])
     while pending:
@@ -137,9 +109,9 @@ def test_final_iid_gate_depends_on_all_registered_training():
         if task not in reached:
             reached.add(task)
             pending.extend(graph[task])
-    assert len(reached) == 84
+    assert len(reached) == 42
     assert all(graph[t] == {freeze} for t in graph if t.stage == "iid")
-    assert len(graph[Task("report")]) == 84
+    assert len(graph[Task("report")]) == 42
 
 
 def test_incomplete_freeze_cannot_open_the_formal_evaluation_gate(tmp_path):
@@ -149,7 +121,7 @@ def test_incomplete_freeze_cannot_open_the_formal_evaluation_gate(tmp_path):
     campaign.output = tmp_path
     campaign.protocol_hash = "registered"
     campaign.config = {
-        "algorithms": ["dqn"],
+        "algorithms": ["carl"],
         "seeds": [1, 2],
         "methods": ["guided"],
         "rounds": 2,
@@ -160,7 +132,7 @@ def test_incomplete_freeze_cannot_open_the_formal_evaluation_gate(tmp_path):
     with pytest.raises(ValueError, match="complete registered policy set"):
         campaign.verify_freeze()
     policies = {
-        f"dqn/{seed}/{arm}": {} for seed in (1, 2) for arm in ("initial", "guided")
+        f"carl/{seed}/{arm}": {} for seed in (1, 2) for arm in ("initial", "guided")
     }
     path.write_text(json.dumps({"protocol_hash": "registered", "policies": policies}))
     with pytest.raises(ValueError, match="every registered repair checkpoint"):
@@ -170,7 +142,7 @@ def test_incomplete_freeze_cannot_open_the_formal_evaluation_gate(tmp_path):
 def test_status_file_does_not_substitute_for_completed_training(tmp_path):
     config = {
         "output_dir": str(tmp_path / "out"),
-        "algorithms": ["dqn"],
+        "algorithms": ["carl"],
         "seeds": [1],
         "methods": ["guided"],
         "rounds": 2,
@@ -180,14 +152,14 @@ def test_status_file_does_not_substitute_for_completed_training(tmp_path):
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(config))
     scheduler = Scheduler(path)
-    task = Task("baseline", "dqn", 1)
+    task = Task("baseline", "carl", 1)
     directory = task.directory(scheduler.output)
     directory.mkdir(parents=True)
     (directory / "unit_status.json").write_text(json.dumps({"status": "complete"}))
     assert not scheduler.done(task)
     protocol = {"settings": config}
     (scheduler.output / "protocol.json").write_text(json.dumps(protocol))
-    checkpoint = directory / "policy.zip"
+    checkpoint = directory / "policy.pth"
     checkpoint.write_bytes(b"checkpoint")
     inputs = directory / "inputs/curriculum.json"
     inputs.parent.mkdir()
@@ -219,7 +191,7 @@ def test_concurrent_pool_creation_uses_one_exact_sample_set(tmp_path, monkeypatc
     config = {
         "output_dir": str(tmp_path / "out"),
         "master_seed": 1,
-        "algorithms": ["dqn"],
+        "algorithms": ["carl"],
         "methods": ["guided"],
         "rounds": 2,
         "runtime": {"torch_threads": 1, "device": "cpu", "generation_batch_size": 2},
@@ -248,7 +220,7 @@ def test_dead_worker_restarts_incomplete_task(tmp_path, monkeypatch):
         yaml.safe_dump(
             {
                 "output_dir": str(tmp_path / "out"),
-                "algorithms": ["dqn"],
+                "algorithms": ["carl"],
                 "seeds": [1],
                 "methods": ["guided"],
                 "rounds": 2,
@@ -256,7 +228,7 @@ def test_dead_worker_restarts_incomplete_task(tmp_path, monkeypatch):
         )
     )
     scheduler = Scheduler(path)
-    task = Task("baseline", "dqn", 1)
+    task = Task("baseline", "carl", 1)
     scheduler.graph = {task: set()}
     directory = task.directory(scheduler.output)
     directory.mkdir(parents=True)
@@ -295,11 +267,9 @@ def test_parallel_expert_cache_does_not_duplicate_simulation(
         ), {"candidates": 8, "qualified_demonstration": True, "elapsed_s": 0.03}
 
     monkeypatch.setattr("ads.common.expert.successful_expert", execute)
-    monkeypatch.setattr(
-        "ads.plant2.demonstrations.demonstration", lambda *args: ([{}], 0)
-    )
+    monkeypatch.setattr("ads.nuplan.teacher.demonstration", lambda *args: [{}])
     cache = DemonstrationCache(
-        tmp_path, None, algorithm="plant2", cfg=None, candidate_budget=8
+        tmp_path, None, algorithm="diffusion_planner", candidate_budget=8
     )
     with ThreadPoolExecutor(2) as executor:
         results = list(executor.map(lambda _: cache.get(instance), range(2)))
@@ -307,9 +277,7 @@ def test_parallel_expert_cache_does_not_duplicate_simulation(
     assert sum(report["new_candidates"] for samples, report in results) == 8
 
 
-def test_five_supervised_planners_share_the_physical_expert_cache(
-    instance, tmp_path, monkeypatch
-):
+def test_diffusion_reuses_the_physical_expert_cache(instance, tmp_path, monkeypatch):
     from ads.common.demonstrations import DemonstrationCache
     from ads.common.expert import Candidate, TeacherExecution
 
@@ -329,11 +297,8 @@ def test_five_supervised_planners_share_the_physical_expert_cache(
         }
 
     monkeypatch.setattr("ads.common.expert.successful_expert", execute)
-    monkeypatch.setattr(
-        "ads.plant2.demonstrations.demonstration", lambda *args: ([{}], 0)
-    )
     reports = []
-    for algorithm in ("plant2", "diffusion_planner", "dtpp", "flow_planner", "str2"):
+    for algorithm in ("diffusion_planner", "diffusion_planner"):
         cache = DemonstrationCache(
             tmp_path, None, algorithm=algorithm, candidate_budget=8
         )

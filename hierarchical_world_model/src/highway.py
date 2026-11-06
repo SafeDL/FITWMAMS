@@ -228,7 +228,7 @@ class HighwayEnvTraffic:
     def _make_road(self, geometry: SceneGeometry) -> Any:
         StraightLane, Road, RoadNetwork, _, _ = _highway_classes()
         network = RoadNetwork()
-        for lane_id, centerline, width in zip(
+        for _, centerline, width in zip(
             geometry.lane_ids, geometry.centerlines, geometry.lane_widths
         ):
             direction = centerline[-1] - centerline[0]

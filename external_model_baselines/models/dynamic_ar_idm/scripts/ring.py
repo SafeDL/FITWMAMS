@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import argparse
+
 from external_model_baselines.models.dynamic_ar_idm.ring import plot_ring, simulate_ring
 
 parser = argparse.ArgumentParser(description="Paper Fig. 10-style Dynamic IDM ring simulation")

@@ -1,7 +1,9 @@
 """Causal filtering for a fitted finite explicit-duration regime model."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 import numpy as np
 
 from .hsmm import FiniteHSMM, _logsumexp
@@ -15,12 +17,15 @@ def duration_pmf(model: FiniteHSMM) -> np.ndarray:
 @dataclass(frozen=True)
 class FilterState:
     """Posterior mass after the latest observation; duration axis is remaining ticks."""
+
     mass: np.ndarray
     observations_seen: int
     low_observation_likelihood: bool = False
 
 
-def _observe(model: FiniteHSMM, mass: np.ndarray, observation: np.ndarray) -> tuple[np.ndarray, bool]:
+def _observe(
+    model: FiniteHSMM, mass: np.ndarray, observation: np.ndarray
+) -> tuple[np.ndarray, bool]:
     log_likelihood = model._emission_logpdf(np.asarray(observation, float)[None, :])[0]
     log_prior = np.full_like(mass, -np.inf, dtype=float)
     positive = mass > 0
@@ -30,7 +35,7 @@ def _observe(model: FiniteHSMM, mass: np.ndarray, observation: np.ndarray) -> tu
     # Log normalization preserves a useful posterior even when every state is
     # implausible.  Expose that condition rather than silently inventing a new
     # emergency state.
-    return np.exp(log_weight - normalizer), bool(normalizer < -30.)
+    return np.exp(log_weight - normalizer), bool(normalizer < -30.0)
 
 
 def initialize_filter(model: FiniteHSMM, observation: np.ndarray) -> FilterState:
@@ -50,18 +55,29 @@ def predict_filter(model: FiniteHSMM, state: FilterState) -> np.ndarray:
     for previous in range(model.states):
         for current in range(model.states):
             if current != previous:
-                next_mass[current] += mass[previous, 0] * model.transition[previous, current] * fresh[current]
+                next_mass[current] += (
+                    mass[previous, 0]
+                    * model.transition[previous, current]
+                    * fresh[current]
+                )
     total = float(np.sum(next_mass))
-    if not np.isclose(total, 1., atol=1.e-10):
-        raise FloatingPointError(f"duration/regime prediction lost probability mass: {total}")
+    if not np.isclose(total, 1.0, atol=1.0e-10):
+        raise FloatingPointError(
+            f"duration/regime prediction lost probability mass: {total}"
+        )
     return next_mass
 
 
-def filter_step(model: FiniteHSMM, state: FilterState, observation: np.ndarray) -> FilterState:
+def filter_step(
+    model: FiniteHSMM, state: FilterState, observation: np.ndarray
+) -> FilterState:
     """Causally predict one tick, then condition on that tick's observation."""
     posterior, low = _observe(model, predict_filter(model, state), observation)
-    return FilterState(posterior, observations_seen=state.observations_seen + 1,
-                       low_observation_likelihood=state.low_observation_likelihood or low)
+    return FilterState(
+        posterior,
+        observations_seen=state.observations_seen + 1,
+        low_observation_likelihood=state.low_observation_likelihood or low,
+    )
 
 
 def regime_posterior(state: FilterState) -> np.ndarray:

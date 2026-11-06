@@ -4,8 +4,12 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset
 
+from external_model_baselines.models.trafficbots.data import (
+    adapt_highd_batch,
+    make_loader,
+    states_to_motion,
+)
 from hierarchical_world_model.src.core.highd_metrics import semantic_cutin_agents
-from external_model_baselines.models.trafficbots.data import adapt_highd_batch, make_loader, states_to_motion
 
 
 def _fixture():

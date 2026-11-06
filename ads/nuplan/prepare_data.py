@@ -84,22 +84,21 @@ def session_id(log_name):
 def read_archive(part):
     url = f"{ARCHIVE_ROOT}/nuplan-v1.1_train_{part}.zip"
     city = "las_vegas" if part.startswith("vegas_") else part
-    records = []
     with RangeFile(url) as source, zipfile.ZipFile(source) as archive:
-        for member in sorted(archive.infolist(), key=lambda item: item.filename):
-            if member.filename.endswith(".db"):
-                records.append(
-                    {
-                        "city": city,
-                        "archive": part,
-                        "session": session_id(Path(member.filename).stem),
-                        "log": Path(member.filename).stem,
-                        "member": member.filename,
-                        "bytes": member.file_size,
-                        "compressed_bytes": member.compress_size,
-                        "crc32": member.CRC,
-                    }
-                )
+        records = [
+            {
+                "city": city,
+                "archive": part,
+                "session": session_id(Path(member.filename).stem),
+                "log": Path(member.filename).stem,
+                "member": member.filename,
+                "bytes": member.file_size,
+                "compressed_bytes": member.compress_size,
+                "crc32": member.CRC,
+            }
+            for member in sorted(archive.infolist(), key=lambda item: item.filename)
+            if member.filename.endswith(".db")
+        ]
         info = {
             "part": part,
             "city": city,

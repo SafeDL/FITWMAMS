@@ -1,11 +1,11 @@
 """Configuration loading for the isolated TrafficBots highD baseline."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG = ROOT / "config" / "highd.yaml"

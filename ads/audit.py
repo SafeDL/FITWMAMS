@@ -2,14 +2,11 @@
 
 import argparse
 import json
-import pickle
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
-from zipfile import ZipFile
 
 import numpy as np
-import torch
 import yaml
 
 from ads.common.evaluation_sampling import verify_final_roots, verify_sampling_spec
@@ -17,39 +14,11 @@ from ads.common.instances import GeneratedInstance, file_hash, json_hash
 from ads.common.reporting import write_json
 from ads.common.setup import REPO_ROOT
 from ads.tasks import (
-    NATIVE_PLANNERS,
     POLICY_SUFFIX,
     SUPERVISED_ALGORITHMS,
     experiment_graph,
     training_budget,
 )
-
-
-def checkpoint_progress(path, algorithm):
-    if algorithm in ("dqn", "ppo"):
-        with ZipFile(path) as archive:
-            return json.loads(archive.read("data"))["num_timesteps"]
-    path = Path(path)
-    if algorithm == "str2":
-        optimizer = (
-            torch.load(
-                path / "ads_optimizer.pth", map_location="cpu", weights_only=False
-            )
-            if (path / "ads_optimizer.pth").exists()
-            else None
-        )
-    else:
-        payload = torch.load(path, map_location="cpu", weights_only=False, mmap=True)
-        optimizer = (
-            payload.get("ads_optimizer")
-            if algorithm in NATIVE_PLANNERS
-            else payload.get("optimizer")
-        )
-    return (
-        max((int(state["step"]) for state in optimizer["state"].values()), default=0)
-        if optimizer
-        else 0
-    )
 
 
 def check_archive_execution_labels(archive, snapshots):
@@ -93,35 +62,6 @@ def check_archive_execution_labels(archive, snapshots):
             raise ValueError(
                 "success neighbour has no boundary under one policy snapshot"
             )
-
-
-def check_dqn_replay(directory, *, baseline_steps, round_index, steps):
-    directory = Path(directory)
-    with ZipFile(directory / "policy.zip") as archive:
-        settings = json.loads(archive.read("data"))
-    warmup = min(1024, max(1, steps // 4))
-    if settings["learning_starts"] != baseline_steps + warmup:
-        raise ValueError("DQN fresh-buffer warmup differs from the cumulative baseline")
-    with (directory / "replay_buffer.pkl").open("rb") as stream:
-        replay = pickle.load(stream)
-    expected = min(settings["buffer_size"], round_index * steps)
-    if replay.size() != expected or replay.full != (
-        round_index * steps >= settings["buffer_size"]
-    ):
-        raise ValueError(
-            "DQN replay does not contain exactly the new-world repair experience"
-        )
-    if replay.observations.shape[-1] != 49 or replay.action_space.n != 5:
-        raise ValueError(
-            "DQN replay changed the registered observation or action interface"
-        )
-    if (
-        not np.isfinite(replay.observations[:expected]).all()
-        or not np.isfinite(replay.next_observations[:expected]).all()
-    ):
-        raise ValueError("DQN replay contains non-finite observations")
-    if not np.isin(replay.actions[:expected], np.arange(5)).all():
-        raise ValueError("DQN replay contains an invalid semantic action")
 
 
 def check_records(records, *, assets_hash, cohort=None):
@@ -181,14 +121,6 @@ def audit_training(output, config, *, deep=False):
         )
         actual = report["learning"][field]
         skipped = report["learning"].get("skipped") == "no_qualified_demonstrations"
-        if (
-            task.algorithm == "dtpp"
-            and task.stage == "repair"
-            and not skipped
-            and report["learning"].get("dtpp_attention_mask_layout")
-            != "batch_then_head"
-        ):
-            raise ValueError("DTPP repair lacks the corrected attention-mask layout")
         if actual != budget and not (
             task.algorithm in SUPERVISED_ALGORITHMS and actual == 0 and skipped
         ):
@@ -238,10 +170,7 @@ def audit_training(output, config, *, deep=False):
             if [r["evaluation_index"] for r in rows] != list(range(1, len(rows) + 1)):
                 raise ValueError("search execution sequence differs")
             counts = Counter(r["execution_kind"] for r in rows)
-            if (
-                dict(counts) != summary["execution_costs"]
-                or counts["branch_check"] > config["search"]["branch_check_budget"]
-            ):
+            if dict(counts) != summary["execution_costs"] or counts["branch_check"] > 0:
                 raise ValueError("branch-check or total cost ledger differs")
             if counts["archive_replay"] > config["search"]["replay_limit"]:
                 raise ValueError("archive replay limit exceeded")
@@ -293,14 +222,6 @@ def audit_training(output, config, *, deep=False):
                 )
                 if roots and max(roots.values()) > archive["root_limit"]:
                     raise ValueError("archive ancestor limit exceeded")
-            if deep and task.algorithm == "dqn":
-                baseline = output / "dqn" / str(task.seed) / "baseline/policy.zip"
-                check_dqn_replay(
-                    directory,
-                    baseline_steps=checkpoint_progress(baseline, "dqn"),
-                    round_index=task.round_index,
-                    steps=budget,
-                )
             executions += len(rows)
         metadata[task] = report
     return {
@@ -395,7 +316,7 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "ads/configs/risk_stratified_repair.yaml",
+        default=REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml",
     )
     parser.add_argument("--deep", action="store_true")
     args = parser.parse_args()

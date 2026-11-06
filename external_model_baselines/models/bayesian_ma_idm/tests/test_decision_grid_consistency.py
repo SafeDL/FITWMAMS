@@ -2,8 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.evaluation import _completed_decision_actions, _prefix_history
-from external_model_baselines.models.bayesian_ma_idm.src.full_model import DECISION_STRIDE, _residual, _starts
+from external_model_baselines.models.bayesian_ma_idm.src.evaluation import (
+    _completed_decision_actions,
+    _prefix_history,
+)
+from external_model_baselines.models.bayesian_ma_idm.src.full_model import (
+    DECISION_STRIDE,
+    _residual,
+    _starts,
+)
 from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import idm
 
 

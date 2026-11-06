@@ -1,7 +1,13 @@
 from __future__ import annotations
+
 import numpy as np
+
 from external_model_baselines.models.bayesian_ma_idm.src.driver import BayesianIDMDriver
-from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import conditional_gp, se_kernel
+from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import (
+    conditional_gp,
+    se_kernel,
+)
+
 
 def test_gp_conditional_matches_direct_multivariate_normal_formula() -> None:
     times=np.array([0.,.2,.4,.6]); residual=np.array([.1,-.2,.3,.05]); sigma=0.7; ell=.45; target=.8

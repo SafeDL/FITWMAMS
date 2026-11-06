@@ -65,7 +65,7 @@ def test_admission_rejects_natural_regression_and_retains_original_cache(
                 "record": record(
                     path.stem,
                     collision=natural and policy == policies["regression"] and i == 0,
-                    progress=99.0,
+                    progress=80.0,
                 ),
             }
             for i, path in enumerate(paths)
@@ -73,7 +73,7 @@ def test_admission_rejects_natural_regression_and_retains_original_cache(
 
     monkeypatch.setattr(module, "evaluate_paths", execute)
     campaign = SimpleNamespace(
-        config={"capability_preserving_repair": {"minimum_progress_ratio": 0.98}},
+        config={},
         ledger=UsageLedger(tmp_path / "usage.sqlite"),
     )
     directory = tmp_path / "round_1"
@@ -155,7 +155,7 @@ def test_unchanged_development_needs_archive_repair_without_neighbour_regression
 
     monkeypatch.setattr(module, "evaluate_paths", execute)
     campaign = SimpleNamespace(
-        config={"capability_preserving_repair": {"minimum_progress_ratio": 0.98}},
+        config={},
         ledger=UsageLedger(tmp_path / "usage.sqlite"),
     )
     selected, report = module.admission(

@@ -2,8 +2,10 @@
 
 from collections import defaultdict
 from typing import Any
+
 import numpy as np
 from scipy.spatial import cKDTree
+
 from hierarchical_world_model.src.core.evaluation_scope import (
     scoped_canonical_trajectory,
 )

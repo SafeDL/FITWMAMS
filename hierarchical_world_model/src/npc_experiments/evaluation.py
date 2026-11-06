@@ -13,7 +13,7 @@ from ..data import artifact_identity
 from ..stochastic_drivers.raw_data import (
     DRIVER_DATA_DIR,
     SPLITS,
-    load_lane_opportunities,
+    load_group,
 )
 from ..stochastic_drivers.response_data import load_response
 from .calibration import (
@@ -27,7 +27,7 @@ from .metrics import (
     FEATURE_EDGES,
     hellinger,
 )
-from .search import (
+from .road_evaluation import (
     closed_summary,
     load_cohorts,
     run_cohorts,
@@ -262,7 +262,7 @@ def conditional_subgroups(output, settings):
     ):
         _save_conditional_table(output, summary)
         return summary
-    following, lanes = load_response(), load_lane_opportunities(DRIVER_DATA_DIR)
+    following, lanes = load_response(), load_group(DRIVER_DATA_DIR, group="lane")
     edges = np.quantile(following["train"]["density"], [1 / 3, 2 / 3])
     summary["subgroup_protocol"] = {
         "groups": list(SUBGROUPS),
@@ -426,7 +426,7 @@ def conditional_evaluation(output, settings):
         conditional_subgroups(output, settings)
         return conditional_process_evaluation(output, settings)
     following = load_response()
-    lanes = load_lane_opportunities(DRIVER_DATA_DIR)
+    lanes = load_group(DRIVER_DATA_DIR, group="lane")
     following["all"], lanes["all"] = combine_splits(following), combine_splits(lanes)
     for split in (*SPLITS, "all"):
         summary["splits"].setdefault(split, {})
@@ -1113,7 +1113,7 @@ def conditional_process_evaluation(output, settings):
                 )
     calibration_rows = []
     for split, stages in summary["splits"].items():
-        for stage, result in stages.items():
+        for stage in stages:
             prefixes = [
                 f"{split}__{stage}__subgroup__{group}__" for group in ("car", "truck")
             ]
@@ -1148,10 +1148,7 @@ def conditional_process_evaluation(output, settings):
     pd.concat(
         [pd.read_csv(table_path), pd.DataFrame(rows), pd.DataFrame(calibration_rows)],
         ignore_index=True,
-    ).assign(
-        phase="evaluation",
-        fit_split="train",
-    ).to_csv(table_path, index=False)
+    ).assign(phase="evaluation", fit_split="train",).to_csv(table_path, index=False)
     return summary
 
 

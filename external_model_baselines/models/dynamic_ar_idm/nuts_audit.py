@@ -1,4 +1,5 @@
 """Chain-separated posterior-predictive audit for non-mixing NUTS fits."""
+
 from __future__ import annotations
 
 import json
@@ -9,12 +10,16 @@ import numpy as np
 from .data import load_pairs
 from .evaluate import evaluate_paper_cohort
 
-
 METRICS = ("a_rmse", "v_rmse", "s_rmse", "a_crps", "v_crps", "s_crps")
 
 
-def _export_chain(nc_path: str | Path, dataset_path: str | Path, output_path: Path, chain: int,
-                  max_draws: int) -> Path:
+def _export_chain(
+    nc_path: str | Path,
+    dataset_path: str | Path,
+    output_path: Path,
+    chain: int,
+    max_draws: int,
+) -> Path:
     """Export one chain without ever pooling it with another chain."""
     import arviz as az
 
@@ -42,22 +47,33 @@ def _export_chain(nc_path: str | Path, dataset_path: str | Path, output_path: Pa
         rho_map=np.mean(rho, axis=0) if rho.shape[1] else np.empty(0),
         sigma_map=np.asarray(np.mean(sigma)),
         pair_no=np.asarray([pair["pair_no"] for pair in pairs]),
-        parameter_names=np.asarray(("v0_mps", "s0_m", "T_s", "alpha_mps2", "beta_mps2")),
+        parameter_names=np.asarray(
+            ("v0_mps", "s0_m", "T_s", "alpha_mps2", "beta_mps2")
+        ),
         ar_order=np.asarray(rho.shape[1]),
-        fit_backend=np.asarray("pymc_nuts_single_chain_failed_global_convergence_audit"),
+        fit_backend=np.asarray(
+            "pymc_nuts_single_chain_failed_global_convergence_audit"
+        ),
         source_chain=np.asarray(chain),
         source_draws=np.asarray(available),
         exported_draws=np.asarray(len(indices)),
-        decision_dt_s=np.asarray(.2),
-        plant_dt_s=np.asarray(.04),
+        decision_dt_s=np.asarray(0.2),
+        plant_dt_s=np.asarray(0.04),
     )
     return output_path
 
 
-def audit_chainwise_predictions(dataset_path: str | Path, ar0_nc: str | Path, ar5_nc: str | Path,
-                                output_path: str | Path, *, futures: int = 64,
-                                max_horizon_s: int = 5, chain_draws: int = 512,
-                                seed: int = 20260916) -> Path:
+def audit_chainwise_predictions(
+    dataset_path: str | Path,
+    ar0_nc: str | Path,
+    ar5_nc: str | Path,
+    output_path: str | Path,
+    *,
+    futures: int = 64,
+    max_horizon_s: int = 5,
+    chain_draws: int = 512,
+    seed: int = 20260916,
+) -> Path:
     """Compare AR(0)/AR(5) predictions without pooling non-converged chains.
 
     The output is a sensitivity diagnostic, not a substitute for a converged
@@ -75,14 +91,23 @@ def audit_chainwise_predictions(dataset_path: str | Path, ar0_nc: str | Path, ar
     for label, nc_path, count in (("ar0", ar0_nc, n0), ("ar5", ar5_nc, n5)):
         for chain in range(count):
             chain_dir = output_path.parent / "chainwise" / label / f"chain_{chain}"
-            posterior_path = _export_chain(nc_path, dataset_path, chain_dir / "posterior.npz", chain, chain_draws)
+            posterior_path = _export_chain(
+                nc_path, dataset_path, chain_dir / "posterior.npz", chain, chain_draws
+            )
             metrics_path = evaluate_paper_cohort(
-                dataset_path, posterior_path, chain_dir / "metrics.json", futures=futures,
-                max_horizon_s=max_horizon_s, seed=seed + chain, rho_mode="posterior",
+                dataset_path,
+                posterior_path,
+                chain_dir / "metrics.json",
+                futures=futures,
+                max_horizon_s=max_horizon_s,
+                seed=seed + chain,
+                rho_mode="posterior",
             )
             metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
             horizon = metrics["horizons"][str(max_horizon_s)]
-            rows[label].append({"chain": chain, **{name: horizon[name]["mean"] for name in METRICS}})
+            rows[label].append(
+                {"chain": chain, **{name: horizon[name]["mean"] for name in METRICS}}
+            )
 
     comparison = {}
     all_better = True
@@ -95,7 +120,9 @@ def audit_chainwise_predictions(dataset_path: str | Path, ar0_nc: str | Path, ar
             "ar5_chain_range": [float(np.min(ar5_values)), float(np.max(ar5_values))],
             "all_pairwise_better_count": int(np.sum(pairwise)),
             "all_pairwise_comparisons": int(pairwise.size),
-            "ar5_mean_relative_change_pct": float(100. * (np.mean(ar5_values) / np.mean(ar0_values) - 1.)),
+            "ar5_mean_relative_change_pct": float(
+                100.0 * (np.mean(ar5_values) / np.mean(ar0_values) - 1.0)
+            ),
         }
         all_better &= bool(np.all(pairwise))
     report = {

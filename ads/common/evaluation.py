@@ -10,6 +10,7 @@ from ads.common.instances import json_hash
 from ads.common.randomness import PolicyRandomContext
 from ads.common.safety import initial_safety
 from hierarchical_world_model.src.execution import trajectory_event_risk
+from hierarchical_world_model.src.reaction_controller import ManeuverPhase
 from process_highD.src.safety_envelope_risk import (
     SafetyEnvelopeRiskOptions,
     pairwise_safety_envelope_intrusion,
@@ -151,6 +152,23 @@ def summarise_trace(
             if states[-1, 0, 1] > np.mean(lane_centers)
             else "offroad_right"
         )
+    speeds = np.linalg.norm(states[:, 0, 2:4], axis=-1)
+    dx = states[:, 1:, 0] - states[:, 0:1, 0]
+    dy = np.abs(states[:, 1:, 1] - states[:, 0:1, 1])
+    overlap_width = (
+        event.vehicle_dimensions[1:, 1] + event.vehicle_dimensions[0, 1]
+    ) / 2 + 0.5
+    ahead = (dx > 0) & (dy < overlap_width) & event.valid[None, 1:]
+    gap = dx - (event.vehicle_dimensions[1:, 0] + event.vehicle_dimensions[0, 0]) / 2
+    front_gap = np.where(ahead, gap, np.inf).min(axis=1)
+    sustained_low = frames >= 51 and np.mean(speeds[-50:] < 2) >= 0.9
+    open_opportunity = float(np.mean(front_gap[-50:] > 30))
+    avoidable_stop = bool(
+        not safety_failure
+        and sustained_low
+        and open_opportunity >= 0.8
+        and states[-1, 0, 0] - states[-51, 0, 0] < 2
+    )
     record = {
         "event_id": instance.instance_hash,
         "instance_hash": instance.instance_hash,
@@ -164,6 +182,9 @@ def summarise_trace(
         "offroad": offroad,
         "npc_collision": bool(npc_collision or info.get("npc_collision", False)),
         "stalled": bool(info.get("stalled", False)),
+        "sustained_low_speed": bool(sustained_low),
+        "open_front_fraction_last_2s": open_opportunity,
+        "avoidable_stop": avoidable_stop,
         "numerical_valid": True,
         "progress_m": float(states[-1, 0, 0] - states[0, 0, 0]),
         "speed_mps": float(np.linalg.norm(states[-1, 0, 2:4])),
@@ -191,6 +212,149 @@ def summarise_trace(
         states,
         np.asarray(controls, np.float32).reshape(-1, 2),
         diagnostics,
+    )
+
+
+def annotate_dependencies(result, controller):
+    """Trace random writes through the frozen residual recurrence and ownership.
+
+    Reading a noise row does not imply that row changes persistent state. The
+    residual's age gate is replayed at float32 precision, including writes made
+    before takeover. This bookkeeping never changes the traffic controller.
+    """
+    omega = result.instance.event.exogenous_state
+    masks = {
+        name: np.zeros_like(value, bool) for name, value in omega.as_dict().items()
+    }
+    slot = int(result.record.get("critical_slot", -1))
+    related = {slot}
+    for diagnostic in result.diagnostics[: result.record["critical_frame"]]:
+        for name in ("takeover_influencer", "controller_realized_leader_index"):
+            values = np.asarray(diagnostic.get(name, [])).reshape(-1)
+            for actor in tuple(related):
+                if 1 <= actor <= len(values) and values[actor - 1] > 0:
+                    related.add(int(values[actor - 1]))
+    actors = np.array(
+        [
+            actor in related and result.instance.event.valid[actor]
+            for actor in range(1, 7)
+        ]
+    )
+    parameters = (controller.driver_correction or {}).get("longitudinal")
+    residual = [set(), set(), set()]
+    age = np.float32(0)
+    consumed, writes, opportunities, adoptions = [], [], [], []
+    missing_maneuver_frames, unknown_admissions = [], []
+    onset = controller.mobil_onset_calibration is not None
+    for tick, diagnostic in enumerate(
+        result.diagnostics[: result.record["critical_frame"]]
+    ):
+        owned = np.asarray(diagnostic.get("takeover_owned", np.zeros(6)), bool).reshape(
+            -1
+        )
+        if parameters is not None:
+            current_noise = ("response", tick, 1)
+            if tick == 0:
+                residual = [
+                    {current_noise},
+                    {current_noise, ("calibration", 0, 0)},
+                    {current_noise, ("calibration", 0, 0), ("calibration", 0, 1)},
+                ]
+                writes.append(tick)
+            else:
+                age = np.float32(age + controller.native_dt_s)
+                if age >= parameters["autoregression"]["interval_seconds"] - 1e-7:
+                    current, previous = residual[2], residual[0]
+                    residual = [current, previous, current | previous | {current_noise}]
+                    age = np.float32(
+                        max(0, age - parameters["autoregression"]["interval_seconds"])
+                    )
+                    writes.append(tick)
+            for actor in np.flatnonzero(actors & owned):
+                for group, time_index, channel in residual[0] | residual[2]:
+                    name = (
+                        "policy_response_innovations"
+                        if group == "response"
+                        else "policy_calibration_innovations"
+                    )
+                    masks[name][0, time_index, actor, channel] = True
+                masks["driver_latent"][0, actor] = True
+                consumed.append([tick, int(actor), 1])
+        if onset and owned.any():
+            if not all(
+                name in diagnostic
+                for name in ("input_maneuver_phase", "input_maneuver_cooldown")
+            ):
+                missing_maneuver_frames.append(tick)
+                continue
+            phase = np.asarray(diagnostic["input_maneuver_phase"]).reshape(-1).copy()
+            cooldown = np.maximum(
+                np.asarray(diagnostic["input_maneuver_cooldown"]).reshape(-1) - 1, 0
+            )
+            # The frozen NPC policy decrements cooldown before testing onset.
+            phase[(phase == ManeuverPhase.REBASE) & (cooldown == 0)] = (
+                ManeuverPhase.TRACK
+            )
+            entered = np.asarray(diagnostic["takeover_started"], bool).reshape(-1)
+            eligible = actors & owned
+            if "input_maneuver_adopted" in diagnostic:
+                adopted = np.asarray(
+                    diagnostic["input_maneuver_adopted"], bool
+                ).reshape(-1)
+                phase[adopted] = ManeuverPhase.EXECUTE
+                for actor in np.flatnonzero(eligible & adopted):
+                    masks["maneuver_latent"][0, actor, 2:4] = True
+                    adoptions.append([tick, int(actor)])
+            else:
+                unknown_admissions.extend(
+                    [tick, int(actor)] for actor in np.flatnonzero(eligible & entered)
+                )
+                eligible &= ~entered
+            for actor in np.flatnonzero(eligible):
+                state = result.states[tick, actor + 1]
+                lane = result.instance.event.geometry.nearest_lane(state[:2])
+                center = result.instance.event.geometry.center_y(lane)
+                geometry = result.instance.event.geometry
+                width = geometry.lane_widths[geometry.lane_ids == lane][0]
+                # Eligible draws count even if the sampled maneuver did not start.
+                if (
+                    phase[actor] in (ManeuverPhase.TRACK, ManeuverPhase.RESPOND)
+                    and cooldown[actor] == 0
+                    and abs(state[1] - center) < 0.2 * width
+                    and abs(state[3]) < 0.3
+                ):
+                    masks["policy_response_innovations"][0, tick, actor, 0] = True
+                    masks["maneuver_latent"][0, actor] = True
+                    opportunities.append([tick, int(actor)])
+    maneuver = [2, 3]
+    if (
+        controller.mobil_onset_calibration is None
+        and controller.mobil_parameter_variation
+    ):
+        maneuver = [0, 1, 2, 3]
+    elif onset and controller.lane_style is not None:
+        maneuver = [0, 2, 3]
+    masks["maneuver_latent"][..., [i for i in range(4) if i not in maneuver]] = False
+    result.record.update(
+        input_dependencies={
+            name: np.flatnonzero(mask).tolist()
+            for name, mask in masks.items()
+            if name
+            not in (
+                "scenario_uniform",
+                "c0_base_latent",
+                "k_base_latent",
+                "diffusion_noise",
+            )
+        },
+        static_input_components={"maneuver_latent": maneuver},
+        interaction_actors=sorted(a for a in related if a > 0),
+        response_consumed_coordinates=consumed,
+        response_write_ticks=writes,
+        maneuver_opportunities=opportunities,
+        maneuver_adoptions=adoptions,
+        maneuver_unobserved_frames=missing_maneuver_frames,
+        maneuver_unobserved_admissions=unknown_admissions,
     )
 
 
@@ -259,4 +423,7 @@ class WorldEvaluator:
         )
         result.record["policy_stream_id"] = context.identity
         result.record["policy_random_mode"] = context.mode
+        controller = getattr(env.world, "controller", None)
+        if controller is not None:
+            annotate_dependencies(result, controller)
         return result

@@ -10,11 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import sys
 import time
 import types
-
+from pathlib import Path
 
 OFFICIAL_COMMIT = "56655de845644c45f01ab2898544e55316a3279b"
 GRID = tuple((time_gap, speed) for time_gap in (0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Materialize every source-compatible ≥50 s highD following pair at native 25 Hz."""
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
@@ -8,7 +9,9 @@ from pathlib import Path
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from external_model_baselines.models.bayesian_ma_idm.src.data import build_author_full_dataset
+from external_model_baselines.models.bayesian_ma_idm.src.data import (
+    build_author_full_dataset,
+)
 
 
 def main() -> None:

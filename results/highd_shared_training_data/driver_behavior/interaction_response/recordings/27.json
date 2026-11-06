@@ -1,0 +1,10 @@
+{
+  "actual_overlap_excluded": 0,
+  "anticipated_entries": 19691,
+  "physical_vehicles": 2599,
+  "recording": 27,
+  "response_states": 156734,
+  "sampled_states": 190548,
+  "short_gap_states": 1,
+  "split": "val"
+}

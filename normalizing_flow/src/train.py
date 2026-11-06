@@ -97,7 +97,7 @@ def _epoch(model, loader, device, *, optimizer=None, grad_clip: float = 0.0):
 
     training = optimizer is not None
     model.train(training)
-    totals = {name: 0.0 for name in ("joint", "mask", "c0", "k")}
+    totals = dict.fromkeys(("joint", "mask", "c0", "k"), 0.0)
     count = 0
     for c0, slots, constraint in loader:
         c0 = c0.to(device, non_blocking=True)
@@ -325,7 +325,7 @@ def train_tail_flow(
         folds=int(config["evaluation"]["cross_validation_folds"]),
         seed=seed,
     )
-    save_json(cross_validation, output / "cross_validation.json")
+    save_json(cross_validation, output / "reports/cross_validation.json")
     model, history = _fit(
         arrays,
         schema,
@@ -336,14 +336,14 @@ def train_tail_flow(
         device,
         seed=seed,
     )
-    pd.DataFrame(history).to_csv(output / "training_history.csv", index=False)
+    pd.DataFrame(history).to_csv(output / "reports/training_history.csv", index=False)
     checkpoint = output / "checkpoints/scenario_flow.pt"
     metrics = {
         "population": "evt_tail",
         "fit_scope": "all_evt_tail_events",
         "num_fit_events": len(rows),
         "epochs": int(training["epochs"]),
-        "cross_validation": "results/flow/cross_validation.json",
+        "cross_validation": "results/flow/reports/cross_validation.json",
     }
     save_checkpoint(checkpoint, model, model_cfg, metrics)
     summary = {
@@ -357,7 +357,7 @@ def train_tail_flow(
         "parameter_count": int(sum(value.numel() for value in model.parameters())),
         **metrics,
     }
-    save_json(summary, output / "training_summary.json")
+    save_json(summary, output / "reports/training_summary.json")
     LOGGER.info("Wrote all-tail Flow checkpoint: %s", checkpoint)
     return summary
 
@@ -380,7 +380,12 @@ def train_natural_flow(config, *, config_dir, repo_root):
     config_dir, repo_root = Path(config_dir).resolve(), Path(repo_root).resolve()
     output = output_dir_from_config(config, config_dir)
     tail_output = (repo_root / "results/flow").resolve()
-    if output.resolve() == tail_output or tail_output in output.resolve().parents:
+    checkpoint = output / "checkpoints/scenario_flow.pt"
+    if (
+        output.resolve() == tail_output
+        or checkpoint.resolve()
+        == (tail_output / "checkpoints/scenario_flow.pt").resolve()
+    ):
         raise ValueError("natural Flow output must be separate from tail assets")
     arrays, schema = load_scenario_dataset(dataset_dir_from_config(config, config_dir))
     arrays, schema, rows = natural_fit_population(arrays, schema)
@@ -402,16 +407,15 @@ def train_natural_flow(config, *, config_dir, repo_root):
         "epochs": int(training["epochs"]),
         "fit_recordings": np.unique(arrays["recording_id"][rows]).tolist(),
     }
-    checkpoint = output / "checkpoints/scenario_flow.pt"
     save_checkpoint(checkpoint, model, config["model"], metrics)
-    save_json(schema, output / "dataset_schema.json")
-    pd.DataFrame(history).to_csv(output / "training_history.csv", index=False)
+    save_json(schema, output / "reports/dataset_schema.json")
+    pd.DataFrame(history).to_csv(output / "reports/training_history.csv", index=False)
     save_json(
         {
             **metrics,
             "checkpoint": str(checkpoint),
             "fit_event_ids": schema["fit_event_ids"],
         },
-        output / "training_summary.json",
+        output / "reports/training_summary.json",
     )
     return metrics

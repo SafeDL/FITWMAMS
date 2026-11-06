@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.evaluation import condition_driver_candidates, condition_driver_joint
+from external_model_baselines.models.bayesian_ma_idm.src.evaluation import (
+    condition_driver_candidates,
+    condition_driver_joint,
+)
 
 
 def test_prefix_personalization_never_reads_prediction_future() -> None:

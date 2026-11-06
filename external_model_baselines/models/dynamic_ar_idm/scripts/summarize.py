@@ -1,6 +1,8 @@
 """Write a compact AR(0) vs AR(5) decision artifact from completed evaluations."""
 from __future__ import annotations
-import argparse, json
+
+import argparse
+import json
 from pathlib import Path
 
 parser = argparse.ArgumentParser()

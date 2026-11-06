@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from copy import deepcopy
 from typing import Any, ClassVar
 
 import gymnasium as gym
@@ -11,83 +12,25 @@ import torch
 from gymnasium import spaces
 
 from ads.common.control import (
-    ACTION_NAMES,
     ContinuousController,
     NuplanTrajectoryController,
-    SemanticEgoController,
-    TrajectoryController,
 )
 from ads.common.observations import (
     CausalScene,
     carl_constraints,
     carl_observation,
-    plant_observation,
 )
 from ads.common.safety import initial_safety
 from ads.common.world import WorldEvent
 from ads.tasks import NATIVE_PLANNERS, POLICY_SUFFIX
 from hierarchical_world_model.src.highway import yaw_rate_to_steering
-from hierarchical_world_model.src.scene_geometry import SceneGeometry
 
 LONGITUDINAL_RESPONSE_THRESHOLD_MPS2 = 0.2
 MANEUVER_RESPONSE_THRESHOLD_RPS = 0.01
 
 
-def build_ads_observation(
-    states: np.ndarray,
-    valid: np.ndarray,
-    geometry: SceneGeometry,
-    controller: SemanticEgoController,
-    *,
-    reference_index: int,
-    horizon: int,
-) -> np.ndarray:
-    """Build the public causal 49-D ADS observation for one world."""
-    states = np.asarray(states)
-    valid = np.asarray(valid, bool)
-    ego = states[0]
-    ego_speed = float(np.linalg.norm(ego[2:4]))
-    ego_heading = float(np.arctan2(ego[3], max(abs(ego[2]), 1.0e-6)))
-    lane_id = geometry.nearest_lane(ego[:2])
-    lane_y = geometry.center_y(lane_id)
-    target_lane_delta = controller.target_y - lane_y
-    head = np.asarray(
-        (
-            ego_speed / 45.0,
-            float(ego[4]) / 8.0,
-            ego_heading / np.pi,
-            (float(ego[1]) - lane_y) / 4.0,
-            (controller.target_speed_mps - ego_speed) / 15.0,
-            target_lane_delta / 4.0,
-            min(float(reference_index) / max(int(horizon), 1), 1.0),
-        ),
-        dtype=np.float32,
-    )
-    neighbors: list[float] = []
-    for slot in range(1, 7):
-        if valid[slot]:
-            other = states[slot]
-            other_lane = geometry.nearest_lane(other[:2])
-            neighbors.extend(
-                (
-                    (other[0] - ego[0]) / 80.0,
-                    (other[1] - ego[1]) / 8.0,
-                    (other[2] - ego[2]) / 20.0,
-                    (other[3] - ego[3]) / 10.0,
-                    1.0,
-                    float(other_lane == lane_id),
-                    float(geometry.relative_lane(lane_id, other_lane)) / 3.0,
-                )
-            )
-        else:
-            neighbors.extend((0.0,) * 7)
-    return np.clip(
-        np.concatenate((head, np.asarray(neighbors, np.float32))), -20.0, 20.0
-    ).astype(np.float32)
-
-
-class ADSHighwayEnv(gym.Env[np.ndarray, int]):
-    """Five-action ADS task with 5 Hz decisions and 25 Hz world execution."""
+class _WorldEnvironment(gym.Env):
+    """Shared world stepping, history and safety recording for native policies."""
 
     metadata: ClassVar[dict[str, list[str]]] = {"render_modes": []}
 
@@ -113,13 +56,9 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
         self.max_decisions = max_decisions
         self.random_events = bool(random_events)
         self._rng = np.random.default_rng(int(seed))
-        self.action_space = spaces.Discrete(len(ACTION_NAMES))
-        self.observation_space = spaces.Box(
-            low=-20.0, high=20.0, shape=(49,), dtype=np.float32
-        )
         self.world: Any | None = None
         self.event: WorldEvent | None = None
-        self.controller: SemanticEgoController | None = None
+        self.controller = None
         self.decision_count = 0
         self._next_event = 0
         self._last_ego_action = np.zeros(2, np.float32)
@@ -130,15 +69,6 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
         self.physics_states: list[np.ndarray] = []
         self.physics_controls: list[np.ndarray] = []
         self.physics_diagnostics: list[dict[str, np.ndarray]] = []
-
-    def _make_controller(self, event: WorldEvent):
-        ego = np.asarray(event.initial_states[0], np.float64)
-        return SemanticEgoController(
-            event.geometry, ego[:2], float(np.linalg.norm(ego[2:4]))
-        )
-
-    def _action_label(self, action):
-        return ACTION_NAMES[int(action)]
 
     def _select_event(self, options: dict[str, Any] | None) -> WorldEvent:
         if options and "event_index" in options:
@@ -161,17 +91,6 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
         observation = self.world.observe()
         value = observation["agent_states"]
         return np.asarray(value.detach().cpu() if torch.is_tensor(value) else value)[0]
-
-    def _observation(self) -> np.ndarray:
-        assert self.event is not None and self.controller is not None
-        return build_ads_observation(
-            self._states(),
-            self.event.valid,
-            self.event.geometry,
-            self.controller,
-            reference_index=int(getattr(self.world, "reference_index", 0)),
-            horizon=len(self.event.soft_reference),
-        )
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
@@ -221,7 +140,7 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
             "split": self.event.split,
         }
 
-    def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+    def step(self, action):
         if self.world is None or self.event is None or self.controller is None:
             raise RuntimeError("reset the environment before stepping")
         structurally_valid = self.controller.update_target(action)
@@ -240,6 +159,19 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
             ego_action = self.controller.control(self._states()[0])
             action_cost += float(np.square(ego_action - self._last_ego_action).sum())
             self._last_ego_action = ego_action
+            traffic = getattr(self.world, "controller", None)
+            input_state = {}
+            if self.record_trace and traffic is not None:
+                for key, name in (
+                    ("input_maneuver_phase", "_maneuver_phase"),
+                    ("input_maneuver_cooldown", "_maneuver_cooldown_frames"),
+                ):
+                    value = getattr(traffic, name, None)
+                    input_state[key] = (
+                        np.zeros(6, dtype=np.int64)
+                        if value is None
+                        else value.detach().cpu().numpy().reshape(-1).copy()
+                    )
             result = self.world.advance_response(torch.as_tensor(ego_action)[None])
             if self.record_trace:
                 self.physics_states.append(self._states().copy())
@@ -253,10 +185,29 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
                         if value is not None
                         and (
                             name.startswith("takeover_")
-                            or name in ("crashed", "offroad", "collision_pairs")
+                            or name
+                            in (
+                                "crashed",
+                                "offroad",
+                                "collision_pairs",
+                                "controller_realized_leader_index",
+                            )
                         )
                     }
                 )
+            if self.record_trace:
+                self.physics_diagnostics[-1].update(input_state)
+                planned = getattr(traffic, "plan_started", None)
+                trace = self.physics_diagnostics[-1]
+                if planned is not None and "takeover_started" in trace:
+                    planned = np.asarray(
+                        planned.detach().cpu() if torch.is_tensor(planned) else planned,
+                        bool,
+                    ).reshape(-1)
+                    trace["input_maneuver_adopted"] = (
+                        np.asarray(trace["takeover_started"], bool).reshape(-1)
+                        & planned
+                    )
             if "background_actions" in result and "base_background_actions" in result:
                 background = np.asarray(result["background_actions"].detach().cpu())[
                     0, 0
@@ -366,7 +317,58 @@ class ADSHighwayEnv(gym.Env[np.ndarray, int]):
         return self._observation(), float(reward), terminated, truncated, info
 
 
-class PolicyEnvironment(ADSHighwayEnv):
+class PolicyEnvironment(_WorldEnvironment):
+    SNAPSHOT_FIELDS = (
+        "controller",
+        "decision_count",
+        "_last_ego_action",
+        "_next_event",
+        "_npc_response_mode_counts",
+        "_npc_action_delta_sum",
+        "_npc_action_delta_count",
+        "physics_states",
+        "physics_controls",
+        "physics_diagnostics",
+        "previous_native_action",
+        "initial_failure",
+        "initial_info",
+    )
+
+    def snapshot(self, policy=None):
+        if self.world is None or self.event is None:
+            raise RuntimeError("Reset before capturing an ADS snapshot")
+        state = {
+            "algorithm": self.algorithm,
+            "event_id": self.event.event_id,
+            "world": self.world.snapshot(),
+            "runtime": {
+                name: deepcopy(getattr(self, name)) for name in self.SNAPSHOT_FIELDS
+            },
+            "environment_rng": deepcopy(self._rng.bit_generator.state),
+        }
+        if policy is not None:
+            state["policy"] = {
+                "random_context": policy.random_context,
+                "decision": policy.decision,
+            }
+        return state
+
+    def restore(self, snapshot, policy=None):
+        if (
+            self.event is None
+            or snapshot["event_id"] != self.event.event_id
+            or snapshot["algorithm"] != self.algorithm
+        ):
+            raise ValueError("ADS snapshot belongs to another algorithm or instance")
+        self.world.restore(snapshot["world"])
+        for name, value in snapshot["runtime"].items():
+            setattr(self, name, deepcopy(value))
+        self._rng.bit_generator.state = deepcopy(snapshot["environment_rng"])
+        if policy is not None:
+            policy.random_context = snapshot["policy"]["random_context"]
+            policy.decision = snapshot["policy"]["decision"]
+        return self._observation()
+
     def __init__(
         self,
         algorithm,
@@ -408,27 +410,6 @@ class PolicyEnvironment(ADSHighwayEnv):
                     ),
                 }
             )
-        elif algorithm == "plant2":
-            self.action_space = spaces.Tuple(
-                (
-                    spaces.Box(-np.inf, np.inf, (20, 2), dtype=np.float32),
-                    spaces.Box(-np.inf, np.inf, (8, 2), dtype=np.float32),
-                )
-            )
-            self.observation_space = spaces.Dict(
-                {
-                    "objects": spaces.Sequence(
-                        spaces.Box(-np.inf, np.inf, (7,), dtype=np.float32), stack=True
-                    ),
-                    "object_slots": spaces.Sequence(spaces.Discrete(7), stack=True),
-                    "route_original": spaces.Box(
-                        -np.inf, np.inf, (20, 2), dtype=np.float32
-                    ),
-                    "speed_limit": spaces.Discrete(4),
-                    "input_ego_speed": spaces.Box(0, np.inf, (), dtype=np.float32),
-                    "BEV": spaces.Box(0, 1, (3, 256, 256), dtype=np.float32),
-                }
-            )
         elif algorithm in NATIVE_PLANNERS:
             from ads.nuplan.features import PlannerObservationSpace
 
@@ -458,18 +439,10 @@ class PolicyEnvironment(ADSHighwayEnv):
         self.previous_native_action = np.zeros(2, np.float32)
         if self.algorithm == "carl":
             return ContinuousController(event)
-        if self.algorithm == "plant2":
-            return TrajectoryController(event)
-        if self.algorithm in NATIVE_PLANNERS:
-            return NuplanTrajectoryController(event)
-        return super()._make_controller(event)
+        return NuplanTrajectoryController(event)
 
     def _action_label(self, action):
-        return (
-            super()._action_label(action)
-            if self.algorithm in ("dqn", "ppo")
-            else self.algorithm
-        )
+        return self.algorithm
 
     def causal_scene(self):
         states = self._states().copy()
@@ -528,8 +501,6 @@ class PolicyEnvironment(ADSHighwayEnv):
         )
 
     def _observation(self):
-        if self.algorithm in ("dqn", "ppo"):
-            return super()._observation()
         if self.algorithm == "carl":
             return carl_observation(self.causal_scene())
         if self.algorithm in NATIVE_PLANNERS:
@@ -553,12 +524,11 @@ class PolicyEnvironment(ADSHighwayEnv):
                 "history": history,
                 "history_valid": valid,
             }
-        return plant_observation(self.causal_scene())
 
     def step(self, action):
         if self.initial_failure:
             return self._observation(), -10.0, True, False, self.initial_info.copy()
-        if self.algorithm == "plant2" or self.algorithm in NATIVE_PLANNERS:
+        if self.algorithm in NATIVE_PLANNERS:
             self.controller.current_ego = self._states()[0].copy()
         start_x = float(self._states()[0, 0])
         observation, reward, terminated, truncated, info = super().step(action)

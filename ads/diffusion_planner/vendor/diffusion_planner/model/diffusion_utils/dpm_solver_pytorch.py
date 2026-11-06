@@ -1046,7 +1046,7 @@ class DPM_Solver:
 
     def sample(self, x, steps=20, t_start=None, t_end=None, order=2, skip_type='time_uniform',
         method='multistep', lower_order_final=True, denoise_to_zero=False, solver_type='dpmsolver',
-        atol=0.0078, rtol=0.05, return_intermediate=False,
+        atol=0.0078, rtol=0.05, return_intermediate=False, track_grad=False,
     ):
         """
         Compute the sample at time `t_end` by DPM-Solver, given the initial `x` at time `t_start`.
@@ -1152,6 +1152,7 @@ class DPM_Solver:
             rtol: A `float`. The relative tolerance of the adaptive step size solver. Valid when `method` == 'adaptive'.
             return_intermediate: A `bool`. Whether to save the xt at each step.
                 When set to `True`, method returns a tuple (x0, intermediates); when set to False, method returns only x0.
+            track_grad: Retain the original solver operations for training gradients.
         Returns:
             x_end: A pytorch tensor. The approximated solution at time `t_end`.
 
@@ -1165,7 +1166,7 @@ class DPM_Solver:
             assert method in ['multistep', 'singlestep', 'singlestep_fixed'], "Cannot use adaptive solver when correcting_xt_fn is not None"
         device = x.device
         intermediates = []
-        with torch.no_grad():
+        with torch.set_grad_enabled(track_grad):
             if method == 'adaptive':
                 x = self.dpm_solver_adaptive(x, order=order, t_T=t_T, t_0=t_0, atol=atol, rtol=rtol, solver_type=solver_type)
             elif method == 'multistep':

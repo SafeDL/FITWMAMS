@@ -1,6 +1,10 @@
 from __future__ import annotations
+
 import argparse
-from external_model_baselines.models.dynamic_ar_idm.evaluate import evaluate_paper_cohort
+
+from external_model_baselines.models.dynamic_ar_idm.evaluate import (
+    evaluate_paper_cohort,
+)
 
 parser = argparse.ArgumentParser(description="25 Hz closed-loop full-cohort Dynamic IDM evaluation")
 parser.add_argument("--dataset", default="external_model_baselines/models/dynamic_ar_idm/artifacts/full_data/full_highd_25hz.npz")

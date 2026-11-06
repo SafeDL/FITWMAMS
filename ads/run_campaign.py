@@ -23,8 +23,6 @@ from ads.tasks import (
     training_budget,
 )
 
-STR2_INFERENCE_WORKERS = 3
-
 
 def process_alive(pid):
     try:
@@ -83,14 +81,6 @@ class Scheduler:
         )
         actual = metadata["learning"][key]
         skipped = metadata["learning"].get("skipped") == "no_qualified_demonstrations"
-        if (
-            task.algorithm == "dtpp"
-            and task.stage == "repair"
-            and not skipped
-            and metadata["learning"].get("dtpp_attention_mask_layout")
-            != "batch_then_head"
-        ):
-            raise ValueError("DTPP checkpoint predates the batch-mask correction")
         if actual != target and not (
             task.algorithm in SUPERVISED_ALGORITHMS and actual == 0 and skipped
         ):
@@ -228,26 +218,7 @@ class Scheduler:
         print(f"Started {task.key}, PID {child.pid}", flush=True)
 
     def can_launch(self, task):
-        if len(self.running) >= self.workers:
-            return False
-        # STR2 keeps the full 800M-parameter Adam state and needs the GPU alone
-        # during repair. Other units can share the mostly CPU world rollouts.
-        needs_gpu_alone = task.stage == "repair" and task.algorithm == "str2"
-        if needs_gpu_alone and self.running:
-            return False
-        # Each measured STR2 inference process uses about 5,400 MiB on this
-        # 24 GiB GPU; leave room for the other evaluation workers.
-        if (
-            task.algorithm == "str2"
-            and task.stage in ("iid", "diagnostic")
-            and sum(active.algorithm == "str2" for active in self.running)
-            >= STR2_INFERENCE_WORKERS
-        ):
-            return False
-        return not any(
-            active.stage == "repair" and active.algorithm == "str2"
-            for active in self.running
-        )
+        return len(self.running) < self.workers
 
     def run(self):
         with (self.output / "scheduler.lock").open("a") as lock:
@@ -346,7 +317,7 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "ads/configs/risk_stratified_repair.yaml",
+        default=REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml",
     )
     parser.add_argument("--workers", type=int, default=1)
     args = parser.parse_args()

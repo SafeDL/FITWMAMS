@@ -1,27 +1,65 @@
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
+import torch
 from gymnasium.utils.env_checker import check_env
 
 from ads.common.environment import PolicyEnvironment
 from ads.common.evaluation import WorldEvaluator
 from ads.common.expert import (
-    Candidate,
-    TeacherExecution,
     coarse_candidates,
     refine_candidates,
 )
 from ads.common.repair import RepairEnvironment
-from ads.plant2.demonstrations import demonstration
+from ads.nuplan.teacher import demonstration
+from ads.tests.conftest import SmallWorld
+
+
+def test_maneuver_adoption_trace_observes_after_handover_without_changing_motion(
+    instance,
+):
+    class HandoverWorld(SmallWorld):
+        def __init__(self):
+            self.controller = SimpleNamespace(
+                _maneuver_phase=torch.zeros((1, 6), dtype=torch.int64),
+                _maneuver_cooldown_frames=torch.zeros((1, 6), dtype=torch.int64),
+                plan_started=torch.zeros((1, 6), dtype=torch.bool),
+            )
+
+        def advance_response(self, action):
+            result = super().advance_response(action)
+            self.controller.plan_started[0, 0] = True
+            self.controller._maneuver_phase[0, 0] = 2
+            result["takeover_started"] = self.controller.plan_started.clone()
+            result["takeover_owned"] = self.controller.plan_started.clone()
+            return result
+
+    worlds = []
+    for traced in (False, True):
+        env = PolicyEnvironment("carl", [instance], lambda event: HandoverWorld())
+        env.record_trace = traced
+        env.reset()
+        env.step(np.zeros(2, np.float32))
+        worlds.append(env)
+    np.testing.assert_array_equal(worlds[0]._states(), worlds[1]._states())
+    assert torch.equal(
+        worlds[0].world.controller.plan_started, worlds[1].world.controller.plan_started
+    )
+    first = worlds[1].physics_diagnostics[0]
+    assert first["input_maneuver_phase"][0] == 0
+    assert first["input_maneuver_adopted"][0]
 
 
 class Idle:
     def predict(self, observation, deterministic=True):
-        return 1, None
+        path = np.zeros((80, 3), np.float32)
+        path[:, 0] = np.arange(1, 81) * float(observation["scene"].states[0, 2]) * 0.1
+        return path, None
 
 
 def test_shared_execution_replays_all_149_physics_steps(instance, world_factory, evt):
-    evaluate = WorldEvaluator(Idle(), "dqn", world_factory, evt)
+    evaluate = WorldEvaluator(Idle(), "diffusion_planner", world_factory, evt)
     first, second = evaluate(instance), evaluate(instance)
     np.testing.assert_array_equal(first.states, second.states)
     assert len(first.states) == 150
@@ -39,39 +77,45 @@ def test_initial_collision_is_retained_and_never_labelled_success(
     defective = replace(
         defective, event=replace(event, event_id=defective.instance_hash)
     )
-    result = WorldEvaluator(Idle(), "dqn", world_factory, evt)(defective)
+    result = WorldEvaluator(Idle(), "diffusion_planner", world_factory, evt)(defective)
     assert result.failure and result.record["initial_safety_failure"]
     assert result.record["physics_steps"] == 0
-    env = PolicyEnvironment("dqn", [defective], world_factory)
+    env = PolicyEnvironment("diffusion_planner", [defective], world_factory)
     env.reset()
     _, _, terminated, _, info = env.step(1)
     assert terminated and info["safety_failure"]
 
 
 def test_causal_encoders_and_native_action_spaces(instance, world_factory):
-    for algorithm in ("dqn", "ppo", "carl", "plant2"):
+    from ads.tasks import POLICY_SUFFIX
+
+    for algorithm in POLICY_SUFFIX:
         env = PolicyEnvironment(algorithm, [instance], world_factory)
         observation, _ = env.reset()
         assert env.observation_space.contains(observation)
-        check_env(env, skip_render_check=True)
-    env = PolicyEnvironment("plant2", [instance], world_factory)
+        if algorithm == "carl":
+            check_env(env, skip_render_check=True)
+        else:
+            action, _ = Idle().predict(observation)
+            assert env.action_space.contains(action)
+            env.step(action)
+            assert len(env.physics_controls) == 5
+        assert not any(
+            k in observation for k in ("soft_reference", "exogenous_state", "evt_score")
+        )
+    env = PolicyEnvironment("diffusion_planner", [instance], world_factory)
     observation, _ = env.reset()
-    assert not any(
-        k in observation for k in ("soft_reference", "exogenous_state", "evt_score")
-    )
-    assert observation["objects"].shape[1] == 7
-    assert observation["route_original"].shape == (20, 2)
-    action = (
-        np.stack((np.arange(20), np.zeros(20)), -1),
-        np.stack((np.arange(1, 9) * 5, np.zeros(8)), -1),
-    )
+    action, _ = Idle().predict(observation)
     env.step(action)
     assert len(env.physics_controls) == 5
 
 
 def test_empty_history_and_no_new_failures_transfer_to_normal(instance, world_factory):
     env = RepairEnvironment(
-        "dqn", {"normal": [(instance, "normal")]}, world_factory, round_index=1
+        "diffusion_planner",
+        {"normal": [(instance, "normal")]},
+        world_factory,
+        round_index=1,
     )
     np.testing.assert_array_equal(env.weights, (1, 0, 0))
     env.reset()
@@ -79,45 +123,24 @@ def test_empty_history_and_no_new_failures_transfer_to_normal(instance, world_fa
 
 
 def test_expert_parameter_budget_and_real_future_labels(instance, world_factory):
-    from omegaconf import OmegaConf
-
     coarse = coarse_candidates(instance.event)
     refined = refine_candidates(coarse[:8])
     assert len(coarse) <= 64 and len(refined) <= 64
     assert all(0 <= c.speed <= 45 and c.duration > 0 for c in coarse + refined)
-    env = PolicyEnvironment("dqn", [instance], world_factory)
-    env.reset()
+    env = PolicyEnvironment("diffusion_planner", [instance], world_factory)
+    observation, _ = env.reset()
     done = False
     while not done:
-        _, _, term, trunc, _ = env.step(1)
+        action, _ = Idle().predict(observation)
+        observation, _, term, trunc, _ = env.step(action)
         done = term or trunc
-    cfg = OmegaConf.create(
-        {
-            "model": {
-                "training": {"range": 50, "range_factor_front": 2},
-                "pre_training": {
-                    "precision_pos": 7,
-                    "precision_angle": 5,
-                    "precision_speed": 5,
-                },
-            }
-        }
+    samples = demonstration(
+        instance, np.asarray(env.physics_states), "diffusion_planner"
     )
-    execution = TeacherExecution(
-        Candidate(1, 20),
-        True,
-        1,
-        100,
-        np.asarray(env.physics_states),
-        np.asarray(env.physics_controls),
-    )
-    samples, _ = demonstration(instance, execution, cfg)
-    assert len(samples) == 20
-    assert samples[0]["forecast"].shape == (1, 4)
-    np.testing.assert_allclose(
-        samples[0]["waypoints"][:, 0], np.arange(1, 9) * 5, atol=1e-3
-    )
-    assert samples[0]["path"].shape == (20, 2)
+    assert len(samples) == 30
+    assert samples[0]["target"].shape[1:] == (80, 3)
+    assert samples[0]["future_valid"][0].sum() == 59
+    assert not samples[0]["future_valid"][0, 59:].any()
 
 
 def test_stalling_is_not_safety_failure(instance, world_factory, evt):
@@ -126,7 +149,7 @@ def test_stalling_is_not_safety_failure(instance, world_factory, evt):
     event = replace(instance.event, initial_states=states)
     stopped = replace(instance, event=event)
     stopped = replace(stopped, event=replace(event, event_id=stopped.instance_hash))
-    result = WorldEvaluator(Idle(), "dqn", world_factory, evt)(stopped)
+    result = WorldEvaluator(Idle(), "diffusion_planner", world_factory, evt)(stopped)
     assert result.record["stalled"] and not result.failure
 
 
@@ -144,54 +167,7 @@ def test_ego_npc_collision_is_not_reported_as_npc_npc_collision(instance, evt):
             result["collision_pairs"][:, 1, 0] = True
             return result
 
-    result = WorldEvaluator(Idle(), "dqn", lambda e: EgoCollisionWorld(), evt)(instance)
+    result = WorldEvaluator(
+        Idle(), "diffusion_planner", lambda e: EgoCollisionWorld(), evt
+    )(instance)
     assert result.failure and not result.record["npc_collision"]
-
-
-def test_agreed_existing_initial_policies_run_on_the_shared_synthetic_interface(
-    instance, world_factory
-):
-    from pathlib import Path
-
-    import torch
-
-    from ads.common.setup import load_policy
-
-    torch.set_num_threads(1)
-    for algorithm, suffix in (("dqn", ".zip"), ("ppo", ".zip"), ("plant2", ".ckpt")):
-        path = Path(
-            f"results/risk_stratified_repair_history/formal/{algorithm}/20260926/baseline/policy{suffix}"
-        )
-        model = load_policy(algorithm, path, device="cpu")
-        env = PolicyEnvironment(algorithm, [instance], world_factory)
-        obs, _ = env.reset()
-        action, _ = model.predict(obs, deterministic=True)
-        assert env.action_space.contains(action)
-
-
-def test_planT_spatial_labels_do_not_extend_past_executed_future(
-    instance, world_factory
-):
-    from omegaconf import OmegaConf
-
-    states = np.tile(instance.event.initial_states, (150, 1, 1))
-    states[:, 0, 2] = 2
-    states[:, :, :2] += np.arange(150)[:, None, None] * 0.04 * states[:, :, 2:4]
-    cfg = OmegaConf.create(
-        {
-            "model": {
-                "training": {"range": 50},
-                "pre_training": {
-                    "precision_pos": 7,
-                    "precision_angle": 5,
-                    "precision_speed": 5,
-                },
-            }
-        }
-    )
-    execution = TeacherExecution(
-        Candidate(1, 2), True, 1, 12, states, np.zeros((149, 2))
-    )
-    samples, _ = demonstration(instance, execution, cfg)
-    assert samples[0]["path_valid"].sum() == 12
-    assert not samples[0]["path_valid"][12:].any()

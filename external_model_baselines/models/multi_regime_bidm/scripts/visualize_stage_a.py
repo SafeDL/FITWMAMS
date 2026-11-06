@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 import numpy as np
+from matplotlib.lines import Line2D
 
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
 if str(ROOT) not in sys.path:

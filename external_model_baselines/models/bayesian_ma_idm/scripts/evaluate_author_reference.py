@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Reproduce the public stochastic-simulation/Table-II evaluation organisation."""
 from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -14,9 +15,14 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.author_reference import load_author_reference
+from external_model_baselines.models.bayesian_ma_idm.src.author_reference import (
+    load_author_reference,
+)
 from external_model_baselines.models.bayesian_ma_idm.src.evaluation import crps_ensemble
-from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import GPHistory, idm
+from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import (
+    GPHistory,
+    idm,
+)
 
 DT, HORIZON = .2, 16  # the source uses int(3 / dt) + 1
 

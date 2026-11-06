@@ -1,0 +1,64 @@
+{
+  "phase": 1,
+  "completed_updates": 21817,
+  "reference_updates": 250,
+  "policy_sha256": "5df35f7fc2bc41f17dffbe544c647f16b6456ab9bbb9e37f5b1def6653ee8d0f",
+  "all_native_keep_correction_entries_visited": true,
+  "exposure": {
+    "correction": {
+      "available_entries": 20460,
+      "visited_entries": 20460,
+      "unvisited_entries": 0,
+      "exposures": 698144,
+      "available_instances": 682,
+      "visited_instances": 682,
+      "completed_entry_passes": 2,
+      "minimum_critical_visits": 9
+    },
+    "keep": {
+      "available_entries": 698130,
+      "visited_entries": 698130,
+      "unvisited_entries": 0,
+      "exposures": 698144,
+      "available_instances": 23271,
+      "visited_instances": 23271,
+      "completed_entry_passes": 1,
+      "minimum_critical_visits": 0
+    },
+    "native": {
+      "available_entries": 12685,
+      "visited_entries": 12685,
+      "unvisited_entries": 0,
+      "exposures": 1396288,
+      "available_instances": 12685,
+      "visited_instances": 12685,
+      "completed_entry_passes": 110,
+      "minimum_critical_visits": 0
+    }
+  },
+  "frozen_tensor_count": 238,
+  "frozen_raw_and_ema_match_original": true,
+  "changed_raw_tensors": 38,
+  "changed_ema_tensors": 38,
+  "parameter_distance_from_original": {
+    "raw": 0.9001197429588037,
+    "ema": 0.13863440556106457
+  },
+  "learning_rate_sum": 0.001267000000000185,
+  "reference_learning_rate_sum": 0.001267,
+  "ema_log_retention_sum": -0.2501250833961296,
+  "reference_ema_log_retention": -0.25012508339588363,
+  "all_raw_and_ema_displacement_constraints_passed": true,
+  "all_qualified_expert_inputs_visited": true,
+  "no_protected_ancestry_in_learning": true,
+  "same_sampler_state_as_rejected_attempt": true,
+  "same_final_cpu_rng_as_rejected_attempt": true,
+  "same_final_cuda_rng_as_rejected_attempt": true,
+  "training_source_hashes_unchanged": true,
+  "training_elapsed_s": 9800.278693942062,
+  "raw_projection_elapsed_s": 124.32143862132216,
+  "ema_projection_elapsed_s": 125.33429082954535,
+  "world_executions_added_by_audit": 0,
+  "policy_forward_calls_by_audit": 0,
+  "safety_outcome": "complete development evaluation pending"
+}

@@ -2,13 +2,19 @@ import json
 
 import numpy as np
 
-from external_model_baselines.models.active_inference_driver.config import ActiveInferenceConfig
-from external_model_baselines.models.active_inference_driver.model import ActiveInferenceDriver
+from external_model_baselines.evaluation.driver_reproduction.scorecard import ROOT
+from external_model_baselines.models.active_inference_driver.config import (
+    ActiveInferenceConfig,
+)
+from external_model_baselines.models.active_inference_driver.model import (
+    ActiveInferenceDriver,
+)
 from external_model_baselines.models.bayesian_ma_idm.src.driver import BayesianIDMDriver
 from external_model_baselines.models.dynamic_ar_idm.model import DynamicIDMDriver
-from external_model_baselines.models.multi_regime_bidm.src.driver import MultiRegimeIDMDriver, load_hsmm_models
-
-from external_model_baselines.evaluation.driver_reproduction.scorecard import ROOT
+from external_model_baselines.models.multi_regime_bidm.src.driver import (
+    MultiRegimeIDMDriver,
+    load_hsmm_models,
+)
 
 
 def _json(relative_path: str) -> dict:
@@ -37,20 +43,24 @@ def test_retained_evidence_keeps_successes_and_failures_explicit() -> None:
     assert multi_posterior["sampler_diagnostics_passed"]
     assert not multi_acceptance["accepted_calibrated_stochastic_driver"]
 
-    active = _json("external_model_baselines/models/active_inference_driver/artifacts/full_highd/validation_status.json")
+    active = _json(
+        "external_model_baselines/models/active_inference_driver/artifacts/full_highd/validation_status.json"
+    )
     assert active["native_paper_human_metric"]["status"] == "passed"
     assert active["official_pomdp_external_25hz_wrapper"]["status"] == "passed"
     assert active["longitudinal_adapter_25hz_bridge"]["status"] == "failed"
 
-    matched = _json(
-        "results/driver_reproduction/matched_metrics.json"
-    )
+    matched = _json("results/baselines/driver_reproduction/matched_metrics.json")
     assert matched["cohort_pairs"] == 218
     assert matched["training_pairs"] == 182
     assert matched["test_pairs"] == 36
     assert matched["all_eligible_test_pairs_evaluated"]
     assert set(matched["models"]) == {
-        "b_idm", "ma_idm", "dynamic_ar5", "pooled_b_idm", "multi_regime"
+        "b_idm",
+        "ma_idm",
+        "dynamic_ar5",
+        "pooled_b_idm",
+        "multi_regime",
     }
 
 
@@ -68,24 +78,28 @@ def test_retained_posteriors_instantiate_stateful_online_drivers() -> None:
     observation = {"gap_m": 25.0, "speed_mps": 18.0, "leader_speed_mps": 17.5}
 
     ma = BayesianIDMDriver.from_population_posterior(
-        ROOT / "external_model_baselines/models/bayesian_ma_idm/evidence/population/ma_idm_holdout_25.npz",
+        ROOT
+        / "external_model_baselines/models/bayesian_ma_idm/evidence/population/ma_idm_holdout_25.npz",
         model="ma_idm",
         seed=5,
     )
     assert np.isfinite(ma.decision(**observation).requested_acceleration_mps2)
 
     dynamic = DynamicIDMDriver.from_posterior(
-        ROOT / "external_model_baselines/models/dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz",
+        ROOT
+        / "external_model_baselines/models/dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz",
         seed=5,
     )
     assert np.isfinite(dynamic.decision(**observation))
 
     models = load_hsmm_models(
-        ROOT / "external_model_baselines/models/multi_regime_bidm/evidence/segmentation/stage_a_finite_hsmm_models.npz"
+        ROOT
+        / "external_model_baselines/models/multi_regime_bidm/evidence/segmentation/stage_a_finite_hsmm_models.npz"
     )
     multi = MultiRegimeIDMDriver.from_posterior(
         models[1],
-        ROOT / "external_model_baselines/models/multi_regime_bidm/evidence/posterior/style_1_nuts_posterior.npz",
+        ROOT
+        / "external_model_baselines/models/multi_regime_bidm/evidence/posterior/style_1_nuts_posterior.npz",
         seed=5,
     )
     multi.reset(np.asarray([[25.0, 18.0, 0.5]]), seed=5)

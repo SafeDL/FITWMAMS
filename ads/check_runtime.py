@@ -14,8 +14,8 @@ from hierarchical_world_model.src.randomness import (
     WorldExogenousState,
 )
 
-REFERENCE = REPO_ROOT / "results/risk_stratified_repair_history/runtime_reference"
-REPORT = REPO_ROOT / "results/risk_stratified_repair_history/runtime_check.json"
+REFERENCE = REPO_ROOT / "results/ads/assets/runtime_reference"
+REPORT = REPO_ROOT / "results/ads/reports/runtime_check.json"
 
 
 def replay(instance, factory):
@@ -41,7 +41,7 @@ def replay(instance, factory):
 
 def main():
     settings = yaml.safe_load(
-        (REPO_ROOT / "ads/configs/risk_stratified_repair.yaml").read_text()
+        (REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml").read_text()
     )
     torch.set_num_threads(1)
     sampler, factory, _, assets = load_world(settings)

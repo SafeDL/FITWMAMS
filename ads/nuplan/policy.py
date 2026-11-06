@@ -61,8 +61,10 @@ class NativePlannerPolicy:
         from ads.nuplan.assets import official_path
 
         path = Path(path)
-        if path.resolve().is_relative_to(
-            official_path(self.algorithm).parent.resolve()
+        initial = official_path(self.algorithm)
+        if any(
+            path.resolve().is_relative_to(parent)
+            for parent in (initial.parent.resolve(), initial.resolve().parent)
         ):
             # File-based planners also write their configuration beside the weight.
             raise ValueError("native export cannot write into official artifacts")

@@ -1,0 +1,16 @@
+{
+  "successful_highway_instances": 23271,
+  "success_sources": {
+    "tail_generated": 19371,
+    "natural_generated": 2600,
+    "empirical_natural": 1300
+  },
+  "expected_keep_learning_entries": 698130,
+  "phase_1_update_lower_bound_from_keep": 21817,
+  "development_instances": {
+    "natural_generated": 5000,
+    "tail_generated": 5000
+  },
+  "all_qualified_successes_included": true,
+  "new_material_world_executions": 0
+}

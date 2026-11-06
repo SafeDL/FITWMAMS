@@ -9,7 +9,7 @@ def test_teacher_costs_count_shared_generation_once_and_reject_wrong_cache(
     tmp_path, instance
 ):
     config = {
-        "algorithms": ["plant2"],
+        "algorithms": ["diffusion_planner"],
         "seeds": [1],
         "methods": ["a", "b"],
         "rounds": 1,
@@ -30,9 +30,11 @@ def test_teacher_costs_count_shared_generation_once_and_reject_wrong_cache(
     )
     cache = tmp_path / "demonstrations/normal" / (key + ".json")
     write_json(cache, report)
-    write_json(tmp_path / "plant2/1/baseline/training.json", {"baseline": True})
+    write_json(
+        tmp_path / "diffusion_planner/1/baseline/training.json", {"baseline": True}
+    )
     for name in ["a/round_1", "b/round_1"]:
-        directory = tmp_path / "plant2/1" / name
+        directory = tmp_path / "diffusion_planner/1" / name
         write_json(
             directory / "training.json",
             {

@@ -11,7 +11,6 @@ from typing import Any
 import numpy as np
 from scipy.stats import genpareto
 
-
 RETURN_PERIODS = (20, 50, 100)
 
 
@@ -66,7 +65,7 @@ class GPDTailModel:
         survival = self.survival(y)
         return -np.log(np.maximum(survival, float(self.survival_eps)))
 
-    def return_level(self, period: int | float) -> float:
+    def return_level(self, period: float) -> float:
         key = f"z{int(period)}"
         if key in self.return_levels:
             return float(self.return_levels[key])
@@ -100,7 +99,7 @@ class GPDTailModel:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "GPDTailModel":
+    def from_dict(cls, payload: dict[str, Any]) -> GPDTailModel:
         return cls(
             u=float(payload["u"]),
             xi=float(payload["xi"]),
@@ -130,8 +129,8 @@ class GPDTailModel:
         )
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "GPDTailModel":
-        with open(path, "r", encoding="utf-8") as f:
+    def from_json(cls, path: str | Path) -> GPDTailModel:
+        with open(path, encoding="utf-8") as f:
             return cls.from_dict(json.load(f))
 
     def to_json(self, path: str | Path, model_type: str | None = None) -> None:
@@ -173,11 +172,7 @@ def return_level_from_params(
     if abs(float(xi)) < 1.0e-8:
         excess = -float(beta) * math.log(conditional_survival)
     else:
-        excess = (
-            float(beta)
-            / float(xi)
-            * (conditional_survival ** (-float(xi)) - 1.0)
-        )
+        excess = float(beta) / float(xi) * (conditional_survival ** (-float(xi)) - 1.0)
     return float(u + excess)
 
 
@@ -271,7 +266,7 @@ def threshold_stability(
 def _selection_start_index(rows: list[dict[str, float]]) -> int:
     if len(rows) <= 2:
         return 0
-    return max(1, min(len(rows) - 1, int(round(0.01 * len(rows)))))
+    return max(1, min(len(rows) - 1, round(0.01 * len(rows))))
 
 
 def _select_threshold(
@@ -388,10 +383,7 @@ def bootstrap_return_level_ci(
     rng = np.random.default_rng(int(random_seed))
     samples: dict[str, list[float]] = {f"z{period}": [] for period in return_periods}
     if bootstrap_samples <= 0:
-        return {
-            key: {"lower": float("nan"), "upper": float("nan")}
-            for key in samples
-        }
+        return {key: {"lower": float("nan"), "upper": float("nan")} for key in samples}
     for _ in range(int(bootstrap_samples)):
         boot = np.sort(rng.choice(sorted_values, size=n, replace=True))
         k = min(max(5, int(chosen_k)), n - 1)
@@ -426,7 +418,3 @@ def bootstrap_return_level_ci(
         }
         for key, vals in samples.items()
     }
-
-
-def load_evt_model(path: str | Path) -> GPDTailModel:
-    return GPDTailModel.from_json(path)

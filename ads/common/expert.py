@@ -140,7 +140,7 @@ class CandidateController:
 class TeacherEnvironment(PolicyEnvironment):
     def __init__(self, instance, factory, candidate):
         self.candidate = candidate
-        super().__init__("plant2", [instance], factory)
+        super().__init__("diffusion_planner", [instance], factory)
 
     def _make_controller(self, event):
         return CandidateController(event, self.candidate)

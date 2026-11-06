@@ -40,7 +40,7 @@ from ads.common.instances import (
     generate_to_store,
     json_hash,
 )
-from ads.common.repair import RepairEnvironment, train_discrete
+from ads.common.repair import RepairEnvironment
 from ads.common.reporting import (
     paired_summary,
     repair_method_comparisons,
@@ -204,8 +204,6 @@ class Campaign:
         directory.mkdir(parents=True, exist_ok=True)
         path = self.checkpoint(directory, algorithm)
         model.save(path)
-        if algorithm == "dqn":
-            model.save_replay_buffer(directory / "replay_buffer.pkl")
         return path
 
     def evaluate_instances(self, model, algorithm, instances, purpose):
@@ -226,7 +224,6 @@ class Campaign:
             self.output / "demonstrations" / cache_name,
             self.factory,
             algorithm=model.algorithm,
-            cfg=getattr(model, "cfg", None),
             candidate_budget=self.config["teacher"]["candidate_budget"],
         )
         samples, reports = [], []
@@ -253,7 +250,6 @@ class Campaign:
         base,
         seed,
         round_index,
-        replay=None,
         teacher_history=None,
     ):
         directory = Path(directory)
@@ -282,34 +278,17 @@ class Campaign:
                 "baseline": False,
                 "completed": done,
                 "target": total,
-                "unit": "gradient_updates"
-                if algorithm in SUPERVISED_ALGORITHMS
-                else "decisions",
+                "unit": (
+                    "gradient_updates"
+                    if algorithm in SUPERVISED_ALGORITHMS
+                    else "decisions"
+                ),
                 "elapsed_s": time.perf_counter() - started,
             }
             write_json(directory / "progress.json", value)
             print(f"  {algorithm} training {done}/{total} {value['unit']}", flush=True)
 
-        if algorithm in ("dqn", "ppo"):
-            env = RepairEnvironment(
-                algorithm,
-                banks,
-                self.factory,
-                round_index=round_index,
-                seed=training_seed,
-                ledger=self.ledger,
-            )
-            model, learning = train_discrete(
-                algorithm,
-                env,
-                steps=settings["rl_steps"],
-                seed=training_seed,
-                device=self.device,
-                base=base,
-                replay=replay,
-                progress=progress,
-            )
-        elif algorithm == "carl":
+        if algorithm == "carl":
             from ads.carl.experiment import repair_and_select
 
             model = load_policy(algorithm, base, device=self.device)
@@ -333,11 +312,7 @@ class Campaign:
             )
         else:
             from ads.common.expert import select_teacher_instances
-
-            if algorithm in NATIVE_PLANNERS:
-                from ads.nuplan.train import train
-            else:
-                from ads.plant2.train import train
+            from ads.nuplan.train import train
 
             model = load_policy(algorithm, base, device=self.device)
             limit = settings["plant_normal_teacher_instances"]
@@ -450,12 +425,7 @@ class Campaign:
             if file_hash(path) != json.loads(report_path.read_text())["policy_sha256"]:
                 raise ValueError("initial policy checkpoint changed")
             return path
-        if algorithm in ("dqn", "ppo", "plant2"):
-            source = (
-                REPO_ROOT
-                / f"results/risk_stratified_repair_history/formal/{algorithm}/{seed}/baseline/policy{POLICY_SUFFIX[algorithm]}"
-            )
-        elif algorithm == "carl":
+        if algorithm == "carl":
             source = REPO_ROOT / "ads/carl/artifacts/official.pth"
         else:
             source = official_path(algorithm)
@@ -528,11 +498,11 @@ class Campaign:
         entries += list(banks["success_neighbours"].values()) + history
         if any(instance.assets != self.assets for instance, _ in entries):
             raise ValueError("saved curriculum uses another frozen world")
-        return directory, previous, base, banks, history
+        return directory, base, banks, history
 
     def train_saved_search(self, algorithm, seed, method, round_number):
         """Continue optimization without repeating the completed scene search."""
-        directory, previous, base, banks, history = self.load_saved_search(
+        directory, base, banks, history = self.load_saved_search(
             algorithm, seed, method, round_number
         )
         print(
@@ -544,9 +514,6 @@ class Campaign:
             directory,
             banks,
             base=base,
-            replay=previous / "replay_buffer.pkl"
-            if algorithm == "dqn" and round_number > 1
-            else None,
             seed=seed,
             round_index=round_number - 1,
             teacher_history=history,
@@ -556,7 +523,7 @@ class Campaign:
         self, algorithm, seed, method, initial, *, through_round=None, search_only=False
     ):
         branch = self.output / algorithm / str(seed) / method
-        checkpoint, replay, archive = initial, None, None
+        checkpoint, archive = initial, None
         teacher_history = []
         rounds = self.config["rounds"] if through_round is None else through_round
         if not 1 <= rounds <= self.config["rounds"]:
@@ -588,7 +555,6 @@ class Campaign:
                 ):
                     raise ValueError("repair checkpoint changed")
                 checkpoint = final_path
-                replay = directory / "replay_buffer.pkl" if algorithm == "dqn" else None
                 archive = FailureArchive.load(directory / "archive")
                 if algorithm in SUPERVISED_ALGORITHMS:
                     teacher_history += [
@@ -694,7 +660,6 @@ class Campaign:
                 directory,
                 banks,
                 base=checkpoint,
-                replay=replay,
                 seed=seed,
                 round_index=round_index,
                 teacher_history=teacher_history,
@@ -713,14 +678,11 @@ class Campaign:
                         (directory / "teacher_selection.json").read_text()
                     )
                 ]
-            replay = directory / "replay_buffer.pkl" if algorithm == "dqn" else None
         return checkpoint
 
     def verify_runtime(self):
         runtime_report = json.loads(
-            (
-                REPO_ROOT / "results/risk_stratified_repair_history/runtime_check.json"
-            ).read_text()
+            (REPO_ROOT / "results/ads/reports/runtime_check.json").read_text()
         )
         if (
             runtime_report["status"] != "passed"
@@ -1107,7 +1069,7 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=REPO_ROOT / "ads/configs/risk_stratified_repair.yaml",
+        default=REPO_ROOT / "ads/configs/diffusion_planner_experiment.yaml",
     )
     args = parser.parse_args()
     settings = yaml.safe_load(args.config.read_text())

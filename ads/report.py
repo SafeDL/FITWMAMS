@@ -32,15 +32,17 @@ def discovery_curve(records):
                 "distinct_collisions": len(collisions),
                 "distinct_instance_failures": len(failures),
                 "failure_roots": len(roots),
-                "common_failure_branches": len(domains)
-                if row.get("common_partition_resolved", False)
-                else None,
+                "common_failure_branches": (
+                    len(domains)
+                    if row.get("common_partition_resolved", False)
+                    else None
+                ),
             }
         )
     return curve
 
 
-def export_evaluation(output, reports, config):
+def export_evaluation(output, reports):
     summary = json.loads((output / "evaluation/summary.json").read_text())
     seed_rows, aggregate_rows = [], []
     fig, axes = plt.subplots(
@@ -135,7 +137,6 @@ def export_evaluation(output, reports, config):
     )
     fig.tight_layout(rect=(0, 0.015, 1, 1))
     fig.savefig(reports / "repair.png", dpi=180)
-    fig.savefig(reports / "repair.pdf")
     plt.close(fig)
 
 
@@ -251,6 +252,5 @@ def export_campaign(output, config):
     fig.suptitle(f"{config['run_kind']}: round 1 discovery at actual execution costs")
     fig.tight_layout()
     fig.savefig(reports / "discovery.png", dpi=180)
-    fig.savefig(reports / "discovery.pdf")
     plt.close(fig)
-    export_evaluation(output, reports, config)
+    export_evaluation(output, reports)

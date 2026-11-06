@@ -1,0 +1,80 @@
+{
+  "between_repair_methods": {},
+  "cohort_instances": 5000,
+  "comparisons": {
+    "guided": {
+      "natural_generated": {
+        "bootstrap_unit": "instance_hash",
+        "cohort_kind": "natural_generated",
+        "collision_ci_is_degenerate": false,
+        "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+        "collision_discordant_instances": 39,
+        "collision_rate_after": 0.0152,
+        "collision_rate_before": 0.0182,
+        "collision_rate_difference_after_minus_before": -0.003,
+        "collision_rate_difference_bootstrap_ci95": [
+          -0.0056,
+          -0.0006
+        ],
+        "collision_rate_difference_ci95": [
+          -0.007102481249105756,
+          0.001125707704655829
+        ],
+        "failure_rate_difference_after_minus_before": -0.003,
+        "failure_rate_difference_ci95": [
+          -0.007102481249105756,
+          0.001125707704655829
+        ],
+        "independent_units": 5000,
+        "instances": 5000,
+        "mean_progress_after_m": 97.46692960720658,
+        "mean_progress_before_m": 96.1652467609644,
+        "offroad_rate_after": 0.0002,
+        "offroad_rate_before": 0.0002,
+        "regressed": 12,
+        "repaired": 27,
+        "safety_failure_rate_after": 0.0154,
+        "safety_failure_rate_before": 0.0184,
+        "stalled_rate_after": 0.0,
+        "stalled_rate_before": 0.0
+      },
+      "tail_generated": {
+        "bootstrap_unit": "instance_hash",
+        "cohort_kind": "tail_generated",
+        "collision_ci_is_degenerate": false,
+        "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+        "collision_discordant_instances": 40,
+        "collision_rate_after": 0.0298,
+        "collision_rate_before": 0.0354,
+        "collision_rate_difference_after_minus_before": -0.0056,
+        "collision_rate_difference_bootstrap_ci95": [
+          -0.0082,
+          -0.0032
+        ],
+        "collision_rate_difference_ci95": [
+          -0.009524727738246171,
+          -0.001622743527646504
+        ],
+        "failure_rate_difference_after_minus_before": -0.0052,
+        "failure_rate_difference_ci95": [
+          -0.009294437776942952,
+          -0.001062993981870999
+        ],
+        "independent_units": 5000,
+        "instances": 5000,
+        "mean_progress_after_m": 101.85023142924308,
+        "mean_progress_before_m": 100.48103930034638,
+        "offroad_rate_after": 0.0006,
+        "offroad_rate_before": 0.0002,
+        "regressed": 8,
+        "repaired": 34,
+        "safety_failure_rate_after": 0.0304,
+        "safety_failure_rate_before": 0.0356,
+        "stalled_rate_after": 0.0,
+        "stalled_rate_before": 0.0
+      }
+    }
+  },
+  "different_instances": 10000,
+  "policy_executions": 20000
+}

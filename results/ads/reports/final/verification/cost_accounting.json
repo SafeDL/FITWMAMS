@@ -1,0 +1,36 @@
+{
+  "committed_optimizer_updates_with_rejected_attempt": 54543,
+  "costs_sha256": "c9070e21db6880f84b40ac36abb4c2233cb0435f0db552887f6b25294eaa76da",
+  "generation": {
+    "elapsed_s_total": 149.09950768697308,
+    "new_final_instances": 10000,
+    "pools": {
+      "final_natural_generated": {
+        "elapsed_s_total": 74.55633048596792,
+        "instances": 5000,
+        "new_instances_total": 5000
+      },
+      "final_tail_generated": {
+        "elapsed_s_total": 74.54317720100516,
+        "instances": 5000,
+        "new_instances_total": 5000
+      }
+    },
+    "timing_scope": "Asset loading, sampling and instance serialization; reported by generate_pool. Search generation remains within search wall time; prior retention/development pools were reused."
+  },
+  "historical_expert_cache_reused_inputs": 23,
+  "initial_expert_candidates_physics_steps": 10134520,
+  "initial_expert_tracking_physics_steps": 101618,
+  "model_forward_calls_by_audit": 0,
+  "passed": true,
+  "source_journal_sha256": "2772355665bf120aab81a98dd0c3bbe513b66628bf0dcb9c50b7b058aff94ddd",
+  "superseded_optimizer_update_upper_bound": 50,
+  "totals": {
+    "actual_physics_steps": 23222500,
+    "all_execution_calls": 178730,
+    "from_initial_state": 133287,
+    "scope": "One shared preparation plus rejected and bounded repair attempts. Includes expert candidate and tracker executions; excludes reused historical executions and interface/toy tests. Full-start episodes may terminate on an accident before the horizon.",
+    "suffix_or_snapshot_replay": 45443
+  },
+  "world_executions_added_by_audit": 0
+}

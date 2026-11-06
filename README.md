@@ -1,29 +1,50 @@
 # FITWMAMS
 
-以 highD 自然驾驶数据构建用于自动驾驶系统（ADS）测试的交通环境。
+从 highD 真实交通数据出发，构建长尾测试分布与可交互的交通世界，用于学习型自动驾驶系统（ADS）的失效发现和能力保持修复。
 
-主链：自然驾驶数据 → EVT 尾部事件 → Flow 场景条件 → PCHIP + 条件残差 Diffusion 软计划 → 普通前馈反馈跟踪与基于计划适用性的 NPC 一次接管 → highway-env 执行。Flow 建模占位、初始条件和位置结点；车辆尺寸单独经验采样。
+## 方法框架
 
-世界模型分别验证完整 Test 的事实重建，以及 NPC 自主运行的交通分布。ADS 接入使用同一执行链，不能用事实重建成绩代替 ADS 测试结果。当前报告见 [results](results/README.md)。
+**自然驾驶数据 → EVT 长尾事件 → Flow 场景条件与 Diffusion 软计划 → 分层交通世界闭环演化 → 风险分层搜索 → 关键状态纠正 → 未见实例安全评价。**
 
-桥接判断原计划是否需要调整，NPC 应作出合理响应。合理响应后暴露的 ADS 事故可以是有价值的测试结果；应修正的是不合理接管或仿真行为引入的错误事故，不以零事故为桥接目标。
+1. **长尾分布构建。** 对自然驾驶片段计算安全包络风险，通过 EVT 筛选尾部事件。保留全部 2,964 个尾部事件建立长尾分布；Flow 建模车辆占位、初始条件与稀疏位置结点，车辆尺寸按经验分布单独采样。另以 Train＋Val 的合格自然片段拟合自然 Flow，形成非定向的自然生成分布。
+2. **分层交通世界。** PCHIP 参考叠加条件残差 Diffusion，生成 NPC 软计划；前馈反馈跟踪器执行计划，计划适用性机制决定 NPC 是否一次接管。接管后由 NPC 根据实际交通自主响应，统一几何与动力学在 HighwayEnv 中执行。道路、参与者类别和已发布生成资产保持固定。
+3. **失效发现与修复。** ADS 接入同一世界，使用因果观测闭环驾驶。风险分层搜索通过交通交互反馈引导既有外生随机变量的扰动，并兼顾事故数量与执行状态覆盖；搜索调整测试分配，冻结的原始生成分布保持不变。将发现的事故转为经过闭环验证的初始或关键状态纠正，结合原任务与成功驾驶材料修复策略，再在未参与修复的实例上评价安全收益。
 
-## 一级目录
+桥接判断原计划是否需要调整，NPC 决定如何响应。合理交互中暴露的 ADS 事故是测试对象；应修正的是不合理接管或仿真行为引入的错误事故，不以零事故作为桥接目标。世界模型的事实重建、交通响应验证与 ADS 安全测试分别评价。
 
-| 目录 | 用途 |
+## ADS 与评价设计
+
+被测算法及其输入、执行和学习适配统一放在 `ads/`。当前范围与 nuPlan 工作区保持一致，仅选取 **CaRL、Diffusion Planner** 两种；论文实验以 Diffusion Planner 为主。学习型策略保留原生 nuPlan 权重格式；highway-env 与 nuPlan 可使用各自必要的接口适配，增强后的模型权重保持一致。目标是交付一个兼顾原有驾驶能力与长尾安全性的增强版本。
+
+**以闭环安全性和事故率改善为首要目标。** 碰撞、驶出道路分别记录，同时统计修好事故与新增事故，以净安全收益判断修复效果。ADE／FDE、进度及低速行为用于诊断；允许安全避险所需的轨迹偏移与减速，不以 ADE／FDE 上升或单个实例低速否决候选，也不单独据此认定灾难性遗忘。
+
+长尾生成分布用于检验未见长尾交互，自然生成分布用于检查原有能力保持。最终实例与开发、搜索和修复用途隔离，修复前后使用相同实例及策略随机实现配对比较。全部尾部事件已参与长尾建模，因此生成留出表示 ADS 开发阶段的实例隔离。nuPlan 的修复前后评价单独保存。
+
+## 工程分工
+
+| 目录 | 职责 |
 | --- | --- |
-| [`highD_dataset/`](highD_dataset/README.md) | highD 配套的 Matlab/Python 数据处理与可视化工具。 |
-| [`process_highD/`](process_highD/README.md) | 清洗并抽取原生 25 Hz 自然驾驶片段，构建共享序列缓存及 SEI-EVT 风险标签。 |
-| [`normalizing_flow/`](normalizing_flow/README.md) | 连续建模尾部场景的 M、C0 与位置结点 K，并按占位模式经验采样尺寸 D。 |
-| [`diffusion/`](diffusion/README.md) | 根据初始场景与稀疏位置结点重建多车软轨迹，尺寸不输入模型。 |
-| [`hierarchical_world_model/`](hierarchical_world_model/README.md) | 普通轨迹跟踪、统一几何与动力学、NPC 一次接管和闭环执行。 |
-| [`HighwayEnv/`](HighwayEnv/README.md) | 项目使用的 HighwayEnv 道路仿真环境源码。 |
-| [`ads/`](ads/README.md) | 按算法组织的被测自车：IDM 长尾评测与 DQN 训练、评测及定向续训。 |
-| [`external_model_baselines/`](external_model_baselines/README.md) | 外部论文模型的项目适配实现、评测和模型登记。 |
-| [`tools/`](tools/README.md) | EVT、固定 IDM ADS 和绘图样式等跨模块共享工具。 |
-| [`doc/style.md`](doc/style.md) | 代码、文件组织与清理规范。 |
-| [`external_resources/`](external_resources/README.md) | 参考论文与外部模型的上游源码。 |
-| [`results/`](results/README.md) | 当前主线的数据、权重、报告与论文对照；EVT、Flow、Diffusion 分别放在简短的同名目录。 |
-| [`archive/`](archive/README.md) | 已退出主线的代码、候选和历史结果，保留以便恢复，不是另一套运行入口。 |
+| [process_highD/](process_highD/README.md) | 自然片段、共享序列、车辆几何、安全包络风险和 EVT 尾部事件 |
+| [normalizing_flow/](normalizing_flow/README.md) | 长尾与自然场景条件分布，分别拟合并保存统计和权重 |
+| [diffusion/](diffusion/README.md) | 根据初态和稀疏结点构造多车软计划 |
+| [hierarchical_world_model/](hierarchical_world_model/README.md) | 软计划跟踪、计划适用性、NPC 一次接管与统一闭环执行 |
+| [ads/](ads/README.md) | 被测策略、风险搜索、专家纠正、能力保持修复和原生权重交付 |
+| [external_model_baselines/](external_model_baselines/README.md) | 外部交通世界与驾驶人模型的适配、登记和比较 |
+| [tools/](tools/README.md) | 跨模块共用的 EVT、固定 IDM 配置与绘图工具 |
+| [HighwayEnv/](HighwayEnv/README.md) | 道路仿真环境源码 |
+| [highD_dataset/](highD_dataset/README.md) | 原始数据位置及 highD 配套处理、可视化工具 |
+| [external_resources/](external_resources/README.md) | 参考论文和上游源码 |
+| [doc/](doc/README.md) | 方法设计、研究状态和代码规范 |
+| [results/](results/README.md) | 各组件的报告、生成资产、学习材料和实验结果索引 |
+| [archive/](archive/README.md) | 必须保留的历史模型、来源与结论 |
 
-运行环境为 `conda activate tread`；入口和数据口径见各模块 README。根目录运行 `python -m pytest` 检查项目测试；`pytest.ini` 限定收集范围，不包含上游源码及归档测试。
+共享数据集中准备，生成模型和世界模型通过发布资产组合，ADS 保存完整场景与随机实现以支持重放。源码、配置、紧凑报告和正式实验冻结源码纳入 Git；大型数据、权重和学习状态按存储协议保留，来源与哈希随资产记录。模块入口见各自 README，实验参数和研究计划见 `doc/`，数值以 `results/` 的原始报告为准。
+
+## 长期约定
+
+- 使用现有 `conda activate tread`，不另建虚拟环境；ADS 实验使用单种子 `20260926`。
+- 根 README 记录方法设计、工程分工和长期约定；具体实验设置、执行进度与结果放入对应文档和结果目录。
+- 当前交付统一命名为 Diffusion Planner Safety Enhanced（安全增强版）；保留其完整学习材料、最终评价和原生权重，淘汰的修复分支不再续跑。不自行追加修复分支或实验；用户要求先设计时，只更新方案。
+- 复用已有随机采样和标准子集结果，不为严格对齐自动重跑对照；比较时记录实际配置差异与执行成本。
+- nuPlan 原生离线与城市闭环由用户手动执行，保留原生格式权重及必要配置，与 highD 结果分开保存。
+- 新图输出 PNG，数值保存 CSV／JSON，不生成 PDF 图件；代码与目录整理遵循 [doc/style.md](doc/style.md)。

@@ -14,8 +14,7 @@ def make_database(tmp_path, monkeypatch):
     path = verify_data.database_path(row)
     path.parent.mkdir(parents=True)
     with sqlite3.connect(path) as connection:
-        connection.executescript(
-            """
+        connection.executescript("""
             CREATE TABLE log(location TEXT, map_version TEXT);
             INSERT INTO log VALUES('las_vegas','us-nv-las-vegas-strip');
             CREATE TABLE lidar_pc(token BLOB, timestamp INTEGER);
@@ -26,8 +25,7 @@ def make_database(tmp_path, monkeypatch):
             CREATE TABLE scene(token BLOB);
             CREATE TABLE lidar_box(token BLOB);
             CREATE TABLE traffic_light_status(token BLOB);
-            """
-        )
+            """)
         connection.executemany(
             "INSERT INTO lidar_pc VALUES(?,?)",
             [(bytes([index]), index * 5_000_000) for index in range(5)],

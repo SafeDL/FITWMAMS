@@ -105,8 +105,8 @@ def test_real_history_survives_hash_and_serialization(instance, tmp_path):
 
 
 def test_policy_streams_do_not_depend_on_scenario_during_search():
-    one = PolicyRandomContext("flow_planner", instance_hash="a")
-    two = PolicyRandomContext("flow_planner", instance_hash="b")
+    one = PolicyRandomContext("diffusion_planner", instance_hash="a")
+    two = PolicyRandomContext("diffusion_planner", instance_hash="b")
     assert one.identity == two.identity
     with one.step(7, use="flow_noise"):
         expected = (torch.randn(4), np.random.randn(4))
@@ -116,7 +116,9 @@ def test_policy_streams_do_not_depend_on_scenario_during_search():
     np.testing.assert_array_equal(expected[1], actual[1])
     assert one.seed_for(7, "flow_noise") != one.seed_for(7, "other_use")
     assert one.seed_for(7) != one.seed_for(8)
-    final = PolicyRandomContext("flow_planner", mode="final_test", instance_hash="a")
+    final = PolicyRandomContext(
+        "diffusion_planner", mode="final_test", instance_hash="a"
+    )
     other = replace(final, instance_hash="b")
     train = replace(one, mode="training")
     assert len({one.identity, final.identity, other.identity, train.identity}) == 4
@@ -217,12 +219,10 @@ def test_entirely_empty_supervision_skips_update():
     from types import SimpleNamespace
 
     from ads.nuplan.train import train
-    from ads.plant2.train import train as plant_train
 
-    for learner in (train, plant_train):
-        report = learner(SimpleNamespace(), {}, updates=1000, seed=20260926)
-        assert report["gradient_updates"] == 0
-        assert report["skipped"] == "no_qualified_demonstrations"
+    report = train(SimpleNamespace(), {}, updates=1000, seed=20260926)
+    assert report["gradient_updates"] == 0
+    assert report["skipped"] == "no_qualified_demonstrations"
 
 
 def test_modified_descendant_root_does_not_bypass_final_parent(instance, tmp_path):

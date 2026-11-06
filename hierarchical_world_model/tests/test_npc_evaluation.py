@@ -2,6 +2,16 @@ import numpy as np
 
 from hierarchical_world_model.src.core.utils import save_json
 from hierarchical_world_model.src.npc_experiments import evaluation
+from hierarchical_world_model.src.npc_experiments.road_evaluation import (
+    exposure_summary,
+)
+
+
+def test_exposure_uses_matched_real_vehicle_time():
+    real = np.array([100.0, 10, 1, 0, 0, 100])
+    first = exposure_summary(np.array([200.0, 10, 1, 4, 2, 100]), real)
+    second = exposure_summary(np.array([100.0, 10, 1, 4, 2, 100]), real)
+    assert first["contact_exposure_ratio"] == second["contact_exposure_ratio"] == 0.04
 
 
 def test_current_table_keeps_fitting_and_evaluation_scope_distinct(tmp_path):
@@ -139,7 +149,7 @@ def test_completed_road_shards_are_consolidated_without_losing_failures(tmp_path
     import pandas as pd
 
     from hierarchical_world_model.src.core.utils import load_json
-    from hierarchical_world_model.src.npc_experiments.search import (
+    from hierarchical_world_model.src.npc_experiments.road_evaluation import (
         consolidate_road_results,
     )
 
@@ -178,7 +188,7 @@ def test_completed_road_shards_are_consolidated_without_losing_failures(tmp_path
 def test_missing_road_shard_does_not_delete_available_results(tmp_path):
     import pytest
 
-    from hierarchical_world_model.src.npc_experiments.search import (
+    from hierarchical_world_model.src.npc_experiments.road_evaluation import (
         consolidate_road_results,
     )
 

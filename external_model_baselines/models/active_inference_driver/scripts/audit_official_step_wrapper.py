@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import pickle
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -37,7 +37,12 @@ def main() -> None:
 
     package_root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(package_root))
-    from official_wrapper import NATIVE_DT_S, NATIVE_TICKS_PER_DECISION, PLANT_DT_S, OfficialPOMDP25Hz
+    from official_wrapper import (
+        NATIVE_DT_S,
+        NATIVE_TICKS_PER_DECISION,
+        PLANT_DT_S,
+        OfficialPOMDP25Hz,
+    )
 
     path = args.native_results / "Results_rear_end" / f"Exp_{args.experiment}" / f"Exp_{args.experiment}.pkl"
     with path.open("rb") as handle:

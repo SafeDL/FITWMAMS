@@ -1,7 +1,6 @@
 """Load and fingerprint the published generator; never refit or repartition it."""
 
 import json
-from importlib import import_module
 from pathlib import Path
 
 import torch
@@ -56,9 +55,9 @@ def load_world(settings, *, distribution="tail_generated"):
         device=settings["runtime"]["device"],
         ddim_steps=settings["ddim_steps"],
         excluded_slots=(),
-        flow_population="natural"
-        if distribution == "natural_generated"
-        else "evt_tail",
+        flow_population=(
+            "natural" if distribution == "natural_generated" else "evt_tail"
+        ),
     )
     files = {
         **paths,
@@ -98,30 +97,12 @@ def load_world(settings, *, distribution="tail_generated"):
 
 
 def load_policy(algorithm, path, *, device):
-    if algorithm in ("dqn", "ppo"):
-        from stable_baselines3 import DQN, PPO
-
-        from ads.common.discrete_policy import DiscretePolicy
-
-        return DiscretePolicy(
-            (DQN if algorithm == "dqn" else PPO).load(path, device=device), algorithm
-        )
     if algorithm == "carl":
         from ads.carl.policy import CaRLPolicy
 
         return CaRLPolicy.load(path, device=device)
-    if algorithm == "plant2":
-        from ads.plant2.policy import PlanTPolicy
+    if algorithm == "diffusion_planner":
+        from ads.diffusion_planner.policy import DiffusionPlannerPolicy
 
-        return PlanTPolicy.load(path, device=device)
-    native_classes = {
-        "diffusion_planner": "DiffusionPlannerPolicy",
-        "dtpp": "DTPPPolicy",
-        "flow_planner": "FlowPlannerPolicy",
-        "str2": "STR2Policy",
-    }
-    if algorithm in native_classes:
-        return getattr(
-            import_module(f"ads.{algorithm}.policy"), native_classes[algorithm]
-        ).load(path, device=device)
+        return DiffusionPlannerPolicy.load(path, device=device)
     raise ValueError("unknown ADS algorithm")

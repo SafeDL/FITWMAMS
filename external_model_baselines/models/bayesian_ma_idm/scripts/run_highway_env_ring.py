@@ -7,6 +7,7 @@ numerically identical.  The road, vehicle integration and collision handling
 are highway-env's; the longitudinal driver is :class:`MAIDMVehicle`.
 """
 from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -24,7 +25,10 @@ from matplotlib.collections import LineCollection
 def _imports():
     from highway_env.road.lane import CircularLane
     from highway_env.road.road import Road, RoadNetwork
-    from external_model_baselines.models.bayesian_ma_idm.src.highway_env_driver import MAIDMVehicle
+
+    from external_model_baselines.models.bayesian_ma_idm.src.highway_env_driver import (
+        MAIDMVehicle,
+    )
     return CircularLane, Road, RoadNetwork, MAIDMVehicle
 
 

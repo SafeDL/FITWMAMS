@@ -1,0 +1,88 @@
+{
+  "actual_final_collision_counts": {
+    "natural_generated": {
+      "after": 76,
+      "before": 91,
+      "instances": 5000
+    },
+    "tail_generated": {
+      "after": 149,
+      "before": 177,
+      "instances": 5000
+    }
+  },
+  "actual_training_exposure": "all_valid_entries_visited_training_development_and_final_complete",
+  "algorithms": [
+    "diffusion_planner"
+  ],
+  "all_learning_entries_visited": true,
+  "automatic_native_validation": false,
+  "batch_size": 128,
+  "completed_gradient_updates": 32726,
+  "development_per_distribution": 5000,
+  "expected_keep_learning_entries": 698130,
+  "expert_candidates_per_input": 128,
+  "expert_learning_entries": 20460,
+  "failure_input_limit": null,
+  "final_evaluation_complete": true,
+  "final_evaluation_started": true,
+  "final_independent_instances": 10000,
+  "final_per_distribution": 5000,
+  "final_policy_executions_completed": 20000,
+  "fixed_500_update_cap": false,
+  "highway_success_instances": 23271,
+  "historical_controls_rerun": false,
+  "initial_policy_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+  "methods_executed": [
+    "guided"
+  ],
+  "minimum_critical_visits_after_second_phase": 4,
+  "minimum_phase_updates": 250,
+  "native_candidates": 13066,
+  "native_excluded": 381,
+  "native_selection": "all_available_valid_scenes",
+  "native_valid": 12685,
+  "new_correction_entries": 9251,
+  "new_initial_expert_executions_this_repair": 0,
+  "new_search_executions_this_repair": 0,
+  "nuplan_native_evaluation": "manual_by_user",
+  "offset_query_limit": null,
+  "optimization_reference_updates_per_phase": 250,
+  "original_keep_base": 6500,
+  "phase_1_update_lower_bound_from_keep": 21817,
+  "phase_one_acceptance": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/repair/verification/phase_one_training_acceptance.json",
+  "phase_one_development_accepted": true,
+  "phase_one_schedule": {
+    "ema_decay": 0.999988535378393,
+    "learning_rate": 1.1499328141965105e-07,
+    "physical_updates": 21817,
+    "reference_ema_retention": 0.7787033741169899,
+    "reference_learning_rate_sum": 0.001267,
+    "reference_updates": 250
+  },
+  "phase_one_updates": 21817,
+  "phase_two_development_accepted": true,
+  "phase_two_updates_completed": 10909,
+  "phase_two_updates_planned": 10909,
+  "physical_update_budget_is_independent_of_reference_clock": true,
+  "prepared_material_source": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/search",
+  "qualified_expert_inputs": 682,
+  "qualified_offset_queries": 372,
+  "quotas": {
+    "correction": 32,
+    "keep": 32,
+    "native": 64
+  },
+  "selected_stage": 2,
+  "success_pool_limit": null,
+  "total_correction_entries": 29711,
+  "total_physical_updates_planned": 32726,
+  "training_budget": "computed from all valid entries and required visits",
+  "verification": {
+    "completion": "verification/completion.json",
+    "costs": "verification/cost_accounting.json",
+    "final": "verification/final_pairing.json",
+    "nuplan_configuration": "verification/native_configuration_acceptance.json",
+    "training": "verification/full_training_acceptance.json"
+  }
+}

@@ -13,8 +13,10 @@ from pathlib import Path
 
 import numpy as np
 
-from external_model_baselines.models.active_inference_driver.data import leader_brake_events, load_highd_pairs
-
+from external_model_baselines.models.active_inference_driver.data import (
+    leader_brake_events,
+    load_highd_pairs,
+)
 
 METRICS = ("speed_rmse", "gap_rmse", "min_gap", "model_response_s", "human_response_s")
 

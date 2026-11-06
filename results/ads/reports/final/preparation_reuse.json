@@ -1,0 +1,44 @@
+{
+  "prepared_output": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/search",
+  "created": "2026-10-28T23:06:25",
+  "shared_artifacts": {
+    "sources.json": {
+      "path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/repair/sources.json",
+      "sha256": "2b694447fc28f049b4be351ed19aa9c78025cd0546eabbc504e3ebd213c6daec"
+    },
+    "materials.json": {
+      "path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/search/materials.json",
+      "sha256": "c9ff73c586d0842b671264e019852855465222496e90de9ca66c1fc34ecd774e"
+    }
+  },
+  "expert_report_sha256": "d0b95535e086da9de67421825864cf6f250c918c1e73837df021bb02f3fac494",
+  "initial_policy_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+  "new_search_executions": 0,
+  "new_initial_expert_executions": 0,
+  "new_retention_executions": 0,
+  "reused_original_development_executions": 10000,
+  "prior_final_execution_records": 0,
+  "retry_limit": 1,
+  "change": "Normalize per-phase learning-rate integral and EMA age to 250 reference updates; all material entries remain eligible and required.",
+  "whole_method_cost_accounting": "Search and expert preparation are counted once, prior rejected training/development and this repair are counted separately.",
+  "controller_report_fix": {
+    "time": "2026-10-28T23:24:03",
+    "previous_pid": 3378206,
+    "reason": "Cost reader must ignore aggregate execution JSON beside per-instance records",
+    "training_code_changed": false,
+    "new_world_executions": 0,
+    "superseded_optimizer_updates_at_most": 50,
+    "resume": "Committed in_progress.pth with exact optimizer, EMA, sampler and RNG states",
+    "changed_source": "ads/diffusion_planner/summarize.py",
+    "previous_sha256": "5805318f3c098e67d1cd8a55ecfeaf056fdfd9fbcf9494d559d59b569859af2d",
+    "new_sha256": "55f80f01dd628a146e3df1df02ee5cb804e98fed0edb2b14f1fc7b97cefffe0e",
+    "record_counts": {
+      "previous_candidate_records": 10000,
+      "original_development_records": 10000,
+      "aggregate_json_excluded": 2,
+      "world_executions_added": 0
+    },
+    "resumed_pid": 3385464,
+    "resumed_created": 1793201146.66
+  }
+}

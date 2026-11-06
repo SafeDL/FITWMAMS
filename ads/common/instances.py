@@ -37,20 +37,6 @@ def file_hash(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def artifact_record(path: str | Path | None) -> dict[str, object] | None:
-    """Describe an immutable file input by resolved path, size and digest."""
-    if path is None:
-        return None
-    value = Path(path).resolve()
-    if not value.is_file():
-        raise FileNotFoundError(value)
-    return {
-        "path": str(value),
-        "bytes": int(value.stat().st_size),
-        "sha256": file_hash(value),
-    }
-
-
 def json_hash(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
@@ -192,12 +178,16 @@ class GeneratedInstance:
                     **{k: data["rng_" + k].copy() for k in WORLD_RANDOM_BLOCKS}
                 ),
                 split="test" if meta["purpose"] == "final_test" else "train",
-                initial_history=data["initial_history"].copy()
-                if len(data["initial_history"])
-                else None,
-                initial_history_valid=data["initial_history_valid"].copy()
-                if len(data["initial_history_valid"])
-                else None,
+                initial_history=(
+                    data["initial_history"].copy()
+                    if len(data["initial_history"])
+                    else None
+                ),
+                initial_history_valid=(
+                    data["initial_history_valid"].copy()
+                    if len(data["initial_history_valid"])
+                    else None
+                ),
             )
         result = cls(
             event,
@@ -223,6 +213,24 @@ class UsageLedger:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS usage (identity TEXT, group_name TEXT, PRIMARY KEY(identity, group_name))"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS protected_roots (root TEXT PRIMARY KEY)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS roles (root TEXT, purpose TEXT, PRIMARY KEY(root, purpose))"
+            )
+
+    def protect_roots(self, roots):
+        with sqlite3.connect(self.path) as db:
+            db.execute("BEGIN IMMEDIATE")
+            for root in roots:
+                if db.execute(
+                    "SELECT 1 FROM roles WHERE root=? AND purpose='repair'", (root,)
+                ).fetchone():
+                    raise ValueError(
+                        "Cannot hold out an ancestor already used for repair"
+                    )
+                db.execute("INSERT OR IGNORE INTO protected_roots VALUES (?)", (root,))
 
     def register(self, instance: GeneratedInstance, purpose: str) -> None:
         if purpose not in PURPOSES:
@@ -248,6 +256,14 @@ class UsageLedger:
             identities.append("instance:" + instance.parent_id)
         with sqlite3.connect(self.path) as db:
             db.execute("BEGIN IMMEDIATE")
+            if (
+                purpose == "repair"
+                and db.execute(
+                    "SELECT 1 FROM protected_roots WHERE root=?",
+                    (instance.root_sample_id,),
+                ).fetchone()
+            ):
+                raise ValueError("Protected validation ancestor cannot enter repair")
             for identity in identities:
                 old = {
                     r[0]
@@ -260,6 +276,10 @@ class UsageLedger:
                 db.execute(
                     "INSERT OR IGNORE INTO usage VALUES (?,?)", (identity, group)
                 )
+            db.execute(
+                "INSERT OR IGNORE INTO roles VALUES (?,?)",
+                (instance.root_sample_id, purpose),
+            )
 
 
 class InstanceStore(Sequence[GeneratedInstance]):
@@ -315,7 +335,9 @@ class GeneratedSource:
         self.index = 0
         self.generation_elapsed_s = 0.0
 
-    def _materialise(self, omega, roots, parents, blocks) -> list[GeneratedInstance]:
+    def _materialise(
+        self, omega, roots, parents, blocks, *, record_elapsed=True
+    ) -> list[GeneratedInstance]:
         started = time.perf_counter()
         sample = self.sampler.compose_exogenous(omega)
         # This is exactly the existing HierarchicalWorldSampler.create_world map.
@@ -358,7 +380,8 @@ class GeneratedSource:
             )
             instance.validate()
             results.append(instance)
-        self.generation_elapsed_s += time.perf_counter() - started
+        if record_elapsed:
+            self.generation_elapsed_s += time.perf_counter() - started
         return results
 
     def prior_identity(self, index):
@@ -378,13 +401,32 @@ class GeneratedSource:
         )
 
     def mutation(
-        self, parent: GeneratedInstance, omega: WorldExogenousState, block: str
+        self,
+        parent: GeneratedInstance,
+        omega: WorldExogenousState,
+        block: str,
+        *,
+        record_elapsed=True,
     ) -> GeneratedInstance:
         if parent.purpose == "final_test" or parent.assets != self.assets:
             raise ValueError("cannot mutate test data or a different frozen world")
         return self._materialise(
-            omega, [parent.root_sample_id], [parent.instance_hash], [block]
+            omega,
+            [parent.root_sample_id],
+            [parent.instance_hash],
+            [block],
+            record_elapsed=record_elapsed,
         )[0]
+
+    def mutations(self, jobs, executor):
+        def generate(job):
+            return self.mutation(*job, record_elapsed=False)
+
+        started = time.perf_counter()
+        try:
+            return list(executor.map(generate, jobs))
+        finally:
+            self.generation_elapsed_s += time.perf_counter() - started
 
 
 def generate_to_store(

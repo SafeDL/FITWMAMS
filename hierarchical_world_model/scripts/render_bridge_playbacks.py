@@ -234,9 +234,7 @@ def render_gif(case, destination):
                     else (
                         SLOT_COLOR
                         if owned[j]
-                        else TARGET_COLOR
-                        if j == target
-                        else "#bdbdbd"
+                        else TARGET_COLOR if j == target else "#bdbdbd"
                     )
                 )
                 for j in range(7)

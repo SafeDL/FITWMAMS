@@ -10,7 +10,6 @@ from ads.common.instances import file_hash
 ROOT = Path(__file__).resolve().parent
 CARL_COMMIT = "2677d1477193ecb5eb41ad8d7e4eda78057fd8a9"
 CARL_VARIANT = "nuplan_51892_1B"
-PLANT_REVISION = "e81b261f8b92b20225d020fe9b7a0470c1434d96"
 
 
 def official_assets():
@@ -20,12 +19,6 @@ def official_assets():
             f"https://raw.githubusercontent.com/autonomousvision/CaRL/{CARL_COMMIT}/nuPlan/checkpoints/{CARL_VARIANT}/model_best.pth",
         )
     ]
-    assets.append(
-        (
-            ROOT / "plant2/artifacts/official_1.ckpt",
-            f"https://huggingface.co/SimonGer/PlanT2/resolve/{PLANT_REVISION}/epoch%3D029_final_1.ckpt",
-        )
-    )
     return assets
 
 

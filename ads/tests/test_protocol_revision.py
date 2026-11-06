@@ -8,8 +8,11 @@ from ads.risk_stratified_repair import Campaign, registered_protocol
 
 
 def revision_case():
-    before = {"ads/dtpp/policy.py": "old", "ads/search/engine.py": "frozen"}
-    after = dict(before, **{"ads/dtpp/policy.py": "corrected"})
+    before = {
+        "ads/diffusion_planner/policy.py": "old",
+        "ads/search/engine.py": "frozen",
+    }
+    after = dict(before, **{"ads/diffusion_planner/policy.py": "corrected"})
     saved = {
         "settings": {"seed": 20260926},
         "assets": {"world": "frozen"},
@@ -19,7 +22,9 @@ def revision_case():
     revision = {
         "base_files": before,
         "revised_files": after,
-        "changes": {"ads/dtpp/policy.py": {"before": "old", "after": "corrected"}},
+        "changes": {
+            "ads/diffusion_planner/policy.py": {"before": "old", "after": "corrected"}
+        },
     }
     return saved, current, revision
 

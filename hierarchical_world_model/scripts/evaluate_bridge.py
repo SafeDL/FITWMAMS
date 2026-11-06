@@ -339,9 +339,9 @@ def main():
                 f"Test {number}/{len(jobs)} batch={offset} scenes={count} admissions={admissions}",
                 flush=True,
             )
-    assert all(file_sha256(ROOT / name) == digest for name, digest in hashes.items()), (
-        "Frozen inputs changed during evaluation"
-    )
+    assert all(
+        file_sha256(ROOT / name) == digest for name, digest in hashes.items()
+    ), "Frozen inputs changed during evaluation"
     records = [
         r
         for offset in offsets

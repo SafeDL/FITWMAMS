@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections import Counter
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -43,11 +43,6 @@ def parse_recording_override(value: str | None) -> dict[str, Any] | None:
     }
 
 
-def validate_raw_dir(raw_dir: Path) -> None:
-    if not raw_dir.is_dir():
-        raise FileNotFoundError(f"highD raw directory does not exist: {raw_dir}")
-
-
 def risk_quantiles(values: np.ndarray) -> dict[str, float]:
     finite = np.asarray(values, dtype=np.float64)
     finite = finite[np.isfinite(finite)]
@@ -74,7 +69,8 @@ def build_natural_segments_dataset(
 ) -> dict[str, Any]:
     cfg = load_config(config_path)
     raw_dir = resolve_data_path(cfg["paths"]["raw_dir"], config_path)
-    validate_raw_dir(raw_dir)
+    if not raw_dir.is_dir():
+        raise FileNotFoundError(f"highD raw directory does not exist: {raw_dir}")
     paths = natural_output_paths(cfg, config_path)
     paths["out_dir"].mkdir(parents=True, exist_ok=True)
     recordings_cfg = parse_recording_override(recording_override) or cfg["recordings"]
@@ -95,8 +91,8 @@ def build_natural_segments_dataset(
 
     for recording_id in tqdm(recording_ids, desc="Natural highD segments"):
         rec = prepare_recording(raw_dir, int(recording_id), cfg)
-        frame, risk_trace, recording_summary = (
-            build_natural_segments_for_recording(rec, options)
+        frame, risk_trace, recording_summary = build_natural_segments_for_recording(
+            rec, options
         )
         if not frame.empty:
             all_frames.append(frame)
@@ -110,12 +106,11 @@ def build_natural_segments_dataset(
             recording_summary["reject_counts"],
         )
 
-    if all_frames:
-        segments = pd.concat(all_frames, ignore_index=True)
-        segments["risk_trace_row"] = np.arange(len(segments), dtype=np.int64)
-        risk_trace_all = np.concatenate(risk_blocks, axis=0).astype(np.float32)
-    else:
+    if not all_frames:
         raise RuntimeError("No valid natural highD segments were built")
+    segments = pd.concat(all_frames, ignore_index=True)
+    segments["risk_trace_row"] = np.arange(len(segments), dtype=np.int64)
+    risk_trace_all = np.concatenate(risk_blocks, axis=0).astype(np.float32)
 
     segments.to_csv(paths["segment_csv"], index=False)
     np.savez_compressed(
@@ -126,7 +121,6 @@ def build_natural_segments_dataset(
     values = pd.to_numeric(segments["event_risk"], errors="coerce").to_numpy(
         dtype=np.float64
     )
-    values = values[np.isfinite(values)]
     summary: dict[str, Any] = {
         "config_path": str(config_path),
         "raw_dir": str(raw_dir),

@@ -1,4 +1,4 @@
-"""One validated expert execution cache shared by all five supervised planners."""
+"""One validated expert execution cache shared by native nuPlan supervised planners."""
 
 import fcntl
 import json
@@ -13,14 +13,17 @@ from ads.common.instances import file_hash, json_hash
 
 
 class DemonstrationCache:
-    def __init__(self, directory, factory, *, algorithm, candidate_budget, cfg=None):
+    def __init__(self, directory, factory, *, algorithm, candidate_budget, ledger=None):
         self.directory, self.factory = Path(directory), factory
-        self.algorithm, self.budget, self.cfg = algorithm, candidate_budget, cfg
+        self.algorithm, self.budget = algorithm, candidate_budget
+        self.ledger = ledger
         self.directory.mkdir(parents=True, exist_ok=True)
 
     def get(self, instance):
         if instance.purpose in ("final_test", "development"):
             raise ValueError("expert cannot label final-test or development instances")
+        if self.ledger is not None:
+            self.ledger.register(instance, "repair")
         config = {
             "schema": "shared_highway_expert_v2",
             "budget": self.budget,
@@ -42,12 +45,16 @@ class DemonstrationCache:
                 )
                 np.savez_compressed(
                     stem.with_suffix(".npz"),
-                    states=execution.states
-                    if execution
-                    else np.empty((0, 7, 6), np.float32),
-                    controls=execution.controls
-                    if execution
-                    else np.empty((0, 2), np.float32),
+                    states=(
+                        execution.states
+                        if execution
+                        else np.empty((0, 7, 6), np.float32)
+                    ),
+                    controls=(
+                        execution.controls
+                        if execution
+                        else np.empty((0, 2), np.float32)
+                    ),
                     candidate=np.asarray(
                         json.dumps(asdict(execution.candidate) if execution else {})
                     ),
@@ -65,31 +72,15 @@ class DemonstrationCache:
                 )
             if file_hash(stem.with_suffix(".npz")) != report["trajectory_sha256"]:
                 raise ValueError("cached expert trajectory changed")
-            samples, clipped = [], 0
+            samples = []
             if report["qualified_demonstration"]:
                 with np.load(stem.with_suffix(".npz"), allow_pickle=False) as data:
-                    if self.algorithm == "plant2":
-                        from ads.plant2.demonstrations import demonstration
+                    from ads.nuplan.teacher import demonstration
 
-                        execution = expert.TeacherExecution(
-                            expert.Candidate(**json.loads(str(data["candidate"]))),
-                            True,
-                            0,
-                            0,
-                            data["states"],
-                            data["controls"],
-                        )
-                        samples, clipped = demonstration(instance, execution, self.cfg)
-                    else:
-                        from ads.nuplan.teacher import demonstration
-
-                        samples = demonstration(
-                            instance, data["states"], self.algorithm
-                        )
+                    samples = demonstration(instance, data["states"], self.algorithm)
         return samples, {
             **report,
             "samples": len(samples),
-            "forecast_speed_clipped": clipped,
             "new_candidates": new_candidates,
             "new_elapsed_s": new_elapsed,
             "cache_path": str(metadata.resolve()),

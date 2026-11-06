@@ -1,5 +1,6 @@
 """Parallel, resumable policy execution with per-instance provenance and cost."""
 
+import fcntl
 import json
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
@@ -81,40 +82,42 @@ def evaluate_paths(
 ):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    ledger_path = ledger_path or directory / "usage.sqlite"
-    jobs = [(str(path), str(directory), save_trace) for path in paths]
-    entries = []
-    with ProcessPoolExecutor(
-        max_workers=workers,
-        mp_context=multiprocessing.get_context("spawn"),
-        initializer=initialize,
-        initargs=(settings, algorithm, str(policy_path), str(ledger_path), purpose),
-    ) as executor:
-        for index, entry in enumerate(executor.map(execute, jobs, chunksize=1), 1):
-            entries.append(entry)
-            if index % 25 == 0 or index == len(jobs):
-                print(
-                    f"{directory.name}: {index}/{len(jobs)}, collisions {sum(e['record']['collision'] for e in entries)}",
-                    flush=True,
-                )
-    write_json(
-        directory / "summary.json",
-        {
-            "policy_sha256": file_hash(policy_path),
-            "purpose": purpose,
-            "instances": len(entries),
-            "collision_count": sum(e["record"]["collision"] for e in entries),
-            "offroad_count": sum(e["record"]["offroad"] for e in entries),
-            "stalled_count": sum(e["record"]["stalled"] for e in entries),
-            "execution_s": sum(
-                e["record"]["elapsed_s"] for e in entries if not e["cache_hit"]
-            ),
-            "new_executions": sum(not e["cache_hit"] for e in entries),
-            "cache_hits": sum(e["cache_hit"] for e in entries),
-            "mean_progress_m": float(
-                np.mean([e["record"]["progress_m"] for e in entries])
-            ),
-            "records": [entry["record"] for entry in entries],
-        },
-    )
-    return entries
+    with (directory / "evaluation.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        ledger_path = ledger_path or directory / "usage.sqlite"
+        jobs = [(str(path), str(directory), save_trace) for path in paths]
+        entries = []
+        with ProcessPoolExecutor(
+            max_workers=workers,
+            mp_context=multiprocessing.get_context("spawn"),
+            initializer=initialize,
+            initargs=(settings, algorithm, str(policy_path), str(ledger_path), purpose),
+        ) as executor:
+            for index, entry in enumerate(executor.map(execute, jobs, chunksize=1), 1):
+                entries.append(entry)
+                if index % 25 == 0 or index == len(jobs):
+                    print(
+                        f"{directory.name}: {index}/{len(jobs)}, collisions {sum(e['record']['collision'] for e in entries)}",
+                        flush=True,
+                    )
+        write_json(
+            directory / "summary.json",
+            {
+                "policy_sha256": file_hash(policy_path),
+                "purpose": purpose,
+                "instances": len(entries),
+                "collision_count": sum(e["record"]["collision"] for e in entries),
+                "offroad_count": sum(e["record"]["offroad"] for e in entries),
+                "stalled_count": sum(e["record"]["stalled"] for e in entries),
+                "execution_s": sum(
+                    e["record"]["elapsed_s"] for e in entries if not e["cache_hit"]
+                ),
+                "new_executions": sum(not e["cache_hit"] for e in entries),
+                "cache_hits": sum(e["cache_hit"] for e in entries),
+                "mean_progress_m": float(
+                    np.mean([e["record"]["progress_m"] for e in entries])
+                ),
+                "records": [entry["record"] for entry in entries],
+            },
+        )
+        return entries

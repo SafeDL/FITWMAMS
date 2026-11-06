@@ -7,24 +7,34 @@ and (b) a closed-loop follower that observes the intervention.  Consequently,
 the gap difference between the two branches is caused only by follower response,
 not by comparing two different leader trajectories.
 """
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from external_model_baselines.models.bayesian_ma_idm.src.driver import BayesianIDMDriver
-from external_model_baselines.models.bayesian_ma_idm.src.model import load_posterior, sample_driver_joint
+from external_model_baselines.models.bayesian_ma_idm.src.model import (
+    load_posterior,
+    sample_driver_joint,
+)
 from external_model_baselines.models.dynamic_ar_idm.model import DynamicIDMDriver
-from external_model_baselines.models.multi_regime_bidm.src.driver import MultiRegimeIDMDriver
+from external_model_baselines.models.multi_regime_bidm.src.driver import (
+    MultiRegimeIDMDriver,
+)
 from external_model_baselines.models.multi_regime_bidm.src.hsmm import FiniteHSMM
-from external_model_baselines.models.multi_regime_bidm.src.online_filter import FilterState, initialize_filter
+from external_model_baselines.models.multi_regime_bidm.src.online_filter import (
+    FilterState,
+    initialize_filter,
+)
 
-
-ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
+ROOT = next(
+    parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists()
+)
 MODEL_NAMES = ("b_idm", "ma_idm", "dynamic_ar5", "multi_regime")
 
 
@@ -78,8 +88,11 @@ class HighDAnchor:
 
 def select_common_support_anchor_row(
     evidence: str | Path,
-    *, target_speed_mps: float = 15.0, target_gap_m: float = 30.0,
-    speed_scale_mps: float = 3.0, gap_scale_m: float = 10.0,
+    *,
+    target_speed_mps: float = 15.0,
+    target_gap_m: float = 30.0,
+    speed_scale_mps: float = 3.0,
+    gap_scale_m: float = 10.0,
     closing_scale_mps: float = 2.0,
 ) -> int:
     """Select a supported ego-led event using pre-intervention state only."""
@@ -108,8 +121,12 @@ def load_highd_anchor(scenario: Scenario) -> HighDAnchor:
                 : scenario.frames
             ].copy()
             for name in (
-                "leader_x", "leader_v", "follower_x",
-                "follower_v", "follower_a", "logged_gap",
+                "leader_x",
+                "leader_v",
+                "follower_x",
+                "follower_v",
+                "follower_a",
+                "logged_gap",
             )
         }
     if any(values.shape != (scenario.frames,) for values in fields.values()):
@@ -124,7 +141,9 @@ def load_highd_anchor(scenario: Scenario) -> HighDAnchor:
 
 
 def leader_trajectory(
-    scenario: Scenario, dose_mps2: float, anchor: HighDAnchor | None = None,
+    scenario: Scenario,
+    dose_mps2: float,
+    anchor: HighDAnchor | None = None,
 ) -> dict[str, np.ndarray]:
     """Replay logged ego controls and optionally add braking during the probe window."""
     anchor = load_highd_anchor(scenario) if anchor is None else anchor
@@ -138,25 +157,43 @@ def leader_trajectory(
     acceleration = np.empty(scenario.frames)
     for frame in range(scenario.frames):
         t = frame * scenario.dt_s
-        active = scenario.brake_start_s <= t < scenario.brake_start_s + scenario.brake_duration_s
+        active = (
+            scenario.brake_start_s
+            <= t
+            < scenario.brake_start_s + scenario.brake_duration_s
+        )
         a = float(logged_acceleration[frame] - (dose_mps2 if active else 0.0))
         position[frame], speed[frame], acceleration[frame] = x, v, a
         x += v * scenario.dt_s + 0.5 * a * scenario.dt_s**2
         v = max(0.0, v + a * scenario.dt_s)
-    return {"x": position, "v": speed, "a": acceleration, "logged_a": logged_acceleration}
+    return {
+        "x": position,
+        "v": speed,
+        "a": acceleration,
+        "logged_a": logged_acceleration,
+    }
 
 
 def _copy_filter(state: FilterState) -> FilterState:
-    return FilterState(np.array(state.mass, copy=True), state.observations_seen, state.low_observation_likelihood)
+    return FilterState(
+        np.array(state.mass, copy=True),
+        state.observations_seen,
+        state.low_observation_likelihood,
+    )
 
 
 def _models(path: Path) -> list[FiniteHSMM]:
     data = np.load(path, allow_pickle=False)
     return [
         FiniteHSMM(
-            data["means"][style], data["variances"][style], data["transition"][style],
-            data["initial"][style], data["duration_lambda"][style], int(data["duration_max"]),
-            data["observation_mean"][style], data["observation_scale"][style],
+            data["means"][style],
+            data["variances"][style],
+            data["transition"][style],
+            data["initial"][style],
+            data["duration_lambda"][style],
+            int(data["duration_max"]),
+            data["observation_mean"][style],
+            data["observation_scale"][style],
         )
         for style in range(3)
     ]
@@ -169,16 +206,27 @@ class Resources:
         # Counterfactual simulation is a deployment probe, not an OOF score.
         # Use the all-cohort deployment posterior; CV folds remain evaluation-only.
         self.ma_posterior = load_posterior(
-            ROOT / "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz"
+            ROOT
+            / "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/ma_idm_all_251.npz"
         )
         self.b_posterior = load_posterior(
-            ROOT / "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/b_idm_all_251.npz"
+            ROOT
+            / "external_model_baselines/models/bayesian_ma_idm/evidence/deployment/b_idm_all_251.npz"
         )
-        with np.load(ROOT / "external_model_baselines/models/dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz", allow_pickle=False) as data:
+        with np.load(
+            ROOT
+            / "external_model_baselines/models/dynamic_ar_idm/artifacts/full_posterior/dynamic_ar5_full_posterior.npz",
+            allow_pickle=False,
+        ) as data:
             self.dynamic = {key: data[key] for key in data.files}
-        segmentation = ROOT / "external_model_baselines/models/multi_regime_bidm/evidence/segmentation"
+        segmentation = (
+            ROOT
+            / "external_model_baselines/models/multi_regime_bidm/evidence/segmentation"
+        )
         self.hsmm = _models(segmentation / "stage_a_finite_hsmm_models.npz")
-        with np.load(segmentation / "stage_a_offline_labels.npz", allow_pickle=False) as labels:
+        with np.load(
+            segmentation / "stage_a_offline_labels.npz", allow_pickle=False
+        ) as labels:
             style = np.asarray(labels["style_id"], int)
         initial_gap = float(anchor.logged_gap[0])
         initial_speed = float(anchor.follower_v[0])
@@ -187,18 +235,30 @@ class Resources:
         # Use the modal train-only style rather than fabricating max-acceleration
         # features from future frames or repeating the initial observation.
         self.style_id = int(np.argmax(np.bincount(style, minlength=3)))
-        with np.load(ROOT / f"external_model_baselines/models/multi_regime_bidm/evidence/posterior/style_{self.style_id}_nuts_posterior.npz", allow_pickle=False) as data:
+        with np.load(
+            ROOT
+            / f"external_model_baselines/models/multi_regime_bidm/evidence/posterior/style_{self.style_id}_nuts_posterior.npz",
+            allow_pickle=False,
+        ) as data:
             self.multi = {key: data[key] for key in data.files}
         observation = np.asarray((initial_gap, initial_speed, initial_closing))
-        self.multi_initial_state = initialize_filter(self.hsmm[self.style_id], observation)
+        self.multi_initial_state = initialize_filter(
+            self.hsmm[self.style_id], observation
+        )
 
 
-def _sample_parameters(model: str, resources: Resources, rng: np.random.Generator) -> dict[str, Any]:
+def _sample_parameters(
+    model: str, resources: Resources, rng: np.random.Generator
+) -> dict[str, Any]:
     if model in {"b_idm", "ma_idm"}:
-        posterior = resources.b_posterior if model == "b_idm" else resources.ma_posterior
+        posterior = (
+            resources.b_posterior if model == "b_idm" else resources.ma_posterior
+        )
         values = sample_driver_joint(posterior, rng)
         return {
-            "theta": values[:5], "sigma": float(values[5]), "ell": float(values[6]),
+            "theta": values[:5],
+            "sigma": float(values[5]),
+            "ell": float(values[6]),
             "iid_sigma": float(values[7]) if len(values) > 7 else 0.1,
         }
     if model == "dynamic_ar5":
@@ -208,33 +268,44 @@ def _sample_parameters(model: str, resources: Resources, rng: np.random.Generato
             "theta": resources.dynamic["theta_draws"][draw, driver],
             "rho": np.asarray(resources.dynamic["rho_map"], float),
             "sigma": float(resources.dynamic["sigma_draws"][draw]),
-            "draw": draw, "driver": driver,
+            "draw": draw,
+            "driver": driver,
         }
     if model == "multi_regime":
         draw = int(rng.integers(len(resources.multi["theta_draws"])))
         return {
             "theta": np.asarray(resources.multi["theta_draws"][draw], float),
             "sigma": np.asarray(resources.multi["sigma_draws"][draw], float),
-            "draw": draw, "style": resources.style_id,
+            "draw": draw,
+            "style": resources.style_id,
         }
     raise ValueError(model)
 
 
-def _noise(model: str, parameters: dict[str, Any], scenario: Scenario, rng: np.random.Generator) -> dict[str, np.ndarray]:
+def _noise(
+    model: str, scenario: Scenario, rng: np.random.Generator
+) -> dict[str, np.ndarray]:
     count = scenario.decisions
     if model == "ma_idm":
-        return {"process_z": rng.standard_normal(count), "iid_z": rng.standard_normal(count)}
-    if model == "b_idm":
-        return {"process_z": rng.standard_normal(count)}
-    if model == "dynamic_ar5":
+        return {
+            "process_z": rng.standard_normal(count),
+            "iid_z": rng.standard_normal(count),
+        }
+    if model in {"b_idm", "dynamic_ar5"}:
         return {"process_z": rng.standard_normal(count)}
     if model == "multi_regime":
         return {"z": rng.standard_normal(count), "u": rng.random(count)}
     raise ValueError(model)
 
 
-def simulate_branch(model: str, parameters: dict[str, Any], noise: dict[str, np.ndarray],
-                    leader: dict[str, np.ndarray], scenario: Scenario, resources: Resources) -> dict[str, np.ndarray]:
+def simulate_branch(
+    model: str,
+    parameters: dict[str, Any],
+    noise: dict[str, np.ndarray],
+    leader: dict[str, np.ndarray],
+    scenario: Scenario,
+    resources: Resources,
+) -> dict[str, np.ndarray]:
     x, v = 0.0, float(resources.anchor.follower_v[0])
     action = 0.0
     position = np.empty(scenario.frames)
@@ -286,7 +357,9 @@ def simulate_branch(model: str, parameters: dict[str, Any], noise: dict[str, np.
                     speed_mps=v,
                     leader_speed_mps=float(leader["v"][frame]),
                     process_standard_normal=float(noise["process_z"][decision]),
-                    iid_standard_normal=(float(noise["iid_z"][decision]) if model == "ma_idm" else None),
+                    iid_standard_normal=(
+                        float(noise["iid_z"][decision]) if model == "ma_idm" else None
+                    ),
                 )
                 regime = -1
                 disturbance = result.residual_acceleration_mps2
@@ -300,7 +373,11 @@ def simulate_branch(model: str, parameters: dict[str, Any], noise: dict[str, np.
                     standard_normal=float(noise["process_z"][decision]),
                 )
                 disturbance = float(driver.state.residual_history[0])
-            action = float(np.clip(raw, scenario.min_acceleration_mps2, scenario.max_acceleration_mps2))
+            action = float(
+                np.clip(
+                    raw, scenario.min_acceleration_mps2, scenario.max_acceleration_mps2
+                )
+            )
         # Every stored value is a frame-start state/action.  Mixing a frame-start
         # leader with a frame-end follower shifts the displayed gap by roughly
         # one native-frame travel distance at highway speed.
@@ -313,7 +390,11 @@ def simulate_branch(model: str, parameters: dict[str, Any], noise: dict[str, np.
         ttc[frame] = gap / closing if gap > 0.0 and closing > 1.0e-6 else np.inf
         x += v * scenario.dt_s + 0.5 * action * scenario.dt_s**2
         v = max(0.0, v + action * scenario.dt_s)
-        if model == "multi_regime" and (frame + 1) % scenario.hold_frames == 0 and frame + 1 < scenario.frames:
+        if (
+            model == "multi_regime"
+            and (frame + 1) % scenario.hold_frames == 0
+            and frame + 1 < scenario.frames
+        ):
             new_gap = float(leader["x"][frame + 1] - x - scenario.vehicle_length_m)
             driver.observe(
                 gap_m=new_gap,
@@ -321,15 +402,23 @@ def simulate_branch(model: str, parameters: dict[str, Any], noise: dict[str, np.
                 leader_speed_mps=float(leader["v"][frame + 1]),
             )
     return {
-        "position": position, "speed": speed, "acceleration": acceleration,
-        "requested_acceleration": requested, "gap": gap_values, "closing": closing_values, "ttc": ttc,
-        "residual": residual, "regime": regimes,
+        "position": position,
+        "speed": speed,
+        "acceleration": acceleration,
+        "requested_acceleration": requested,
+        "gap": gap_values,
+        "closing": closing_values,
+        "ttc": ttc,
+        "residual": residual,
+        "regime": regimes,
     }
 
 
 def frozen_action_branch(
-    natural: dict[str, np.ndarray], leader: dict[str, np.ndarray],
-    scenario: Scenario, resources: Resources,
+    natural: dict[str, np.ndarray],
+    leader: dict[str, np.ndarray],
+    scenario: Scenario,
+    resources: Resources,
 ) -> dict[str, np.ndarray]:
     """Replay no-intervention follower actions under the intervened leader.
 
@@ -365,7 +454,7 @@ def frozen_action_branch(
 
 
 def _onset(delta_action: np.ndarray, scenario: Scenario) -> float:
-    decisions = np.asarray(delta_action[::scenario.hold_frames])
+    decisions = np.asarray(delta_action[:: scenario.hold_frames])
     active = decisions <= -scenario.response_threshold_mps2
     consecutive = active[:-1] & active[1:]
     candidates = np.flatnonzero(consecutive)
@@ -376,30 +465,49 @@ def _onset(delta_action: np.ndarray, scenario: Scenario) -> float:
 
 
 def _metrics(
-    natural: dict[str, np.ndarray], frozen: dict[str, np.ndarray], reactive: dict[str, np.ndarray],
-    scenario: Scenario, anchor: HighDAnchor,
+    natural: dict[str, np.ndarray],
+    frozen: dict[str, np.ndarray],
+    reactive: dict[str, np.ndarray],
+    scenario: Scenario,
+    anchor: HighDAnchor,
 ) -> dict[str, float]:
     delta = reactive["acceleration"] - frozen["acceleration"]
-    decision_delta = delta[::scenario.hold_frames]
+    decision_delta = delta[:: scenario.hold_frames]
     finite_ttc = reactive["ttc"][np.isfinite(reactive["ttc"])]
     regime_valid = natural["regime"] >= 0
     gap_benefit = reactive["gap"] - frozen["gap"]
     return {
         "response_latency_s": _onset(delta, scenario),
         "peak_additional_braking_mps2": float(np.max(np.maximum(0.0, -decision_delta))),
-        "additional_brake_dose_mps": float(np.sum(np.maximum(0.0, -decision_delta)) * scenario.decision_dt_s),
+        "additional_brake_dose_mps": float(
+            np.sum(np.maximum(0.0, -decision_delta)) * scenario.decision_dt_s
+        ),
         "minimum_gap_m": float(np.min(reactive["gap"])),
         "frozen_minimum_gap_m": float(np.min(frozen["gap"])),
         "terminal_gap_benefit_m": float(gap_benefit[-1]),
         "peak_gap_benefit_m": float(np.max(gap_benefit)),
-        "terminal_closing_reduction_mps": float(frozen["closing"][-1] - reactive["closing"][-1]),
-        "natural_gap_rmse_to_highd_m": float(np.sqrt(np.mean(np.square(natural["gap"] - anchor.logged_gap)))),
+        "terminal_closing_reduction_mps": float(
+            frozen["closing"][-1] - reactive["closing"][-1]
+        ),
+        "natural_gap_rmse_to_highd_m": float(
+            np.sqrt(np.mean(np.square(natural["gap"] - anchor.logged_gap)))
+        ),
         "natural_terminal_gap_drift_m": float(natural["gap"][-1] - natural["gap"][0]),
         "minimum_ttc_s": float(np.min(finite_ttc)) if len(finite_ttc) else float("inf"),
         "collision": float(np.any(reactive["gap"] <= 0.0)),
         "frozen_collision": float(np.any(frozen["gap"] <= 0.0)),
-        "residual_branch_difference_mps2": float(np.max(np.abs(reactive["residual"] - natural["residual"]))),
-        "regime_branch_difference": float(np.mean(reactive["regime"][regime_valid] != natural["regime"][regime_valid])) if np.any(regime_valid) else 0.0,
+        "residual_branch_difference_mps2": float(
+            np.max(np.abs(reactive["residual"] - natural["residual"]))
+        ),
+        "regime_branch_difference": (
+            float(
+                np.mean(
+                    reactive["regime"][regime_valid] != natural["regime"][regime_valid]
+                )
+            )
+            if np.any(regime_valid)
+            else 0.0
+        ),
     }
 
 
@@ -426,29 +534,44 @@ def _summarize(rows: list[dict[str, float]]) -> dict[str, Any]:
             summary[f"{key}_probability"] = float(np.mean(values))
         else:
             summary[key] = {
-                "median": float(np.median(values)), "p10": float(np.quantile(values, 0.1)),
-                "p90": float(np.quantile(values, 0.9)), "mean": float(np.mean(values)),
+                "median": float(np.median(values)),
+                "p10": float(np.quantile(values, 0.1)),
+                "p90": float(np.quantile(values, 0.9)),
+                "mean": float(np.mean(values)),
             }
     return summary
 
 
-def run_experiment(output_dir: str | Path, *, scenario: Scenario = Scenario(), futures: int = 256,
-                   seed: int = 20260916) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
+def run_experiment(
+    output_dir: str | Path,
+    *,
+    scenario: Scenario = Scenario(),
+    futures: int = 256,
+    seed: int = 20260916,
+) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
     if futures < 8:
         raise ValueError("at least eight paired futures are required")
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     anchor = load_highd_anchor(scenario)
     resources = Resources(scenario, anchor)
-    leaders = {dose: leader_trajectory(scenario, dose, anchor) for dose in (0.0, *scenario.brake_doses_mps2)}
+    leaders = {
+        dose: leader_trajectory(scenario, dose, anchor)
+        for dose in (0.0, *scenario.brake_doses_mps2)
+    }
     ensemble: dict[str, np.ndarray] = {}
     report: dict[str, Any] = {
         "experiment": "highD-anchored frozen-action versus closed-loop braking response probe",
         "purpose": "mechanism audit, not observational accuracy or causal-identification evidence",
-        "scenario": asdict(scenario), "futures": int(futures), "seed": int(seed),
+        "scenario": asdict(scenario),
+        "futures": int(futures),
+        "seed": int(seed),
         "highd_anchor": {
-            "split": "validation", "row": anchor.row, "recording_id": anchor.recording_id,
-            "leader_id": anchor.leader_id, "follower_id": anchor.follower_id,
+            "split": "validation",
+            "row": anchor.row,
+            "recording_id": anchor.recording_id,
+            "leader_id": anchor.leader_id,
+            "follower_id": anchor.follower_id,
             "initial_leader_speed_mps": float(anchor.leader_v[0]),
             "initial_follower_speed_mps": float(anchor.follower_v[0]),
             "initial_gap_m": float(anchor.logged_gap[0]),
@@ -479,31 +602,55 @@ def run_experiment(output_dir: str | Path, *, scenario: Scenario = Scenario(), f
     model_seeds = np.random.SeedSequence(seed).spawn(len(MODEL_NAMES))
     for model_index, model in enumerate(MODEL_NAMES):
         rng = np.random.default_rng(model_seeds[model_index])
-        keys = ("position", "speed", "acceleration", "gap", "closing", "residual", "regime")
+        keys = (
+            "position",
+            "speed",
+            "acceleration",
+            "gap",
+            "closing",
+            "residual",
+            "regime",
+        )
         natural_store = {key: [] for key in keys}
-        frozen_store = {dose: {key: [] for key in keys} for dose in scenario.brake_doses_mps2}
-        reactive_store = {dose: {key: [] for key in keys} for dose in scenario.brake_doses_mps2}
+        frozen_store = {
+            dose: {key: [] for key in keys} for dose in scenario.brake_doses_mps2
+        }
+        reactive_store = {
+            dose: {key: [] for key in keys} for dose in scenario.brake_doses_mps2
+        }
         metric_rows = {dose: [] for dose in scenario.brake_doses_mps2}
         for _ in range(futures):
             parameters = _sample_parameters(model, resources, rng)
-            innovations = _noise(model, parameters, scenario, rng)
-            natural = simulate_branch(model, parameters, innovations, leaders[0.0], scenario, resources)
+            innovations = _noise(model, scenario, rng)
+            natural = simulate_branch(
+                model, parameters, innovations, leaders[0.0], scenario, resources
+            )
             for key in keys:
                 natural_store[key].append(natural[key])
             for dose in scenario.brake_doses_mps2:
-                frozen = frozen_action_branch(natural, leaders[dose], scenario, resources)
-                reactive = simulate_branch(model, parameters, innovations, leaders[dose], scenario, resources)
+                frozen = frozen_action_branch(
+                    natural, leaders[dose], scenario, resources
+                )
+                reactive = simulate_branch(
+                    model, parameters, innovations, leaders[dose], scenario, resources
+                )
                 for key in keys:
                     frozen_store[dose][key].append(frozen[key])
                     reactive_store[dose][key].append(reactive[key])
-                metric_rows[dose].append(_metrics(natural, frozen, reactive, scenario, anchor))
+                metric_rows[dose].append(
+                    _metrics(natural, frozen, reactive, scenario, anchor)
+                )
         for key, values in natural_store.items():
             ensemble[f"{model}__natural__{key}"] = np.asarray(values)
         for dose in scenario.brake_doses_mps2:
             dose_key = str(dose).replace(".", "p")
             for key in keys:
-                ensemble[f"{model}__dose_{dose_key}__frozen__{key}"] = np.asarray(frozen_store[dose][key])
-                ensemble[f"{model}__dose_{dose_key}__reactive__{key}"] = np.asarray(reactive_store[dose][key])
+                ensemble[f"{model}__dose_{dose_key}__frozen__{key}"] = np.asarray(
+                    frozen_store[dose][key]
+                )
+                ensemble[f"{model}__dose_{dose_key}__reactive__{key}"] = np.asarray(
+                    reactive_store[dose][key]
+                )
         report["models"][model] = {
             "posterior_source": {
                 "b_idm": "all-251-pair B-IDM deployment posterior; OOF folds are evaluation-only",
@@ -511,25 +658,44 @@ def run_experiment(output_dir: str | Path, *, scenario: Scenario = Scenario(), f
                 "dynamic_ar5": "251-pair MAP/Laplace theta draws with stable fitted MAP rho",
                 "multi_regime": f"retained style-{resources.style_id} hierarchical NUTS posterior and causal finite-HSMM filter",
             }[model],
-            "dose_response": {str(dose): _summarize(metric_rows[dose]) for dose in scenario.brake_doses_mps2},
+            "dose_response": {
+                str(dose): _summarize(metric_rows[dose])
+                for dose in scenario.brake_doses_mps2
+            },
         }
     medium = str(float(scenario.brake_doses_mps2[1]))
     report["primary_findings_at_medium_dose"] = {
         "dose_mps2": float(scenario.brake_doses_mps2[1]),
         "exogenous_residual_models": {
             model: {
-                "response_probability": report["models"][model]["dose_response"][medium]["response_probability"],
-                "median_latency_s": report["models"][model]["dose_response"][medium]["response_latency_s"]["median"],
-                "median_peak_additional_braking_mps2": report["models"][model]["dose_response"][medium]["peak_additional_braking_mps2"]["median"],
-                "mean_residual_branch_difference_mps2": report["models"][model]["dose_response"][medium]["residual_branch_difference_mps2"]["mean"],
+                "response_probability": report["models"][model]["dose_response"][
+                    medium
+                ]["response_probability"],
+                "median_latency_s": report["models"][model]["dose_response"][medium][
+                    "response_latency_s"
+                ]["median"],
+                "median_peak_additional_braking_mps2": report["models"][model][
+                    "dose_response"
+                ][medium]["peak_additional_braking_mps2"]["median"],
+                "mean_residual_branch_difference_mps2": report["models"][model][
+                    "dose_response"
+                ][medium]["residual_branch_difference_mps2"]["mean"],
             }
             for model in ("b_idm", "ma_idm", "dynamic_ar5")
         },
         "multi_regime": {
-            "response_probability": report["models"]["multi_regime"]["dose_response"][medium]["response_probability"],
-            "median_latency_s": report["models"]["multi_regime"]["dose_response"][medium]["response_latency_s"]["median"],
-            "median_peak_additional_braking_mps2": report["models"]["multi_regime"]["dose_response"][medium]["peak_additional_braking_mps2"]["median"],
-            "mean_regime_branch_difference_share": report["models"]["multi_regime"]["dose_response"][medium]["regime_branch_difference"]["mean"],
+            "response_probability": report["models"]["multi_regime"]["dose_response"][
+                medium
+            ]["response_probability"],
+            "median_latency_s": report["models"]["multi_regime"]["dose_response"][
+                medium
+            ]["response_latency_s"]["median"],
+            "median_peak_additional_braking_mps2": report["models"]["multi_regime"][
+                "dose_response"
+            ][medium]["peak_additional_braking_mps2"]["median"],
+            "mean_regime_branch_difference_share": report["models"]["multi_regime"][
+                "dose_response"
+            ][medium]["regime_branch_difference"]["mean"],
         },
         "interpretation": (
             "B-IDM, MA-IDM and Dynamic-AR react only through the deterministic IDM state feedback: their paired "
@@ -553,5 +719,7 @@ def run_experiment(output_dir: str | Path, *, scenario: Scenario = Scenario(), f
         ensemble[f"leader_dose_{dose_key}_v"] = leaders[dose]["v"]
         ensemble[f"leader_dose_{dose_key}_a"] = leaders[dose]["a"]
     np.savez_compressed(output / "response_ensembles.npz", **ensemble)
-    (output / "response_metrics.json").write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
+    (output / "response_metrics.json").write_text(
+        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
+    )
     return report, ensemble

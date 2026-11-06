@@ -9,9 +9,18 @@ the paper's NUTS model does not change simulation or evaluation semantics.
 from __future__ import annotations
 
 from pathlib import Path
+
 import numpy as np
 
-PARAMETER_NAMES = ("v0_mps", "s0_m", "T_s", "alpha_mps2", "beta_mps2", "sigma_gp_mps2", "ell_s")
+PARAMETER_NAMES = (
+    "v0_mps",
+    "s0_m",
+    "T_s",
+    "alpha_mps2",
+    "beta_mps2",
+    "sigma_gp_mps2",
+    "ell_s",
+)
 LOWER = np.asarray([8.0, 0.3, 0.25, 0.2, 0.2, 0.02, 0.08])
 UPPER = np.asarray([60.0, 12.0, 4.0, 6.0, 8.0, 5.0, 8.0])
 # Eq. (19) has a separate velocity observation-error term.  In acceleration
@@ -28,7 +37,9 @@ def _nearest_pd(matrix: np.ndarray) -> np.ndarray:
     return (vectors * np.maximum(vals, floor)) @ vectors.T
 
 
-def sample_driver_joint(posterior: dict[str, np.ndarray], rng: np.random.Generator) -> np.ndarray:
+def sample_driver_joint(
+    posterior: dict[str, np.ndarray], rng: np.random.Generator
+) -> np.ndarray:
     """Draw all seven parameters together, preserving posterior dependence.
 
     The standard artifact stores a population log-normal approximation.  A
@@ -46,12 +57,20 @@ def sample_driver_joint(posterior: dict[str, np.ndarray], rng: np.random.Generat
         # PyMC uses positive transforms already.  Do not impose the empirical-
         # Bayes optimizer bounds here: doing so would alter a retained MCMC
         # draw and defeat the source-simulator sampling scheme.
-        iid = (float(posterior["iid_action_sigma_draws"][sample % len(posterior["iid_action_sigma_draws"])])
-               if "iid_action_sigma_draws" in posterior else ACCELERATION_OBSERVATION_NOISE)
+        iid = (
+            float(
+                posterior["iid_action_sigma_draws"][
+                    sample % len(posterior["iid_action_sigma_draws"])
+                ]
+            )
+            if "iid_action_sigma_draws" in posterior
+            else ACCELERATION_OBSERVATION_NOISE
+        )
         return np.r_[theta, sigma, ell, iid]
     draw = int(rng.integers(len(posterior["population_log_mean"])))
-    value = rng.multivariate_normal(posterior["population_log_mean"][draw],
-                                   posterior["population_log_cov"][draw])
+    value = rng.multivariate_normal(
+        posterior["population_log_mean"][draw], posterior["population_log_cov"][draw]
+    )
     parameters = np.clip(np.exp(value), LOWER, UPPER)
     if "iid_action_sigma_draws" in posterior:
         iid = np.asarray(posterior["iid_action_sigma_draws"], float)

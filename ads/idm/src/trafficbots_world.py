@@ -182,8 +182,7 @@ def _categorical_from_uniform(
     cumulative[..., -1] = 1.0
     destination = (draw.unsqueeze(-1) > cumulative).sum(dim=-1)
     destination = destination.clamp_max(probabilities.shape[-1] - 1).long()
-    destination = torch.where(valid, destination, torch.zeros_like(destination))
-    return destination
+    return torch.where(valid, destination, torch.zeros_like(destination))
 
 
 class TrafficBotsHighwayEnvWorld:

@@ -20,7 +20,6 @@ GROUPS = (
 DT = 0.04
 HORIZON = 1.5
 STEPS = int(HORIZON / DT)
-SAMPLES = 16
 REPRESENTATIVES = 32
 MODEL_PATH = (
     Path(__file__).resolve().parents[2]

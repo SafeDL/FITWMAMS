@@ -21,7 +21,7 @@ from ads.common.world import FrozenWorldFactory
 from tools.evt import GPDTailModel
 
 OBSERVATION_KEYS = ("bev_semantics", "measurements", "value_measurements")
-ROOT = REPO_ROOT / "results/risk_stratified_repair/materials/carl"
+ROOT = REPO_ROOT / "results/ads/history/two_round_repair/materials/carl"
 COMMON_INPUTS = ROOT.parent / "diffusion_planner/instances.json"
 OFFICIAL = Path(__file__).parent / "artifacts/official.pth"
 
@@ -122,14 +122,14 @@ def load_keep_samples(report_path, *, official_hash):
             raise ValueError("Recorded CaRL observations changed")
         with np.load(entry["observations_path"], allow_pickle=False) as data:
             arrays = {key: data[key] for key in OBSERVATION_KEYS}
-        for index in range(entry["decision_observations"]):
-            samples.append(
-                {
-                    "scene_id": entry["record"]["root_sample_id"],
-                    "instance_hash": entry["record"]["instance_hash"],
-                    "observation": {key: value[index] for key, value in arrays.items()},
-                }
-            )
+        samples.extend(
+            {
+                "scene_id": entry["record"]["root_sample_id"],
+                "instance_hash": entry["record"]["instance_hash"],
+                "observation": {key: value[index] for key, value in arrays.items()},
+            }
+            for index in range(entry["decision_observations"])
+        )
     return samples
 
 
@@ -225,9 +225,11 @@ def prepare_highway(config_path):
         if (
             len(paths)
             != settings["capability_preserving_repair"][
-                "development_tail"
-                if kind == "tail_generated"
-                else "development_natural"
+                (
+                    "development_tail"
+                    if kind == "tail_generated"
+                    else "development_natural"
+                )
             ]
         ):
             raise ValueError("CaRL development pool has a different size")

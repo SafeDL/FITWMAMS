@@ -114,9 +114,9 @@ def main():
             residual = prediction[mask] - values["acceleration"][mask]
             report["conditional_groups"][split][name] = {
                 "states": int(mask.sum()),
-                "RMSE_mps2": float(np.sqrt(np.mean(residual**2)))
-                if mask.any()
-                else None,
+                "RMSE_mps2": (
+                    float(np.sqrt(np.mean(residual**2))) if mask.any() else None
+                ),
                 "bias_mps2": float(np.mean(residual)) if mask.any() else None,
             }
     save_json(report, OUTPUT / "npc_calibration.json")

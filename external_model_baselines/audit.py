@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = Path(__file__).with_name("registry.json")
 
@@ -58,7 +57,9 @@ def audit_registry(registry: dict[str, Any] | None = None) -> list[str]:
             implementation = _repo_path(
                 implementation_value, f"{label}.implementation_path", issues
             )
-            catalog = _repo_path(entry.get("catalog_path"), f"{label}.catalog_path", issues)
+            catalog = _repo_path(
+                entry.get("catalog_path"), f"{label}.catalog_path", issues
+            )
             if isinstance(implementation_value, str):
                 if implementation_value in implementation_paths:
                     issues.append(
@@ -68,11 +69,17 @@ def audit_registry(registry: dict[str, Any] | None = None) -> list[str]:
             if implementation is not None and not implementation.is_dir():
                 issues.append(f"{label}.implementation_path: missing directory")
             if implementation is not None:
-                canonical_kind = "models" if group == "model_baselines" else "evaluation"
+                canonical_kind = (
+                    "models" if group == "model_baselines" else "evaluation"
+                )
                 if implementation.is_symlink():
-                    issues.append(f"{label}.implementation_path: source must be physical")
+                    issues.append(
+                        f"{label}.implementation_path: source must be physical"
+                    )
                 try:
-                    implementation.relative_to(ROOT / "external_model_baselines" / canonical_kind)
+                    implementation.relative_to(
+                        ROOT / "external_model_baselines" / canonical_kind
+                    )
                 except ValueError:
                     issues.append(
                         f"{label}.implementation_path: source must be under "
@@ -81,9 +88,14 @@ def audit_registry(registry: dict[str, Any] | None = None) -> list[str]:
             if catalog is not None:
                 if not catalog.is_dir():
                     issues.append(f"{label}.catalog_path: missing directory or link")
-                elif implementation is not None and implementation.is_dir():
-                    if catalog.resolve() != implementation.resolve():
-                        issues.append(f"{label}.catalog_path: does not resolve to implementation")
+                elif (
+                    implementation is not None
+                    and implementation.is_dir()
+                    and catalog.resolve() != implementation.resolve()
+                ):
+                    issues.append(
+                        f"{label}.catalog_path: does not resolve to implementation"
+                    )
 
             if group == "model_baselines":
                 paper = _repo_path(entry.get("paper"), f"{label}.paper", issues)
@@ -107,27 +119,43 @@ def audit_registry(registry: dict[str, Any] | None = None) -> list[str]:
         issues.append("top_level_classification: expected an object")
     else:
         for role, names in classification.items():
-            if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
-                issues.append(f"top_level_classification.{role}: expected a string list")
+            if not isinstance(names, list) or not all(
+                isinstance(name, str) for name in names
+            ):
+                issues.append(
+                    f"top_level_classification.{role}: expected a string list"
+                )
                 continue
             classified.extend(names)
         duplicates = sorted({name for name in classified if classified.count(name) > 1})
         if duplicates:
-            issues.append(f"top_level_classification: multiply classified: {duplicates}")
-        actual = {path.name for path in ROOT.iterdir() if path.is_dir() and not path.name.startswith(".")}
+            issues.append(
+                f"top_level_classification: multiply classified: {duplicates}"
+            )
+        actual = {
+            path.name
+            for path in ROOT.iterdir()
+            if path.is_dir() and not path.name.startswith(".")
+        }
         missing = sorted(actual - set(classified))
         stale = sorted(set(classified) - actual)
         if missing:
-            issues.append(f"top_level_classification: unclassified directories: {missing}")
+            issues.append(
+                f"top_level_classification: unclassified directories: {missing}"
+            )
         if stale:
-            issues.append(f"top_level_classification: missing classified directories: {stale}")
+            issues.append(
+                f"top_level_classification: missing classified directories: {stale}"
+            )
 
     return issues
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--json", action="store_true", help="emit machine-readable output")
+    parser.add_argument(
+        "--json", action="store_true", help="emit machine-readable output"
+    )
     args = parser.parse_args()
     registry = load_registry()
     issues = audit_registry(registry)

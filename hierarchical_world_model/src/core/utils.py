@@ -42,7 +42,7 @@ def file_sha256(path: str | Path) -> str:
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -57,7 +57,7 @@ def save_json(payload: dict[str, Any], path: str | Path) -> None:
 
 
 def load_json(path: str | Path) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

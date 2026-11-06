@@ -1,14 +1,22 @@
 from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 from pathlib import Path
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+
 from external_model_baselines.models.trafficbots.config import load_config
-from external_model_baselines.models.trafficbots.data import TrafficBotsCausalDataset, TrafficBotsHighDDataset, make_loader
+from external_model_baselines.models.trafficbots.data import (
+    TrafficBotsCausalDataset,
+    TrafficBotsHighDDataset,
+    make_loader,
+)
 from external_model_baselines.models.trafficbots.module import HighDTrafficBotsModule
 from hierarchical_world_model.src.core.utils import set_seed
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()

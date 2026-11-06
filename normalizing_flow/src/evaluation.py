@@ -35,7 +35,7 @@ from .utils import ensure_dir, load_json, save_json, select_device
 def _terms(model, arrays, rows, device) -> dict[str, float]:
     import torch
 
-    totals = {name: 0.0 for name in ("mask", "c0", "k", "joint")}
+    totals = dict.fromkeys(("mask", "c0", "k", "joint"), 0.0)
     for start in range(0, len(rows), 512):
         selected = rows[start : start + 512]
         with torch.no_grad():
@@ -318,7 +318,9 @@ def _quality(arrays, rows, sample, schema, seed):
 def _figures(output, arrays, rows, sample, report):
     plt = get_pyplot()
     figures = ensure_dir(output / "figures")
-    history = np.genfromtxt(output / "training_history.csv", delimiter=",", names=True)
+    history = np.genfromtxt(
+        output / "reports/training_history.csv", delimiter=",", names=True
+    )
     figure, axis = plt.subplots(figsize=(7.0, 4.2))
     axis.plot(history["epoch"], history["joint_nll"], color=GENERATED_COLOR)
     axis.set(xlabel="Epoch", ylabel="Training NLL", title="All-tail Flow convergence")
@@ -500,13 +502,13 @@ def evaluate_tail_flow(
         _baseline_samples(arrays, rows, schema, seed=seed + 1).items(), start=1
     ):
         comparisons[name] = _quality(arrays, rows, candidate, schema, seed + index)[0]
-    cross_validation = load_json(output / "cross_validation.json")
+    cross_validation = load_json(output / "reports/cross_validation.json")
     cross_validation_summary = {
         "protocol": cross_validation["protocol"],
         "folds": len(cross_validation["folds"]),
         "mean": cross_validation["mean"],
         "std": cross_validation["std"],
-        "report": "results/flow/cross_validation.json",
+        "report": "results/flow/reports/cross_validation.json",
     }
     report = {
         "population": "evt_tail",
@@ -532,6 +534,6 @@ def evaluate_tail_flow(
         "sample_seed": seed,
         "sampling_device": str(device),
     }
-    save_json(report, output / "evaluation_summary.json")
+    save_json(report, output / "reports/evaluation_summary.json")
     _figures(output, arrays, rows, sample, report)
     return report

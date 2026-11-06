@@ -1,0 +1,193 @@
+{
+  "source": "retired_evaluation_backup",
+  "models": [
+    {
+      "archive": "archive/hierarchical_world_model/evaluation_consolidation/before_cleanup.tar.gz",
+      "member": "results/hierarchical_world_model/hiqr_training/checkpoints/stochastic_heads_best.pt",
+      "sha256": "c8c3da749350699b04b794561f8699e4fe3ec8211b2ac0e7cf0bc25078eb85d4",
+      "bytes": 8681956,
+      "retained_path": "archive/retained_models/stochastic_heads_best.pt",
+      "already_present": false
+    },
+    {
+      "archive": "archive/hierarchical_world_model/evaluation_consolidation/before_cleanup.tar.gz",
+      "member": "results/hierarchical_world_model/hiqr_training/checkpoints/base_best.pt",
+      "sha256": "7e554475211da324cf985004f339cf706aed548ce64ea7dc6f42bb697411c20a",
+      "bytes": 8679664,
+      "retained_path": "archive/retained_models/base_best.pt",
+      "already_present": false
+    },
+    {
+      "archive": "archive/hierarchical_world_model/evaluation_consolidation/before_cleanup.tar.gz",
+      "member": "results/hierarchical_world_model/model_assets/response_gate.pt",
+      "sha256": "9121834ce85502ad8e19f9be87f2030af10f4c79ea38ab3a9637cbbd27d921e1",
+      "bytes": 28939,
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/response_gate/response_gate.pt",
+      "already_present": true
+    }
+  ],
+  "deduplicated_files": [
+    {
+      "retained_path": "archive/results/hierarchical_world_model/factual_hiqr/natural_response_calibration.json",
+      "sha256": "804ad7161431f93ee16fae5bf01d6a050df951d6ca9aa3c03b4b3b2488e6f0fa",
+      "bytes": 3463486,
+      "former_paths": [
+        "archive/results/hierarchical_world_model/upstream_refresh/factual_with_dimensions/natural_response_calibration.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/population.npz",
+      "sha256": "52aa6677ebc52616c302a3cc2a98d392d574b639b34ee70948678993560ff294",
+      "bytes": 2076805,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/population_strong.npz",
+        "archive/hierarchical_world_model/npc_population_environment/previous_results/calibration/driver_parameters.npz",
+        "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/calibration/population.npz",
+        "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/calibration/population_strong.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/population_weak.npz",
+      "sha256": "c2b175caaae8efcf42165d5b68f57904feb4c5ae75cd106658401f5fbfe058a4",
+      "bytes": 2289021,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/calibration/population_weak.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/population_medium.npz",
+      "sha256": "71766e6e625201e45f69f01ed6b94324bb56c6836c20a1dac5630d952fce0f58",
+      "bytes": 2213681,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/calibration/population_medium.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/lane_trajectory/model.json",
+      "sha256": "a011d6519852b3048b749b61a4f579b1bbac2aadadea41c2f3651b72ece0b738",
+      "bytes": 314046,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/lane_model.json",
+        "archive/hierarchical_world_model/npc_response_refinement/artifacts/lane_trajectory/model.json",
+        "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/calibration/lane_model.json",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/lane_model.json",
+        "archive/hierarchical_world_model/npc_population_environment/previous_results/calibration/lane_model.json",
+        "archive/hierarchical_world_model/npc_population_environment/previous_artifacts/lane_trajectory/model.json",
+        "archive/hierarchical_world_model/npc_response_previous/results/development/lateral_labels/calibration/lane_model.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/lane_trajectory/fit_report.json",
+      "sha256": "2bfad5a5eb5c563533fb5f071141ab294381b9ed1893e840a903e63a15834137",
+      "bytes": 2466,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_response_previous/artifacts/lane_trajectory/fit_report.json",
+        "archive/hierarchical_world_model/npc_response_refinement/artifacts/lane_trajectory/fit_report.json",
+        "archive/hierarchical_world_model/npc_population_environment/previous_artifacts/lane_trajectory/fit_report.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/calibration/driver_parameters.npz",
+      "sha256": "ac76a4b397fda135f4eac013233196151f46c7eeee8bb01e2aa52a4afbf24819",
+      "bytes": 2794904,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/calibration/population_ridge_1.0.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/following/model.npz",
+      "sha256": "2488e3d6dae615861dc5e15ec216437cbe68f1689ff856deeaaf3216f11ac75e",
+      "bytes": 1198,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/local.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/calibrated.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/initial_03.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/joint_0_00.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/joint_0_01.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/joint_0_03.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/joint_1_03.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/duplicate_candidate_populations/longitudinal_only_0_02.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/artifacts/following/model.npz",
+        "archive/hierarchical_world_model/npc_population_environment/previous_artifacts/following/model.npz",
+        "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/reference_population.npz",
+        "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/calibration/reference_population.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/reference_population.npz",
+        "archive/hierarchical_world_model/npc_population_environment/previous_results/calibration/reference_population.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/search/candidates/joint_0_00.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/search/candidates/joint_0_01.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/search/candidates/joint_0_03.npz",
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/search/candidates/joint_1_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/physics_residual_plan_gate/search/candidates/joint_0_00.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/physics_residual_plan_gate/search/candidates/joint_0_01.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/physics_residual_plan_gate/search/candidates/joint_0_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/physics_residual_plan_gate/search/candidates/joint_1_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/residual_time_model/results/search/candidates/joint_0_00.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/residual_time_model/results/search/candidates/joint_0_01.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/residual_time_model/results/search/candidates/joint_0_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/residual_time_model/results/search/candidates/joint_1_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/raw_acceleration_feedback/results/search/candidates/joint_0_00.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/raw_acceleration_feedback/results/search/candidates/joint_0_01.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/raw_acceleration_feedback/results/search/candidates/joint_0_03.npz",
+        "archive/hierarchical_world_model/npc_response_refinement/development/raw_acceleration_feedback/results/search/candidates/joint_1_03.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/upstream_sources.json",
+      "sha256": "f272ce8712d7448ec2e52e60d67506b065283c1893f6f5c0820e3d40a8d48850",
+      "bytes": 567,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/full_data_refit/calibration/upstream_sources.json",
+        "archive/hierarchical_world_model/npc_population_environment/previous_results/calibration/upstream_sources.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/driver_parameters.npz",
+      "sha256": "2f2e570395aac9902bceadc7ed049430e4e06046447febe63270c8a60e0739e0",
+      "bytes": 2076944,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/population_ridge_1.0.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_population_environment/previous_artifacts/mobil/model.json",
+      "sha256": "cdafa125a06807d877f9518ff67af77e19d50630bdfaa7157e9e878d7d77095c",
+      "bytes": 5003,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/calibration/reference_mobil.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/search/candidates/joint_0_00.npz",
+      "sha256": "2fbff8a6d0b983c1f49d5102caacff741db22529d648d90a6059705a5c0b4bd0",
+      "bytes": 1198,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_method_cleanup/holdout_study/search/candidates/population_2_06.npz"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/response_gate/response_gate.pt",
+      "sha256": "9121834ce85502ad8e19f9be87f2030af10f4c79ea38ab3a9637cbbd27d921e1",
+      "bytes": 28939,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_population_environment/previous_artifacts/response_gate/response_gate.pt"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_response_refinement/artifacts/mobil/model.json",
+      "sha256": "a1334e983b29c06350f06af84ae239b0d00a5c6e75b39ffd4b41ab1860aa1227",
+      "bytes": 3629,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_joint_calibration/previous_results/calibration/reference_mobil.json",
+        "archive/hierarchical_world_model/npc_population_environment/previous_results/calibration/reference_mobil.json"
+      ]
+    },
+    {
+      "retained_path": "archive/hierarchical_world_model/npc_joint_calibration/published_artifacts/selection.json",
+      "sha256": "bda151eb063e9d4d7860048c4ddc6cb6dd3b8978f91ebf7c5530ace420c3d6e0",
+      "bytes": 4066,
+      "former_paths": [
+        "archive/hierarchical_world_model/npc_response_refinement/artifacts/selection.json"
+      ]
+    }
+  ]
+}

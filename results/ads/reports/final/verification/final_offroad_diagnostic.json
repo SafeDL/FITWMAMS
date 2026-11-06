@@ -1,0 +1,75 @@
+{
+  "after_offroad_cases": [
+    {
+      "after": {
+        "collision": false,
+        "interaction_type": "offroad_right",
+        "offroad": true,
+        "physics_steps": 129,
+        "progress_m": 71.71218872070312,
+        "safety_failure": true,
+        "speed_mps": 10.363624572753906
+      },
+      "before": {
+        "collision": false,
+        "interaction_type": "offroad_right",
+        "offroad": true,
+        "physics_steps": 139,
+        "progress_m": 77.89158630371094,
+        "safety_failure": true,
+        "speed_mps": 10.585302352905273
+      },
+      "instance_hash": "70cc34df024f101fe3c0446b1b833ce80870ed8396318b23a179a4a356504abd"
+    },
+    {
+      "after": {
+        "collision": false,
+        "interaction_type": "offroad_right",
+        "offroad": true,
+        "physics_steps": 100,
+        "progress_m": 63.26807403564453,
+        "safety_failure": true,
+        "speed_mps": 6.724695682525635
+      },
+      "before": {
+        "collision": false,
+        "interaction_type": "front_tracking",
+        "offroad": false,
+        "physics_steps": 149,
+        "progress_m": 73.67222595214844,
+        "safety_failure": false,
+        "speed_mps": 5.149364948272705
+      },
+      "instance_hash": "ce553a0ab15d7640c1ae9001b8f66d2bf8e77606a445517aa736ee18b1f4d50b"
+    },
+    {
+      "after": {
+        "collision": false,
+        "interaction_type": "offroad_right",
+        "offroad": true,
+        "physics_steps": 78,
+        "progress_m": 51.55588912963867,
+        "safety_failure": true,
+        "speed_mps": 10.82778549194336
+      },
+      "before": {
+        "collision": false,
+        "interaction_type": "rear_owned",
+        "offroad": false,
+        "physics_steps": 149,
+        "progress_m": 69.43611145019531,
+        "safety_failure": false,
+        "speed_mps": 4.60052490234375
+      },
+      "instance_hash": "f2bf7f1a00b6efced7e2b94044251b7b765ac859b8ce0a703bc8bb4c26e1da25"
+    }
+  ],
+  "final_tail_offroad_after": 3,
+  "final_tail_offroad_before": 1,
+  "model_forward_calls": 0,
+  "new_offroad_cases": 2,
+  "scope": "Saved outcome summaries only; no causal attribution to a particular steering action without trajectory replay.",
+  "used_for_model_selection": false,
+  "used_for_training": false,
+  "world_executions": 0
+}

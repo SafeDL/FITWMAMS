@@ -101,7 +101,7 @@ def coverage_for_training(directory, config, *, seed, method, round_index):
             counts[role]["expert_qualified_instances"] += int(qualified)
     return [
         {
-            "algorithm": metadata.get("algorithm", "plant2"),
+            "algorithm": metadata["algorithm"],
             "seed": seed,
             "method": method,
             "round": round_index,

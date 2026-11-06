@@ -65,9 +65,9 @@ class HighDTrafficBotsModule(LightningModule):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
         self.config = config
-        from models.traffic_bots import TrafficBots
-        from models.modules.distributions import DestCategorical
         from models.metrics.loss import BalancedKL
+        from models.modules.distributions import DestCategorical
+        from models.traffic_bots import TrafficBots
         from utils.dynamics import MultiPathPP
 
         options = _upstream_model_config(config)

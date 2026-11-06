@@ -6,12 +6,9 @@ import numpy as np
 import pytest
 import torch
 import yaml
-from gymnasium import spaces
 
 from ads.carl.export import export_policy
-from ads.carl.policy import CaRLPolicy, observation_space
-from ads.carl.vendor.config import GlobalConfig
-from ads.carl.vendor.model import PPOPolicy
+from ads.carl.policy import CaRLPolicy
 from ads.common.control import (
     CARL_MAX_STEERING,
     ContinuousController,
@@ -97,13 +94,9 @@ def test_native_export_preserves_parameters_and_actions(
     instance, world_factory, tmp_path
 ):
     torch.set_num_threads(1)
-    policy = CaRLPolicy(
-        PPOPolicy(
-            observation_space(),
-            spaces.Box(-1, 1, (2,), dtype=np.float32),
-            config=GlobalConfig(),
-        )
-    )
+    policy = CaRLPolicy.load("ads/carl/artifacts/official.pth")
+    with torch.no_grad():
+        policy.network.dist_mu[0].bias.add_(0.1)
     checkpoint, output = tmp_path / "training.pth", tmp_path / "native.pth"
     policy.save(checkpoint)
     export_policy(checkpoint, output)
@@ -120,7 +113,7 @@ def test_native_export_preserves_parameters_and_actions(
 
 def test_new_protocol_has_one_seed_and_no_carl_adaptation():
     config = yaml.safe_load(
-        (Path(__file__).parents[1] / "configs/risk_stratified_repair.yaml").read_text()
+        (Path(__file__).parents[1] / "configs/carl_experiment.yaml").read_text()
     )
     assert config["seeds"] == [20260926]
     assert config["search"]["budget"] == 5000
@@ -170,14 +163,11 @@ def test_selected_official_carl_checkpoint_matches_source_and_loads(
     from ads.common.instances import file_hash
 
     source = Path(
-        "/media/hp/DATA/nuplan_workspace/CaRL/nuPlan/checkpoints/nuplan_51892_1B/model_best.pth"
+        "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/carl/artifacts/nuplan_51892_1B/model_best.pth"
     )
     local = Path("ads/carl/artifacts/official.pth")
-    assert (
-        file_hash(local)
-        == file_hash(source)
-        == "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d"
-    )
+    assert local.resolve() == source
+    assert file_hash(local) == "b3d7c9f687743dd3a9b2377b177ada37dc4ae7c9a563a853c18b3158b8d2954d"
     policy = CaRLPolicy.load(local)
     observation, _ = PolicyEnvironment("carl", [instance], world_factory).reset()
     action, _ = policy.predict(observation)

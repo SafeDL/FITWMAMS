@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Leave-one-recording-out evaluation; every qualified pair is evaluated once OOF."""
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
+
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 from external_model_baselines.models.bayesian_ma_idm.src.data import load_ragged_pairs
-from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import evaluate_full_population
-from external_model_baselines.models.bayesian_ma_idm.src.full_model import fit_full_population
+from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import (
+    evaluate_full_population,
+)
+from external_model_baselines.models.bayesian_ma_idm.src.full_model import (
+    fit_full_population,
+)
+
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Final B-IDM / Gaussian MA-IDM recording-held-out evaluation.")

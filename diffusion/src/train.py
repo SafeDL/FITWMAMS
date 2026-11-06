@@ -10,6 +10,13 @@ from typing import Any
 import numpy as np
 import torch
 
+from hierarchical_world_model.src.core.utils import (
+    ensure_dir,
+    load_json,
+    save_json,
+    select_device,
+    set_seed,
+)
 from normalizing_flow.src.constraints import derived_modes
 from tools.plot_style import (
     GENERATED_COLOR,
@@ -20,21 +27,13 @@ from tools.plot_style import (
     style_axes,
 )
 
-from hierarchical_world_model.src.core.utils import (
-    ensure_dir,
-    load_json,
-    save_json,
-    select_device,
-    set_seed,
-)
-
 from .data import (
     BackgroundTrajectoryDataset,
-    trajectory_data_contract,
     fit_constraint_statistics,
     load_data_bundle,
     make_loader,
     split_rows,
+    trajectory_data_contract,
 )
 from .model import BackgroundTrajectoryDiffusion, DiffusionModelConfig
 

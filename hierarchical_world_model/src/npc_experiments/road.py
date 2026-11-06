@@ -131,16 +131,16 @@ def road_cohorts(
                     & (vehicle["vx"] < 60)
                     & (np.abs(vehicle["vy_left"]) < 0.3)
                 )
-                for point in np.flatnonzero(mask):
-                    free.append(
-                        [
-                            recording_id,
-                            vehicle_id,
-                            vehicle["frames"][point],
-                            vehicle["vx"][point],
-                            vehicle["ax"][point],
-                        ]
-                    )
+                free.extend(
+                    [
+                        recording_id,
+                        vehicle_id,
+                        vehicle["frames"][point],
+                        vehicle["vx"][point],
+                        vehicle["ax"][point],
+                    ]
+                    for point in np.flatnonzero(mask)
+                )
             key = f"{recording_id:02d}_{direction}"
             cohorts[key] = {
                 "recording_id": np.asarray(recording_id),
@@ -435,9 +435,8 @@ def simulate_road(
         steps = 0
         failure = None
         lane_starts = []
-        lane_decision = {
-            name: 0
-            for name in (
+        lane_decision = dict.fromkeys(
+            (
                 "eligible_steps",
                 "keep_choice_steps",
                 "lower_choice_steps",
@@ -450,8 +449,9 @@ def simulate_road(
                 "initial_continuations",
                 "unfinished_at_end",
                 "unfinished_on_exit",
-            )
-        }
+            ),
+            0,
+        )
         for tick in range(ticks):
             for actor in np.flatnonzero(cohort["entry_ticks"] == tick):
                 queues[arrival_lane[actor]].append(int(actor))

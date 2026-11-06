@@ -16,7 +16,10 @@ from hierarchical_world_model.src.core.sequential_dataset import (  # noqa: E402
     prepare_sequential_dataset,
     sequence_cache_owner_dir,
 )
-from hierarchical_world_model.src.core.utils import load_yaml, setup_logging  # noqa: E402
+from hierarchical_world_model.src.core.utils import (
+    load_yaml,
+    setup_logging,
+)  # noqa: E402
 
 CONFIG = ROOT / "process_highD/config.yaml"
 

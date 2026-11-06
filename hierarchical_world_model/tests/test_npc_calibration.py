@@ -319,9 +319,9 @@ def test_conditional_lane_gradient_matches_finite_difference_with_impossible_lab
     monkeypatch.setattr(calibration, "minimize", minimize)
     mobil = {"politeness": 0.3, "bias": -3, "slope": 0.1}
     calibration.fit_correction(data, lane, population, mobil, 0.1)
-    lane["label"][0] = (
-        2  # Both impossible choices contribute the same constant clipped loss.
-    )
+    lane["label"][
+        0
+    ] = 2  # Both impossible choices contribute the same constant clipped loss.
     calibration.fit_correction(data, lane, population, mobil, 0.1)
     assert evaluated[0][0] == evaluated[1][0]
     np.testing.assert_array_equal(evaluated[0][1], evaluated[1][1])

@@ -1,11 +1,11 @@
 """Shared configuration for the fixed highway-env IDM ADS."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
 import yaml
-
 
 IDM_PARAMETER_KEYS = (
     "ACC_MAX",

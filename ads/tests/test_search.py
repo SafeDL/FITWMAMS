@@ -6,7 +6,6 @@ import pytest
 
 from ads.common.evaluation import EpisodeResult
 from ads.search.archive import FailureArchive, diverse_representatives
-from ads.search.branches import HillValleyPartitioner, midpoint
 from ads.search.engine import SearchConfig, SearchEngine
 
 
@@ -31,7 +30,7 @@ def evaluate(instance):
             "physics_steps": 149,
             "elapsed_s": 0,
         },
-        np.empty((0, 7, 6)),
+        np.full((1, 7, 6), x, np.float32),
         np.empty((0, 2)),
         [],
     )
@@ -42,11 +41,8 @@ def small_config(**kwargs):
         **{
             "budget": 100,
             "initial_samples": 12,
-            "fresh_samples": 8,
             "batch_size": 8,
             "generation_batch_size": 4,
-            "graph_size": 6,
-            "branch_check_budget": 16,
             "terminal_proposals": 8,
             "subset_max_levels": 2,
             "archive_capacity": 4,
@@ -97,54 +93,16 @@ def test_safe_search_stops_at_depth_after_all_prior_quotas(source):
         return result
 
     result = SearchEngine(
-        source, safe, config=small_config(branch_check_budget=0, subset_max_levels=1)
+        source,
+        safe,
+        config=small_config(
+            subset_max_levels=1, fixed_budget=False, active_paths=1, archive_capacity=0
+        ),
     ).run()
     assert len(result.records) < result.budget
     assert result.costs["initial_prior"] == 12
-    assert result.costs["fresh_prior"] == 8
     assert result.stop_reason == "scheduled_tasks_complete"
     assert any(node["status"] == "depth_limit" for node in result.branches.values())
-
-
-def test_hill_valley_detects_separated_failures_without_semantic_labels(source):
-    instances = source.sample(12)
-    results = []
-    for index, instance in enumerate(instances):
-        arrays = instance.event.exogenous_state.as_dict()
-        arrays["c0_base_latent"][0, 0] = -3 if index < 6 else 3
-        results.append(
-            evaluate(
-                source.mutation(
-                    instance,
-                    instance.event.exogenous_state.replace_arrays(arrays),
-                    "c0_base_latent",
-                )
-            )
-        )
-
-    def check(left, right):
-        return evaluate(
-            source.mutation(
-                left.instance, midpoint(left.instance, right.instance), "branch_check"
-            )
-        )
-
-    partition, evidence = HillValleyPartitioner(graph_size=12).split(results, check)
-    assert evidence["status"] == "split"
-    labels = partition.predict([r.instance for r in results])
-    assert len(set(labels)) == 2
-    assert len(set(labels[:6])) == len(set(labels[6:])) == 1
-    assert labels[0] != labels[-1]
-    assert {r.record["interaction_type"] for r in results} == {"front_tracking"}
-
-
-def test_unknown_pairs_do_not_create_false_disconnection(source):
-    results = [evaluate(i) for i in source.sample(12)]
-    partition, evidence = HillValleyPartitioner().split(
-        results, lambda left, right: None
-    )
-    assert partition is None
-    assert evidence["status"] == "incomplete"
 
 
 def test_archive_diversity_and_root_limits(source):
@@ -189,7 +147,7 @@ def test_partial_success_retests_use_actual_denominator(source):
 
 
 def test_two_round_replay_is_separate_from_new_conditional_particles(source):
-    config = small_config(budget=128, branch_check_budget=0)
+    config = small_config(budget=128)
     first = SearchEngine(source, evaluate, config=config).run()
     second = SearchEngine(source, evaluate, config=config, seed=1).run(
         archive=first.archive
@@ -215,9 +173,9 @@ def test_unretested_and_repaired_endpoints_survive_the_second_archive(source, tm
         result.record.update(safety_failure=False, collision=False)
         return result
 
-    run = SearchEngine(
-        source, safe, config=small_config(replay_limit=2, branch_check_budget=0)
-    ).run(archive=previous)
+    run = SearchEngine(source, safe, config=small_config(replay_limit=2)).run(
+        archive=previous
+    )
     old_ids = {r.instance.instance_hash for r in old}
     retested = {
         r.instance.instance_hash
@@ -267,9 +225,7 @@ def test_teacher_neighbours_share_scene_budget(source):
 def test_high_dimensional_analytic_search_comparison(problem):
     from ads.search.analytic import compare
 
-    results = compare(
-        problem, config=small_config(budget=160, initial_samples=24, fresh_samples=16)
-    )
+    results = compare(problem, config=small_config(budget=160, initial_samples=24))
     for result in results.values():
         assert result["ambient_dimension"] > 100
         assert result["active_dimensions"] == 2
@@ -278,71 +234,11 @@ def test_high_dimensional_analytic_search_comparison(problem):
         assert not result["hit_fraction_is_prior_probability"]
 
 
-def test_partition_protects_a_branch_with_weaker_early_risk(source):
-    results = []
-    for index, instance in enumerate(source.sample(12)):
-        arrays = instance.event.exogenous_state.as_dict()
-        arrays["c0_base_latent"][0, 0] = -3 if index < 6 else 3
-        result = evaluate(
-            source.mutation(
-                instance,
-                instance.event.exogenous_state.replace_arrays(arrays),
-                "c0_base_latent",
-            )
-        )
-        result.record.update(
-            safety_failure=False, collision=False, event_risk=0.3 if index < 6 else 3.0
-        )
-        results.append(result)
-
-    def check(left, right):
-        instance = source.mutation(
-            left.instance, midpoint(left.instance, right.instance), "branch_check"
-        )
-        result = evaluate(instance)
-        x = instance.event.exogenous_state.c0_base_latent[0, 0]
-        result.record.update(
-            safety_failure=False,
-            collision=False,
-            event_risk=0.3 if x < -1 else 3.0 if x > 1 else 0.0,
-        )
-        return result
-
-    partition, _ = HillValleyPartitioner().split(results, check)
-    assert partition is not None
-    labels = partition.predict([r.instance for r in results])
-    threshold = np.quantile([r.level_score for r in results], 0.9)
-    assert {labels[i] for i, r in enumerate(results) if r.level_score >= threshold} == {
-        labels[-1]
-    }
-    for label in set(labels):
-        population = [r for r, actual in zip(results, labels) if actual == label]
-        branch_threshold = np.quantile([r.level_score for r in population], 0.9)
-        assert any(r.level_score >= branch_threshold for r in population)
-
-
-def test_partition_roundtrip_preserves_membership(source):
-    # The actual full coordinate layout is retained by the persisted classifier.
-    from ads.search.branches import Partition, coordinates
-
-    instances = source.sample(3)
-    n = len(coordinates(instances[0]))
-    basis = np.zeros((1, n))
-    basis[0, 0] = 1
-    partition = Partition(
-        np.zeros(n), np.ones(n), basis, np.ones((1, 1)), np.zeros(1), np.array([0, 1])
-    )
-    restored = Partition.from_dict(partition.as_dict())
-    np.testing.assert_array_equal(
-        partition.predict(instances), restored.predict(instances)
-    )
-
-
 def test_protocol_rejects_caps_above_the_agreed_limits():
-    with pytest.raises(ValueError, match="5,000"):
+    with pytest.raises(ValueError, match="5000"):
         SearchConfig(budget=5001)
-    with pytest.raises(ValueError, match="500 branch"):
-        SearchConfig(branch_check_budget=501)
+    with pytest.raises(ValueError, match="500 per batch"):
+        SearchConfig(batch_size=501)
 
 
 def test_default_full_execution_cap_truncates_remaining_analytic_work(source):
@@ -353,10 +249,7 @@ def test_default_full_execution_cap_truncates_remaining_analytic_work(source):
 
     run = SearchEngine(source, safe).run()
     assert len(run.records) == sum(run.costs.values()) == 5000
-    assert run.costs["branch_check"] <= 500
-    assert run.costs["initial_prior"] == 500
-    assert run.costs["fresh_prior"] == 500
+    assert run.costs.get("branch_check", 0) == 0
+    assert run.costs["initial_prior"] == 1000
     assert run.stop_reason == "execution_budget"
-    assert run.pending["active_branches"]
-    assert any(node.get("unfinished") for node in run.branches.values())
     assert all(node["depth"] <= 8 for node in run.branches.values())

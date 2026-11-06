@@ -1,7 +1,11 @@
 import inspect
 
-from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import evaluate_full_population
-from external_model_baselines.models.bayesian_ma_idm.src.full_model import fit_full_population
+from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import (
+    evaluate_full_population,
+)
+from external_model_baselines.models.bayesian_ma_idm.src.full_model import (
+    fit_full_population,
+)
 
 
 def test_class_conditional_population_interfaces_are_explicit() -> None:

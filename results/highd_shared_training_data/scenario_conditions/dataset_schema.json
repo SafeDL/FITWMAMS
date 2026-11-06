@@ -1,0 +1,463 @@
+{
+  "dataset_npz": "/home/hp/FITWMAMS/results/highd_shared_training_data/scenario_conditions/dataset.npz",
+  "dataset_scope": "full_clean_natural_driving",
+  "source_segments_csv": "/home/hp/FITWMAMS/results/evt/natural_segments.csv",
+  "evt_reference": {
+    "summary_path": "/home/hp/FITWMAMS/results/evt/evt_summary.json",
+    "pot_threshold_u": 0.5346742868423462,
+    "tail_label": "event_risk > u",
+    "num_evt_tail": 2964,
+    "num_non_tail": 93091
+  },
+  "raw_dir": "/home/hp/FITWMAMS/highD_dataset/Matlab/data",
+  "num_samples": 96055,
+  "metadata_arrays": [
+    "segment_id",
+    "recording_id",
+    "ego_id",
+    "anchor_frame",
+    "event_risk",
+    "is_evt_tail",
+    "primary_slot_index"
+  ],
+  "lateral_event_integrity_required": true,
+  "background_slot_stability_required": true,
+  "feature_names": [
+    "ego_vx_mps",
+    "ego_vy_left_mps",
+    "same_front_rel_x_m",
+    "same_front_rel_y_left_m",
+    "same_front_rel_vx_mps",
+    "same_front_rel_vy_left_mps",
+    "same_rear_rel_x_m",
+    "same_rear_rel_y_left_m",
+    "same_rear_rel_vx_mps",
+    "same_rear_rel_vy_left_mps",
+    "left_front_rel_x_m",
+    "left_front_rel_y_left_m",
+    "left_front_rel_vx_mps",
+    "left_front_rel_vy_left_mps",
+    "left_rear_rel_x_m",
+    "left_rear_rel_y_left_m",
+    "left_rear_rel_vx_mps",
+    "left_rear_rel_vy_left_mps",
+    "right_front_rel_x_m",
+    "right_front_rel_y_left_m",
+    "right_front_rel_vx_mps",
+    "right_front_rel_vy_left_mps",
+    "right_rear_rel_x_m",
+    "right_rear_rel_y_left_m",
+    "right_rear_rel_vx_mps",
+    "right_rear_rel_vy_left_mps"
+  ],
+  "feature_mode": "initial_observation",
+  "c0_initial_observation_only": true,
+  "ego_features": [
+    "ego_vx_mps",
+    "ego_vy_left_mps"
+  ],
+  "slot_features": [
+    "rel_x_m",
+    "rel_y_left_m",
+    "rel_vx_mps",
+    "rel_vy_left_mps"
+  ],
+  "model_feature_transforms": [
+    "identity",
+    "identity",
+    "positive_log",
+    "identity",
+    "identity",
+    "identity",
+    "negative_log",
+    "identity",
+    "identity",
+    "identity",
+    "positive_log",
+    "positive_log",
+    "identity",
+    "identity",
+    "negative_log",
+    "positive_log",
+    "identity",
+    "identity",
+    "positive_log",
+    "negative_log",
+    "identity",
+    "identity",
+    "negative_log",
+    "negative_log",
+    "identity",
+    "identity"
+  ],
+  "slot_names": [
+    "same_front",
+    "same_rear",
+    "left_front",
+    "left_rear",
+    "right_front",
+    "right_rear"
+  ],
+  "probability_factorization": "p(M) p(C0|M) p(K|C0,M)",
+  "vehicle_dimensions": {
+    "shape_per_sequence": [
+      7,
+      2
+    ],
+    "feature_names": [
+      "length_m",
+      "width_m"
+    ],
+    "units": "m"
+  },
+  "long_horizon_constraint": {
+    "shape_per_sequence": [
+      6,
+      6
+    ],
+    "feature_names": [
+      "dx_m_2s",
+      "dy_left_m_2s",
+      "dx_m_4s",
+      "dy_left_m_4s",
+      "dx_m_end",
+      "dy_left_m_end"
+    ],
+    "knot_frames": [
+      50,
+      100,
+      149
+    ],
+    "knot_times_s": [
+      2.0,
+      4.0,
+      5.96
+    ],
+    "coordinate_frame": "ego_forward_positive_x_left_positive_y",
+    "model_coordinates": "longitudinal interval-mean-speed changes and lateral positions",
+    "normalization": {
+      "mean": [
+        [
+          -0.039509233087301254,
+          0.025121381506323814,
+          -0.13983382284641266,
+          0.0088731087744236,
+          -0.05490982532501221,
+          -0.04333911091089249
+        ],
+        [
+          -0.19175511598587036,
+          -0.006249955389648676,
+          -0.37940648198127747,
+          0.010354206897318363,
+          -0.29439616203308105,
+          0.011958391405642033
+        ],
+        [
+          -0.026587147265672684,
+          -0.039681266993284225,
+          -0.08460144698619843,
+          -0.10057103633880615,
+          -0.019643064588308334,
+          -0.16936251521110535
+        ],
+        [
+          -0.05714302510023117,
+          0.023650802671909332,
+          -0.11344417929649353,
+          0.028031805530190468,
+          -0.0627845749258995,
+          0.005682569928467274
+        ],
+        [
+          -0.029621737077832222,
+          0.011836647056043148,
+          -0.08170668035745621,
+          0.026225054636597633,
+          -0.05360459163784981,
+          0.026996612548828125
+        ],
+        [
+          -0.046511124819517136,
+          0.017606718465685844,
+          -0.10939337313175201,
+          0.05283144861459732,
+          -0.10932079702615738,
+          0.07047193497419357
+        ]
+      ],
+      "std": [
+        [
+          0.37900346517562866,
+          0.24171175062656403,
+          0.7855781316757202,
+          0.4184890687465668,
+          0.7499446272850037,
+          0.5416457653045654
+        ],
+        [
+          0.47237429022789,
+          0.30864670872688293,
+          1.0553762912750244,
+          0.572321355342865,
+          0.9798022508621216,
+          0.6855398416519165
+        ],
+        [
+          0.34481874108314514,
+          0.2600947916507721,
+          0.7664610743522644,
+          0.5220610499382019,
+          0.7519895434379578,
+          0.6725990176200867
+        ],
+        [
+          0.4043092727661133,
+          0.3510207235813141,
+          0.7768020033836365,
+          0.5796495676040649,
+          0.7373294830322266,
+          0.6650893688201904
+        ],
+        [
+          0.271943598985672,
+          0.275295615196228,
+          0.5678085088729858,
+          0.5217374563217163,
+          0.5308067202568054,
+          0.6660881042480469
+        ],
+        [
+          0.2718403935432434,
+          0.30702266097068787,
+          0.5649964809417725,
+          0.5765900015830994,
+          0.5691287517547607,
+          0.7199333906173706
+        ]
+      ],
+      "valid_train_count": [
+        [
+          2884,
+          2884,
+          2884,
+          2884,
+          2884,
+          2884
+        ],
+        [
+          960,
+          960,
+          960,
+          960,
+          960,
+          960
+        ],
+        [
+          753,
+          753,
+          753,
+          753,
+          753,
+          753
+        ],
+        [
+          315,
+          315,
+          315,
+          315,
+          315,
+          315
+        ],
+        [
+          2657,
+          2657,
+          2657,
+          2657,
+          2657,
+          2657
+        ],
+        [
+          890,
+          890,
+          890,
+          890,
+          890,
+          890
+        ]
+      ],
+      "undefined_coordinate_policy": "independent_standard_normal_reference_noise"
+    },
+    "generation": "single_conditional_rq_spline_maf"
+  },
+  "split_index": {
+    "train": 0,
+    "val": 1,
+    "test": 2
+  },
+  "split_summary": {
+    "train": 72771,
+    "val": 13133,
+    "test": 10151
+  },
+  "mask_pattern_summary": {
+    "17": 29199,
+    "21": 17207,
+    "51": 9736,
+    "5": 8504,
+    "63": 7542,
+    "16": 5992,
+    "15": 4069,
+    "1": 2688,
+    "0": 1659,
+    "4": 1412,
+    "20": 939,
+    "13": 912,
+    "49": 756,
+    "50": 672,
+    "31": 477,
+    "47": 279,
+    "19": 277,
+    "59": 273,
+    "14": 271,
+    "29": 266,
+    "55": 248,
+    "48": 226,
+    "10": 209,
+    "58": 208,
+    "7": 188,
+    "11": 177,
+    "61": 169,
+    "34": 141,
+    "35": 128,
+    "62": 124,
+    "12": 115,
+    "53": 102,
+    "32": 73,
+    "2": 73,
+    "9": 67,
+    "8": 66,
+    "42": 61,
+    "18": 51,
+    "3": 51,
+    "43": 46,
+    "25": 40,
+    "26": 35,
+    "23": 35,
+    "27": 33,
+    "57": 31,
+    "6": 28,
+    "33": 25,
+    "56": 23,
+    "39": 22,
+    "46": 18,
+    "30": 17,
+    "24": 15,
+    "28": 15,
+    "54": 15,
+    "60": 11,
+    "37": 7,
+    "45": 7,
+    "41": 7,
+    "38": 5,
+    "40": 4,
+    "22": 3,
+    "52": 2,
+    "36": 2,
+    "44": 2
+  },
+  "normalization": {
+    "mean": [
+      30.603687286376953,
+      0.022122131660580635,
+      3.013277292251587,
+      -0.04920769855380058,
+      -0.55501389503479,
+      -0.016747573390603065,
+      3.287085771560669,
+      0.0042031253688037395,
+      0.5824583172798157,
+      -0.020874999463558197,
+      2.823241710662842,
+      1.350867509841919,
+      3.65974760055542,
+      -0.06887118518352509,
+      3.017195463180542,
+      1.3594034910202026,
+      4.188857078552246,
+      0.006095238495618105,
+      3.2052552700042725,
+      1.3778727054595947,
+      -4.213123798370361,
+      -0.019506962969899178,
+      3.097320079803467,
+      1.373927116394043,
+      -2.652078628540039,
+      -0.01779775321483612
+    ],
+    "std": [
+      4.773560523986816,
+      0.20298294723033905,
+      0.38591599464416504,
+      0.5201619267463684,
+      1.6473859548568726,
+      0.2330189049243927,
+      0.6206225752830505,
+      0.5088508725166321,
+      1.7466237545013428,
+      0.23959006369113922,
+      1.147904396057129,
+      0.13543930649757385,
+      3.3080670833587646,
+      0.25139859318733215,
+      1.1955254077911377,
+      0.15929384529590607,
+      3.2906174659729004,
+      0.2884160280227661,
+      1.050210952758789,
+      0.14042361080646515,
+      3.2941033840179443,
+      0.22508715093135834,
+      1.3107540607452393,
+      0.14570946991443634,
+      3.198119640350342,
+      0.22593247890472412
+    ],
+    "valid_train_count": [
+      2964,
+      2964,
+      2884,
+      2884,
+      2884,
+      2884,
+      960,
+      960,
+      960,
+      960,
+      753,
+      753,
+      753,
+      753,
+      315,
+      315,
+      315,
+      315,
+      2657,
+      2657,
+      2657,
+      2657,
+      890,
+      890,
+      890,
+      890
+    ],
+    "fit_population": "all_evt_tail",
+    "inactive_slot_policy": "discrete_mask_with_independent_standard_normal_reference_noise",
+    "inactive_reference_noise": {
+      "distribution": "standard_normal",
+      "seed": 20260811,
+      "physical_output_policy": "zero_inactive_slot_features"
+    },
+    "coordinate_note": "Mean/std normalization is fitted after the declared identity or signed-log transform. Raw values remain in dataset.npz."
+  }
+}

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 
-from external_model_baselines.models.bayesian_ma_idm.scripts.run_highway_env_ring import apply_protocol
+from external_model_baselines.models.bayesian_ma_idm.scripts.run_highway_env_ring import (
+    apply_protocol,
+)
 
 
 def test_source_code_protocol_resolves_coupled_author_config() -> None:

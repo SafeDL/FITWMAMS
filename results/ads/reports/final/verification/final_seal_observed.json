@@ -1,0 +1,18 @@
+{
+  "configuration_sha256": "ddf19238157f30904275e0a007aed51df6351724a757a6e55cdd343b49040580",
+  "final_policy_records_when_observed": 0,
+  "first_freeze_mtime_ns": 1793229273433475500,
+  "freeze_sha256": "d6044d990c0bd729a98ccf9341ea36236e691fb469edbefe9c74f5e25b7f010f",
+  "generated_final_instances_when_observed": {
+    "natural_generated": 2639,
+    "tail_generated": 5000
+  },
+  "observation_before_any_final_policy_execution": true,
+  "observed_at": "2026-10-29T07:16:27",
+  "policy_forward_calls_by_audit": 0,
+  "selected_from_eligible_development_candidates": true,
+  "selected_policy_sha256": "3a10d924e97fc830ff3147f28e5a6693a2d9f9eed74ec38043892f052bdb85ed",
+  "selected_stage": 2,
+  "settings_and_sources_equal_training_protocol": true,
+  "world_executions_added_by_audit": 0
+}

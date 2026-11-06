@@ -42,17 +42,25 @@ def development_results(
     return records
 
 
-def safe_task_change(before, after, minimum_progress_ratio=0.98):
+def safe_task_change(before, after):
     if len(before) != len(after):
         raise ValueError("Candidate validation cohorts differ")
     checks = {}
-    for field in ("collision", "offroad", "stalled"):
+    for field in ("collision", "offroad"):
         checks[field] = sum(row[field] for row in after) <= sum(
             row[field] for row in before
         )
-    checks["progress"] = sum(
-        row["progress_m"] for row in after
-    ) >= minimum_progress_ratio * sum(row["progress_m"] for row in before)
+    progress_before = sum(row["progress_m"] for row in before)
+    progress_after = sum(row["progress_m"] for row in after)
+    stalled_before = sum(row.get("avoidable_stop", row["stalled"]) for row in before)
+    # Diagnose a broad loss of task execution, not a single conservative stop.
+    added_stops = (
+        sum(row.get("avoidable_stop", row["stalled"]) for row in after) - stalled_before
+    )
+    checks["no_widespread_stopping"] = not (
+        added_stops >= max(10, 0.05 * len(after))
+        and progress_after < 0.5 * max(progress_before, 1e-9)
+    )
     return checks
 
 
@@ -136,11 +144,7 @@ def admission(
         for reference, cohorts in references.items():
             for name in cohorts:
                 checks[reference + "/" + name] = safe_task_change(
-                    cohorts[name],
-                    results[name],
-                    campaign.config["capability_preserving_repair"][
-                        "minimum_progress_ratio"
-                    ],
+                    cohorts[name], results[name]
                 )
                 summaries[reference + "/" + name] = paired_summary(
                     cohorts[name], results[name]

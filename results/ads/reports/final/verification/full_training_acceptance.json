@@ -1,0 +1,129 @@
+{
+  "all_training_source_hashes_match": true,
+  "checked_at": "2026-10-29T06:02:21",
+  "original_official_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+  "passed": true,
+  "phases": {
+    "1": {
+      "all_raw_and_ema_displacement_constraints_passed": true,
+      "all_required_inputs_and_entries_present_and_visited": true,
+      "changed_trainable_tensors": {
+        "ema_state_dict": 38,
+        "model": 38
+      },
+      "cumulative_training_elapsed_s": 9800.278693942062,
+      "cumulative_updates": 21817,
+      "ema_log_retention_sum": -0.2501250833961296,
+      "exposure": {
+        "correction": {
+          "available_entries": 20460,
+          "available_instances": 682,
+          "completed_entry_passes": 2,
+          "exposures": 698144,
+          "minimum_critical_visits": 9,
+          "unvisited_entries": 0,
+          "visited_entries": 20460,
+          "visited_instances": 682
+        },
+        "keep": {
+          "available_entries": 698130,
+          "available_instances": 23271,
+          "completed_entry_passes": 1,
+          "exposures": 698144,
+          "minimum_critical_visits": 0,
+          "unvisited_entries": 0,
+          "visited_entries": 698130,
+          "visited_instances": 23271
+        },
+        "native": {
+          "available_entries": 12685,
+          "available_instances": 12685,
+          "completed_entry_passes": 110,
+          "exposures": 1396288,
+          "minimum_critical_visits": 0,
+          "unvisited_entries": 0,
+          "visited_entries": 12685,
+          "visited_instances": 12685
+        }
+      },
+      "frozen_238_raw_and_ema_tensors_match_original": true,
+      "learning_rate_sum": 0.001267000000000185,
+      "optimizer_steps": [
+        21817
+      ],
+      "parameter_distances": {
+        "ema_state_dict": 0.1386344055606539,
+        "model": 0.9001197429484947
+      },
+      "parameter_distances_from_previous_stage": {
+        "ema_state_dict": 0.1386344055606539,
+        "model": 0.9001197429484947
+      },
+      "planned_updates": 21817,
+      "policy_sha256": "5df35f7fc2bc41f17dffbe544c647f16b6456ab9bbb9e37f5b1def6653ee8d0f",
+      "sampler_counters_preserved_across_stages": null
+    },
+    "2": {
+      "all_raw_and_ema_displacement_constraints_passed": true,
+      "all_required_inputs_and_entries_present_and_visited": true,
+      "changed_trainable_tensors": {
+        "ema_state_dict": 38,
+        "model": 38
+      },
+      "cumulative_training_elapsed_s": 14990.91056389705,
+      "cumulative_updates": 32726,
+      "ema_log_retention_sum": -0.2501250833963134,
+      "exposure": {
+        "correction": {
+          "available_entries": 29711,
+          "available_instances": 1054,
+          "completed_entry_passes": 1,
+          "exposures": 1047232,
+          "minimum_critical_visits": 4,
+          "unvisited_entries": 0,
+          "visited_entries": 29711,
+          "visited_instances": 1054
+        },
+        "keep": {
+          "available_entries": 698130,
+          "available_instances": 23271,
+          "completed_entry_passes": 1,
+          "exposures": 1047232,
+          "minimum_critical_visits": 0,
+          "unvisited_entries": 0,
+          "visited_entries": 698130,
+          "visited_instances": 23271
+        },
+        "native": {
+          "available_entries": 12685,
+          "available_instances": 12685,
+          "completed_entry_passes": 165,
+          "exposures": 2094464,
+          "minimum_critical_visits": 0,
+          "unvisited_entries": 0,
+          "visited_entries": 12685,
+          "visited_instances": 12685
+        }
+      },
+      "frozen_238_raw_and_ema_tensors_match_original": true,
+      "learning_rate_sum": 0.0012670000000000268,
+      "optimizer_steps": [
+        32726
+      ],
+      "parameter_distances": {
+        "ema_state_dict": 0.3839556285874295,
+        "model": 1.4557574089830234
+      },
+      "parameter_distances_from_previous_stage": {
+        "ema_state_dict": 0.2570864636517674,
+        "model": 0.6897635039278933
+      },
+      "planned_updates": 10909,
+      "policy_sha256": "3a10d924e97fc830ff3147f28e5a6693a2d9f9eed74ec38043892f052bdb85ed",
+      "sampler_counters_preserved_across_stages": true
+    }
+  },
+  "policy_forward_calls_by_audit": 0,
+  "scope": "Completed learning and material coverage only; candidate admission and fresh final evaluation are separate checks.",
+  "world_executions_added_by_audit": 0
+}

@@ -9,6 +9,12 @@ from typing import Any
 import numpy as np
 import torch
 
+from hierarchical_world_model.src.core.utils import (
+    ensure_dir,
+    save_json,
+    select_device,
+    set_seed,
+)
 from tools.plot_style import (
     GENERATED_COLOR,
     PAPER_FIGURE_DPI,
@@ -16,13 +22,6 @@ from tools.plot_style import (
     REAL_COLOR,
     get_pyplot,
     style_axes,
-)
-
-from hierarchical_world_model.src.core.utils import (
-    ensure_dir,
-    save_json,
-    select_device,
-    set_seed,
 )
 
 from .data import (

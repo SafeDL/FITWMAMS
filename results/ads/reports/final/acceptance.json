@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "all_failures_requested_experts": true,
+    "all_successes_used": true,
+    "guided/all_correction_entries_visited": true,
+    "guided/all_correction_instances_visited": true,
+    "guided/all_critical_entries_visited": true,
+    "guided/frozen_parameters": true,
+    "guided/keep_entry_coverage": true,
+    "guided/native_entry_coverage": true,
+    "guided/official_native_export": true,
+    "guided/phase_1/batch_and_constraint": true,
+    "guided/phase_1/reference_clock": true,
+    "guided/phase_2/batch_and_constraint": true,
+    "guided/phase_2/reference_clock": true,
+    "guided/qualified_corrections_visited": true,
+    "guided/query_ancestry": true,
+    "guided/selected_weights": true,
+    "guided/update_budget": true,
+    "native_full_development": true,
+    "native_full_replay": true,
+    "native_session_isolation": true,
+    "no_protected_learning": true,
+    "protected_ancestry_recorded": true,
+    "two_fresh_final_cohorts": true
+  },
+  "city_closed_loop": "manual_by_user",
+  "passed": true
+}

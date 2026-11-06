@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Evaluate causal filtered multi-regime B-IDM on held-out highD recordings."""
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
+
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 from external_model_baselines.models.multi_regime_bidm.src.evaluation import evaluate
+
 
 def main() -> None:
     p = argparse.ArgumentParser()

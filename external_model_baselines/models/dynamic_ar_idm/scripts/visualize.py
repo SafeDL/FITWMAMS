@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import argparse
+
 from external_model_baselines.models.dynamic_ar_idm.visualize import make_figures
 
 parser = argparse.ArgumentParser(description="Draw Dynamic-AR IDM paper-style evaluation figures")

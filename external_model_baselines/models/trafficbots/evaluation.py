@@ -15,6 +15,10 @@ from external_model_baselines.evaluation.natural_response import (
     evaluation_response_calibration,
 )
 from hierarchical_world_model.src.core.dynamics import KinematicTrafficDynamics
+from hierarchical_world_model.src.core.evaluation_scope import (
+    evaluation_scope_contract,
+    require_evaluation_scope,
+)
 from hierarchical_world_model.src.core.highd_metrics import (
     distribution_metrics,
     ego_replay_gate,
@@ -26,10 +30,6 @@ from hierarchical_world_model.src.core.highd_metrics import (
     temporal_factual_metrics,
 )
 from hierarchical_world_model.src.core.utils import file_sha256, save_json
-from hierarchical_world_model.src.core.evaluation_scope import (
-    evaluation_scope_contract,
-    require_evaluation_scope,
-)
 
 from .data import TrafficBotsHighDDataset, make_loader
 from .module import HighDTrafficBotsModule

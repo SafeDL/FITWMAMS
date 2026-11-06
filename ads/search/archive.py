@@ -24,12 +24,14 @@ def diverse_representatives(results, *, capacity=16, root_limit=4):
         if not selected:
             chosen = eligible[0]
         else:
-            descriptions = np.asarray([r.record["descriptor"] for r in selected])
+            descriptions = np.asarray([r.record["descriptor"][:4] for r in selected])
             chosen = max(
                 eligible,
                 key=lambda r: (
                     float(
-                        np.square(descriptions - r.record["descriptor"]).sum(-1).min()
+                        np.square(descriptions - r.record["descriptor"][:4])
+                        .sum(-1)
+                        .min()
                     ),
                     r.score,
                     r.instance.instance_hash,
@@ -65,7 +67,7 @@ class FailureArchive:
             if result.failure:
                 groups[result.domain].append(result)
             parent = known.get(result.instance.parent_id)
-            if parent is None or result.instance.mutation_block in (None, "joint"):
+            if parent is None or result.instance.mutation_block is None:
                 continue
             if (
                 not np.array_equal(

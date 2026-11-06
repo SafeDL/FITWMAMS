@@ -18,11 +18,8 @@ def config(**overrides):
             "budget": 37,
             "fixed_budget": True,
             "initial_samples": 8,
-            "fresh_samples": 4,
             "batch_size": 4,
             "generation_batch_size": 3,
-            "graph_size": 4,
-            "branch_check_budget": 8,
             "subset_max_levels": 1,
             "terminal_proposals": 0,
             "archive_capacity": 4,
@@ -63,21 +60,28 @@ def test_each_method_spends_exact_budget_including_partial_batches(
 
 @pytest.mark.parametrize("method", ("subset", "guided"))
 def test_completed_failure_paths_restart_with_new_independent_samples(source, method):
-    result = SearchEngine(source, failed, config=config(branch_check_budget=0)).run(
-        method
-    )
-    assert result.summary()["search_restarts"] == 4
-    assert result.costs["restart_prior"] == 25
+    result = SearchEngine(source, failed, config=config()).run(method)
+    assert result.summary()["search_restarts"] == 8
+    assert result.costs["restart_prior"] == 29
     restarts = {
         key: value
         for key, value in result.branches.items()
         if key.startswith("restart_")
     }
-    assert [len(node["seed_states"]) for node in restarts.values()] == [8, 8, 8, 1]
+    assert [len(node["seed_states"]) for node in restarts.values()] == [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        1,
+    ]
     assert all(
-        node["status"] == "representative_target"
+        node["status"] == "terminal_quota"
         for key, node in restarts.items()
-        if key != "restart_3"
+        if key != "restart_7"
     )
     assert len({r.instance.instance_hash for r in result.records}) == 37
     assert len({r.instance.root_sample_id for r in result.records}) == 37
@@ -87,10 +91,10 @@ def test_completed_failure_paths_restart_with_new_independent_samples(source, me
 @pytest.mark.parametrize("method", ("subset", "guided"))
 def test_early_stop_mode_keeps_original_completion_behavior(source, method):
     result = SearchEngine(
-        source, failed, config=config(fixed_budget=False, branch_check_budget=0)
+        source, failed, config=config(fixed_budget=False, active_paths=1)
     ).run(method)
-    assert not SearchConfig().fixed_budget
-    assert len(result.records) == 12 < result.budget
+    assert SearchConfig().fixed_budget
+    assert len(result.records) == 8 < result.budget
     assert result.stop_reason == "scheduled_tasks_complete"
     assert result.summary()["budget_mode"] == "early_stop"
     assert result.summary()["search_restarts"] == 0
@@ -108,9 +112,7 @@ def test_depth_limits_restart_and_rejected_proposals_still_spend_budget(source, 
         )
         return result
 
-    result = SearchEngine(source, safe, config=config(branch_check_budget=0)).run(
-        method
-    )
+    result = SearchEngine(source, safe, config=config()).run(method)
     proposals = [
         r
         for r in result.records
@@ -134,8 +136,7 @@ def test_baseline_diagnostics_do_not_generate_after_fixed_budget(
     result = SearchEngine(source, failed, config=config()).run(method)
     assert len(result.records) == 37
     assert result.costs.get("branch_check", 0) == 0
-    assert result.branches["posthoc"]["evidence"]["status"] == "incomplete"
-    assert {r.domain for r in result.archive.failures} == {"posthoc.0"}
+    assert not any("partition_checks" in node for node in result.branches.values())
 
 
 @pytest.mark.parametrize("method", ("monte_carlo", "subset", "guided"))
@@ -143,9 +144,9 @@ def test_archive_replays_are_included_in_fixed_budget(source, method):
     archive = FailureArchive(capacity=4)
     old = [failed(instance) for instance in source.sample(4)]
     archive.add(old, {})
-    result = SearchEngine(
-        source, failed, config=config(branch_check_budget=0, replay_limit=3)
-    ).run(method, archive=archive)
+    result = SearchEngine(source, failed, config=config(replay_limit=3)).run(
+        method, archive=archive
+    )
     assert len(result.records) == sum(result.costs.values()) == 37
     assert result.costs["archive_replay"] == 3
     assert Counter(r.record["execution_kind"] for r in result.records) == result.costs
@@ -163,7 +164,7 @@ def test_scheduler_requires_exact_cost_only_for_fixed_budget(
 ):
     settings = {
         "output_dir": str(tmp_path / "output"),
-        "algorithms": ["dqn"],
+        "algorithms": ["carl"],
         "seeds": [20260926],
         "methods": ["guided"],
         "rounds": 2,
@@ -175,12 +176,12 @@ def test_scheduler_requires_exact_cost_only_for_fixed_budget(
     scheduler = Scheduler(path)
     protocol = {"settings": settings}
     (scheduler.output / "protocol.json").write_text(json.dumps(protocol))
-    task = Task("repair", "dqn", 20260926, "guided", 1)
+    task = Task("repair", "carl", 20260926, "guided", 1)
     directory = task.directory(scheduler.output)
     inputs = directory / "inputs/curriculum.json"
     inputs.parent.mkdir(parents=True)
     inputs.write_text("{}")
-    checkpoint = directory / "policy.zip"
+    checkpoint = directory / "policy.pth"
     checkpoint.write_bytes(b"test checkpoint")
     (directory / "training.json").write_text(
         json.dumps(

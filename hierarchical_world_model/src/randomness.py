@@ -173,6 +173,7 @@ class WorldExogenousState:
         seed: int,
         actor_mask: np.ndarray | None = None,
         time_range: tuple[int, int] | None = None,
+        coordinate_mask: np.ndarray | None = None,
     ) -> "WorldExogenousState":
         """Return a prior-preserving pCN proposal for one Gaussian block.
 
@@ -184,7 +185,11 @@ class WorldExogenousState:
             raise ValueError("beta must lie in (0, 1]")
         values = self.as_dict()
         if block == "scenario":
-            if actor_mask is not None or time_range is not None:
+            if (
+                actor_mask is not None
+                or time_range is not None
+                or coordinate_mask is not None
+            ):
                 raise ValueError("scenario refresh cannot be actor/time masked")
             values["scenario_uniform"] = np.random.default_rng(int(seed)).random(
                 self.batch_size, dtype=np.float64
@@ -207,6 +212,10 @@ class WorldExogenousState:
                 np.sqrt(1.0 - float(beta) ** 2) * current + float(beta) * innovation
             ).astype(np.float32)
             selection = np.ones(current.shape, dtype=bool)
+            if coordinate_mask is not None:
+                selection &= np.broadcast_to(
+                    np.asarray(coordinate_mask, bool), current.shape
+                )
             if time_range is not None:
                 if block not in {
                     "diffusion_noise",

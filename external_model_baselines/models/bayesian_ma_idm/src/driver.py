@@ -51,7 +51,12 @@ class BayesianIDMDriver:
 
     @classmethod
     def from_population_posterior(
-        cls, path: str | Path, *, model: str, seed: int = 0, memory_s: float | None = 5.0
+        cls,
+        path: str | Path,
+        *,
+        model: str,
+        seed: int = 0,
+        memory_s: float | None = 5.0,
     ) -> "BayesianIDMDriver":
         rng = np.random.default_rng(seed)
         values = sample_driver_joint(load_posterior(path), rng)
@@ -91,8 +96,12 @@ class BayesianIDMDriver:
                     "[time,gap,ego_speed,leader_speed,acceleration]"
                 )
             if len(prefix):
-                if not np.isfinite(prefix).all() or np.any(np.diff(prefix[:, 0]) <= 0.0):
-                    raise ValueError("MA-IDM prefix observations must be finite and ordered")
+                if not np.isfinite(prefix).all() or np.any(
+                    np.diff(prefix[:, 0]) <= 0.0
+                ):
+                    raise ValueError(
+                        "MA-IDM prefix observations must be finite and ordered"
+                    )
                 residual = prefix[:, 4] - idm(
                     prefix[:, 1],
                     prefix[:, 2],
@@ -110,9 +119,7 @@ class BayesianIDMDriver:
         self, *, gap_m: float, speed_mps: float, leader_speed_mps: float
     ) -> float:
         """Return the fixed episode mechanism without advancing GP state."""
-        return float(
-            idm(gap_m, speed_mps, speed_mps - leader_speed_mps, self.theta)
-        )
+        return float(idm(gap_m, speed_mps, speed_mps - leader_speed_mps, self.theta))
 
     def decision(
         self,

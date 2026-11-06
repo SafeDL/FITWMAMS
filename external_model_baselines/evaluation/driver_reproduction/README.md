@@ -35,7 +35,7 @@ pytest -q external_model_baselines/evaluation/driver_reproduction/tests \
   external_model_baselines/models/multi_regime_bidm/tests external_model_baselines/evaluation/counterfactual_response/tests
 ```
 
-`artifacts/matched/` 仅保存匹配评测的train-only后验；`results/driver_reproduction/`保存测试
+`artifacts/matched/` 仅保存匹配评测的train-only后验；`results/baselines/driver_reproduction/`保存测试
 预测和指标。B/MA的全251-pair仿真后验位于
 `external_model_baselines/models/bayesian_ma_idm/evidence/deployment/`，不得
 拿部署后验重算留出指标。

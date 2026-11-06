@@ -1,8 +1,12 @@
 """Validate the retained all-highD artifact before fitting/evaluation claims."""
 from __future__ import annotations
-import argparse, json
+
+import argparse
+import json
 from pathlib import Path
+
 import numpy as np
+
 from external_model_baselines.models.dynamic_ar_idm.data import load_pairs
 
 parser = argparse.ArgumentParser()

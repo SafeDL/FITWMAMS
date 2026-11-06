@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import argparse
+
 from external_model_baselines.models.dynamic_ar_idm.data import prepare_full_highd
 
 parser = argparse.ArgumentParser(description="Prepare all qualifying highD following pairs at native 25 Hz")

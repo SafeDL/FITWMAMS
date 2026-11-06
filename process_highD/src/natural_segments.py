@@ -59,9 +59,7 @@ def options_from_config(config: dict[str, Any]) -> NaturalSegmentOptions:
     fps = float(sampling["target_fps"])
     window_seconds = float(segment["window_seconds"])
     window_steps = int(round(window_seconds * fps))
-    anchor_stride_steps = int(
-        round(float(segment["anchor_stride_seconds"]) * fps)
-    )
+    anchor_stride_steps = int(round(float(segment["anchor_stride_seconds"]) * fps))
     return NaturalSegmentOptions(
         fps=fps,
         window_steps=window_steps,
@@ -206,13 +204,11 @@ def _build_vehicle_cache(recording: Any) -> dict[int, dict[str, Any]]:
             "vx": track["xVelocity"].to_numpy(dtype=np.float32, copy=True),
             "vy": track["yVelocity"].to_numpy(dtype=np.float32, copy=True),
             "vy_left": (
-                lat_sign
-                * track["yVelocity"].to_numpy(dtype=np.float32, copy=True)
+                lat_sign * track["yVelocity"].to_numpy(dtype=np.float32, copy=True)
             ),
             "ax": track["xAcceleration"].to_numpy(dtype=np.float32, copy=True),
             "ay_left": (
-                lat_sign
-                * track["yAcceleration"].to_numpy(dtype=np.float32, copy=True)
+                lat_sign * track["yAcceleration"].to_numpy(dtype=np.float32, copy=True)
             ),
             "lane": track["laneId"].to_numpy(dtype=np.int16, copy=True),
             "abnormal": track["_abnormal"].to_numpy(dtype=bool, copy=True),
@@ -295,8 +291,9 @@ def _values(
     fill_value: float = np.nan,
 ) -> np.ndarray:
     arr = np.asarray(vehicle[key])
-    if isinstance(selector, slice) and bool(np.all(valid)):
-        return arr[selector].astype(np.float32, copy=False)
+    if isinstance(selector, slice):
+        values = arr[selector].astype(np.float32, copy=False)
+        return values if np.all(valid) else np.where(valid, values, fill_value)
     out = np.full(valid.shape, fill_value, dtype=np.float32)
     if np.any(valid):
         out[valid] = arr[np.asarray(selector)[valid]]
@@ -724,10 +721,7 @@ def compute_untracked_audit(
     *,
     ego_id: int,
     anchor_frame: int,
-    slot_ids: np.ndarray,
     vehicles: dict[int, dict[str, Any]],
-    frame_index: dict[int, np.ndarray],
-    lane_info: dict[str, Any],
     options: NaturalSegmentOptions,
     tracked_peak_pair_risk: float,
     candidate_ids: list[int],
@@ -954,10 +948,7 @@ def build_natural_segments_for_recording(
             untracked_audit = compute_untracked_audit(
                 ego_id=ego_id,
                 anchor_frame=int(anchor_frame),
-                slot_ids=slot_ids,
                 vehicles=vehicles,
-                frame_index=frame_index,
-                lane_info=lane_info,
                 options=options,
                 tracked_peak_pair_risk=float(risk_info["peak_pair_risk"]),
                 candidate_ids=untracked_ids,

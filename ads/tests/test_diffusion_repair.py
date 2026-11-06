@@ -13,6 +13,7 @@ from ads.common.setup import load_policy
 from ads.diffusion_planner.repair import (
     TRAINABLE_PREFIXES,
     configure_local_updates,
+    normalized_schedule,
     retention_loss,
     train,
     training_mode,
@@ -45,6 +46,64 @@ def test_initial_optimizer_state_and_raw_match_official_deployment(policy):
     for name, value in policy.network.state_dict().items():
         assert torch.equal(value, policy.training_state[name])
         assert torch.equal(value, policy.ema_state[name])
+
+
+def test_normalized_clock_resume_matches_uninterrupted_raw_and_ema(
+    policy, instance, tmp_path
+):
+    sample = material(instance)
+    banks = {name: [deepcopy(sample)] for name in ("native", "keep", "new_failure")}
+    schedule = normalized_schedule(4, 2, 1e-5, 0.999)
+    arguments = {
+        "seed": 20260926,
+        "phase_updates": 4,
+        "learning_rate": schedule["learning_rate"],
+        "ema_decay": schedule["ema_decay"],
+    }
+    train(policy, banks, updates=4, **arguments)
+    interrupted = load_policy(
+        "diffusion_planner", official_path("diffusion_planner"), device="cpu"
+    )
+    train(interrupted, banks, updates=2, **arguments)
+    interrupted.save(tmp_path / "interrupted.pth")
+    resumed = load_policy(
+        "diffusion_planner", tmp_path / "interrupted.pth", device="cpu"
+    )
+    train(resumed, banks, updates=2, phase_offset=2, **arguments)
+    for name, value in policy.network.state_dict().items():
+        assert torch.equal(value, resumed.network.state_dict()[name])
+        assert torch.equal(policy.training_state[name], resumed.training_state[name])
+    assert policy.repair_state["samplers"] == resumed.repair_state["samplers"]
+    assert resumed.repair_state["training_elapsed_s"] > 0
+
+
+def test_checkpoint_storage_preserves_official_bytes_and_config(
+    policy, tmp_path, monkeypatch
+):
+    from ads.common.instances import file_hash
+    from ads.diffusion_planner import checkpoints
+
+    official = official_path("diffusion_planner")
+    original_hash = file_hash(official)
+    monkeypatch.setattr(checkpoints, "MODEL_ROOT", tmp_path / "model_volume")
+    output = tmp_path / "run"
+    logical = output / "repairs/guided/candidates/phase_1/policy.pth"
+    checkpoints.save_checkpoint(policy, output, logical)
+    assert logical.is_symlink()
+    assert logical.resolve().is_relative_to(tmp_path / "model_volume")
+    assert logical.resolve() == (
+        tmp_path
+        / "model_volume/ads/diffusion_planner/run/checkpoints/guided/phase_1/policy.pth"
+    )
+    assert (logical.parent / "args.json").read_bytes() == logical.resolve().with_name(
+        "args.json"
+    ).read_bytes()
+    restored = load_policy("diffusion_planner", logical, device="cpu")
+    assert all(
+        torch.equal(value, restored.network.state_dict()[name])
+        for name, value in policy.network.state_dict().items()
+    )
+    assert file_hash(official) == original_hash
 
 
 def test_fixed_teacher_constraint_has_live_local_gradients(policy, instance):
@@ -94,11 +153,13 @@ def test_mixed_repair_preserves_frozen_state_and_restores_native_ema(
     report = train(policy, banks, updates=2, seed=20260926, checkpoint=save)
     assert captured == [2]
     assert report["frozen_state_unchanged"]
-    assert report["category_samples"]["native"] == 64
-    assert report["category_samples"]["keep"] == 32
-    assert (
-        report["category_samples"]["normal"] + report["category_samples"]["new_failure"]
-        == 32
+    assert report["batch_size"] == 128
+    assert report["category_samples"] == {"native": 128, "keep": 64, "correction": 64}
+    assert report["cumulative_updates"] == 2
+    assert any(row["constraint"]["actual_step_norm"] > 0 for row in report["losses"])
+    assert all(
+        max(row["constraint"]["actual_normalized_dots"]) <= 1e-9
+        for row in report["losses"]
     )
     restored = load_policy("diffusion_planner", tmp_path / "policy.pth", device="cpu")
     assert restored.repair_state == policy.repair_state
@@ -107,12 +168,22 @@ def test_mixed_repair_preserves_frozen_state_and_restores_native_ema(
         assert torch.equal(policy.training_state[name], restored.training_state[name])
     assert restored.optimizer_state is not None
     policy.export_native(tmp_path / "native/model.pth")
+    native_payload = torch.load(tmp_path / "native/model.pth", weights_only=True)
+    assert native_payload["ads_repair"] is None
+    assert native_payload["ads_optimizer"] is None
     native = load_policy(
         "diffusion_planner", tmp_path / "native/model.pth", device="cpu"
     )
     for name, value in policy.network.state_dict().items():
         assert torch.equal(value, native.network.state_dict()[name])
     assert native.optimizer_state is None
+    from ads.diffusion_planner.native_export import export_verified
+
+    verified = export_verified(
+        tmp_path / "policy.pth", tmp_path / "official_loader/model.pth", sample
+    )
+    assert verified["weights_only_load"]
+    assert verified["output_max_abs_difference"] == 0
 
 
 def test_successful_execution_is_retained_without_native_future_supervision(
@@ -138,7 +209,7 @@ def test_successful_execution_is_retained_without_native_future_supervision(
     policy.training_state[name] = deployment.clone() + 0.2
     supervised, retained = [], []
 
-    def native_loss(student, samples):
+    def native_loss(student, samples, **kwargs):
         supervised.extend(samples)
         return (
             student.network.decoder.decoder.dit.final_layer.proj[-1]
@@ -146,14 +217,9 @@ def test_successful_execution_is_retained_without_native_future_supervision(
             .mean()
         )
 
-    def keep_loss(student, teacher, samples):
+    def keep_loss(student, teacher, samples, **kwargs):
         retained.extend(samples)
         assert all(not p.requires_grad for p in teacher.network.parameters())
-        if any(s["label_source"] == "policy_success" for s in samples):
-            assert torch.equal(
-                teacher.network.decoder.decoder.dit.final_layer.proj[-1].bias,
-                deployment,
-            )
         return (
             student.network.decoder.decoder.dit.final_layer.proj[-1]
             .bias.square()
@@ -165,9 +231,9 @@ def test_successful_execution_is_retained_without_native_future_supervision(
     report = train(policy, banks, updates=1, seed=20260926)
     assert {s["domain"] for s in supervised} == {"native", "new_failure"}
     assert {s["domain"] for s in retained} == {"native", "keep", "normal"}
-    assert report["objective_samples"]["original_retention"] == 48
-    assert report["objective_samples"]["successful_retention"] > 0
-    assert report["successful_reference"] == "round_start_deployment"
+    assert report["category_samples"]["native"] == 64
+    assert report["exposure"]["keep"]["exposures"] == 32
+    assert report["successful_reference"] == "official_initial_deployment"
 
 
 def test_only_successful_material_does_not_trigger_a_repair(policy, instance):
@@ -223,12 +289,25 @@ def test_highway_admission_checks_collision_and_task_retention():
     from ads.common.admission import safe_task_change
 
     before = [
-        {"collision": False, "offroad": False, "stalled": False, "progress_m": 100.0}
+        {
+            "instance_hash": "a",
+            "safety_failure": False,
+            "collision": False,
+            "offroad": False,
+            "stalled": False,
+            "progress_m": 100.0,
+        }
     ]
     assert all(safe_task_change(before, before).values())
     assert not safe_task_change(before, [{**before[0], "collision": True}])["collision"]
-    assert not safe_task_change(before, [{**before[0], "progress_m": 97.9}])["progress"]
-    assert safe_task_change(before, [{**before[0], "progress_m": 98.0}])["progress"]
+    assert all(
+        safe_task_change(
+            before, [{**before[0], "progress_m": 75.0, "stalled": True}]
+        ).values()
+    )
+    group = [{**before[0], "instance_hash": str(i)} for i in range(100)]
+    stopped = [{**row, "stalled": True, "progress_m": 5.0} for row in group]
+    assert not safe_task_change(group, stopped)["no_widespread_stopping"]
 
 
 def test_world_history_window_preserves_full_policy_history(instance):

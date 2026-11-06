@@ -1,0 +1,15 @@
+{
+  "name": "Diffusion Planner Safety Enhanced",
+  "algorithm": "diffusion_planner",
+  "status": "released",
+  "historical_method_id": "guided",
+  "native_checkpoint": "results/ads/runs/safety_enhanced/manual_nuplan/enhanced/model.pth",
+  "native_sha256": "84af836087a6bd92d3df83729c5ec5adaa37ee621ad503daea9a15332c5342a2",
+  "training_checkpoint": "results/ads/runs/safety_enhanced/repairs/guided/policy.pth",
+  "training_sha256": "3a10d924e97fc830ff3147f28e5a6693a2d9f9eed74ec38043892f052bdb85ed",
+  "official_checkpoint": "ads/diffusion_planner/artifacts/model.pth",
+  "official_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+  "final_report": "final_results.json",
+  "nuplan_evaluation": "manual_by_user",
+  "storage_renamed_without_model_update": true
+}

@@ -50,10 +50,8 @@ paired branches never overwrite an online agent with its logged future state.
 It is intentionally labelled scene-conditioned posterior resimulation and is
 not interchangeable with the prior-only benchmark score.
 
-This old NPC-benchmark entry is retired. Its code is archived under
-`archive/hierarchical_world_model/benchmarks/npc_behavior/`; it is not another
-active world-model pipeline. Use the current TrafficBots scripts above for the
-maintained paper baseline.
+The old NPC-benchmark implementation has been removed. Use the current
+TrafficBots scripts above for the maintained paper baseline.
 
 The retained report is
 `results/baselines/trafficbots_highd/posterior_resimulation.json`.

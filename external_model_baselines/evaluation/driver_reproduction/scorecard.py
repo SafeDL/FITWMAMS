@@ -10,8 +10,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-
-ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
+ROOT = next(
+    parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists()
+)
 MEDIUM_BRAKE_DOSE = "3.0"
 
 
@@ -42,22 +43,28 @@ def _natural_row(
 
 def build_scorecard(root: Path = ROOT) -> dict[str, Any]:
     """Normalize final evidence without changing any model-specific result."""
-    population = _read("external_model_baselines/models/bayesian_ma_idm/evidence/population/summary.json", root)
+    population = _read(
+        "external_model_baselines/models/bayesian_ma_idm/evidence/population/summary.json",
+        root,
+    )
     dynamic = _read(
         "external_model_baselines/models/dynamic_ar_idm/artifacts/full_evaluation/"
         "natural_metrics_full_stable_map_rho.json",
         root,
     )
     multi_regime = _read(
-        "external_model_baselines/models/multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json", root
+        "external_model_baselines/models/multi_regime_bidm/evidence/heldout/recording_heldout_metrics.json",
+        root,
     )
     active = _read(
-        "external_model_baselines/models/active_inference_driver/artifacts/full_highd/highd_evaluation.json", root
+        "external_model_baselines/models/active_inference_driver/artifacts/full_highd/highd_evaluation.json",
+        root,
     )
-    response = _read("external_model_baselines/evaluation/counterfactual_response/artifacts/response_metrics.json", root)
-    matched = _read(
-        "results/driver_reproduction/matched_metrics.json", root
+    response = _read(
+        "external_model_baselines/evaluation/counterfactual_response/artifacts/response_metrics.json",
+        root,
     )
+    matched = _read("results/baselines/driver_reproduction/matched_metrics.json", root)
 
     natural_rollouts = []
     for model_name, model_result in population["models"].items():
@@ -185,14 +192,23 @@ def build_scorecard(root: Path = ROOT) -> dict[str, Any]:
             "protocol": {
                 key: matched[key]
                 for key in (
-                    "dataset", "cohort_pairs", "training_recordings", "training_pairs",
-                    "test_recordings", "test_pairs", "prefix_s", "horizon_s", "futures",
-                    "native_fps", "decision_fps", "all_eligible_test_pairs_evaluated",
+                    "dataset",
+                    "cohort_pairs",
+                    "training_recordings",
+                    "training_pairs",
+                    "test_recordings",
+                    "test_pairs",
+                    "prefix_s",
+                    "horizon_s",
+                    "futures",
+                    "native_fps",
+                    "decision_fps",
+                    "all_eligible_test_pairs_evaluated",
                 )
             },
             "models": matched["models"],
             "comparison_limit": matched["comparison_limit"],
-            "evidence": "results/driver_reproduction/matched_metrics.json",
+            "evidence": "results/baselines/driver_reproduction/matched_metrics.json",
         },
         "counterfactual_braking": {
             "benchmark_id": "highd_counterfactual_braking_anchor_55398_v1",

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.model import sample_driver_joint
+from external_model_baselines.models.bayesian_ma_idm.src.model import (
+    sample_driver_joint,
+)
 
 
 def test_retained_pymc_driver_draw_is_not_clipped_or_population_resampled() -> None:

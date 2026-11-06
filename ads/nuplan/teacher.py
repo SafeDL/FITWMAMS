@@ -6,11 +6,13 @@ from ads.common.observations import CausalScene, to_local
 from ads.nuplan.features import build_features, rear_offset, sample_history
 
 
-def demonstration(instance, states, algorithm):
+def demonstration(instance, states, algorithm, *, frames=None):
     """Native labels in the present ego rear-axle frame, observed futures only."""
     event = instance.event
     samples = []
-    for frame in range(0, len(states) - 25, 5):
+    for frame in range(0, len(states) - 3, 5) if frames is None else frames:
+        if frame < 0 or frame >= len(states) - 3:
+            raise ValueError("Expert query has insufficient observed future")
         current = states[frame]
         h = float(np.arctan2(current[0, 3], current[0, 2]))
         speed = float(np.linalg.norm(current[0, 2:4]))
@@ -68,6 +70,9 @@ def demonstration(instance, states, algorithm):
             "features": feature,
             "target": target,
             "future_valid": valid,
+            "frame_id": int(frame),
+            "instance_id": instance.instance_hash,
+            "purpose": instance.purpose,
             "observation": {
                 "features": feature,
                 "scene": scene,

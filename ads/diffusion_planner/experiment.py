@@ -3,14 +3,53 @@
 import json
 from pathlib import Path
 
+import numpy as np
+
 from ads.common.admission import admission
-from ads.common.instances import file_hash
+from ads.common.instances import GeneratedInstance, file_hash
 from ads.common.reporting import write_json
-from ads.common.setup import load_policy
-from ads.diffusion_planner.materials import ROOT, load_keep_samples
+from ads.common.setup import REPO_ROOT, load_policy
 from ads.diffusion_planner.prepare_data import load_training_samples
 from ads.diffusion_planner.repair import train
 from ads.nuplan.assets import official_path
+from ads.nuplan.teacher import demonstration
+
+ROOT = REPO_ROOT / "results/ads/history/two_round_repair/materials/diffusion_planner"
+
+
+def load_keep_samples():
+    manifest = json.loads((ROOT / "instances.json").read_text())
+    expected_policy = file_hash(official_path("diffusion_planner"))
+    samples = []
+    for path in manifest["keep"]:
+        instance = GeneratedInstance.load(path)
+        entry = json.loads(
+            (ROOT / "initial/keep" / (instance.instance_hash + ".json")).read_text()
+        )
+        if not entry.get("trajectory"):
+            continue
+        if (
+            entry["policy_sha256"] != expected_policy
+            or entry["record"]["instance_hash"] != instance.instance_hash
+            or entry["record"]["safety_failure"]
+            or entry["record"]["stalled"]
+            or file_hash(entry["trajectory"]) != entry["trajectory_sha256"]
+        ):
+            raise ValueError("Highway retention provenance or success check differs")
+        with np.load(entry["trajectory"], allow_pickle=False) as data:
+            produced = demonstration(instance, data["states"], "diffusion_planner")
+        for sample in produced:
+            sample.update(
+                scene_id=instance.root_sample_id,
+                domain="keep",
+                source=instance.source_kind,
+            )
+        samples.extend(produced)
+    if not samples:
+        raise ValueError(
+            "Official policy supplied no qualified highway retention material"
+        )
+    return samples
 
 
 def repair_and_select(

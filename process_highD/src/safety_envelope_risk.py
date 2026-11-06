@@ -47,16 +47,14 @@ class SafetyEnvelopeRiskOptions:
     def from_config(
         cls,
         risk_config: dict[str, Any],
-    ) -> "SafetyEnvelopeRiskOptions":
+    ) -> SafetyEnvelopeRiskOptions:
         cfg = risk_config["safety_envelope"]
         return cls(
             prediction_horizon_seconds=float(cfg["prediction_horizon_seconds"]),
             prediction_dt_seconds=float(cfg["prediction_dt_seconds"]),
             prediction_use_acceleration=bool(cfg["prediction_use_acceleration"]),
             acceleration_clip_mps2=float(cfg["acceleration_clip_mps2"]),
-            longitudinal_mode=str(cfg["longitudinal_mode"])
-            .strip()
-            .lower(),
+            longitudinal_mode=str(cfg["longitudinal_mode"]).strip().lower(),
             longitudinal_time_gap_seconds=float(cfg["longitudinal_time_gap_seconds"]),
             longitudinal_min_margin_m=float(cfg["longitudinal_min_margin_m"]),
             longitudinal_brake_mps2=float(cfg["longitudinal_brake_mps2"]),

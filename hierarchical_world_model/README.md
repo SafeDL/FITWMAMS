@@ -27,12 +27,14 @@
 
 | 位置 | 用途 |
 | --- | --- |
-| `src/composition.py`、`src/planner.py` | Flow／Diffusion 组合、冻结计划生成与缓存 |
+| `src/composition.py` | Flow／Diffusion 组合与冻结软计划生成 |
 | `src/tracking.py`、`src/highway.py`、`src/execution.py` | 跟踪、动力学和 ADS 闭环 |
 | `src/plan_applicability.py`、`src/takeover.py` | 预测评分、一次交权与机动承接 |
 | `src/scene_geometry.py`、`src/motion.py`、`src/error_trajectories.py` | 共享几何、短历史外推和经验误差库 |
 | `src/stochastic_drivers/` | NPC 跟驰、换道及原始数据提取 |
 | `src/npc_experiments/`、`src/bridge_evaluation.py` | NPC 标定、自主交通评测及桥接实验 |
+
+自主交通的闭环执行与统计集中在 `src/npc_experiments/road_evaluation.py`；标定使用下述入口，已退役的联合参数搜索不再保留。
 
 在项目根目录运行，参数见 [config.yaml](config.yaml)：
 
@@ -51,7 +53,7 @@ python hierarchical_world_model/scripts/evaluate_bridge_interventions.py
 python hierarchical_world_model/scripts/render_bridge_playbacks.py
 ```
 
-分别评估自然 Test、脚本干预机制和生成配对 GIF。干预实验改变主车实际控制，不能当作真实 ADS 的评测成绩。独立 NPC 交通统计使用 `scripts/evaluate_drivers.py`；IDM／DQN 的接入入口见 [ads](../ads/README.md)。
+分别评估自然 Test、脚本干预机制和生成配对 GIF。干预实验改变主车实际控制，不能当作真实 ADS 的评测成绩。独立 NPC 交通统计使用 `scripts/evaluate_drivers.py`；规则 IDM 诊断见 [ads/idm](../ads/idm/README.md)，学习型策略与修复入口见 [ads](../ads/README.md)。
 
 `HierarchicalWorldSampler.create_world(..., controller="auto")` 与 ADS `FrozenWorldFactory` 加载相同发布参数；`controller=None` 执行纯跟踪。所有权、首次理由、机动及 NPC 内部状态均进入诊断和快照。
 
@@ -59,4 +61,4 @@ python hierarchical_world_model/scripts/render_bridge_playbacks.py
 
 预测冲突后干预回放可参考 [LitSim](https://arxiv.org/abs/2403.04299)，相关车辆的交互响应可参考 [InterSim](https://arxiv.org/abs/2210.14413)。本实现的重点是完整经验轨迹支持的计划适用性，以及车辆关系、机动和状态一致的一次交接。跟踪、IDM 与 MOBIL 是采用的基础方法。
 
-当前已有完整自然 Test 及针对性干预证据，最新版生成场景 ADS 全量对照尚未完成。数据范围、历史诊断和原始报告统一见[结果说明](../results/hierarchical_world_model/README.md)，具体指标以报告为准。
+当前已有完整自然 Test、针对性干预证据和 DP 生成场景搜索修复结果。世界模型证据见[结果说明](../results/hierarchical_world_model/README.md)，最新 ADS 结果见[交互引导搜索与修复](../results/ads/README.md)，具体指标以各实验冻结报告为准。

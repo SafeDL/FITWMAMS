@@ -1,175 +1,189 @@
-"""Method-blind, common post-hoc branch analysis on the shared first-round pi0.
-
-Diagnostic calls are appended to the owning method's real execution ledger and
-cannot influence its already completed search or repair. Unknown graph edges
-leave coverage unresolved, rather than create artificial extra domains.
-"""
+"""Method-blind geometric coverage of executed collision states; no world calls."""
 
 import json
-import time
+from pathlib import Path
 
 import numpy as np
 
-from ads.common.evaluation import EpisodeResult, WorldEvaluator
-from ads.common.instances import GeneratedInstance, InstanceStore
 from ads.common.reporting import write_json
-from ads.common.setup import load_policy
-from ads.search.branches import HillValleyPartitioner, midpoint
+
+
+def motion_catalog(journals, radius):
+    pooled = {}
+    for rows in journals.values():
+        for row in rows:
+            value = np.asarray(row.get("descriptor", [])[:4], float)
+            if (
+                row.get("collision", False)
+                and value.shape == (4,)
+                and np.isfinite(value).all()
+                and row.get("critical_slot", -1) > 0
+            ):
+                pooled[row["instance_hash"]] = row
+    keys = sorted(pooled)
+    if not keys:
+        return {
+            "representatives": [],
+            "methods": {
+                name: {"covered_states": 0, "assignments": {}} for name in journals
+            },
+        }
+    values = np.asarray([pooled[key]["descriptor"][:4] for key in keys], float)
+    selected = [0]
+    distance = np.linalg.norm(values - values[0], axis=1)
+    while float(distance.max()) > radius:
+        index = int(np.argmax(distance))
+        selected.append(index)
+        distance = np.minimum(distance, np.linalg.norm(values - values[index], axis=1))
+    labels = np.linalg.norm(values[:, None] - values[selected][None], axis=-1).argmin(
+        axis=1
+    )
+    assignments = dict(zip(keys, labels.tolist()))
+    methods = {}
+    for name, rows in journals.items():
+        actual = {
+            row["instance_hash"]: assignments[row["instance_hash"]]
+            for row in rows
+            if row["instance_hash"] in assignments
+        }
+        methods[name] = {
+            "covered_states": len(set(actual.values())),
+            "assignments": actual,
+        }
+    return {"representatives": [keys[index] for index in selected], "methods": methods}
 
 
 def common_discovery_partition(campaign, algorithm, seed):
     target = campaign.output / "common_discovery" / algorithm / f"{seed}.json"
-    if target.exists():
-        return json.loads(target.read_text())
-    started = time.perf_counter()
-    methods = campaign.config["methods"]
-    journals, summaries, directories, populations, known = {}, {}, {}, {}, {}
+    journals, summaries, directories = {}, {}, {}
+    methods = list(campaign.config["methods"]) + list(
+        campaign.config.get("search_controls", [])
+    )
     for method in methods:
         directory = campaign.output / algorithm / str(seed) / method / "round_1"
         directories[method] = directory
+        journals[method] = [
+            json.loads(line)
+            for line in (directory / "search.jsonl").read_text().splitlines()
+        ]
+        summaries[method] = json.loads((directory / "search_summary.json").read_text())
+    radii = [summary["collision_coverage"]["radius"] for summary in summaries.values()]
+    if len(set(radii)) != 1:
+        raise ValueError("Methods do not share the same prior motion-state calibration")
+    radius = radii[0]
+    report = {
+        "schema": "method_blind_motion_catalog",
+        "radius": radius,
+        "world_executions": 0,
+        "resolved": True,
+        "coverage_interpretation": "empirical_motion_states_not_topological_domains",
+        **motion_catalog(journals, radius),
+        "radius_sensitivity": (
+            {
+                str(factor): motion_catalog(journals, radius * factor)
+                for factor in (0.5, 2.0)
+            }
+            if radius
+            else {}
+        ),
+    }
+    for method, rows in journals.items():
+        assignments = report["methods"][method]["assignments"]
+        for row in rows:
+            row["common_partition_resolved"] = True
+            row["common_branch_id"] = (
+                f"motion.{assignments[row['instance_hash']]}"
+                if row["instance_hash"] in assignments
+                else None
+            )
+        (directories[method] / "search.jsonl").write_text(
+            "".join(json.dumps(row, allow_nan=False) + "\n" for row in rows)
+        )
+    write_json(target, report)
+    return report
+
+
+def compare_with_history(settings, output):
+    """Recompute a common physical-deduplicated catalog without new world calls."""
+    import hashlib
+    from collections import Counter
+
+    historical = Path(settings["historical_run"]) / "search"
+    current = Path(settings["reuse_search"])
+    journals, directories, summaries = {}, {}, {}
+    for name, root, method in (
+        ("monte_carlo", historical, "monte_carlo"),
+        ("subset", historical, "subset"),
+        ("guided", current, "guided"),
+    ):
+        directory = (
+            root
+            / "diffusion_planner"
+            / str(settings["master_seed"])
+            / method
+            / "round_1"
+        )
+        directories[name] = directory
         rows = [
             json.loads(line)
             for line in (directory / "search.jsonl").read_text().splitlines()
         ]
-        journals[method] = rows
-        summaries[method] = json.loads((directory / "search_summary.json").read_text())
-        results = []
         for row in rows:
-            instance = GeneratedInstance.load(
-                directory / "search_instances" / (row["instance_hash"] + ".npz")
+            if not row.get("collision") or row.get("trajectory_hash"):
+                continue
+            trace = directory / "executions" / f"{row['evaluation_index']:05d}.npz"
+            digest = hashlib.sha256()
+            with np.load(trace, allow_pickle=False) as data:
+                for key in ("states", "controls"):
+                    value = np.ascontiguousarray(data[key])
+                    digest.update(str((value.shape, value.dtype.str)).encode())
+                    digest.update(value.tobytes())
+            row["trajectory_hash"] = digest.hexdigest()
+        journals[name] = rows
+        summaries[name] = json.loads((directory / "search_summary.json").read_text())
+    radius = summaries["guided"]["collision_coverage"]["radius"]
+    if any(
+        not np.isclose(summary["collision_coverage"]["radius"], radius)
+        for summary in summaries.values()
+    ):
+        raise ValueError("Historical common prior has a different coverage resolution")
+    reports = {}
+    for factor in (1.0, 0.5, 2.0):
+        catalog = motion_catalog(journals, radius * factor)
+        for name, rows in journals.items():
+            assignments = catalog["methods"][name]["assignments"]
+            physical = {}
+            for row in rows:
+                if row.get("collision") and row["instance_hash"] in assignments:
+                    physical.setdefault(row["trajectory_hash"], row)
+            counts = Counter(
+                assignments[row["instance_hash"]] for row in physical.values()
             )
-            result = EpisodeResult(
-                instance, row, np.empty((0, 7, 6)), np.empty((0, 2)), []
+            total = sum(counts.values())
+            roots = Counter(row["root_sample_id"] for row in physical.values())
+            catalog["methods"][name].update(
+                executions=len(rows),
+                collision_inputs=len(
+                    {r["instance_hash"] for r in rows if r.get("collision")}
+                ),
+                physical_collision_trajectories=total,
+                coverage_D2=(
+                    total * total / sum(n * n for n in counts.values()) if total else 0
+                ),
+                collision_ancestors=len(roots),
+                maximum_ancestor_fraction=max(roots.values(), default=0)
+                / max(total, 1),
+                effective_ancestors=(
+                    total * total / sum(n * n for n in roots.values()) if total else 0
+                ),
             )
-            known[instance.instance_hash] = result
-            if row["execution_kind"] not in ("branch_check", "archive_replay"):
-                results.append(result)
-        populations[method] = results
-    # Equal identities are the same function evaluation under the common pi0 and
-    # policy stream. Only actual failures define this terminal-set partition;
-    # safe points must not become graph bridges between failure regions.
-    pooled = {
-        r.instance.instance_hash: r
-        for results in populations.values()
-        for r in results
-        if r.failure
+        reports[str(factor)] = catalog
+    payload = {
+        "radius": radius,
+        "world_executions_added": 0,
+        "historical_methods_rerun": False,
+        "comparison_scope": "historical approximate reference; all collision diversity uses physical deduplication",
+        "catalogs": reports,
     }
-    source = campaign.source("search", "common_partition", algorithm, seed)
-    policy = None
-
-    def check(left, right):
-        nonlocal policy
-        if campaign.config["search"].get("fixed_budget", False) and all(
-            len(journals[method]) >= campaign.config["search"]["budget"]
-            for method in methods
-        ):
-            return None
-        check_started = time.perf_counter()
-        generation_before = source.generation_elapsed_s
-        instance = source.mutation(
-            left.instance, midpoint(left.instance, right.instance), "branch_check"
-        )
-        if instance.instance_hash in known:
-            return known[instance.instance_hash]
-        available = [
-            method
-            for method in methods
-            if len(journals[method]) < campaign.config["search"]["budget"]
-            and summaries[method]["execution_costs"].get("branch_check", 0)
-            < campaign.config["search"]["branch_check_budget"]
-        ]
-        if not available:
-            return None
-        owner = min(
-            available,
-            key=lambda name: (
-                summaries[name]["execution_costs"].get("branch_check", 0),
-                name,
-            ),
-        )
-        if policy is None:
-            path = campaign.checkpoint(
-                campaign.output / algorithm / str(seed) / "baseline", algorithm
-            )
-            policy = load_policy(algorithm, path, device=campaign.device)
-        result = WorldEvaluator(
-            policy,
-            algorithm,
-            campaign.factory,
-            campaign.evt,
-            ledger=campaign.ledger,
-            seed=seed,
-        )(instance)
-        result.record.update(
-            execution_kind="branch_check",
-            branch_id="common_diagnostic",
-            independent_sampling_root=False,
-            diagnostic_endpoints=[
-                left.instance.instance_hash,
-                right.instance.instance_hash,
-            ],
-            evaluation_index=len(journals[owner]) + 1,
-            search_batch=-1,
-            common_posthoc=True,
-        )
-        store = InstanceStore(
-            directories[owner] / "search_instances",
-            purpose="search",
-            ledger=campaign.ledger,
-        )
-        store.add(instance)
-        journals[owner].append(result.record)
-        summary = summaries[owner]
-        summary["evaluations"] += 1
-        summary["execution_costs"]["branch_check"] = (
-            summary["execution_costs"].get("branch_check", 0) + 1
-        )
-        summary["unused_budget"] -= 1
-        summary["execution_elapsed_s"] += result.record["elapsed_s"]
-        summary["generation_elapsed_s"] += (
-            source.generation_elapsed_s - generation_before
-        )
-        summary["total_search_elapsed_s"] += time.perf_counter() - check_started
-        known[instance.instance_hash] = result
-        return result
-
-    partition, evidence = HillValleyPartitioner(
-        graph_size=campaign.config["search"]["graph_size"], seed=seed
-    ).split(list(pooled.values()), check)
-    resolved = evidence is not None and evidence["status"] != "incomplete"
-    report = {
-        "schema": "method_blind_common_failure_partition_v2",
-        "partition_population": "executed_ego_failures_only",
-        "unique_partition_instances": len(pooled),
-        "resolved": resolved,
-        "evidence": evidence,
-        "partition": partition.as_dict() if partition else None,
-        "coverage_interpretation": "common empirical partition; no topology completeness claim",
-        "analysis_elapsed_s": time.perf_counter() - started,
-        "generation_elapsed_s": source.generation_elapsed_s,
-    }
-    for method, results in populations.items():
-        labels = (
-            partition.predict([r.instance for r in results])
-            if partition
-            else np.zeros(len(results), int)
-        )
-        by_hash = {
-            r.instance.instance_hash: int(label) for r, label in zip(results, labels)
-        }
-        for row in journals[method]:
-            row["common_partition_resolved"] = resolved
-            if (
-                row["instance_hash"] in by_hash
-                and row["execution_kind"] != "branch_check"
-            ):
-                row["common_branch_id"] = (
-                    f"common.{by_hash[row['instance_hash']]}" if resolved else None
-                )
-        (directories[method] / "search.jsonl").write_text(
-            "".join(json.dumps(row, allow_nan=False) + "\n" for row in journals[method])
-        )
-        summaries[method]["common_partition_resolved"] = resolved
-        write_json(directories[method] / "search_summary.json", summaries[method])
-    write_json(target, report)
-    return report
+    write_json(output / "search_comparison.json", payload)
+    return payload

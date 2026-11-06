@@ -44,9 +44,10 @@ def paired_rows(before, after):
     for key in ("instance_hash", "assets_hash", "root_sample_id", "policy_stream_id"):
         if not joined[key + "_old"].equals(joined[key + "_new"]):
             raise ValueError(f"paired {key} differs")
-    return old.set_index("event_id").loc[joined.event_id].reset_index(), new.set_index(
-        "event_id"
-    ).loc[joined.event_id].reset_index()
+    return (
+        old.set_index("event_id").loc[joined.event_id].reset_index(),
+        new.set_index("event_id").loc[joined.event_id].reset_index(),
+    )
 
 
 def cluster_difference_ci(values, clusters, *, replicates=10000, seed=20260926):
@@ -86,9 +87,7 @@ def paired_summary(before, after, *, diagnostic=False, bootstrap_replicates=1000
     cluster = (
         "root_sample_id"
         if diagnostic
-        else "recording_id"
-        if source == "empirical_natural"
-        else "instance_hash"
+        else "recording_id" if source == "empirical_natural" else "instance_hash"
     )
     if cluster == "recording_id" and (
         old[cluster].isna().any() or not old[cluster].equals(new[cluster])
@@ -117,6 +116,8 @@ def paired_summary(before, after, *, diagnostic=False, bootstrap_replicates=1000
         "collision_discordant_instances": int((delta != 0).sum()),
         "repaired": int((old.safety_failure & ~new.safety_failure).sum()),
         "regressed": int((~old.safety_failure & new.safety_failure).sum()),
+        "collision_repaired": int((old.collision & ~new.collision).sum()),
+        "collision_regressed": int((~old.collision & new.collision).sum()),
         "mean_progress_before_m": float(old.progress_m.mean()),
         "mean_progress_after_m": float(new.progress_m.mean()),
     }

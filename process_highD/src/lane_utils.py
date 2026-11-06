@@ -14,9 +14,6 @@ from __future__ import annotations
 import numpy as np
 
 
-# 车道线解析
-
-
 def parse_lane_markings(recording_meta: dict) -> dict:
     """解析 recordingMeta 中的车道线信息。
 
@@ -101,7 +98,6 @@ def parse_lane_markings(recording_meta: dict) -> dict:
         "direction_1_lanes": direction_1_lanes,
         "direction_2_lanes": direction_2_lanes,
     }
-
 
 
 def are_adjacent_lanes(lane_a: int, lane_b: int, lane_info: dict) -> bool:

@@ -1,0 +1,23 @@
+{
+  "city_closed_loop": "manual_by_user",
+  "environment": "tread",
+  "model_forward_calls": 0,
+  "nuplan_world_executions": 0,
+  "passed": true,
+  "roles": {
+    "guided": {
+      "checkpoint_actual_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/repair/native/guided/model.pth",
+      "checkpoint_sha256": "84af836087a6bd92d3df83729c5ec5adaa37ee621ad503daea9a15332c5342a2",
+      "exit_code": 0,
+      "log_sha256": "a5b40eec925f7c7a7b69d4909e20aefbbab0d6609a9667c6ea34b9f47668299f",
+      "mode": "--cfg job only; no simulation or planner instantiation"
+    },
+    "initial": {
+      "checkpoint_actual_path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_models/ads/diffusion_planner/repair/native/initial/model.pth",
+      "checkpoint_sha256": "8d4f8a7d41cb207f7d110e4c1117864a184a6431d987372f0ec901fd98a5a39f",
+      "exit_code": 0,
+      "log_sha256": "e09f45ef1c5da2db7deb88f37943bd4b7fdbb926d0e66ac2f9269ad5606aea2b",
+      "mode": "--cfg job only; no simulation or planner instantiation"
+    }
+  }
+}

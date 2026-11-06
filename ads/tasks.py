@@ -3,27 +3,23 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-NATIVE_PLANNERS = ("diffusion_planner", "dtpp", "flow_planner", "str2")
-SUPERVISED_ALGORITHMS = ("plant2", *NATIVE_PLANNERS)
+NATIVE_PLANNERS = ("diffusion_planner",)
+SUPERVISED_ALGORITHMS = NATIVE_PLANNERS
 POLICY_SUFFIX = {
-    "dqn": ".zip",
-    "ppo": ".zip",
     "carl": ".pth",
-    "plant2": ".ckpt",
     "diffusion_planner": ".pth",
-    "dtpp": ".pth",
-    "flow_planner": ".pth",
-    "str2": "",
 }
 
 
 def training_budget(config, algorithm, *, baseline):
     if baseline:
-        # All eight initial policies are imported, never trained by this protocol.
+        # Official nuPlan initial policies are imported without initial training.
         return (
-            "gradient_updates"
-            if algorithm in SUPERVISED_ALGORITHMS
-            else "actual_steps",
+            (
+                "gradient_updates"
+                if algorithm in SUPERVISED_ALGORITHMS
+                else "actual_steps"
+            ),
             0,
         )
     if algorithm in SUPERVISED_ALGORITHMS:

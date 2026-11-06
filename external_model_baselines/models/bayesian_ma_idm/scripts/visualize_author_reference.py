@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Paper-organised figures from the fixed author 20-pair reference cohort."""
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
@@ -13,8 +14,13 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 
-from external_model_baselines.models.bayesian_ma_idm.src.author_reference import load_author_reference
-from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import GPHistory, idm
+from external_model_baselines.models.bayesian_ma_idm.src.author_reference import (
+    load_author_reference,
+)
+from external_model_baselines.models.bayesian_ma_idm.src.reference_kernels import (
+    GPHistory,
+    idm,
+)
 
 DT = .2
 

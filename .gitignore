@@ -71,13 +71,11 @@ highD_dataset/**/*.csv
 *.ckpt
 *.onnx
 *.safetensors
-weights/
-checkpoints/
 
 # Logs and transient experiment directories
 *.log
 logs/
-runs/
+/runs/
 wandb/
 mlruns/
 tensorboard/
@@ -85,39 +83,39 @@ tensorboard/
 # Archives and shared training data; keep their documentation
 archive/**
 !archive/README.md
-results/highd_shared_training_data/**
-!results/highd_shared_training_data/**/
-!results/highd_shared_training_data/**/README.md
+!archive/retirement_summary.json
+!archive/retained_models/
+!archive/retained_models/provenance.json
 
 # Large per-event/per-run outputs; keep reports, protocols and summary tables
 results/evt/natural_segments.csv
 results/evt/event_bank/events.csv
-results/hierarchical_world_model/npc_response/autonomous_traffic/runs.csv
-results/hierarchical_world_model/npc_response/autonomous_traffic/*/events.csv
-results/hierarchical_world_model/npc_response/autonomous_traffic/*/runs.json
-results/idm_ams/
-# ADS results: version curated evidence, not full runs or external storage links.
-results/risk_stratified_repair
-!results/risk_stratified_repair/
-results/risk_stratified_repair/*
-!results/risk_stratified_repair/README.md
-!results/risk_stratified_repair/reports/
-!results/risk_stratified_repair/reports/**
-results/risk_stratified_repair_history/*
-!results/risk_stratified_repair_history/README.md
-!results/risk_stratified_repair_history/index.json
-!results/risk_stratified_repair_history/reports/
-!results/risk_stratified_repair_history/reports/**
-results/risk_stratified_repair_manual_nuplan
-results/natural_flow
+# Individual generated outputs larger than 10 MiB.
+results/highd_shared_training_data/driver_behavior/train_behavior_events.csv
+results/hierarchical_world_model/npc_response/animations/moderate_traffic.gif
+results/hierarchical_world_model/npc_response/animations/higher_density_traffic.gif
+results/hierarchical_world_model/npc_response/autonomous_traffic/continuous_runs/events.csv
 
-# Large generated output media (usually recreated by scripts)
-results/**/*.png
-results/**/*.gif
-results/**/*.jpg
-results/**/*.jpeg
-results/**/*.mp4
-results/**/*.webm
+# Small reports, configurations, figures and storage links remain versioned.
+# Full numeric datasets and model bytes are excluded by the extensions above.
+!results/ads/assets/runtime_reference/*.npz
+
+# ADS protocols, frozen source, compact reports and handoff metadata are versioned.
+# Keep large execution data and resumable learning state on disk, outside Git.
+results/ads/runs/**/*.jsonl
+results/ads/runs/**/*.sqlite*
+results/ads/runs/**/*.lock
+results/ads/runs/*/instances/
+results/ads/runs/*/collection/
+results/ads/runs/*/experts/phase_one/
+results/ads/runs/*/experts/inputs/
+results/ads/runs/*/training_diagnostics/
+results/ads/runs/*/diagnostics/
+results/ads/runs/*/validation/
+results/ads/runs/*/final/
+results/ads/runs/*/result.json
+results/ads/runs/*/repairs/**/training.json
+results/ads/runs/*/repairs/**/training_losses.csv
 
 # Current bridge: regenerable execution caches and compact runtime bank.
 results/hierarchical_world_model/bridge/.cache/

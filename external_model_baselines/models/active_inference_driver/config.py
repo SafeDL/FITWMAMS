@@ -1,4 +1,5 @@
 """Paper-locked parameters and explicit longitudinal-adaptation choices."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -24,7 +25,7 @@ class ActiveInferenceConfig:
     desired_speed_sd: float = 0.5
     acceleration_sd: float = 0.1
     collision_cost: float = -10000.0
-    evidence_drift: float = 10 ** -5.95
+    evidence_drift: float = 10**-5.95
     evidence_threshold: float = 1.0
     coast_acceleration_mps2: float = -0.1
     pedal_hold_s: float = 0.2
@@ -45,6 +46,10 @@ class ActiveInferenceConfig:
             raise ValueError("decision_dt_s must be an integer number of native ticks")
         return ticks
 
-    def reduced(self, *, plans: int = 20, iterations: int = 3, particles: int = 16) -> "ActiveInferenceConfig":
+    def reduced(
+        self, *, plans: int = 20, iterations: int = 3, particles: int = 16
+    ) -> "ActiveInferenceConfig":
         """Small deterministic setting used only by unit tests and smoke runs."""
-        return replace(self, cem_plans=plans, cem_iterations=iterations, particles=particles)
+        return replace(
+            self, cem_plans=plans, cem_iterations=iterations, particles=particles
+        )

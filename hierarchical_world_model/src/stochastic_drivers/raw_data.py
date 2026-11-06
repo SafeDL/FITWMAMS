@@ -211,9 +211,9 @@ def lane_labels(track, lane_centers):
     audit["no_cross"][cues[keep & ~opposite]] = True
     audit["observation_gap"][cues[gap]] = True
     audit["truncated_future"][cues[unresolved & ~gap & ~nonadjacent & truncated]] = True
-    audit["horizon_unresolved"][cues[unresolved & ~gap & ~nonadjacent & ~truncated]] = (
-        True
-    )
+    audit["horizon_unresolved"][
+        cues[unresolved & ~gap & ~nonadjacent & ~truncated]
+    ] = True
     observed[cues] = confirmed | keep
     label[cues[confirmed]] = np.where(side[confirmed] < 0, 1, 2)
     visible_end = np.minimum(horizon, frames[(next_invalid - 1).clip(min=0)])
@@ -717,10 +717,6 @@ def load_following(output=DRIVER_DATA_DIR, splits=SPLITS):
         ) / 0.2
         data["leader_history_available"][order] = same_leader
     return groups
-
-
-def load_lane_opportunities(output=DRIVER_DATA_DIR, splits=SPLITS):
-    return load_group(output, "lane", splits)
 
 
 def load_lane_events(output=DRIVER_DATA_DIR, splits=SPLITS):

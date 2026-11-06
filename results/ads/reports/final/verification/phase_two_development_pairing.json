@@ -1,0 +1,201 @@
+{
+  "cohorts": {
+    "natural_generated": {
+      "after_case_records_sha256": "948451ca36c370223749e3dd74ad0d2f4191581f698aa4acb690aaa7fa3379ab",
+      "before_case_records_sha256": "c5b8bfb2e39de22356d203b83cd30325df498b301bf8f883f9f3e2a98436518d",
+      "collision_after": 82,
+      "collision_before": 91,
+      "collision_new": 15,
+      "collision_repaired": 24,
+      "identity_assets_and_policy_stream_match": true,
+      "independent_roots": 5000,
+      "instances": 5000,
+      "offroad_after": 1,
+      "offroad_before": 1,
+      "paired_summary": {
+        "bootstrap_unit": "instance_hash",
+        "cohort_kind": "natural_generated",
+        "collision_ci_is_degenerate": false,
+        "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+        "collision_discordant_instances": 39,
+        "collision_rate_after": 0.0164,
+        "collision_rate_before": 0.0182,
+        "collision_rate_difference_after_minus_before": -0.0018,
+        "collision_rate_difference_bootstrap_ci95": [
+          -0.0042,
+          0.0006
+        ],
+        "collision_rate_difference_ci95": [
+          -0.005956157226504831,
+          0.002369460952815101
+        ],
+        "failure_rate_difference_after_minus_before": -0.0018,
+        "failure_rate_difference_ci95": [
+          -0.005956157226504831,
+          0.002369460952815101
+        ],
+        "independent_units": 5000,
+        "instances": 5000,
+        "mean_progress_after_m": 97.50635957605839,
+        "mean_progress_before_m": 96.21723329222202,
+        "offroad_rate_after": 0.0002,
+        "offroad_rate_before": 0.0002,
+        "regressed": 15,
+        "repaired": 24,
+        "safety_failure_rate_after": 0.0166,
+        "safety_failure_rate_before": 0.0184,
+        "stalled_rate_after": 0.0,
+        "stalled_rate_before": 0.0
+      },
+      "previous_stage": {
+        "case_records_sha256": "8bcd54b3bcf5bb9dba58ec38ae0bda428016215a79b332a9b1b24f75628e36bd",
+        "collision_after": 82,
+        "collision_before": 90,
+        "collision_new": 9,
+        "collision_repaired": 17,
+        "offroad_after": 1,
+        "offroad_before": 1,
+        "paired_summary": {
+          "bootstrap_unit": "instance_hash",
+          "cohort_kind": "natural_generated",
+          "collision_ci_is_degenerate": false,
+          "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+          "collision_discordant_instances": 26,
+          "collision_rate_after": 0.0164,
+          "collision_rate_before": 0.018,
+          "collision_rate_difference_after_minus_before": -0.0016,
+          "collision_rate_difference_bootstrap_ci95": [
+            -0.0036,
+            0.0004
+          ],
+          "collision_rate_difference_ci95": [
+            -0.005027617478365349,
+            0.0018470128883981065
+          ],
+          "failure_rate_difference_after_minus_before": -0.0016,
+          "failure_rate_difference_ci95": [
+            -0.005027617478365349,
+            0.0018470128883981065
+          ],
+          "independent_units": 5000,
+          "instances": 5000,
+          "mean_progress_after_m": 97.50635957605839,
+          "mean_progress_before_m": 97.19640278437137,
+          "offroad_rate_after": 0.0002,
+          "offroad_rate_before": 0.0002,
+          "regressed": 9,
+          "repaired": 17,
+          "safety_failure_rate_after": 0.0166,
+          "safety_failure_rate_before": 0.0182,
+          "stalled_rate_after": 0.0,
+          "stalled_rate_before": 0.0
+        },
+        "policy_sha256": "5df35f7fc2bc41f17dffbe544c647f16b6456ab9bbb9e37f5b1def6653ee8d0f"
+      },
+      "stalled_after": 0,
+      "stalled_before": 0
+    },
+    "tail_generated": {
+      "after_case_records_sha256": "3cef254635c56c858cd474335d616e053eb4a976995582260e50161b9bc46756",
+      "before_case_records_sha256": "d72cd5f890b45e5f4b98e0c50ebb81fd759651a765b4635be72fe88180648746",
+      "collision_after": 143,
+      "collision_before": 185,
+      "collision_new": 4,
+      "collision_repaired": 46,
+      "identity_assets_and_policy_stream_match": true,
+      "independent_roots": 5000,
+      "instances": 5000,
+      "offroad_after": 4,
+      "offroad_before": 5,
+      "paired_summary": {
+        "bootstrap_unit": "instance_hash",
+        "cohort_kind": "tail_generated",
+        "collision_ci_is_degenerate": false,
+        "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+        "collision_discordant_instances": 50,
+        "collision_rate_after": 0.0286,
+        "collision_rate_before": 0.037,
+        "collision_rate_difference_after_minus_before": -0.0084,
+        "collision_rate_difference_bootstrap_ci95": [
+          -0.0112,
+          -0.0058
+        ],
+        "collision_rate_difference_ci95": [
+          -0.012538846624775246,
+          -0.004185051797740053
+        ],
+        "failure_rate_difference_after_minus_before": -0.0086,
+        "failure_rate_difference_ci95": [
+          -0.012620076494503783,
+          -0.00449270143395635
+        ],
+        "independent_units": 5000,
+        "instances": 5000,
+        "mean_progress_after_m": 101.79378725498319,
+        "mean_progress_before_m": 100.35101128998996,
+        "offroad_rate_after": 0.0008,
+        "offroad_rate_before": 0.001,
+        "regressed": 3,
+        "repaired": 46,
+        "safety_failure_rate_after": 0.0294,
+        "safety_failure_rate_before": 0.038,
+        "stalled_rate_after": 0.0,
+        "stalled_rate_before": 0.0
+      },
+      "previous_stage": {
+        "case_records_sha256": "b7c22fd07bb26e434a1879712e9cd463f0f213fa4cd8dc40533e7c40637e9e76",
+        "collision_after": 143,
+        "collision_before": 161,
+        "collision_new": 3,
+        "collision_repaired": 21,
+        "offroad_after": 4,
+        "offroad_before": 4,
+        "paired_summary": {
+          "bootstrap_unit": "instance_hash",
+          "cohort_kind": "tail_generated",
+          "collision_ci_is_degenerate": false,
+          "collision_ci_method": "paired_discordance_clopper_pearson_bonferroni",
+          "collision_discordant_instances": 24,
+          "collision_rate_after": 0.0286,
+          "collision_rate_before": 0.0322,
+          "collision_rate_difference_after_minus_before": -0.0036,
+          "collision_rate_difference_bootstrap_ci95": [
+            -0.0056,
+            -0.0018
+          ],
+          "collision_rate_difference_ci95": [
+            -0.00666116648574208,
+            -0.0004734673316994509
+          ],
+          "failure_rate_difference_after_minus_before": -0.0036,
+          "failure_rate_difference_ci95": [
+            -0.00666116648574208,
+            -0.0004734673316994509
+          ],
+          "independent_units": 5000,
+          "instances": 5000,
+          "mean_progress_after_m": 101.79378725498319,
+          "mean_progress_before_m": 101.45982397050261,
+          "offroad_rate_after": 0.0008,
+          "offroad_rate_before": 0.0008,
+          "regressed": 3,
+          "repaired": 21,
+          "safety_failure_rate_after": 0.0294,
+          "safety_failure_rate_before": 0.033,
+          "stalled_rate_after": 0.0,
+          "stalled_rate_before": 0.0
+        },
+        "policy_sha256": "5df35f7fc2bc41f17dffbe544c647f16b6456ab9bbb9e37f5b1def6653ee8d0f"
+      },
+      "stalled_after": 0,
+      "stalled_before": 0
+    }
+  },
+  "original_policy_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+  "pending_cohorts": [],
+  "phase": 2,
+  "policy_forward_calls": 0,
+  "policy_sha256": "3a10d924e97fc830ff3147f28e5a6693a2d9f9eed74ec38043892f052bdb85ed",
+  "scope": "Saved complete development outcomes; final test is separate.",
+  "world_executions_added": 0
+}

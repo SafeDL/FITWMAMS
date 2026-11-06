@@ -12,7 +12,7 @@ from ads.nuplan.losses import OBJECTIVES, targets
 from ads.nuplan.teacher import demonstration
 
 
-@pytest.fixture(params=("diffusion_planner", "flow_planner"))
+@pytest.fixture(params=("diffusion_planner",))
 def native_policy(request):
     torch.set_num_threads(1)
     policy = load_policy(request.param, official_path(request.param), device="cpu")
@@ -27,24 +27,13 @@ def sample_for(instance, algorithm):
 
 
 def decoder_for(policy):
-    if policy.algorithm == "diffusion_planner":
-        return policy.network.decoder.decoder.dit
-    return policy.network.model_decoder
+    return policy.network.decoder.decoder.dit
 
 
 def decoder_valid(policy, sample):
-    from ads.flow_planner.vendor.flow_planner.model.model_utils.traj_tool import (
-        traj_chunking,
-    )
-
-    agents = 11 if policy.algorithm == "diffusion_planner" else 1
-    _, valid = targets([sample], policy.device, agents)
-    if policy.algorithm == "diffusion_planner":
-        current = torch.ones_like(valid[:, :, :1])
-        return torch.cat((current, valid), dim=2)[..., None].expand(-1, -1, -1, 4)
-    return torch.cat(traj_chunking(valid[..., None], 20, 10), dim=1).expand(
-        -1, -1, -1, 4
-    )
+    _, valid = targets([sample], policy.device, 11)
+    current = torch.ones_like(valid[:, :, :1])
+    return torch.cat((current, valid), dim=2)[..., None].expand(-1, -1, -1, 4)
 
 
 def test_unobserved_future_keeps_noise_but_has_no_label_gradient(
@@ -73,8 +62,8 @@ def test_unobserved_future_keeps_noise_but_has_no_label_gradient(
     noisy = captured["input"].reshape(valid.shape)
     gradient = captured["output"].grad.reshape(valid.shape)
     # Present ego's unavailable tail is stochastic input, never a zero trajectory.
-    ego_noisy = noisy[:, :1] if policy.algorithm == "diffusion_planner" else noisy
-    ego_valid = valid[:, :1] if policy.algorithm == "diffusion_planner" else valid
+    ego_noisy = noisy[:, :1]
+    ego_valid = valid[:, :1]
     assert torch.count_nonzero(ego_noisy[~ego_valid]) > 0
     assert torch.count_nonzero(gradient[~valid]) == 0
     assert torch.count_nonzero(gradient[valid]) > 0

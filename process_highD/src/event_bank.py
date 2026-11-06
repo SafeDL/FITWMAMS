@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -49,7 +49,7 @@ def _interaction_groups(
     """
     groups = np.full(len(frame), -1, dtype=np.int64)
     next_group = 0
-    for _, indices in frame.groupby("recording_id", sort=True).groups.items():
+    for indices in frame.groupby("recording_id", sort=True).groups.values():
         ordered = sorted(
             (int(index) for index in indices),
             key=lambda index: (

@@ -4,7 +4,7 @@ device: auto
 paths:
   highd_preprocessing_config: ../process_highD/config.yaml
   dataset_dir: ../results/highd_shared_training_data/scenario_conditions
-  output_dir: ../results/natural_flow
+  output_dir: ../results/flow/natural
 model:
   c0_flow:
     num_bins: 8

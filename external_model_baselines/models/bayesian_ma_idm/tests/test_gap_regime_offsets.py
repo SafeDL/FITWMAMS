@@ -1,4 +1,6 @@
-from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import regime_interval_offset
+from external_model_baselines.models.bayesian_ma_idm.src.full_evaluation import (
+    regime_interval_offset,
+)
 
 
 def test_gap_regime_offsets_use_training_bin_edges() -> None:

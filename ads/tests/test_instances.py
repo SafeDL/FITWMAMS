@@ -50,7 +50,7 @@ def test_test_usage_rejected_by_identity_and_root(instance, tmp_path, world_fact
         ledger.register(independent, "repair")
     with pytest.raises(ValueError, match="final-test"):
         RepairEnvironment(
-            "dqn", {"normal": [(independent, "normal")]}, world_factory, round_index=0
+            "carl", {"normal": [(independent, "normal")]}, world_factory, round_index=0
         )
 
 

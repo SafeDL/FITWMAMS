@@ -1,15 +1,11 @@
 """Empirical driver variation for the five-parameter IDM, not a GP posterior."""
 
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import get_context
 from pathlib import Path
 
 import numpy as np
 import torch
 from scipy.optimize import least_squares
 
-PARAMETER_NAMES = ("v0_mps", "s0_m", "T_s", "a_mps2", "b_mps2")
-IDM_EQUATION = "s_star = s0 + max(0, v*T + v*(v-v_leader)/(2*sqrt(a*b)))"
 LOWER = np.asarray([8.0, 0.3, 0.25, 0.2, 0.2])
 UPPER = np.asarray([60.0, 12.0, 4.0, 6.0, 8.0])
 MODEL_PATH = (
@@ -111,67 +107,6 @@ def fit_parameters(data, *, prior=None, regularization=0.0):
             f"parameters={np.exp(fit.x)}, optimality={fit.optimality}"
         )
     return fit.x
-
-
-_FIT_DATA = None
-_FIT_PRIOR = None
-_FIT_REGULARIZATION = None
-
-
-def _fit_driver(indices):
-    observations = {
-        name: _FIT_DATA[name][indices]
-        for name in ("gap", "speed", "leader_speed", "acceleration")
-    }
-    return fit_parameters(
-        observations, prior=_FIT_PRIOR, regularization=_FIT_REGULARIZATION
-    )
-
-
-def fit_population(data, *, regularization, global_parameters, workers=1):
-    """Shrink individual fits toward Train's global fit to limit identifiability errors."""
-    keys = np.column_stack((data["recording"], data["vehicle"]))
-    drivers, index, counts = np.unique(
-        keys, axis=0, return_inverse=True, return_counts=True
-    )
-    order = np.argsort(index, kind="stable")
-    boundaries = np.r_[0, np.cumsum(counts)]
-    eligible = np.flatnonzero(counts >= 30)
-    selections = [order[boundaries[i] : boundaries[i + 1]] for i in eligible]
-    global _FIT_DATA, _FIT_PRIOR, _FIT_REGULARIZATION
-    _FIT_DATA = {
-        name: np.asarray(data[name])
-        for name in ("gap", "speed", "leader_speed", "acceleration")
-    }
-    _FIT_PRIOR, _FIT_REGULARIZATION = global_parameters, regularization
-    if workers > 1:
-        with ProcessPoolExecutor(
-            max_workers=workers, mp_context=get_context("fork")
-        ) as pool:
-            fits = []
-            for result in pool.map(_fit_driver, selections, chunksize=64):
-                fits.append(result)
-                if len(fits) % 5000 == 0:
-                    print(f"IDM drivers {len(fits):,}/{len(eligible):,}", flush=True)
-    else:
-        fits = [_fit_driver(selected) for selected in selections]
-    parameters = np.asarray(fits)
-    covariance = np.cov(parameters, rowvar=False) + np.eye(5) * 1.0e-6
-    error = data["acceleration"] - idm_acceleration(
-        data["gap"],
-        data["speed"],
-        data["leader_speed"],
-        np.exp(parameters.mean(axis=0)),
-    )
-    return {
-        "log_mean": parameters.mean(axis=0),
-        "log_cov": covariance,
-        "residual_std": np.asarray(max(float(np.std(error)), 0.05)),
-        "fit_driver_count": np.asarray(len(parameters)),
-        "regularization": np.asarray(regularization),
-        "driver_keys": drivers[eligible],
-        "driver_log_parameters": parameters,
-    }
 
 
 def sample_theta(population, latent):

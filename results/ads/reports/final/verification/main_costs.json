@@ -1,0 +1,145 @@
+{
+  "dangerous_validation": {
+    "execution_s": 0,
+    "full_executions": 0,
+    "new_executions": 0,
+    "physics_steps": 0,
+    "reused_execution_records": 0
+  },
+  "final": {
+    "execution_s": 103799.99745412049,
+    "full_executions": 20000,
+    "new_executions": 20000,
+    "physics_steps": 2943822,
+    "reused_execution_records": 0
+  },
+  "generation_verification": {},
+  "initial": {
+    "execution_s": 63087.93398029175,
+    "full_executions": 10000,
+    "new_executions": 0,
+    "physics_steps": 1470779,
+    "reused_execution_records": 10000
+  },
+  "initial_experts": {
+    "distinct_inputs": 682,
+    "expert_success_inputs": 682,
+    "label_tracking_executions": 682,
+    "new_candidate_executions": 76708,
+    "new_physics_steps": 10236138,
+    "usable_inputs": 682
+  },
+  "native_offline_validation": {
+    "status": "manual_by_user_not_executed"
+  },
+  "preparation_reuse": {
+    "change": "Normalize per-phase learning-rate integral and EMA age to 250 reference updates; all material entries remain eligible and required.",
+    "controller_report_fix": {
+      "changed_source": "ads/diffusion_planner/summarize.py",
+      "new_sha256": "55f80f01dd628a146e3df1df02ee5cb804e98fed0edb2b14f1fc7b97cefffe0e",
+      "new_world_executions": 0,
+      "previous_pid": 3378206,
+      "previous_sha256": "5805318f3c098e67d1cd8a55ecfeaf056fdfd9fbcf9494d559d59b569859af2d",
+      "reason": "Cost reader must ignore aggregate execution JSON beside per-instance records",
+      "record_counts": {
+        "aggregate_json_excluded": 2,
+        "original_development_records": 10000,
+        "previous_candidate_records": 10000,
+        "world_executions_added": 0
+      },
+      "resume": "Committed in_progress.pth with exact optimizer, EMA, sampler and RNG states",
+      "resumed_created": 1793201146.66,
+      "resumed_pid": 3385464,
+      "superseded_optimizer_updates_at_most": 50,
+      "time": "2026-10-28T23:24:03",
+      "training_code_changed": false
+    },
+    "created": "2026-10-28T23:06:25",
+    "expert_report_sha256": "d0b95535e086da9de67421825864cf6f250c918c1e73837df021bb02f3fac494",
+    "initial_policy_sha256": "7a441df91ebe1c912d8262010c40486da24f425f757e2b4228072e251ab67d45",
+    "new_initial_expert_executions": 0,
+    "new_retention_executions": 0,
+    "new_search_executions": 0,
+    "prepared_output": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/search",
+    "prior_final_execution_records": 0,
+    "retry_limit": 1,
+    "reused_original_development_executions": 10000,
+    "shared_artifacts": {
+      "materials.json": {
+        "path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/search/materials.json",
+        "sha256": "c9ff73c586d0842b671264e019852855465222496e90de9ca66c1fc34ecd774e"
+      },
+      "sources.json": {
+        "path": "/media/hp/DATA/nuplan_workspace/FITWMAMS_results/repair/sources.json",
+        "sha256": "2b694447fc28f049b4be351ed19aa9c78025cd0546eabbc504e3ebd213c6daec"
+      }
+    },
+    "whole_method_cost_accounting": "Search and expert preparation are counted once, prior rejected training/development and this repair are counted separately."
+  },
+  "queries": {
+    "guided": {
+      "collection_full_executions": 385,
+      "collection_physics_steps": 26556,
+      "label_tracking_suffix_executions": 385,
+      "label_tracking_suffix_physics_steps": 46317,
+      "snapshot_replay_physics_steps": 1925,
+      "snapshot_replay_suffix_executions": 385,
+      "suffix_candidate_executions": 44673,
+      "suffix_physics_steps": 4889917,
+      "training_recheck_executions": 756
+    }
+  },
+  "rejected_development_attempt": {
+    "development_execution_s": 51628.59668382985,
+    "development_executions": 10000,
+    "development_physics_steps": 1464614,
+    "final_executions": 0,
+    "training_timing_source": "phase plan write to completed deployment checkpoint modification timestamps; uninterrupted phase includes initialization and checkpoint saves",
+    "training_wall_s": 9777.059160470963,
+    "updates": 21817
+  },
+  "repair_diagnostics": {
+    "execution_s": 2262.050774733594,
+    "full_executions": 756,
+    "new_executions": 756,
+    "physics_steps": 63563,
+    "reused_execution_records": 0
+  },
+  "scope": "One shared search/expert preparation, rejected development attempt, and bounded repair; preparation is counted once.",
+  "search": {
+    "current_protocol_executions": 5000,
+    "methods": {
+      "guided": {
+        "evaluations": 5000,
+        "new_execution_calls": 4000,
+        "parallel_workers": 6,
+        "resumed_execution_calls": 1000,
+        "wall_elapsed_s": 2895.563241455966
+      }
+    },
+    "search_only_control_executions": 0,
+    "total_with_controls": 5000
+  },
+  "success_neighbours": {
+    "execution_s": 0,
+    "full_executions": 0,
+    "new_executions": 0,
+    "physics_steps": 0,
+    "reused_execution_records": 0
+  },
+  "training": {
+    "guided": {
+      "elapsed_s": 14990.91056389705,
+      "ema_projection_s": 187.99864976125536,
+      "retention_projection_s": 186.04006226052297,
+      "updates": 32726
+    }
+  },
+  "validation": {
+    "execution_s": 104229.35495758272,
+    "full_executions": 20000,
+    "new_executions": 20000,
+    "physics_steps": 2945205,
+    "reused_execution_records": 0
+  }
+}

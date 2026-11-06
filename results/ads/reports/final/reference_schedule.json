@@ -1,0 +1,8 @@
+{
+  "reference_updates": 250,
+  "physical_updates": 21817,
+  "learning_rate": 1.1499328141965105e-07,
+  "ema_decay": 0.999988535378393,
+  "reference_learning_rate_sum": 0.001267,
+  "reference_ema_retention": 0.7787033741169899
+}

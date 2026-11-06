@@ -11,16 +11,21 @@ from typing import Any
 import numpy as np
 import torch
 
-from hierarchical_world_model.src.core.utils import file_sha256, save_json
+from external_model_baselines.models.trafficbots.config import load_config
+from external_model_baselines.models.trafficbots.data import (
+    TrafficBotsHighDDataset,
+    make_loader,
+)
+from external_model_baselines.models.trafficbots.evaluation import load_checkpoint
+from external_model_baselines.models.trafficbots.rollout import (
+    TrafficBotsHighDRollout,
+    logged_ego_controls,
+)
 from hierarchical_world_model.src.core.evaluation_scope import (
     evaluation_scope_contract,
     require_evaluation_scope,
 )
-from external_model_baselines.models.trafficbots.config import load_config
-from external_model_baselines.models.trafficbots.data import TrafficBotsHighDDataset, make_loader
-from external_model_baselines.models.trafficbots.evaluation import load_checkpoint
-from external_model_baselines.models.trafficbots.rollout import TrafficBotsHighDRollout, logged_ego_controls
-
+from hierarchical_world_model.src.core.utils import file_sha256, save_json
 
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())
 

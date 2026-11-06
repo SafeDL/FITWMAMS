@@ -7,10 +7,10 @@ import pandas as pd
 import pytest
 import yaml
 
-from process_highD.scripts.fit_evt import DEFAULT_CONFIG_PATH as EVT_CONFIG
 from process_highD.scripts.extract_highd_natural_segments import (
     DEFAULT_CONFIG_PATH as EXTRACT_CONFIG,
 )
+from process_highD.scripts.fit_evt import DEFAULT_CONFIG_PATH as EVT_CONFIG
 from process_highD.scripts.play_highd_natural_events import (
     DEFAULT_CONFIG_PATH as PLAYBACK_CONFIG,
 )
@@ -18,6 +18,7 @@ from process_highD.scripts.prepare_highd_sequences import CONFIG as SEQUENCE_CON
 from process_highD.src.natural_segments import (
     NaturalSegmentOptions,
     _audit_lateral_events,
+    compute_untracked_audit,
     validate_lateral_integrity,
 )
 
@@ -36,8 +37,7 @@ def test_config_layout_keeps_data_paths() -> None:
         root / "results/evt"
     )
     assert (
-        SEQUENCE_CONFIG.parent
-        / config["paths"]["highd_preprocessing_config"]
+        SEQUENCE_CONFIG.parent / config["paths"]["highd_preprocessing_config"]
     ).resolve() == config_path
     cache_dir = SEQUENCE_CONFIG.parent / config["paths"]["sequence_cache_dir"]
     assert cache_dir.resolve() == root / (
@@ -121,3 +121,35 @@ def test_downstream_contract_rejects_legacy_segments() -> None:
         pd.DataFrame({"lateral_event_complete": [1, 1]}),
         source="current.csv",
     )
+
+
+def test_untracked_risk_ignores_abnormal_frames_in_complete_tracks() -> None:
+    vehicles = {
+        0: _vehicle(0, np.full(150, 3), 0.0),
+        1: _vehicle(1, np.full(150, 3), 12.0),
+    }
+    for vehicle_id, vehicle in vehicles.items():
+        vehicle.update(
+            y_left=np.zeros(150, dtype=np.float32),
+            vx=np.full(150, 25.0 - vehicle_id, dtype=np.float32),
+            ax=np.zeros(150, dtype=np.float32),
+            ay_left=np.zeros(150, dtype=np.float32),
+            length=4.7,
+            lat_width=1.9,
+        )
+    kwargs = {
+        "ego_id": 0,
+        "anchor_frame": 0,
+        "vehicles": vehicles,
+        "options": NaturalSegmentOptions(),
+        "tracked_peak_pair_risk": 0.0,
+        "candidate_ids": [1],
+    }
+    reference = compute_untracked_audit(**kwargs)
+    vehicles[1]["abnormal"][10:20] = True
+    vehicles[1]["x"][10:20] = 0.0
+    result = compute_untracked_audit(**kwargs)
+    assert result["max_untracked_pair_risk"] > 0.0
+    assert result["max_untracked_pair_risk"] == reference["max_untracked_pair_risk"]
+    assert result["max_untracked_neighbor_id"] == 1
+    assert result["max_untracked_risk_frame"] not in range(10, 20)

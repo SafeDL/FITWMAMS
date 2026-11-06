@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import pickle
+from pathlib import Path
 
 import numpy as np
-
 
 ARRAYS = ("eta", "o", "b", "w", "a_disc", "a_cont", "a_cont_init", "v_init", "v")
 

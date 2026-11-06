@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -14,7 +13,6 @@ from hierarchical_world_model.src.core.sequential_dataset import load_sequential
 
 ANCHOR_INDEX = 24
 STATE_POINTS = 150
-ROLL_STEPS = 149
 REAL_AGENTS, PADDED_AGENTS = 7, 8
 REAL_MAPS, PADDED_MAPS, MAP_NODES = 8, 16, 8
 PADDED_TLS = 8
@@ -34,16 +32,6 @@ def split_rows(
     rows = np.flatnonzero(np.asarray(arrays["split_index"]) == index)
     np.random.default_rng(seed).shuffle(rows)
     return rows[:maximum] if maximum else rows
-
-
-def sequence_hashes(arrays: dict[str, np.ndarray]) -> dict[str, str]:
-    identifiers = np.asarray(arrays["sequence_id"]).astype(str)
-    return {
-        split: hashlib.sha256(
-            "\n".join(sorted(identifiers[split_rows(arrays, split)])).encode()
-        ).hexdigest()
-        for split in ("train", "val", "test")
-    }
 
 
 def _wrap(values: np.ndarray) -> np.ndarray:

@@ -25,6 +25,7 @@ def fixture_directory(tmp_path):
         {"instance_hash": "old", "qualified_demonstration": True, "samples": 0},
     ]
     metadata = {
+        "algorithm": "diffusion_planner",
         "baseline": False,
         "curriculum_sha256": file_hash(inputs / "curriculum.json"),
         "teacher": {"reports": reports},
@@ -107,4 +108,4 @@ def test_baseline_has_no_search_or_defect_denominator(tmp_path):
 
 
 def test_other_ads_do_not_require_expert_records(tmp_path):
-    assert teacher_coverage(tmp_path, {"algorithms": ["dqn"]}) == []
+    assert teacher_coverage(tmp_path, {"algorithms": ["carl"]}) == []

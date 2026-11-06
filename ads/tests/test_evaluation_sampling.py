@@ -84,7 +84,7 @@ def test_iid_completed_cases_are_journaled_before_cohort_finishes(
     (tmp_path / "protocol.json").write_text("{}")
     entry = {"sha256": "frozen-policy", "path": "synthetic-policy"}
     frozen = {
-        "policies": {"dqn/20260926/initial": entry},
+        "policies": {"carl/20260926/initial": entry},
         "evaluation_assets": {},
     }
     worlds = [SimpleNamespace(instance_hash=name) for name in ("first", "second")]
@@ -106,10 +106,10 @@ def test_iid_completed_cases_are_journaled_before_cohort_finishes(
     kwargs = {"frozen": frozen, "instances": {"tail_generated": worlds}}
     if interrupt:
         with pytest.raises(RuntimeError, match="synthetic interruption"):
-            campaign.evaluate_one("dqn/20260926/initial", **kwargs)
+            campaign.evaluate_one("carl/20260926/initial", **kwargs)
     else:
-        campaign.evaluate_one("dqn/20260926/initial", **kwargs)
-    directory = tmp_path / "evaluation/tail_generated/dqn/20260926"
+        campaign.evaluate_one("carl/20260926/initial", **kwargs)
+    directory = tmp_path / "evaluation/tail_generated/carl/20260926"
     journal = next((directory / "initial.attempts").glob("*.jsonl"))
     rows = [json.loads(line) for line in journal.read_text().splitlines()]
     assert [row["record"]["instance_hash"] for row in rows] == (

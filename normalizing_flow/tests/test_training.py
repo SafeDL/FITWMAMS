@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import torch
 
 from normalizing_flow.src import train
@@ -84,7 +85,7 @@ def test_natural_training_honors_configured_epochs(tmp_path, monkeypatch):
     config = {
         "seed": 7,
         "device": "cpu",
-        "paths": {"dataset_dir": ".", "output_dir": "output"},
+        "paths": {"dataset_dir": ".", "output_dir": "results/flow/natural"},
         "model": {"c0_flow": flow_config, "constraint_flow": flow_config},
         "training": {
             "epochs": 2,
@@ -94,12 +95,34 @@ def test_natural_training_honors_configured_epochs(tmp_path, monkeypatch):
             "grad_clip": 5.0,
         },
     }
-    train.train_natural_flow(
-        config, config_dir=tmp_path, repo_root=Path(__file__).resolve().parents[2]
+    tail_checkpoint = tmp_path / "results/flow/checkpoints/scenario_flow.pt"
+    tail_checkpoint.parent.mkdir(parents=True)
+    tail_checkpoint.write_bytes(b"frozen tail model")
+    (tmp_path / "external_resources").symlink_to(
+        Path(__file__).resolve().parents[2] / "external_resources"
     )
-    output = tmp_path / "output"
-    assert pd.read_csv(output / "training_history.csv").epoch.tolist() == [1, 2]
+    train.train_natural_flow(config, config_dir=tmp_path, repo_root=tmp_path)
+    assert tail_checkpoint.read_bytes() == b"frozen tail model"
+    output = tmp_path / "results/flow/natural"
+    assert pd.read_csv(output / "reports/training_history.csv").epoch.tolist() == [1, 2]
     checkpoint = torch.load(output / "checkpoints/scenario_flow.pt", weights_only=False)
     assert checkpoint["metrics"]["epochs"] == 2
     assert checkpoint["metrics"]["num_fit_events"] == 3
     assert checkpoint["schema"]["fit_event_ids"] == ["train_a", "train_b", "val"]
+
+
+@pytest.mark.parametrize("linked_checkpoint", [False, True])
+def test_natural_training_cannot_overwrite_tail(tmp_path, linked_checkpoint):
+    tail = tmp_path / "results/flow"
+    checkpoint = tail / "checkpoints/scenario_flow.pt"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_bytes(b"frozen tail model")
+    output = tail
+    if linked_checkpoint:
+        output = tail / "natural"
+        output.mkdir()
+        (output / "checkpoints").symlink_to(checkpoint.parent)
+    config = {"paths": {"output_dir": str(output)}}
+    with pytest.raises(ValueError, match="separate from tail assets"):
+        train.train_natural_flow(config, config_dir=tmp_path, repo_root=tmp_path)
+    assert checkpoint.read_bytes() == b"frozen tail model"

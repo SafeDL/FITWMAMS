@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import pickle
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np

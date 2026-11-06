@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import argparse
-from io import BytesIO
 import json
-from pathlib import Path
 import pickle
+from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
-
 
 ARRAYS = ("eta", "o", "b", "w", "a_disc", "a_cont", "a_cont_init", "v_init", "v")
 

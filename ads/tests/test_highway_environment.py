@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import torch
 from gymnasium.utils.env_checker import check_env
 
-from ads.common.control import FASTER, LANE_LEFT
-from ads.common.environment import ADSHighwayEnv
+from ads.common.environment import PolicyEnvironment
+from ads.common.instances import GeneratedInstance
 from ads.common.world import WorldEvent
 from hierarchical_world_model.src.randomness import WorldExogenousState
 
@@ -70,34 +72,41 @@ def _event(frames: int = 7) -> WorldEvent:
         maps,
         np.ones((2, 4), bool),
         WorldExogenousState.sample(1, seed=3, response_steps=frames),
+        vehicle_dimensions=np.tile(np.asarray((4.8, 1.8), np.float32), (7, 1)),
+    )
+
+
+def _environment(frames=7, world=FakeWorld):
+    event = _event(frames)
+    instance = GeneratedInstance(event, "synthetic", None, "search", {})
+    instance = replace(instance, event=replace(event, event_id=instance.instance_hash))
+    return PolicyEnvironment(
+        "carl", [instance], lambda event: world(), random_events=False
     )
 
 
 def test_ads_env_runs_five_substeps_then_exact_remainder() -> None:
-    env = ADSHighwayEnv([_event()], lambda event: FakeWorld(), random_events=False)
+    env = _environment()
     observation, info = env.reset()
-    assert observation.shape == (49,)
-    assert info["event_id"] == "e0"
-    _, _, terminated, truncated, info = env.step(FASTER)
+    assert observation["measurements"].shape == (10,)
+    assert info["event_id"] == env.instances[0].instance_hash
+    _, _, terminated, truncated, info = env.step(np.array([1, 0], np.float32))
     assert not terminated and not truncated
     assert info["executed_physics_steps"] == 5
-    _, _, terminated, truncated, info = env.step(LANE_LEFT)
+    _, _, terminated, truncated, info = env.step(np.zeros(2, np.float32))
     assert not terminated and truncated
     assert info["executed_physics_steps"] == 2
     assert info["structurally_valid_action"]
 
 
 def test_ads_env_satisfies_gymnasium_contract() -> None:
-    env = ADSHighwayEnv([_event(10)], lambda event: FakeWorld(), random_events=False)
-    check_env(env, skip_render_check=True)
+    check_env(_environment(10), skip_render_check=True)
 
 
 def test_npc_only_collision_is_diagnostic_not_ads_failure() -> None:
-    env = ADSHighwayEnv(
-        [_event(5)], lambda event: NPCollisionWorld(), random_events=False
-    )
+    env = _environment(5, NPCollisionWorld)
     env.reset()
-    _, _, terminated, truncated, info = env.step(FASTER)
+    _, _, terminated, truncated, info = env.step(np.array([1, 0], np.float32))
     assert not terminated and truncated
     assert not info["collision"]
     assert info["any_vehicle_collision"]
