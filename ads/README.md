@@ -2,7 +2,7 @@
 
 本目录承接全部 2,964 个 highD 尾部事件建立的冻结长尾分布和分层世界模型，完成事故搜索、专家纠正、能力保持修复与原生权重交付。使用现有 `conda activate tread`，单种子 `20260926`。
 
-当前交付为 **[Diffusion Planner Safety Enhanced](../results/ads/runs/safety_enhanced/manual_nuplan/enhanced/model.pth)**。权重身份见[模型清单](../results/ads/reports/final/model.json)，已完成方法见[协议](../doc/ads_search_repair.md)，数值见[结果](../results/ads/README.md)。已淘汰修复分支及上一版交互搜索的测试记录已移除，不再续跑候选。
+当前交付为 **[Diffusion Planner Safety Enhanced](../results/ads/runs/safety_enhanced/manual_nuplan/enhanced/model.pth)**。权重身份见[模型清单](../results/ads/reports/final/model.json)，执行参数见[配置](configs/safety_enhanced.yaml)和运行内 `training_protocol.json`，数值见[结果](../results/ads/README.md)。已淘汰修复分支及上一版交互搜索的测试记录已移除，不再续跑候选。
 
 ## 策略范围
 
@@ -12,8 +12,6 @@
 | CaRL | 官方 `nuplan_51892_1B/model_best.pth`；BEV、Beta 连续动作、PPO 与原生导出 | 先导未接纳增强，保留官方模型 |
 
 当前仅注册上述 **两种策略**，与 `/media/hp/DATA/nuplan_workspace/run_closed_loop.sh` 可直接运行的策略完全一致。官方版本与 SHA256 位于各算法 `artifacts/official.json` 和 `vendor/` 来源记录；不能用随机参数代替加载失败的官方权重。`idm/` 是世界模型的规则驾驶诊断工具，不计入被测学习型 ADS。
-
-DTPP、Flow Planner、STR2 的专属适配、注册与测试已移除。它们与更早退役的 DQN、PPO、PlanT 2.0 的已有权重保存在目标工作区 `FITWMAMS_models/archive/ads/`，不计入当前算法范围，也不安排实验。
 
 ## 代码结构
 
@@ -47,7 +45,7 @@ conda activate tread
 python -m ads.nuplan.export diffusion_planner TRAINING_CHECKPOINT OUTPUT/model.pth
 ```
 
-其他原生策略使用相同导出入口及算法名。导出保存配置、来源、SHA256 和必要状态，不覆盖官方初始模型。
+CaRL 使用相同导出入口及算法名。导出保存配置、来源、SHA256 和必要状态，不覆盖官方初始模型。
 
 源码、配置、紧凑报告和交付元数据纳入 Git；大型实例、逐例数据、模型与训练状态按 `.gitignore` 保留在存储中。当前与对照运行保存各自实际执行的冻结源码。
 

@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 WORKSPACE = Path("/media/hp/DATA/nuplan_workspace")
-MANIFEST = WORKSPACE / "preparation/nuplan_train_source_pool.json"
+MANIFEST = WORKSPACE / "data/nuplan-v1.1/manifests/nuplan_train_source_pool.json"
 ARCHIVE_ROOT = (
     "https://motional-nuplan.s3-ap-northeast-1.amazonaws.com/public/nuplan-v1.1"
 )
@@ -113,7 +113,7 @@ def make_plan(budget_gib=100):
     if budget_gib <= 0:
         raise ValueError("storage budget must be positive")
     splitter = WORKSPACE / (
-        "nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
+        "third_party/nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
     )
     splits = yaml.safe_load(splitter.read_text())["log_splits"]
     train = set(splits["train"])

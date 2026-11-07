@@ -34,10 +34,13 @@ def test_full_pool_processes_every_reserve_and_resumes(tmp_path, monkeypatch):
     manifest_path, config = root / "scenes.json", root / "args.json"
     write_json(manifest_path, manifest)
     write_json(config, {})
-    full = root / "diffusion_planner_full"
+    full = root / "diffusion_planner"
+    subset = full / "materials_subset.json"
+    write_json(subset, {"historical_subset": True})
+    subset_before = subset.read_bytes()
     monkeypatch.setattr(module, "ROOT", root)
-    monkeypatch.setattr(module, "FULL_ROOT", full)
-    monkeypatch.setattr(module, "FULL_REPORT", full / "materials.json")
+    monkeypatch.setattr(module, "MATERIAL_ROOT", full)
+    monkeypatch.setattr(module, "MATERIAL_REPORT", full / "materials.json")
     monkeypatch.setattr(module, "MANIFEST", manifest_path)
     monkeypatch.setattr(module, "CONFIG", config)
     monkeypatch.setattr(module, "select_scenes", lambda: manifest)
@@ -60,7 +63,8 @@ def test_full_pool_processes_every_reserve_and_resumes(tmp_path, monkeypatch):
     assert all(report["coverage"][p]["candidates"] == 4 for p in module.COUNTS)
     assert all(report["coverage"][p]["scenes"] == 3 for p in module.COUNTS)
     assert len(report["excluded"]) == 2
-    assert not (root / "diffusion_planner/materials.json").exists()
+    assert (full / "materials.json").exists()
+    assert subset.read_bytes() == subset_before
     assert module.prepare(workers=2) == report
     assert len(calls) == 8
 

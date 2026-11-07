@@ -70,21 +70,6 @@
   ],
   "reference_only": [
     {
-      "id": "vbd",
-      "path": "external_resources/upstream_code/VBD-main",
-      "reason": "upstream source snapshot only; no maintained FITWMAMS reproduction adapter"
-    },
-    {
-      "id": "catk",
-      "path": "external_resources/upstream_code/catk-main",
-      "reason": "upstream source snapshot only"
-    },
-    {
-      "id": "ad_rss_lib",
-      "path": "external_resources/upstream_code/ad-rss-lib",
-      "reason": "third-party dependency snapshot, not a behavior world model"
-    },
-    {
       "id": "nflows",
       "path": "external_resources/upstream_code/nflows-master",
       "reason": "third-party library snapshot, not a behavior world model"

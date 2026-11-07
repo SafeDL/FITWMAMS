@@ -1,6 +1,6 @@
 # 交通世界模型结果
 
-当前结果按用途组织，不再按桥接开发版本堆叠目录。主线为 Flow／Diffusion 计划、普通跟踪、计划适用性一次交权及共享 NPC；具体定义见[方法与入口](../../hierarchical_world_model/README.md)。
+当前结果按模型资产、桥接评价和 NPC 组件证据组织。主线为 Flow／Diffusion 计划、普通跟踪、计划适用性一次交权及共享 NPC；具体定义见[方法与入口](../../hierarchical_world_model/README.md)。
 
 | 位置 | 内容 |
 | --- | --- |
@@ -28,6 +28,6 @@
 
 ## 文件与复现
 
-`natural_records.json.gz` 保存完整自然评测的逐回合记录；`intervention_traces.npz` 将 204 个回合的逐帧数组合并为一个文件，GIF 从它生成。[来源记录](bridge/provenance.json)保存整理前的协议、源码哈希和场景复用依据；其中旧路径是历史标识，不是当前运行依赖。当前验证状态见 [verification.json](bridge/verification.json)，整理前后数量和等价性检查见 [organization.json](organization.json)。
+`natural_records.json.gz` 保存完整自然评测的逐回合记录；`intervention_traces.npz` 将 204 个回合的逐帧数组合并为一个文件，GIF 从它生成。[来源记录](bridge/provenance.json)保存整理前的协议、源码哈希和场景复用依据；其中旧路径是历史标识，不是当前运行依赖。当前验证状态见 [verification.json](bridge/verification.json)。
 
-标定和评测入口会重建临时缓存到 `bridge/.cache/`；自然评测完成后将回合文件合并并清理该阶段缓存。历史距离接管、误差包络、旧经验判据的源码快照、剂量扫描、重复权重与回合文件已删除。参数和数值计算保持不变，删除的是旧实现及重复存储。
+标定和评测入口将临时缓存写入 `bridge/.cache/`；自然评测结束后合并逐回合记录并清理该阶段缓存。保留的报告、发布参数、计划缓存与轨迹支持现有结果复核和回放。

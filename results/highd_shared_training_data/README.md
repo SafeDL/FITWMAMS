@@ -5,7 +5,7 @@
 | 保留内容 | 当前用途 |
 | --- | --- |
 | `scenario_conditions/` | Flow 训练条件，以及与 Diffusion／世界模型对齐的场景身份、初始状态、车辆尺寸和位置结点。 |
-| `highd_sequence_cache/sequence_cache/` | Diffusion 训练、世界模型自然 Test、IDM／DQN 与 TrafficBots 使用的状态、有效性、动作、地图和车辆尺寸。 |
+| `highd_sequence_cache/sequence_cache/` | Diffusion 训练、世界模型自然 Test、IDM 诊断、ADS 与 TrafficBots 使用的状态、有效性、动作、地图和车辆尺寸。 |
 | `driver_behavior/recordings/NN.npz` | 全部 60 段录像提取的跟驰、自由驾驶和换道机会；用于 IDM 人群、MOBIL 与条件行为评测。 |
 | `driver_behavior/interaction_response/` | 当前正净间距领车、侧向交互和观测横向趋势协议下的纵向响应输入。 |
 | `driver_behavior/` 顶层文件 | Train／Val／Test 汇总事件与完整换道轨迹、道路初态、数据清单、覆盖及标签协议。 |
@@ -16,8 +16,4 @@
 
 场景条件与时序来自 `results/evt/natural_segments.csv`，生成入口见 [process_highD](../../process_highD/README.md)。NPC 数据直接来自完整 highD 原录像，不局限于七车短片段，由 `hierarchical_world_model.src.stochastic_drivers.raw_data.prepare_raw_data()` 与当前响应数据提取器生成。每段录像的事件与轨迹临时分片在三个 split 完整汇总并保存报告后删除，保留 `NN.npz`。
 
-已删除旧预测包络 `plan_forecast_errors/`、旧横向匀速误差 `empirical_pose_errors/`、旧 NPC 输入 `driver_behavior/physical_response/`，以及已经完成标定的 `interaction_pose_errors/` 全量中间窗口。当前 256 条代表轨迹、样本权重、来源索引及全量统计仍保存在[世界模型结果](../hierarchical_world_model/README.md)中。删除前已逐条核对代表轨迹与原窗口完全一致。
-
-重新运行 `hierarchical_world_model/scripts/calibrate_error_trajectories.py` 会从原始录像和冻结 Train 计划重建误差窗口，临时放在 `results/hierarchical_world_model/bridge/.cache/error_trajectories/`；模型与报告成功保存后自动清理，失败时保留中间数据供续跑。完整重标定仍会暂时需要约 34 GB 磁盘空间，日常仿真与评测不需要保留这部分。
-
-清理范围、体积及验证记录见[整理记录中的 shared_training_data_cleanup](../hierarchical_world_model/organization.json)。本次不改变数据划分、提取规则、模型权重或已完成的评测结果。
+误差库重标定会从原始录像和冻结 Train 计划重建中间窗口，临时保存到 `results/hierarchical_world_model/bridge/.cache/error_trajectories/`，模型和报告成功写入后清理。日常仿真使用发布的经验误差库，不需要这些全量临时窗口。

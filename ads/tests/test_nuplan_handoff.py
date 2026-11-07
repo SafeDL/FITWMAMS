@@ -14,7 +14,10 @@ from ads.tasks import POLICY_SUFFIX
 
 def test_selected_policies_match_native_workspace():
     launcher = (WORKSPACE / "run_closed_loop.sh").read_text()
-    native_algorithms = set(re.findall(r"^    ([a-z_0-9]+)\)", launcher, re.MULTILINE))
+    planner_cases = launcher.split('case "$PLANNER" in', 1)[1].split("\nesac", 1)[0]
+    native_algorithms = set(
+        re.findall(r"^    ([a-z_0-9]+)\)", planner_cases, re.MULTILINE)
+    )
     model_algorithms = {
         path.name
         for path in (WORKSPACE / "FITWMAMS_models/ads").iterdir()

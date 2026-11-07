@@ -10,19 +10,9 @@
 26/36的全部36个合格事件用于测试；每个事件使用5秒因果前缀、3秒闭环预测、64个future、
 25 Hz plant与5 Hz driver。以下数字可在这一基准内比较：
 
-| 模型 | position RMSE (m) | speed RMSE (m/s) | acceleration CRPS (m/s²) | 90% coverage |
-|---|---:|---:|---:|---:|
-| B-IDM | 0.74949 | 0.56647 | 0.20125 | 0.8419 |
-| MA-IDM | **0.21516** | **0.26137** | **0.13155** | 0.7115 |
-| Dynamic-AR(5) | 0.26524 | 0.30814 | 0.14851 | 0.7085 |
-| pooled B-IDM（multi基线） | 0.66775 | 0.52990 | 0.19170 | 0.3759 |
-| filtered multi-regime | 0.63131 | 0.49751 | 0.18336 | 0.4156 |
+结果位于 `results/baselines/driver_reproduction/matched_metrics.json`，模型复现状态见同目录 `driver_model_scorecard.json`。各模型共享场景与预测协议，但保留各自的推断方法和拟合预算。
 
-MA-IDM在点预测和CRPS上最好；B-IDM区间更宽、覆盖率最高，但仍低于名义90%。
-Multi-regime优于同推断预算的pooled基线，却仍严重欠覆盖。测试协议完全相同，但论文特有
-推断方法和Stage-B观测预算不同，不能把这张表解释为算法复杂度受控实验。
-
-## 唯一入口
+## 入口
 
 ```bash
 # 重建匹配评测及统一证据表

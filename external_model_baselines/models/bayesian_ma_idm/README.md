@@ -5,8 +5,6 @@
 - `bayesian_idm`：层次 B-IDM，作为独立高斯残差基线；
 - `ma_idm`：层次 MA-IDM，使用联合 log-normal 驾驶人参数和零均值平方指数（SE）GP 残差。
 
-它不是 Dynamic-AR IDM、multi-regime B-IDM 或 Active Inference 的实现。
-
 ## 保留的部署模式
 
 1. **人口 MA-IDM**：新驾驶人没有个人历史时，按人口联合后验抽样。
@@ -16,19 +14,9 @@
 
 所有仿真均为 25 Hz ballistic plant，驾驶人每 0.2 s（5 Hz）采样并保持动作。`evidence/` 只保存可复核的最终数据、后验、评测和图；不保留历史消融或 smoke 结果。
 
-## 主要结果
+## 数据与证据
 
-所有数字均为 highD 的 251 个 source-loader pair、leave-one-recording-out、64 futures 的 3 s / 5 s 结果：
-
-| 配置 | position RMSE (m) | action CRPS (m/s²) | 90% position coverage |
-|---|---:|---:|---:|
-| B-IDM 基线 | 0.870 / 1.773 | 0.214 / 0.195 | 0.746 / 0.766 |
-| 原始人口 MA-IDM | 0.250 / 0.837 | 0.134 / 0.149 | 0.632 / 0.712 |
-| 类别条件 MA-IDM | **0.220 / 0.742** | **0.127 / 0.141** | 0.617 / 0.704 |
-| 前缀个体化 MA-IDM | **0.146 / 0.523** | **0.104 / 0.120** | 0.574 / 0.664 |
-| 人口 MA-IDM + gap-regime 区间层 | 0.280 / 0.911 | 0.142 / 0.154 | **0.942 / 0.960** |
-
-前两项是模型本体比较；最后一项使用较早的训练前缀，因此点预测不可与完整训练人口模型直接比较。完整边界、来源与结果索引见 [RETAINED_MODELS.md](RETAINED_MODELS.md)。
+`evidence/` 保存原论文参考队列、录像留出后验、全量部署后验和对应指标。人口、类别条件、前缀个体化及区间校准的来源和结果索引见 [RETAINED_MODELS.md](RETAINED_MODELS.md)。留出评测使用训练录像后验；`evidence/deployment/` 的全量后验用于仿真，不用于重算留出成绩。
 
 ## 最小复跑入口
 
@@ -50,10 +38,7 @@ python -m external_model_baselines.models.bayesian_ma_idm.scripts.run_full_cv --
 
 # 论文 Fig.10 的 25 Hz highway-env 类比图
 python -m external_model_baselines.models.bayesian_ma_idm.scripts.run_highway_env_ring
-
-# 通过论文主项目的25 Hz仿真边界运行全251-pair部署后验
-python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model ma_idm
 ```
 
 `src/driver.py::BayesianIDMDriver` 是在线仿真边界：每个episode固定一组联合参数，B-IDM递推IID残差，MA-IDM递推因果SE-GP历史，外部plant负责五帧动作保持和限幅。共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
-交叉验证后验只用于评测；`evidence/deployment/` 中使用全部251个合格pair重拟合的后验才是主项目仿真默认资产。
+交叉验证后验只用于评测；`evidence/deployment/` 中使用全部251个合格pair重拟合的后验用于本模型的配对响应检查。

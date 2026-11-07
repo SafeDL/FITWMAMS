@@ -272,3 +272,8 @@ def write_event_bank(result: EventBankResult, output_dir: Path) -> None:
     (output_dir / "summary.json").write_text(
         json.dumps(result.summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    manifest_dir = output_dir.parent / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    result.events.loc[result.events["evt_tail"]].sort_values("event_id").to_csv(
+        manifest_dir / "evt_tail_all.csv", index=False
+    )

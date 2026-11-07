@@ -1,62 +1,8 @@
-## highD Matlab tools
-These tools allow you to read-in the highD csv files and visualize them in an interactive 
-plot. Through modularity, one can use the i/o functions directly for individual applications.
+# highD MATLAB 工具
 
-```
- |- bin
-    |- startVisualization.m
- |- data
- |- utils
-    |- plotHighway.m
-    |- plotTracksO.m
-    |- plotTracksOnImage.m
-    |- readInTracksCsv.m
-    |- readInVideoCsv.m
- |- visualization
-    |- trackVisualization.fig
-    |- trackVisualization.m
- |- initialize.m
-```
+- `data/`：原始录像表及配套文件，Python 正式流水线也从这里读取。
+- `initialize.m`：添加工具路径。
+- `utils/`：读取录像与车辆表、绘制道路和轨迹，以及已有片段筛选工具。
+- `visualization/`：交互轨迹查看器。
 
-## Quickstart
-1) Copy the csv files into the data directory
-2) Run initialize.m
-3) (Optional) Modify the videoName variable in bin/startVisualization.m
-4) Run bin/startVisualization.m
-
-## Method descriptions
-
-### initialize.m
-This script adds the folders to the working directory.
-
-### bin
-
-#### bin/startVisualization.m
-Main visualization script.
-
-### utils
-
-#### utils/readInTracksCsv.m
-This script extract tracks from the tracks csv file from highD. The structure that is extracted is clear 
-and easy to use. Each track (a tracked vehicle) is an own struct containing all static and dynamic information 
-for each frame that the vehicle is detected in. This script takes the dynamic and static tracks csv file and combines 
-the information into one struct.
-
-#### utils/readInVideoCsv.m
-This script reads-in the video meta data from the highD csv file. 
-
-#### utils/plotHighway.m
-This script creates the highway from the lane description. The lanes are plotted into the "params.ax" axis. 
-
-#### utils/plotTracks.m
-This script plots the vehicles of a specific frame on virtual lanes. The used axis is the one passed with "params.ax".
-
-#### utils/plotTracksOnImage.m
-This script plots the vehicles of a specific frame on a background image. The used axis is the one passed with "params.ax".
-
-### visualization
-
-#### trackVisualization.m
-This script is a complete program that creates an user interface. The user interface allows switching between frames 
-of the given highD data containing virtual vehicles. The virtual vehicles contain some information about their tracks, 
-which can be shown by clicking the vehicle bounding box. 
+在 MATLAB 中运行 `initialize.m` 后使用读取或可视化函数。论文的统一筛选、评分与数据划分由项目根目录 `process_highD/` 实现，不能用本目录的独立筛选脚本替换其协议。

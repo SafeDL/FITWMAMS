@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from process_highD.src.event_bank import ACTOR_COLUMNS, build_testing_event_bank
+from process_highD.src.event_bank import (
+    ACTOR_COLUMNS,
+    build_testing_event_bank,
+    write_event_bank,
+)
 
 
 def _segments() -> pd.DataFrame:
@@ -64,6 +68,22 @@ def test_event_bank_rejects_missing_split_assignment() -> None:
         assert "split" in str(error)
     else:
         raise AssertionError("missing split assignment was accepted")
+
+
+def test_event_export_keeps_all_tail_events_across_source_splits(tmp_path):
+    result = build_testing_event_bank(
+        _segments(),
+        evt_threshold=0.25,
+        exceedance_rate=1.0 / 3.0,
+        split_by_event={f"e{i}": "train" if i < 6 else "test" for i in range(12)},
+    )
+    write_event_bank(result, tmp_path / "event_bank")
+    exported = pd.read_csv(tmp_path / "manifests/evt_tail_all.csv")
+    assert set(exported.event_id) == {f"e{i}" for i in range(3, 12)}
+    assert set(exported.split) == {"train", "test"}
+    assert list((tmp_path / "manifests").iterdir()) == [
+        tmp_path / "manifests/evt_tail_all.csv"
+    ]
 
 
 def test_interaction_groups_do_not_merge_through_a_long_chain() -> None:

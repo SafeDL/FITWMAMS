@@ -34,7 +34,7 @@
 | `src/stochastic_drivers/` | NPC 跟驰、换道及原始数据提取 |
 | `src/npc_experiments/`、`src/bridge_evaluation.py` | NPC 标定、自主交通评测及桥接实验 |
 
-自主交通的闭环执行与统计集中在 `src/npc_experiments/road_evaluation.py`；标定使用下述入口，已退役的联合参数搜索不再保留。
+自主交通的闭环执行与统计集中在 `src/npc_experiments/road_evaluation.py`；标定和评测分别使用下面的入口。
 
 在项目根目录运行，参数见 [config.yaml](config.yaml)：
 

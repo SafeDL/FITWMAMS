@@ -29,11 +29,11 @@ python -m external_model_baselines.models.trafficbots.scripts.verify_full
 | `evaluation/driver_reproduction/` | 同 cohort 匹配评测、证据总表和跨模型契约 |
 | `evaluation/counterfactual_response/` | 随机驾驶人的配对响应探针，不是第五个驾驶人模型 |
 
-`hierarchical_world_model/`（含旧 NPC 候选基准）、`diffusion/` 和
+`hierarchical_world_model/`、`diffusion/` 和
 `normalizing_flow/` 属于项目原创方法，不放进外部基线集合。`external_resources/upstream_code/` 保存上游源码快照；
-其中 VBD、CATK 等在没有项目适配、训练和验证之前，不能记为“已复现模型”。
+当前只保留 TrafficBots 的来源快照和 Flow 实际依赖的 nflows。
 
-## 防止目录再次失控
+## 目录登记与核查
 
 [`registry.json`](registry.json) 是机器可读的唯一清单，记录实现位置、论文、证据状态、
 评测工具和仓库顶层分类。每次增加外部基线或顶层方法目录都必须先更新它，并运行：

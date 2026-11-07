@@ -1,19 +1,19 @@
-# 数据与实验结果
+# 数据、模型资产与实验结果
 
-按研究组件集中保存数据、模型和实验结果；方法设计见[文档索引](../doc/README.md)，运行入口见对应代码目录，指标以原始报告为准。
+本目录按论文方法链组织材料。运行方法见对应源码目录，数值、实例身份和成本以各实验的原始报告为准。
 
 | 目录 | 内容 |
 | --- | --- |
-| [highd_shared_training_data/](highd_shared_training_data/README.md) | highD 场景条件、真实时序与 NPC 标定输入 |
-| [evt/](evt/README.md) | 自然片段、安全评分、EVT 模型与 2,964 条尾部事件 |
-| [flow/](flow/README.md) | 长尾 Flow；`natural/` 保存自然交通 Flow，分别使用独立权重和统计 |
-| [diffusion/](diffusion/README.md) | 软计划生成权重与 Test 重建评测 |
-| [hierarchical_world_model/](hierarchical_world_model/README.md) | 世界模型参数、桥接 Test、干预回放与 NPC 响应证据 |
-| [baselines/](baselines/README.md) | TrafficBots 与驾驶人模型的对照结果 |
-| [ads/](ads/README.md) | 当前 DP 安全增强版、搜索对照、全量修复与最终评价 |
+| [highd_shared_training_data/](highd_shared_training_data/README.md) | 场景条件、真实时序与 NPC 标定输入。 |
+| [evt/](evt/README.md) | 自然驾驶风险、EVT 拟合、完整尾部事件清单及诊断图。 |
+| [flow/](flow/README.md) | 长尾 Flow 和独立保存的自然 Flow。 |
+| [diffusion/](diffusion/README.md) | 软计划生成资产与 Test 重建评价。 |
+| [hierarchical_world_model/](hierarchical_world_model/README.md) | 发布参数、桥接与 NPC 响应证据。 |
+| [baselines/](baselines/README.md) | 外部交通世界和驾驶人模型的对照报告。 |
+| [ads/](ads/README.md) | 当前 DP 安全增强版、搜索对照、修复和最终生成评价。 |
 
-highD 按录像分为 42／9／9 段 Train／Val／Test，对应 72,771／13,133／10,151 个片段。长尾 Flow 使用全部 2,964 条 EVT 尾部事件；自然 Flow 使用 Train＋Val 的 85,904 个自然片段，不做 EVT 筛选。两者供不同生成分布使用，不能互换检查点。
+highD 按录像分为 Train／Val／Test。长尾 Flow 使用全部 2,964 个尾部事件，自然 Flow 使用 Train＋Val 的全部 85,904 个自然片段。共享数据、模型与正式运行的实例仍被执行器、训练材料或配对统计引用，应保留其内容和身份。
 
-ADS 源码、配置、冻结源码、紧凑报告及原生交付元数据纳入 Git；大型逐例数据、训练日志、学习状态和模型权重保留在磁盘，不纳入 Git。正式运行通过目录链接访问 DATA 盘，模型实体位于 DATA 的 `FITWMAMS_models/`。实验版本与目录对应关系见 [ADS 结果说明](ads/README.md)。
+`ads/runs/` 通过目录链接访问 `/media/hp/DATA/nuplan_workspace/FITWMAMS_results/`；权重集中在同级 `FITWMAMS_models/`。这里的结果属于本工程，nuPlan 城市闭环结果另存目标工作区的 `exp/`。
 
-当前交付为 Diffusion Planner Safety Enhanced，已淘汰候选不再续跑。研究状态见[修复安全分析](../doc/repair_safety_analysis.md)。
+源码、配置、必要图件和 `ads/reports/` 等紧凑报告纳入 Git；模型字节、大型数组和逐例运行材料按 `.gitignore` 保留在磁盘。Git 中的链接只记录目标路径。过时进度记录、已被最终报告替代的试跑检查和废弃协议输出不保留。

@@ -20,10 +20,9 @@ python process_highD/scripts/fit_evt.py
 python normalizing_flow/scripts/prepare.py
 python process_highD/scripts/prepare_highd_sequences.py
 python process_highD/scripts/build_event_bank.py
-python process_highD/scripts/build_manifests.py
 ```
 
-依次完成片段抽取、EVT 拟合、共享场景条件、时序缓存、事件库及实验清单。Flow 的 `prepare.py` 只准备条件数据；时序缓存依赖它。已有缓存直接复用，需要重建时为 `prepare_highd_sequences.py` 添加 `--rebuild`。
+依次完成片段抽取、EVT 拟合、共享场景条件、时序缓存及事件库。事件库同时导出完整尾部清单 `manifests/evt_tail_all.csv`，不再产生旧版 90／500 场景抽样清单。Flow 的 `prepare.py` 只准备条件数据；时序缓存依赖它。已有缓存直接复用，需要重建时为 `prepare_highd_sequences.py` 添加 `--rebuild`。
 
 生成原始轨迹 GIF：`python process_highD/scripts/play_highd_natural_events.py`。这类回放展示测量轨迹，桥接仿真回放由世界模型入口生成。
 
@@ -32,4 +31,4 @@ python process_highD/scripts/build_manifests.py
 - [results/evt/](../results/evt/README.md)：片段与风险数据、EVT 模型、事件清单、诊断图及原始轨迹 GIF。
 - [results/highd_shared_training_data/](../results/highd_shared_training_data/README.md)：场景条件、真实时序缓存及 NPC 训练数据。前两项按 `segment_id` 对齐。
 
-`src/` 保存预处理、风险、EVT 和绘制实现，`scripts/` 提供运行入口。下游模型由各自模块训练；事件库的小样本清单不替代完整 Test 评测。验证代码：`pytest -q process_highD/tests`。
+`src/` 保存预处理、风险、EVT 和绘制实现，`scripts/` 提供运行入口。下游模型由各自模块训练；完整尾部事件用于 Flow 拟合，模型评价另按各自协议选取实例。验证代码：`pytest -q process_highD/tests`。

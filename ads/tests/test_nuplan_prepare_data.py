@@ -15,7 +15,7 @@ def test_source_pool_respects_budget_and_separates_sessions(
     tmp_path, monkeypatch, budget_gib
 ):
     monkeypatch.setattr(prepare_data, "WORKSPACE", tmp_path)
-    manifest = tmp_path / "preparation/plan.json"
+    manifest = tmp_path / "data/nuplan-v1.1/manifests/plan.json"
     monkeypatch.setattr(prepare_data, "MANIFEST", manifest)
     parts = ("boston", "pittsburgh", "singapore", "vegas_1")
     monkeypatch.setattr(prepare_data, "ARCHIVES", parts)
@@ -34,7 +34,7 @@ def test_source_pool_respects_budget_and_separates_sessions(
             for index in range(20)
         ]
     splitter = tmp_path / (
-        "nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
+        "third_party/nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
     )
     splitter.parent.mkdir(parents=True)
     splitter.write_text(

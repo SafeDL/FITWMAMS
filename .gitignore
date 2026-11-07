@@ -80,12 +80,8 @@ wandb/
 mlruns/
 tensorboard/
 
-# Archives and shared training data; keep their documentation
-archive/**
-!archive/README.md
-!archive/retirement_summary.json
-!archive/retained_models/
-!archive/retained_models/provenance.json
+# Historical material stays on disk and is not versioned.
+/archive/
 
 # Large per-event/per-run outputs; keep reports, protocols and summary tables
 results/evt/natural_segments.csv

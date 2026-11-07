@@ -13,13 +13,7 @@ AR 项作用于 IDM 残差，不作用于原始历史加速度。校准与动作
 
 项目评测使用 highD 全量合格队列：251 对车辆、76,865 个 5 Hz 决策，来自 recording 25、26 和 36。最终部署诊断采用联合 Dynamic-AR empirical-Bayes MAP/Laplace 后验，并固定平稳的 MAP `rho`；这是可稳定复跑的工程近似，不冒充 NUTS 后验。
 
-5 s、64 futures、2,708 个 rolling origins 的结果如下：
-
-| 模型 | acceleration RMSE | speed RMSE | gap RMSE | acceleration CRPS | speed CRPS | gap CRPS |
-|---|---:|---:|---:|---:|---:|---:|
-| AR(5) | 0.161 | 0.273 | 0.444 | 0.099 | 0.158 | 0.228 |
-
-在相同全量队列和协议下，AR(5) 相对 AR(0) 的三项 RMSE 分别改善 20.0%、16.0%、33.5%，三项 CRPS 分别改善 24.8%、28.5%、45.2%。该方向复现了论文“AR 随机记忆优于 IID 残差”的关键定性结论；绝对数值不能与论文 20-pair NUTS 结果直接等同。
+全量评价采用 5 秒预测窗和 64 次采样；当前部署结果与 AR(0) 对照分别保存在 `artifacts/full_evaluation/`。拟合协议和后验不同的模型应通过统一匹配评测比较。
 
 论文参考轨仍保留 20-pair 数据与 AR(0)/AR(5) 四链长程 NUTS 审计。两次长程拟合均无 divergence 且 BFMI 合格，但最大 rank-R-hat 为 2.840、最小 bulk ESS 为 4.59，未通过收敛门槛。其 AR(5) 均值 `rho=(.851, .594, -.087, -.316, -.081)` 接近论文表 1，但只能作为实现交叉核对，不能作为已收敛后验或部署结果。
 
@@ -76,4 +70,4 @@ pytest -q external_model_baselines/models/dynamic_ar_idm/tests
 
 `model.py::DynamicIDMDriver` 保留episode参数、最新在前的残差历史和外生创新；plant限幅不反写AR状态。AR(0)/AR(5) 重跑分别写入 `dynamic_ar0_full_posterior_stationarity.json` 和 `dynamic_ar5_full_posterior_stationarity.json`，不会再互相覆盖。本模块的同驾驶人评测不可与 out-of-fold MA-IDM 排名；共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
 
-论文主项目接入：`python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model dynamic_ar5`。接入层只部署平稳MAP rho；未收敛NUTS和非平稳Laplace抽样仍保留为审计证据。
+在线入口为 `model.py::DynamicIDMDriver`，用于本模型的自然滚动和配对响应检查。未收敛 NUTS 后验保留为拟合诊断，不用于发布仿真结果。

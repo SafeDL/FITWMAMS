@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build canonical normal/empirical/EVT event manifests."""
+"""Build the event bank and export the complete EVT tail-event manifest."""
 
 from __future__ import annotations
 

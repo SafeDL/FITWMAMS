@@ -67,7 +67,7 @@ manual_nuplan:
   automatic_evaluation: false
 capability_preserving_repair:
   retention_coefficient: 1.0
-  native_materials: /media/hp/DATA/nuplan_workspace/preparation/retention/carl/materials.json
+  native_materials: /media/hp/DATA/nuplan_workspace/data/nuplan-v1.1/retention/carl/materials.json
   keep_candidates: 512
   development_tail: 500
   development_natural: 500

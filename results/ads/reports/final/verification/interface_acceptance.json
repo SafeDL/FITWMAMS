@@ -1,8 +1,0 @@
-{
-  "full_interface_tests": 356,
-  "full_log_sha256": "957a639cc55e2ac436fdaa782e788e8ab8056800dd9e055d805e60eb440ec103",
-  "after_stable_ema_related_tests": 25,
-  "normalized_schedule_math_and_exact_resume_verified": true,
-  "test_counts_are_not_added": true,
-  "ruff_passed": true
-}

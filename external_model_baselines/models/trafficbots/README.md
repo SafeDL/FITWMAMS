@@ -1,58 +1,23 @@
-# TrafficBotsV1.5-HighD
+# TrafficBots V1.5 的 highD 适配
 
-This is the canonical implementation directory indexed with the other
-paper-derived baselines in [`external_model_baselines/`](../../README.md). Its only Python
-package is `external_model_baselines.models.trafficbots`.
+保留 TrafficBots 的相对位姿交互编码、CVAE、目的地条件和背景车动力学，适配本工程的共享 highD 缓存。六个背景车槽位均参与推理与统计，包括同车道后车。
 
-This is FITWMAMS's cache-only external TrafficBots V1.5 baseline.  It preserves
-the upstream HPTR/KNARPE, CVAE, destination conditioning and MultiPathPP
-background dynamics while adapting the data and evaluation protocol to highD.
+| 文件或目录 | 用途 |
+| --- | --- |
+| `data.py`、`module.py` | 共享缓存转换和训练模块。 |
+| `rollout.py`、`evaluation.py` | 因果滚动、随机预测和配对干预评价。 |
+| `upstream/` | 实际使用的上游网络与工具，来源见 [NOTICE.md](NOTICE.md)。 |
+| `config/highd.yaml` | 数据、训练与评价参数。 |
+| `scripts/` | 训练、评价和已完成结果核查入口。 |
 
-Evaluation uses the shared `highd_all_background` population scope. All six
-canonical background slots, including `same_rear`, remain valid for inference,
-simulation, metrics, risk, and visualization. No background vehicle is masked
-from the test scenes.
-
-Create the dedicated runtime from `requirements-trafficbots-highd.txt`; do not
-alter the project `tread` environment. Then run:
+使用现有 `tread` 环境，依赖版本见 `requirements-trafficbots-highd.txt`。
 
 ```bash
-python -m external_model_baselines.models.trafficbots.scripts.train --config external_model_baselines/models/trafficbots/config/highd.yaml
-python -m external_model_baselines.models.trafficbots.scripts.evaluate --config external_model_baselines/models/trafficbots/config/highd.yaml --checkpoint PATH
-```
-
-The evaluator refuses to produce a main report when logged-control ego replay
-fails the configured drift gate. It reports deterministic prior-mode, 16-sample
-causal prior, Oracle diagnostic and paired-CRN brake/accelerate/left results.
-
-Validate the completed baseline and run the matched causal comparison with:
-
-```bash
+conda activate tread
 python -m external_model_baselines.models.trafficbots.scripts.audit
 python -m external_model_baselines.models.trafficbots.scripts.verify_full
 ```
 
-The comparison command conditions both methods on the same logged S0 and test
-ordering. It samples the hierarchical model's long-horizon constraints from
-`p(K | C0, M)`; it never ranks the older held-out-future-K conditional
-reconstruction against TrafficBots' S0-only rollout.
+训练与评价分别使用 `scripts.train`、`scripts.evaluate`，后者通过 `--checkpoint` 指定权重。主要生成评价只读取当前状态，以因果先验采样；真实未来仅用于离线评价。完整场景后验重模拟单独报告。
 
-This is a method-faithful highD adaptation, not a bit-exact WOMD training
-external_model_baselines. `audit.json` records the mandatory runtime boundaries and the
-small released-wrapper differences that remain explicit.
-
-## Posterior scene-conditioned resimulation
-
-The independent ADS diagnostic below infers TrafficBots' posterior latent and
-reference destination once from the complete scene, freezes both values, and
-then runs nominal and ADS-braking branches from simulated online state. The
-paired branches never overwrite an online agent with its logged future state.
-It is intentionally labelled scene-conditioned posterior resimulation and is
-not interchangeable with the prior-only benchmark score.
-
-The old NPC-benchmark implementation has been removed. Use the current
-TrafficBots scripts above for the maintained paper baseline.
-
-The retained report is
-`results/baselines/trafficbots_highd/posterior_resimulation.json`.
-This is retained historical evidence, not a rerun after the cleanup.
+既有权重与报告位于 [results/baselines/trafficbots_highd](../../../results/baselines/trafficbots_highd/README.md)。旧评测的缓存顺序与当前共享数据不同，保留原实验身份，不直接将它当作当前场景顺序下的新评测。上游来源和改动范围见 NOTICE；本目录是 highD 适配版本。

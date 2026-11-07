@@ -36,7 +36,6 @@ def load_evt_context(config_path: Path) -> dict[str, Any]:
         "sequence_cache": sequence_cache,
         "output_dir": output_dir,
         "event_bank_dir": output_dir / "event_bank",
-        "manifest_dir": output_dir / "manifests",
     }
 
 

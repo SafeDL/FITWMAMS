@@ -81,9 +81,3 @@ event_grouping:
 
 event_bank:
   seed: 20260926
-
-manifests:
-  validation_size_per_cohort: 90
-  test_size_per_cohort: 90
-  train_size_per_cohort: 500
-  seed: 20260926

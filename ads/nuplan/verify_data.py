@@ -12,7 +12,7 @@ import yaml
 
 from ads.nuplan.prepare_data import MANIFEST, WORKSPACE, session_id
 
-REPORT = WORKSPACE / "preparation/nuplan_train_verification.json"
+REPORT = WORKSPACE / "data/nuplan-v1.1/manifests/nuplan_train_verification.json"
 TABLES = {
     "log",
     "scene",
@@ -146,7 +146,7 @@ def native_readback(record):
 def verify():
     plan = json.loads(MANIFEST.read_text())
     splitter = WORKSPACE / (
-        "nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
+        "third_party/nuplan-devkit/nuplan/planning/script/config/common/splitter/nuplan.yaml"
     )
     if hashlib.sha256(splitter.read_bytes()).hexdigest() != plan["splitter_sha256"]:
         raise ValueError("Official split configuration changed since planning")

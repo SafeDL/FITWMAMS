@@ -24,7 +24,7 @@ evaluation:
   sequence_cache: results/highd_shared_training_data/highd_sequence_cache/sequence_cache
 run_kind: coverage_weighted_search_repair_bounded
 reuse_search: results/ads/runs/search/search
-native_materials: /media/hp/DATA/nuplan_workspace/preparation/retention/diffusion_planner_full/materials.json
+native_materials: /media/hp/DATA/nuplan_workspace/data/nuplan-v1.1/retention/diffusion_planner/materials.json
 repair:
   batch_size: 128
   quotas:

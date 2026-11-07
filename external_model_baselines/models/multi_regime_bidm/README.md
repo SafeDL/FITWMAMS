@@ -1,4 +1,4 @@
-# Multi-regime B-IDM：highD documented adaptation
+# Multi-regime B-IDM 的 highD 适配
 
 本目录实现 Wu et al. (2025) 的多机制随机跟驰框架。当前实现保留论文的三层结构：
 
@@ -12,12 +12,7 @@
 
 最终协议固定 recording 25 为训练集，recording 26/36 为留出集；测试 style 只读取已完成的 5 s 前缀，未来 regime 只使用模拟状态更新。车辆以 25 Hz 推进，驾驶动作每 0.2 s 更新一次。
 
-| 模型 | position RMSE (m) | speed RMSE (m/s) | acceleration CRPS (m/s²) | 90% position coverage |
-|---|---:|---:|---:|---:|
-| independently fitted pooled B-IDM | 0.66904 | 0.52847 | 0.19026 | 0.3696 |
-| filtered multi-regime B-IDM | **0.62962** | **0.49455** | **0.18161** | 0.4044 |
-
-在相同style数据、NUTS预算和配对创新下，多机制模型的点预测与CRPS优于独立拟合的pooled B-IDM，复现了论文的定性方向；但90%位置区间覆盖率仅40.44%，仍严重欠覆盖，因此当前结论保持 `rejected_not_well_calibrated`，不得接入世界模型。原文HDP-HSMM的分布表述歧义仍未解决，本实现只能称 documented adaptation。
+留出结果保存在 `evidence/heldout/recording_heldout_metrics.json`。该适配的区间覆盖不足，当前注册状态为 `rejected_for_deployment`，保留实现与拟合证据供诊断，不作为发布世界模型的驾驶人。
 
 ## 证据目录
 
@@ -44,5 +39,4 @@ python -m external_model_baselines.models.multi_regime_bidm.scripts.visualize_re
 
 `src/driver.py::MultiRegimeIDMDriver` 明确分开 `observe` 与 `decision`：prefix初始化后只用已实现状态更新过滤器，episode内保留联合regime参数。这个小队列留出诊断只与独立拟合且共享创新的pooled baseline比较；共同的模型范围与证据边界见 [`external_model_baselines/README.md`](../../README.md) 和 [`registry.json`](../../registry.json)。
 
-该driver已接入论文主项目，但由于欠覆盖默认被注册表拒绝。研究诊断必须显式执行：
-`python -m hierarchical_world_model.scripts.stochastic_drivers rollout --model multi_regime --style-id 1 --allow-unaccepted`。
+`MultiRegimeIDMDriver` 用于独立匹配评测和配对响应诊断；当前区间校准未通过，不替代已发布世界模型的 NPC。

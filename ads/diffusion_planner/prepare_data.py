@@ -18,11 +18,11 @@ from ads.common.reporting import write_json
 from ads.nuplan.prepare_data import SEED, WORKSPACE, session_id
 from ads.nuplan.verify_data import REPORT
 
-ROOT = WORKSPACE / "preparation/retention"
+ROOT = WORKSPACE / "data/nuplan-v1.1/retention"
 MANIFEST = ROOT / "scenes.json"
 COUNTS = {"replay": 2000, "development": 200}
-FULL_ROOT = ROOT / "diffusion_planner_full"
-FULL_REPORT = FULL_ROOT / "materials.json"
+MATERIAL_ROOT = ROOT / "diffusion_planner"
+MATERIAL_REPORT = MATERIAL_ROOT / "materials.json"
 CONFIG = Path(__file__).resolve().parent / "artifacts/args.json"
 
 
@@ -150,7 +150,7 @@ def encode_scene(row, directory=None):
         DataProcessor,
     )
 
-    directory = Path(directory or FULL_ROOT) / row["purpose"]
+    directory = Path(directory or MATERIAL_ROOT) / row["purpose"]
     directory.mkdir(parents=True, exist_ok=True)
     identity = json_hash([row["log"], row["token"]])
     path = directory / (identity + ".npz")
@@ -215,33 +215,21 @@ def all_candidates(manifest):
 def prepare(workers=4):
     manifest = select_scenes()
     candidates = all_candidates(manifest)
-    FULL_ROOT.mkdir(parents=True, exist_ok=True)
+    MATERIAL_ROOT.mkdir(parents=True, exist_ok=True)
     identity = {
         "manifest_sha256": file_hash(MANIFEST),
         "model_config_sha256": file_hash(CONFIG),
     }
-    identity_path = FULL_ROOT / "identity.json"
+    identity_path = MATERIAL_ROOT / "identity.json"
     if identity_path.exists() and json.loads(identity_path.read_text()) != identity:
         raise ValueError("Native source or official feature configuration changed")
     write_json(identity_path, identity)
-    outcomes_path = FULL_ROOT / "outcomes.jsonl"
+    outcomes_path = MATERIAL_ROOT / "outcomes.jsonl"
     outcomes = {}
     if outcomes_path.exists():
         for line in outcomes_path.read_text().splitlines():
             result = json.loads(line)
             outcomes[result["scene_id"]] = result
-    previous_path = ROOT / "diffusion_planner/materials.json"
-    if previous_path.exists():
-        previous = json.loads(previous_path.read_text())
-        if any(previous[key] != value for key, value in identity.items()):
-            raise ValueError(
-                "Existing native features use another source/configuration"
-            )
-        for result in previous["excluded"] + [
-            row for rows in previous["scenes"].values() for row in rows
-        ]:
-            if "path" not in result or file_hash(result["path"]) == result["sha256"]:
-                outcomes.setdefault(result["scene_id"], result)
     completed = {purpose: [] for purpose in COUNTS}
     excluded = []
     pending = [
@@ -259,7 +247,7 @@ def prepare(workers=4):
     ):
         for index, result in enumerate(
             executor.map(
-                partial(encode_scene, directory=FULL_ROOT), pending, chunksize=1
+                partial(encode_scene, directory=MATERIAL_ROOT), pending, chunksize=1
             ),
             1,
         ):
@@ -297,12 +285,12 @@ def prepare(workers=4):
         "excluded": excluded,
         "nuplan_simulation_performed": False,
     }
-    write_json(FULL_REPORT, report)
-    print(f"Native material preparation complete: {FULL_REPORT}", flush=True)
+    write_json(MATERIAL_REPORT, report)
+    print(f"Native material preparation complete: {MATERIAL_REPORT}", flush=True)
     return report
 
 
-def load_training_samples(report_path=FULL_REPORT, *, purpose="replay"):
+def load_training_samples(report_path=MATERIAL_REPORT, *, purpose="replay"):
     report = json.loads(Path(report_path).read_text())
     if (
         report["status"] != "passed"
